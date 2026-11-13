@@ -348,13 +348,27 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await h.p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
     await h.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(h.p);
+    // (1.362.1, L12 ; docs/leger.md) La première ouverture n'emporte pas la feuille du fil (messagerie-fil.css) : elle part
+    // avec messagerie.js, à la première conversation.
+    const fil = 'link[href*="plateforme/messagerie-fil.css"]';
+    expect(await h.p.evaluate(() => performance.getEntriesByType('resource').filter((e) => e.name.includes('/plateforme/messagerie-fil.css')).length)).toBe(0);
+    expect(await h.p.locator(fil).count()).toBe(0);
     await h.p.context().setOffline(true);
     await h.p.evaluate(() => { location.hash = '#/comptable'; });
     await expect.poll(() => h.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('Pas de réseau : la messagerie attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
     expect(await h.p.locator('.msg-page h1').innerText()).toBe('Mon comptable');
+    // La page de secours garde sa mise en page sans la feuille du fil, restée sur le serveur : ses règles sont dans
+    // messagerie.css, qui part avec la page.
+    expect(await h.p.locator(fil).count()).toBe(0);
+    expect(await h.p.locator('[data-msg-echec]').evaluate((e) => [getComputedStyle(e).display, getComputedStyle(e).paddingTop])).toEqual(['flex', '28px']);
     await h.p.context().setOffline(false);
     await h.p.locator('[data-msg-fil]').waitFor({ timeout: 8_000 });
+    // Le réseau revenu, la conversation arrive avec sa feuille, posée une fois, juste après messagerie.css : ses règles
+    // gardent leur place dans la cascade.
+    expect(await h.p.locator(fil).count()).toBe(1);
+    expect(await h.p.evaluate((sel) => { const l = document.querySelector(sel)?.previousElementSibling; return l instanceof HTMLLinkElement ? new URL(l.href).pathname : null; }, fil)).toBe('/plateforme/messagerie.css');
+    expect(await h.p.locator('[data-msg-fil]').evaluate((e) => [getComputedStyle(e).flexDirection, getComputedStyle(e).gap])).toEqual(['column', '18px']);
     // La messagerie maintenant chargée, le réseau retombe : c'est elle qui le dit, avec les mêmes mots (et non « La
     // messagerie ne s'est pas ouverte »). Plus haut, la page ne l'avait pas encore chargée : c'est son écran de secours
     // qui parlait, et rien ne voyait celui de la messagerie.

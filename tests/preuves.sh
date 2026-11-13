@@ -19131,7 +19131,7 @@ prouver 'les flèches du clavier qui ne passent pas au client suivant' web/publi
   '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 # (1.181.0) La boîte va jusqu'au bas de l'écran par jusquEnBas (messagerie.js) ; la hauteur du CSS n'est plus que celle
 # d'avant le premier calage : le défaut retire les deux.
-prouver 'la boîte plus haute que l'\''écran' 'web/public/plateforme/messagerie.css|||web/public/plateforme/messagerie.css|||web/public/plateforme/messagerie.js' \
+prouver 'la boîte plus haute que l'\''écran' 'web/public/plateforme/messagerie-fil.css|||web/public/plateforme/messagerie-fil.css|||web/public/plateforme/messagerie.js' \
   '  height: calc(100dvh - var(--msg-haut-boite, 210px)); min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }|||      if (c) caler(el, () => jusquEnBas(c, 520));' '  min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }|||      if (c) void c;' \
   "$MW115"
 prouver 'la pièce du dossier choisie, mais pas envoyée' $MJ \
@@ -19150,7 +19150,7 @@ prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' modules/so
   "$MSGW"
 # (1.181.0) Au téléphone, la zone tient sa hauteur par trois endroits (messagerie.css, la barre des deux applications dans
 # barre.css, et jusquEnBas) : le défaut les retire tous, la zone suit alors la longueur de la conversation.
-prouver 'au téléphone, « Envoyer » sous l'\''écran' 'web/public/plateforme/messagerie.css|||web/public/plateforme/barre.css|||web/public/plateforme/messagerie.js' \
+prouver 'au téléphone, « Envoyer » sous l'\''écran' 'web/public/plateforme/messagerie-fil.css|||web/public/plateforme/barre.css|||web/public/plateforme/messagerie.js' \
   '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }|||  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
 |||        if (zone) caler(el, () => jusquEnBas(zone, window.innerWidth < 760 ? 320 : 440));' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }||||||        if (zone) void zone;' \
   "$MSGW"
@@ -21362,7 +21362,7 @@ prouver 'messages 26 : les notes de l'"'"'équipe introuvables depuis le menu' w
 prouver 'messages 27 : les pages de Mon cabinet plafonnées et centrées' web/public/plateforme/barre-cabinet.css \
   "width: 100%; max-width: none; margin-inline: 0;" "width: 100%; max-width: 1600px; margin-inline: auto;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
-prouver 'messages 28 : le menu de la page chevauche ses entrées' web/public/plateforme/messagerie.css \
+prouver 'messages 28 : le menu de la page chevauche ses entrées' web/public/plateforme/messagerie-fil.css \
   ".msg-page-m-t { display: flex; flex-direction: column;" ".msg-page-m-t { display: flex; flex-direction: row;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
 prouver 'messages 32 : le menu de la page sans ses icônes' modules/socle/ecrans/cabinet/app-1.js \
@@ -21389,10 +21389,10 @@ prouver 'messages 38 : un dossier tenu au cabinet se voit proposer la messagerie
 prouver 'messages 39 : la promesse proposée oublie la pièce dont parle le client' web/public/plateforme/messagerie.js \
   "value=\"\${esc(quoiPromis)}\" data-msg-pp-quoi>" "value=\"ses pièces \${esc(deMot(moisDavant()))}\" data-msg-pp-quoi>" \
   '(1.184.0) la promesse nomme la pièce demandée'
-prouver 'messages 40 : « Choisir… » ne montre pas la date qu'\''on tape' web/public/plateforme/messagerie.css \
+prouver 'messages 40 : « Choisir… » ne montre pas la date qu'\''on tape' web/public/plateforme/messagerie-fil.css \
   "  opacity: 1; width: auto; min-width: 116px;" "  opacity: 0; width: auto; min-width: 116px;" \
   '(1.184.0) la promesse nomme la pièce demandée'
-prouver 'messages 29 : la pièce demandée sur deux étages' web/public/plateforme/messagerie.css \
+prouver 'messages 29 : la pièce demandée sur deux étages' web/public/plateforme/messagerie-fil.css \
   ".msg-frise-d li { flex-direction: row; align-items: baseline;" ".msg-frise-d li { flex-direction: column; align-items: baseline;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
 prouver 'messages 30 : les modèles sans ce que lira le client' web/public/plateforme/messagerie.js \
@@ -26642,10 +26642,10 @@ prouver 'mon comptable 1.326.0 c : « Inviter mon comptable » reste à côté d
 prouver 'mon comptable 1.326.0 d : le refus « choisis d'\''abord la pièce » ne montre pas le bouton qui la choisit' web/public/plateforme/messagerie.js \
   "if (c) { c.classList.add('msg-manque'); c.focus(); }" '' \
   "$MC"
-prouver 'mon comptable 1.326.0 e : « Ce que ton cabinet a rangé » garde ses puces et colle la date au titre' web/public/plateforme/messagerie.css \
+prouver 'mon comptable 1.326.0 e : « Ce que ton cabinet a rangé » garde ses puces et colle la date au titre' web/public/plateforme/messagerie-fil.css \
   '.msg-range-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }' '' \
   "$MC"
-prouver 'mon comptable 1.326.0 f : au doigt, le menu d'\''une vignette fait 20 points' web/public/plateforme/messagerie.css \
+prouver 'mon comptable 1.326.0 f : au doigt, le menu d'\''une vignette fait 20 points' web/public/plateforme/messagerie-fil.css \
   '  .msg-page .msg-vig-b { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }' '' \
   "$MC"
 prouver 'mon comptable 1.326.0 g : les gestes de la zone d'\''écriture redeviennent un texte, lu comme une phrase écrasée au téléphone' web/public/plateforme/messagerie.js \
@@ -29155,6 +29155,36 @@ prouver $'contrat 1.362.0 w : l\'invite de l\'objet parle d\'un autre métier' m
   $'placeholder="Ce que couvre le contrat — {mois}"' \
   $'placeholder="Entretien des portes — {mois}"' \
   $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+# (1.362.1) Le rouge GitHub de 6739ccd : la bulle du taux qui se refermait sous les doigts, et la feuille du fil de la
+# messagerie qui part avec messagerie.js (L12, docs/leger.md).
+prouver $'rouge 1.362.1 a : la bulle du taux se referme quand son étiquette se redessine' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (bulleSur && !bulleSur.isConnected && bulleSur.dataset && bulleSur.dataset.etq && bulleReancrer) {' \
+  $'        if (false && bulleSur && !bulleSur.isConnected && bulleSur.dataset && bulleSur.dataset.etq && bulleReancrer) {' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'rouge 1.362.1 b : la bulle ne sait pas se rattacher à un nouveau bouton' modules/socle/ecrans/entreprise/app-1.js \
+  $'    bulleReancrer = reancrer;' \
+  $'    bulleReancrer = null;' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'rouge 1.362.1 c : la conversation se dessine sans la feuille du fil' web/public/plateforme/pont.js \
+  $'    }), feuille()]).then(([M]) => M,' \
+  $'    }), Promise.resolve(true)]).then(([M]) => M,' \
+  $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver $'rouge 1.362.1 d : la feuille du fil se pose à la fin de la page, hors de sa place dans la cascade' web/public/plateforme/pont.js \
+  $'      if (page) page.after(l); else document.head.appendChild(l);' \
+  $'      document.head.appendChild(l);' \
+  $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver $'rouge 1.362.1 e : la page sans réseau perd sa mise en page (ses règles parties avec le fil)' web/public/plateforme/messagerie.css \
+  $'.msg-vide { display: flex;' \
+  $'.msg-vide-fil { display: flex;' \
+  $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver $'rouge 1.362.1 f : la première ouverture emporte la feuille du fil (le poids)' web/public/v10/index.html \
+  $'  <link rel="stylesheet" href="../plateforme/messagerie.css">' \
+  $'  <link rel="stylesheet" href="../plateforme/messagerie.css"><link rel="stylesheet" href="../plateforme/messagerie-fil.css">' \
+  $'S1 et S2 : la première ouverture et la suivante, sur une connexion lente'
+prouver $'rouge 1.362.1 g : la première ouverture emporte la feuille du fil (la page)' web/public/v10/index.html \
+  $'  <link rel="stylesheet" href="../plateforme/messagerie.css">' \
+  $'  <link rel="stylesheet" href="../plateforme/messagerie.css"><link rel="stylesheet" href="../plateforme/messagerie-fil.css">' \
+  $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

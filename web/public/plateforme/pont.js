@@ -133,13 +133,28 @@
   const laMessagerie = () => {
     const w = /** @type {any} */ (window);
     if (w.SkanMessagerie) return Promise.resolve(w.SkanMessagerie);
-    return messagerieChargee || (messagerieChargee = new Promise((ok, ko) => {
+    // (1.362.1, L12) Sa feuille du fil (messagerie-fil.css, coupée de messagerie.css) part avec elle : la conversation ne
+    // se dessine qu'une fois les deux là. Elle se pose juste après messagerie.css, à la place qu'avaient ses règles.
+    const feuille = () => new Promise((ok, ko) => {
+      const chemin = (/** @type {string} */ u) => new URL(u, document.baseURI).pathname;
+      const fil = new URL('../plateforme/messagerie-fil.css', document.baseURI);
+      const deja = /** @type {HTMLLinkElement | undefined} */ ([...document.querySelectorAll('link[rel="stylesheet"]')].find((x) => chemin(/** @type {HTMLLinkElement} */ (x).href) === fil.pathname));
+      if (deja && deja.sheet) { ok(true); return; }
+      const l = document.createElement('link');
+      l.rel = 'stylesheet';
+      l.href = fil.href;
+      l.onload = () => ok(true);
+      l.onerror = () => { l.remove(); ko(new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.')); };
+      const page = [...document.querySelectorAll('link[rel="stylesheet"]')].find((x) => chemin(/** @type {HTMLLinkElement} */ (x).href) === chemin('../plateforme/messagerie.css'));
+      if (page) page.after(l); else document.head.appendChild(l);
+    });
+    return messagerieChargee || (messagerieChargee = Promise.all([new Promise((ok, ko) => {
       const s = document.createElement('script');
       s.src = new URL('../plateforme/messagerie.js', document.baseURI).href;
       s.onload = () => ok(w.SkanMessagerie);
-      s.onerror = () => { messagerieChargee = null; s.remove(); ko(new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.')); };
+      s.onerror = () => { s.remove(); ko(new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.')); };
       document.head.appendChild(s);
-    }));
+    }), feuille()]).then(([M]) => M, (e) => { messagerieChargee = null; throw e; }));
   };
 
   // (1.358.1, rouge GitHub de d5b77f0) Un envoi en route survit à la page qu'on ferme ou qu'on recharge. « Enregistré » se dit

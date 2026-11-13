@@ -112,7 +112,11 @@ describe('une vente en euros à l\'export, réglée à un autre taux (1.360.1)',
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture/client/c1`);
     await p.getByRole('button', { name: 'Indiquer le taux', exact: true }).click();
     await p.keyboard.type('3,412');
-    await p.locator('#pop-export').check();
+    // (1.362.1, rouge GitHub de 6739ccd) Le taux tapé redessine l'étiquette : la bulle suit son nouveau bouton, et la page qui
+    // défile (le bandeau « le taux manque » disparu) ne la referme pas sous les doigts.
+    await p.evaluate(() => document.dispatchEvent(new Event('scroll')));
+    expect(await p.locator('[data-etq=devise]').getAttribute('aria-expanded')).toBe('true');
+    await p.locator('#pop-export').check({ timeout: 5_000 });
     await p.keyboard.press('Escape');
     await p.locator('#ed-ajout').fill('Plateaux de petits-fours, salon de Lyon');
     await p.locator('[data-aj-libre]').click();

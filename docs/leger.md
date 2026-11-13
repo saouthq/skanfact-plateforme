@@ -214,6 +214,24 @@ le plus petit levier gardé en réserve, celui dont les lecteurs se comptent sur
 - **La marge n'est plus que de 5 Ko** : la prochaine version qui ajoute du code au premier écran se mesure avant d'être
   envoyée, et le levier suivant est déjà choisi (la messagerie, ci-dessous).
 
+## L12 : la feuille du fil de la messagerie, avec messagerie.js (13/11/2026, 1.362.1)
+
+GitHub a mesuré S1 à **1 301 Ko** sur la 1.360.1, et la 1.361.0 et la 1.362.0 ajoutent encore du code au premier écran :
+**1 302 Ko** mesurés avant l'envoi. On prend le levier choisi après L11, coupé en deux comme prévu :
+
+- **`plateforme/messagerie-fil.css`** porte les règles `msg-*` de la conversation, de la boîte des messages et de leurs
+  fenêtres (728 règles sur 824). Elle part avec `messagerie.js`, à la première conversation : `laMessagerie` (pont.js)
+  attend les deux, et la pose juste après `messagerie.css`, à la place qu'avaient ses règles dans la cascade. Sans
+  réseau, aucun des deux ne vient, et la page de secours le dit.
+- **`plateforme/messagerie.css` reste** avec la page (12 Ko non compressés) : « Mon comptable » sans cabinet
+  (`cpt-*`), la page de secours sans réseau (`msg-page`, `msg-tete`, `msg-zone`, `msg-vide`), les polices du titre et les
+  couleurs du sombre. La coupe garde l'ordre : les règles de chaque feuille sont dans l'ordre d'avant, et un contrôle a
+  cherché, pour chaque règle restée après une règle partie, une règle partie qui viserait le même élément avec la même
+  spécificité et la même propriété : aucune ne vise un élément que les deux familles partagent.
+- **Le Cabinet** charge les deux feuilles avec sa page (il charge aussi `messagerie.js` avec elle).
+- **Mesuré** : S1 **1 292 Ko en 14,3 s** (1 293 Ko avec la copie gardée ; 1 302 Ko avant) ; S2 7 Ko en 1,7 s.
+- **La marge est de 8 Ko** : la prochaine version qui ajoute du code au premier écran se mesure avant d'être envoyée.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
@@ -226,12 +244,9 @@ le plus petit levier gardé en réserve, celui dont les lecteurs se comptent sur
   la mesure se fait en HTTP/1.1, le cas le plus lent.
 - **Brotli 11 à la construction** : environ 8 % de moins encore (mesuré avant L6 : 80 Ko de S1, pour 7 s de calcul) ;
   quand on préparera la mise en production.
-- **En réserve après L11** : le code de la paie dans `app.js` (`modules/personnel/ecrans/entreprise/paie.js`, environ
+- **En réserve après L12** : le code de la paie dans `app.js` (`modules/personnel/ecrans/entreprise/paie.js`, environ
   5 500 lignes) à la première page du Personnel, le plus gros levier, qui demande de séparer `app.js` en morceaux chargés à
-  la demande ; la feuille de la messagerie (11 Ko), dont les règles `msg-*` (l'essentiel) ne servent qu'aux Messages,
-  mais dont les règles `cpt-*` servent à « Mon comptable » et à l'onglet TVA de la Comptabilité : à couper en deux
-  avant de la charger à la demande ; à vérifier un par un (leurs lecteurs) : `tiers/qrcode.js` (10 Ko, lu par
-  `compte.js` et `qr.js`). `teif.js` (8 Ko) reste : le contrôle d'émission le lit sans attendre (`controleTeif`).
+  la demande ; à vérifier un par un (leurs lecteurs) : `tiers/qrcode.js` (10 Ko, lu par `compte.js` et `qr.js`). `teif.js` (8 Ko) reste : le contrôle d'émission le lit sans attendre (`controleTeif`).
 
 ## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
 

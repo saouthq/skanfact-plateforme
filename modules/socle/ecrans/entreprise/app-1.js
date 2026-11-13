@@ -1895,6 +1895,10 @@
   // un clic ailleurs la referme ; un second clic sur son bouton aussi. Le bouton porte `data-pop` : cliqué, il n'est pas
   // « ailleurs ». `brancher(pop, fermer, placer)` pose les gestes de son contenu.
   let bulleSur = null;
+  // (1.362.1) Une étiquette qui se redessine pendant qu'on tape dans sa bulle (le taux change son libellé) remplace le
+  // bouton qui porte la bulle : `bulleReancrer` la rattache au nouveau bouton. Sans lui, le premier défilement trouvait
+  // l'ancre détachée et refermait la bulle sous les doigts, avec la case « export » dedans (rouge GitHub de 6739ccd).
+  let bulleReancrer = null;
   function ouvrirBulle(ancre, html, brancher, opts) {
     const o = opts || {};
     if (bulleSur === ancre && closeOverlay) { closeOverlay(); return null; }
@@ -1919,15 +1923,18 @@
       if (!pop.isConnected) return;
       pop.remove(); ancre.setAttribute('aria-expanded', 'false');
       if (bulleSur === ancre) bulleSur = null;
+      if (bulleReancrer === reancrer) bulleReancrer = null;
       if (closeOverlay === fermer) closeOverlay = null;
       document.removeEventListener('keydown', touche, true);
       document.removeEventListener('scroll', placer, true);
       window.removeEventListener('resize', placer);
       if (o.onClose) o.onClose();
     }
+    function reancrer(n) { ancre = n; bulleSur = n; n.setAttribute('aria-expanded', 'true'); placer(); }
     placer();
     ancre.setAttribute('aria-expanded', 'true');
     bulleSur = ancre;
+    bulleReancrer = reancrer;
     document.addEventListener('keydown', touche, true);
     document.addEventListener('scroll', placer, true);
     window.addEventListener('resize', placer);
@@ -9474,6 +9481,10 @@
         renduEtq = html;
         z.innerHTML = html;
         $$('[data-etq]', z).forEach(b => b.onclick = () => ouvrirEtiquette(b));
+        // (1.362.1) La bulle ouverte sur une étiquette suit son bouton redessiné, au lieu de se refermer au premier défilement.
+        if (bulleSur && !bulleSur.isConnected && bulleSur.dataset && bulleSur.dataset.etq && bulleReancrer) {
+          const n = $(`[data-etq="${bulleSur.dataset.etq}"]`, z); if (n) bulleReancrer(n);
+        }
       }
       const choix = (attr, v, libelle, sous, on) => `<button type="button" class="pop-o${on ? ' on' : ''}" ${attr}="${h(v)}"><span>${libelle}${sous ? `<small>${sous}</small>` : ''}</span>${on ? lfIc('coche', 15, 2.6) : ''}</button>`;
       function ouvrirEtiquette(b) {

@@ -129,7 +129,11 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     await expect.poll(() => p.locator('#p-sous .pa-etape[data-sous="bulletins"] .d').innerText().then(net), { timeout: 10_000 }).toBe('1 établi');
     expect(await pointer()).toBe('le mois est validé');
 
-    // 4. Rouverte, la Paie s'ouvre sur le mois du bulletin à payer, pas sur le mois en cours sans bulletin.
+    // 4. Rouverte, la Paie s'ouvre sur le mois du bulletin à payer, pas sur le mois en cours sans bulletin. « Rouverte » plus
+    // tard : le bulletin est au serveur avant. (1.362.1, rouge GitHub de 6739ccd) Rechargée dans la seconde de l'envoi, la
+    // page relisait le dossier pendant que l'envoi était encore en route, sans le bulletin.
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string }[])
+      .filter((o) => o.collection === 'payslips').length, { timeout: 15_000 }).toBe(1);
     await p.reload();
     await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
     await p.locator('#p-tabs [data-tab="bulletins"]').click();

@@ -3615,3 +3615,21 @@ les mêmes ventes. Ce qui était faux, et ce qui ne l'est plus :
   comprise ; l'export du contrat repris par chaque facture) et `tests/web/contrat-mensuel-1362.test.ts` (le contrat à
   l'export créé à la souris, la fenêtre qui défile avec la liste ouverte, la génération, le menu, l'échéance, l'origine,
   la fiche, la duplication, le Cabinet) ; vingt-trois preuves « contrat 1.362.0 ».
+
+### 1.362.1 : le rouge GitHub de la 1.360.1 (la bulle du taux, la paie rouverte trop tôt, le poids)
+
+- **La bulle du taux se refermait sous les doigts.** Sur une facture en devise, la bulle « Devise et taux » s'ouvre
+  depuis son étiquette. Taper le taux change le libellé de l'étiquette, qui se redessine : la bulle restait attachée à
+  l'ancien bouton, retiré de la page, et le premier défilement la refermait. Sur GitHub, la page bougeait (le bandeau
+  « le taux manque » disparaît) et la case « Vente à l'exportation » partait avec la bulle. La bulle suit maintenant le
+  nouveau bouton de son étiquette (le même geste rouvre et referme, comme avant).
+- **La paie rouverte avant que le bulletin soit au serveur.** Le test rechargeait la page dans la seconde où l'écran
+  disait « 1 établi » : la page relisait le dossier pendant que l'envoi était encore en route, sans le bulletin. Le test
+  attend maintenant le serveur avant de rouvrir, comme on rouvre la Paie plus tard. À VÉRIFIER : un rechargement dans
+  la même seconde peut encore montrer la page d'avant l'envoi, qui arrive juste après ; le relire une fois suffit.
+- **Le poids de la première ouverture** (1 302 Ko pour 1 300) : la feuille du fil de la messagerie part avec la
+  messagerie (L12, `docs/leger.md`). Mesuré : 1 292 Ko.
+- Tests : `tests/web/export-euros-1360-1.test.ts` (la bulle reste ouverte après le taux tapé et un défilement),
+  `tests/web/paie-1355.test.ts`, `tests/web/messagerie.test.ts` (la feuille du fil absente de la première ouverture,
+  la page sans réseau toujours en page, la feuille posée une fois, juste après `messagerie.css`), `tests/web/leger.test.ts` ;
+  sept preuves « rouge 1.362.1 », et sept preuves anciennes repointées vers `messagerie-fil.css`.
