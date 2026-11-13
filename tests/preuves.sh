@@ -27920,7 +27920,7 @@ prouver 'paie du Cabinet 1.355.6 k : le paiement de la part paie fait par le cli
   'const payeeClient = !payee ? paiementClientDe(s.livre, d.periode) : null;' 'const payeeClient = null;' \
   "$PS13556X"
 prouver 'paie du Cabinet 1.355.6 l : « Marquer payée » note aujourd'\''hui, pas le jour où le client a payé' 'modules/socle/ecrans/cabinet/app-1.js' \
-  'le: (quoi === '\''payee'\'' && (paiementClientDe(s.livre, s.decl.periode) || {}).date) || K.today()' 'le: K.today()' \
+  'le: (quoi === '\''payee'\'' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today()' 'le: K.today()' \
   "$PS13556X"
 
 PS13557A='le trimestre court encore : la retenue du mois déclarée suffit, sans elle l’étape attend'
@@ -28616,6 +28616,39 @@ prouver 'rouge 1.357.8 a : l'"'"'état El Fatoora d'"'"'une facture, arrivé apr
   'const f = friseIci(); const e = r && r[doc.id];' \
   'const f = $('"'"'#ed-frise'"'"'); const e = r && r[doc.id];' \
   'le devis respecte le seuil, l'"'"'acompte s'"'"'annonce comme il naîtra, et le message dit le montant de la facture'
+prouver 'tva-versee 1.357.9 a : deux versements de la TVA d'"'"'un mois ne comptent que le premier, et le reste à verser ment' modules/socle/moteur/core-2.js \
+  'return { montant: round3(mvts.reduce((s, m) => s + Math.abs(Number(m.amount) || 0), 0)), date:' \
+  'return { montant: round3(mvts.length ? Math.abs(Number(mvts[0].amount) || 0) : 0), date:' \
+  'la TVA payée par le cabinet sans versement noté, et le reste d'"'"'un versement partiel : ce que la page dit'
+prouver 'tva-versee 1.357.9 b : la composition du total s'"'"'écrit même quand les cases ne le refont pas' modules/socle/moteur/core-2.js \
+  'Math.abs(round3(parts.reduce((t, x) => t + x.montant, 0)) - aDecaisser) <= 0.0005 ? parts : null' \
+  'true ? parts : null' \
+  'la TVA payée par le cabinet sans versement noté, et le reste d'"'"'un versement partiel : ce que la page dit'
+prouver 'tva-versee 1.357.9 c : « Noter le paiement… » laisse la contrepartie au compte des impôts, pas à la TVA à payer' modules/socle/ecrans/entreprise/app-2.js \
+  'kind: '"'"'impot'"'"', compte: '"'"'4365'"'"', amount: parCabinet.resteAVerser' \
+  'kind: '"'"'impot'"'"', compte: '"'"''"'"', amount: parCabinet.resteAVerser' \
+  'Sarra verse la TVA d'"'"'octobre déclarée par Leila : le montant, le geste, le mouvement, l'"'"'écriture du cabinet et son étape'
+prouver 'tva-versee 1.357.9 d : au Cabinet, l'"'"'écriture de déclaration (journal OD) de même pièce compte comme un versement' modules/socle/ecrans/cabinet/app-1.js \
+  ' && e.statut !== '"'"'contrepassee'"'"' && (e.journal === '"'"'BQ'"'"' || e.journal === '"'"'CA'"'"'));' \
+  ' && e.statut !== '"'"'contrepassee'"'"');' \
+  'Sarra verse la TVA d'"'"'octobre déclarée par Leila : le montant, le geste, le mouvement, l'"'"'écriture du cabinet et son étape'
+prouver 'tva-versee 1.357.9 e : l'"'"'onglet TVA s'"'"'ouvre sur le mois en cours, vide, au lieu du mois qui se déclare' modules/socle/ecrans/entreprise/app-2.js \
+  'if (!comptaState.moisChoisi && year === C.today().slice(0, 4)' \
+  'if (false && !comptaState.moisChoisi && year === C.today().slice(0, 4)' \
+  'Sarra verse la TVA d'"'"'octobre déclarée par Leila : le montant, le geste, le mouvement, l'"'"'écriture du cabinet et son étape'
+prouver 'rouge 1.357.8 b : « Ranger dans une affaire » fait 15 points de haut au téléphone' web/public/plateforme/telephone.css \
+  '.lp-ligne .lien-fl { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }' \
+  '.lp-ligne .lien-fl { }' \
+  'les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'"'"'écran, et au doigt tout se touche'
+prouver 'L11 1.357.9 a : le mode caisse posé avant sa feuille efface les barres de la page d'"'"'attente' modules/socle/ecrans/entreprise/app-1.js \
+  "document.body.classList.toggle('mode-caisse', name === 'caisse' && !pageCachee(name) && feuillePrete(FEUILLE_CAISSE));" \
+  "document.body.classList.toggle('mode-caisse', name === 'caisse' && !pageCachee(name));" \
+  'la première ouverture n'"'"'emporte pas la feuille de la caisse ; la Caisse l'"'"'attend, le dit sans réseau en gardant ses barres, et s'"'"'ouvre au retour'
+prouver 'L11 1.357.9 b : la feuille de la caisse repart avec la page' web/public/v10/index.html \
+  '  <link rel="stylesheet" href="../plateforme/ecrans.css">' \
+  '  <link rel="stylesheet" href="../plateforme/caisse.css">
+  <link rel="stylesheet" href="../plateforme/ecrans.css">' \
+  'la première ouverture n'"'"'emporte pas la feuille de la caisse ; la Caisse l'"'"'attend, le dit sans réseau en gardant ses barres, et s'"'"'ouvre au retour'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

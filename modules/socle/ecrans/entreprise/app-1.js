@@ -777,6 +777,8 @@
   const feuillesPretes = new Set();
   const feuillesEnCours = new Map();
   const feuillePrete = chemin => feuillesPretes.has(chemin);
+  // (1.357.9, L11) La feuille de la caisse tactile, chargée à la première ouverture de la Caisse (`routes.caisse`).
+  const FEUILLE_CAISSE = '../plateforme/caisse.css';
   function chargerFeuille(chemin, apres) {
     if (feuillePrete(chemin)) return Promise.resolve(true);
     if (!feuillesEnCours.has(chemin)) feuillesEnCours.set(chemin, new Promise(ok => {
@@ -3584,8 +3586,10 @@
     if (guideNeuf) appelEnAttente = '';
     surveillerGuideMoi();
     // (plateforme, 05/10/2026) La caisse tactile prend tout l'écran : la barre de gauche s'efface (caisse.css). Une page
-    // que le rôle ne voit pas garde la barre, pour en sortir.
-    document.body.classList.toggle('mode-caisse', name === 'caisse' && !pageCachee(name));
+    // que le rôle ne voit pas garde la barre, pour en sortir. (1.357.9, L11) Tant que la feuille de la caisse n'est pas là
+    // (« Un instant… », ou sans réseau), la barre reste aussi : sans elle, le mode caisse effacerait la barre du téléphone
+    // et laisserait la page d'attente sans sortie.
+    document.body.classList.toggle('mode-caisse', name === 'caisse' && !pageCachee(name) && feuillePrete(FEUILLE_CAISSE));
     let active = name;
     if (name === 'doc') {
       const type = parts[1] === 'new' ? parts[2] : (docById(parts[1]) || {}).type;
@@ -15140,6 +15144,7 @@
   const comptaState = {
     tab: 'ventes',
     year: C.today().slice(0, 4), month: C.today().slice(5, 7),
+    moisChoisi: false,                     // (1.357.9) un mois choisi à la main : l'onglet TVA ne le déplace plus
     q: '',                                 // recherche, commune aux journaux de la page
     journal: { sort: null, page: 1 },      // journal des ventes
     pays: { sort: null, page: 1 },         // encaissements

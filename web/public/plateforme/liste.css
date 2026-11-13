@@ -978,6 +978,8 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg.cpt > .cf-carte > .cf-onglet > .stats { padding: 0; margin: 14px 0 0; border-top: 1px solid var(--sb-trait); border-bottom: 1px solid var(--sb-trait); }
 .lf.mg.cpt .panel > h2 { font-size: 15px; }
 .lf.mg.cpt .cpt-cab { display: flex; gap: 6px; align-items: flex-start; margin: 10px 0 0; color: var(--sb-doux-texte); }
+/* (1.357.9) Ce qui RESTE à verser n'a pas la teinte de ce qui est fait (« Déposée ») : l'encre du texte, l'ambre une fois la date passée. */
+.lf.mg.cpt .cpt-cab.cpt-a-verser { color: var(--sb-encre); }
 .lf.mg.cpt .cpt-cab.warn-text { color: var(--sb-ambre-texte); }
 .lf.mg.cpt .cpt-cab svg { flex: none; margin-top: 1px; }
 .lf.mg.cpt .cpt-cab .btn-lien { margin-inline-start: 4px; }

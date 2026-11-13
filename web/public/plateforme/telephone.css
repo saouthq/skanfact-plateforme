@@ -105,6 +105,11 @@
   /* Ce que la v10 dessinait pour la souris, à la taille du doigt. */
   .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }
   .help-link, .link-add { display: inline-flex; align-items: center; min-height: 44px; }
+  /* (1.357.9) Le lien d'une ligne du résumé (« Ranger dans une affaire », « Changer ») se touche au doigt : 15 points de haut
+     au téléphone, la sonde des cibles l'a dit sur l'achat (rouge GitHub de la 1.357.8). */
+  .lp-ligne .lien-fl { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; min-width: 44px; }
+  /* (1.357.9) « Voir le mouvement », « Lui écrire » sous la TVA du mois : des liens qu'on touche aussi au doigt. */
+  .cpt-cab .btn-lien { display: inline-flex; align-items: center; min-height: 44px; }
   .d-btn { width: 44px; height: 44px; inset-inline-end: 0; }
   .datefield .d-txt { padding-inline-end: 46px; }
   td.line-tools .btn { min-width: 44px; }

@@ -197,6 +197,23 @@ depuis L9 pour la paie, mais pas en entier :
 - Mesure fichier par fichier (Brotli de la construction) : `app.js` 527 Ko, `core.js` 135, `compta.js` 75, `pont.js` 35,
   `style.css` 22, `piece.css` 18, `barre.js` 15, `abonnement.js` 14.
 
+## L11 : la feuille de la caisse à la première ouverture de la Caisse (13/11/2026, 1.357.9)
+
+La 1.357.9 (payer la TVA déclarée) a fait passer S1 à **1 301 Ko** pour un seuil de 1 300, mesuré avant l'envoi. On prend
+le plus petit levier gardé en réserve, celui dont les lecteurs se comptent sur une main :
+
+- **`plateforme/caisse.css`** (5 Ko compressés) ne sert qu'à la page de la Caisse. Elle ne part plus avec la page :
+  `routes.caisse` l'attend (`attendreAvant`, la même porte que la Paie en L10 : « Un instant… », puis la page), et se
+  pose juste après `telephone.css`, à la place qu'elle avait dans la cascade. Le mode caisse (`body.mode-caisse`, qui
+  efface les barres) ne se pose qu'une fois la feuille là : la page d'attente garde ses barres, on peut en sortir. Sans réseau et jamais chargée, la Caisse
+  le dit (« La caisse n'est pas encore sur ce poste… ») et s'ouvre dès que le réseau revient ; une fois chargée, le
+  service des écrans la garde pour le hors-ligne (la caisse sert justement quand le réseau manque : la première
+  ouverture se fait en ligne, au premier jour).
+- **Mesuré** : S1 **1 295 Ko en 14,4 s** (1 295 Ko avec la copie gardée ; 1 301 Ko avant) ; S2 7 Ko en 1,7 s. Les quinze
+  tests qui ouvrent la Caisse passent tels quels.
+- **La marge n'est plus que de 5 Ko** : la prochaine version qui ajoute du code au premier écran se mesure avant d'être
+  envoyée, et le levier suivant est déjà choisi (la messagerie, ci-dessous).
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
@@ -209,10 +226,12 @@ depuis L9 pour la paie, mais pas en entier :
   la mesure se fait en HTTP/1.1, le cas le plus lent.
 - **Brotli 11 à la construction** : environ 8 % de moins encore (mesuré avant L6 : 80 Ko de S1, pour 7 s de calcul) ;
   quand on préparera la mise en production.
-- **En réserve après L10** : le code de la paie dans `app.js` (`modules/personnel/ecrans/entreprise/paie.js`, environ
+- **En réserve après L11** : le code de la paie dans `app.js` (`modules/personnel/ecrans/entreprise/paie.js`, environ
   5 500 lignes) à la première page du Personnel, le plus gros levier, qui demande de séparer `app.js` en morceaux chargés à
-  la demande ; la feuille de la messagerie (11 Ko), liée aussi à « Mon comptable » (`cpt-*`) ; à vérifier un par un
-  (leurs lecteurs) : `teif.js` (8 Ko), `tiers/qrcode.js` (10 Ko, lu par `compte.js` et `qr.js`), `caisse.css` (5 Ko).
+  la demande ; la feuille de la messagerie (11 Ko), dont les règles `msg-*` (l'essentiel) ne servent qu'aux Messages,
+  mais dont les règles `cpt-*` servent à « Mon comptable » et à l'onglet TVA de la Comptabilité : à couper en deux
+  avant de la charger à la demande ; à vérifier un par un (leurs lecteurs) : `tiers/qrcode.js` (10 Ko, lu par
+  `compte.js` et `qr.js`). `teif.js` (8 Ko) reste : le contrôle d'émission le lit sans attendre (`controleTeif`).
 
 ## Ce que fait la brique 119 : relire le dossier par différence (S4, 01/10/2026)
 

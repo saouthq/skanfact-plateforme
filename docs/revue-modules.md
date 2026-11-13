@@ -3252,3 +3252,40 @@ ce qui restait différent de la vente, cette version l'aligne, et le joue à la 
   la sienne — le garde `isConnected` ne protégeait rien, la frise trouvée était déjà celle de la page d'arrivée (règle 10.5.0 :
   une réponse en retard ne repeint pas l'écran qu'on a quitté). La frise de la page se garde par son hôte. Le test retarde
   désormais la réponse El Fatoora pour jouer ce cas à chaque fois.
+
+### 1.357.9 : payer à l'État la TVA que le cabinet a déclarée (bout en bout 17)
+
+Joué à la souris dans l'environnement de test : une pâtisserie confiée au Cabinet Jlassi, octobre déposé par Leila le 10/11,
+798,000 DT de TVA collectée, 351,500 de déductible, un timbre. Chez la gérante, la TVA d'octobre disait « Déposée par ton
+cabinet le 10/11/2026 » et rien d'autre : ni le montant à verser, ni la date limite, ni où noter le virement — elle payait à la
+recette des finances, et sa banque, dans SkanFact, ne le voyait jamais. Le cabinet, lui, n'avait que « Marquer payée » à
+pointer de mémoire.
+- **Ce que la déclaration fait verser, et avant quand** : « À verser au Trésor : 447,500 DT (446,500 DT de TVA + 1,000 DT de
+  timbres), avant le 28/11/2026 », sous « Déposée par ton cabinet ». Le montant est la case « total à décaisser » du cabinet
+  (TVA nette, timbres, retenues opérées ; la part paie se paie depuis la Paie, la ligne d'en dessous). Sa composition ne
+  s'écrit que quand les cases du cabinet la refont au millime : un total de 447,500 sous « TVA à reverser 446,500 » faisait
+  chercher le dinar qui manque. Une case vide ne réclame rien. La ligne garde l'encre du texte (l'ambre une fois la date
+  passée) : dans la teinte de « Déposée », on la croyait faite.
+- **« Noter le paiement… »** (le bouton principal, sauf quand une pièce a changé depuis le dépôt) ouvre le mouvement déjà
+  rempli : Impôts et taxes, contre le 4365 (la TVA à décaisser que l'écriture du mois a créditée), le reste à verser, « TVA
+  d'octobre 2026 », référence `TVA-2026-10`. Tout reste modifiable (le jour de la recette, le compte). La ligne dit ensuite
+  « Versée au Trésor le 12/11/2026 : 447,500 DT, depuis BIAT · Voir le mouvement » ; un versement en deux fois dit ce qui
+  reste ; payée d'après le cabinet sans rien de noté, elle propose de noter le paiement pour que la banque soit juste.
+- **Le pont** : le mouvement part au cabinet comme tout mouvement (D 4365 / C la banque, au brouillard du journal BQ), et
+  l'étape de la déclaration le dit : « Le client a versé la TVA du mois le 12/11/2026 : 447,500 DT — son versement attend au
+  brouillard de la banque » ; « Marquer payée » prend la date du DERNIER versement du client (la part paie, la TVA). Une
+  écriture de déclaration au journal OD porte la même pièce : seule une écriture de banque ou de caisse est un versement.
+- **Les échéances** : la table « Tes déclarations de TVA, chez ton cabinet » dit « 447,500 DT à verser » ou « versée le … », et
+  « Voir la TVA » mène au mois.
+- **L'onglet TVA s'ouvre sur le mois qui se déclare** (règle U-12) : le 13 novembre, il ouvrait novembre, vide (« Rien à
+  déclarer »), pendant qu'octobre — déposé, à payer avant le 28 — attendait plus bas dans le tableau. Tant qu'on n'a pas
+  choisi de mois, il ouvre le mois d'avant quand celui-ci a des chiffres ; un mois choisi à la main ne bouge jamais. Vu à la
+  souris, au premier clic.
+- **Rouge GitHub de d8fbe44 (1.357.8), réparé** : « Ranger dans une affaire » faisait 15 points de haut au téléphone (la sonde
+  des cibles, sur l'achat). Les liens des lignes du résumé, et ceux sous la TVA du mois, ont la taille du doigt.
+- **Le poids (L11, `docs/leger.md`)** : ce que la version ajoute faisait passer le premier écran à 1 301 Ko pour un seuil de
+  1 300. La feuille de la caisse ne part plus avec la page : la Caisse l'attend à sa première ouverture (« Un instant… »),
+  et la garde ensuite pour le hors-ligne. Mesuré : 1 295 Ko. La marge n'est plus que de 5 Ko, et le levier suivant est
+  choisi (la messagerie).
+- À VÉRIFIER avec le comptable : la date limite de paiement (celle du dépôt, réglable dans le calendrier fiscal) et la façon de
+  payer (recette des finances, télépaiement).

@@ -8262,6 +8262,13 @@
   function paiementClientDe(livre, periode) {
     return ((livre && livre.ecritures) || []).find(e => String(e.piece || '') === `DM-${periode}` && e.statut !== 'contrepassee') || null;
   }
+  // (1.357.9, bout en bout 17) Le versement de la TVA du mois noté par le client (Comptabilité → TVA, « Noter le paiement… ») :
+  // un mouvement de trésorerie de référence `TVA-AAAA-MM`, qui arrive au brouillard de SA banque. Les écritures de déclaration
+  // d'un client sur SkanFact portent la même pièce au journal OD : seule une écriture de banque ou de caisse est un versement.
+  // Un versement fait en deux fois en fait deux ; une contre-passée ne compte plus.
+  function versementsTvaClientDe(livre, periode) {
+    return ((livre && livre.ecritures) || []).filter(e => String(e.piece || '') === `TVA-${periode}` && e.statut !== 'contrepassee' && (e.journal === 'BQ' || e.journal === 'CA'));
+  }
 
   // L'en-tête d'un dossier suit ses écritures (1.82.0) : « 1 mois à valider » y restait après
   // avoir tout validé, jusqu'au rechargement de la page. On relit l'état, et la phrase se montre,
@@ -9109,6 +9116,12 @@
     // `DM-AAAA-MM` : l'étape le dit, et « Marquer payée » prend sa date — le Cabinet proposait de pointer payée, en vert, une
     // déclaration dont le paiement l'attendait déjà dans sa saisie.
     const payeeClient = !payee ? paiementClientDe(s.livre, d.periode) : null;
+    // (1.357.9, bout en bout 17) La TVA du mois versée par le client (sa Comptabilité, « Noter le paiement… ») : la même
+    // phrase que la part paie, avec le montant face à ce que la déclaration fait verser.
+    const versesTva = !payee ? versementsTvaClientDe(s.livre, d.periode) : [];
+    const montantVerse = KC.round3(versesTva.reduce((t, e) => t + (e.lignes || []).reduce((u, l) => u + (Number(l.debit) || 0), 0), 0));
+    const dernierVerse = versesTva.map(e => String(e.date || '')).sort().pop() || '';
+    const aDecaisserDecl = posee && posee.cases && posee.cases.aDecaisser !== null && posee.cases.aDecaisser !== undefined ? Number(String(posee.cases.aDecaisser).replace(',', '.')) : null;
     // 10.12.0 (U-11) — UN seul bouton principal, et c'est l'ÉTAPE SUIVANTE. « Préparer la
     // déclaration » vivait deux fois (en haut, neutre ; en bas, en vert), et une fois préparée, plus
     // rien ne disait ce qui venait après. Les quatre gestes du mois se lisent maintenant dans leur
@@ -9182,6 +9195,7 @@
           title="${!posee ? 'Prépare la déclaration d\'abord.' : !(posee.deposee && posee.deposee.le) && !(posee.payee && posee.payee.le) ? 'On ne paie pas ce qu\'on n\'a pas déposé.' : ''}">${
           payee ? fait(true) + 'Payée le ' + esc(fmtJour(posee.payee.le)) + ' — annuler' : 'Marquer payée'}</button>
       </div>
+      ${versesTva.length ? `<p class="small mt" id="dc-client-tva">${esc(prenomCl(dossier.contact) || 'Le client')} a versé la TVA du mois le ${esc(fmtJour(dernierVerse))} : ${esc(money(montantVerse))}${aDecaisserDecl !== null && Number.isFinite(aDecaisserDecl) && Math.abs(montantVerse - aDecaisserDecl) > 0.0005 ? ` pour ${esc(money(aDecaisserDecl))} à décaisser` : ''} — ${versesTva.some(e => e.statut === 'brouillard') ? 'son versement attend au brouillard de la banque' : 'son versement est validé'}. « Marquer payée » le note à cette date.</p>` : ''}
       ${payeeClient ? `<p class="small mt" id="dc-client-paye">${esc(prenomCl(dossier.contact) || 'Le client')} a payé la part paie le ${esc(fmtJour(payeeClient.date))} : ${esc(money(KC.round3((payeeClient.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0))))} — ${payeeClient.statut === 'brouillard' ? 'son paiement attend au brouillard de la banque' : 'son paiement est validé'}. « Marquer payée » le note à cette date.</p>` : ''}
       <p class="small muted mt">Ces chiffres se <b>recopient</b> sur le portail : SkanFact ne dépose rien et ne se connecte à aucune
       administration — « déposée » et « payée » sont des pense-bêtes, jamais un accusé de réception. L'écriture du mois
@@ -9357,7 +9371,9 @@
         try {
           const r = await api.pointerDeclaration({
             dossierId: dossier.id, annee: s.annee, periode: s.decl.periode, quoi,
-            valeur: actif ? null : { le: (quoi === 'payee' && (paiementClientDe(s.livre, s.decl.periode) || {}).date) || K.today() }
+            // (1.357.9) Payée à la date du DERNIER versement du client (la part paie, la TVA) : la déclaration est réglée quand
+            // tout ce qu'elle fait verser l'est.
+            valeur: actif ? null : { le: (quoi === 'payee' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today() }
           });
           s.livre = r.livre; s.cloture = null;
           toast(actif

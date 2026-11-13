@@ -1489,9 +1489,34 @@
           if (Math.abs(ecart) > 0.0005) ecarts.push({ cle, nom, declare: round3(declare), maintenant: round3(maintenant), ecart });
         });
       }
-      out.push({ periode, label: `${MONTHS_FR[i]} ${y}`, limite, deposee, preparee: !!d, retard: !deposee && limite < t, ecarts, collectee: m.collected, deductible: m.deductible });
+      // (1.357.9, bout en bout 17) Ce que la déclaration déposée fait VERSER (TVA nette + timbres + retenues opérées, la case
+      // « total à décaisser » du cabinet ; la part paie se paie depuis la Paie), et où en est ce versement : noté par
+      // l'entreprise (`paiementTvaDe`), sinon pointé payé par le cabinet. Une case vide reste `null` : on ne réclame pas un
+      // montant que personne n'a écrit.
+      const aDec = d ? lu(d.cases && d.cases.aDecaisser) : null;
+      const aDecaisser = aDec !== null && Number.isFinite(aDec) ? round3(aDec) : null;
+      const verse = paiementTvaDe(data, periode);
+      // De quoi ce total est fait, quand les cases du cabinet le refont au millime : « 95,000 de TVA + 1,000 de timbres » se lit
+      // sous « TVA à reverser 95,000 » ; un total de 96 sans sa composition fait chercher le dinar qui manque. Sinon, rien.
+      const parts = [['tva', lu(d && d.cases && d.cases.netAPayer)], ['timbres', lu(d && d.cases && d.cases.timbre)], ['retenues', lu(d && d.cases && d.cases.retenuesOperees)]]
+        .filter(([, v]) => v !== null && Number.isFinite(v) && Math.abs(v) > 0.0005).map(([k, v]) => ({ quoi: k, montant: round3(v) }));
+      const composition = aDecaisser !== null && parts.length && Math.abs(round3(parts.reduce((t, x) => t + x.montant, 0)) - aDecaisser) <= 0.0005 ? parts : null;
+      const payeeCabinet = d && d.payee && d.payee.le ? String(d.payee.le).slice(0, 10) : null;
+      out.push({
+        periode, label: `${MONTHS_FR[i]} ${y}`, limite, deposee, preparee: !!d, retard: !deposee && limite < t, ecarts, collectee: m.collected, deductible: m.deductible,
+        aDecaisser, composition, verse, payeeCabinet, resteAVerser: aDecaisser && deposee && !payeeCabinet ? Math.max(0, round3(aDecaisser - verse.montant)) : 0,
+      });
     });
     return out.reverse();
+  }
+
+  // (1.357.9, bout en bout 17) Le versement au Trésor de la TVA d'un mois, tel que l'entreprise l'a noté : les mouvements de
+  // trésorerie qui portent ce mois (`tvaPeriode`, posé par « Noter le paiement… » de la Comptabilité). Plusieurs versements
+  // s'additionnent (un reste payé plus tard) ; la date est celle du dernier. Rien noté : montant 0, aucun mouvement.
+  function paiementTvaDe(data, periode) {
+    const mvts = (data.movements || []).filter(m => m && m.tvaPeriode === periode && Number(m.amount) > 0)
+      .slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
+    return { montant: round3(mvts.reduce((s, m) => s + Math.abs(Number(m.amount) || 0), 0)), date: mvts.length ? mvts[mvts.length - 1].date : '', mouvements: mvts };
   }
 
   // Échéances fiscales récurrentes. Les dates et la périodicité dépendent du régime et de la forme
@@ -7727,7 +7752,7 @@
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
-    vatReturn, vatChain, declarationsDuCabinet, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
+    vatReturn, vatChain, declarationsDuCabinet, paiementTvaDe, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, interetsDeLEcheance, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, compteAvantDepart, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,

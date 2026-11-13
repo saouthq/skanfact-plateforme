@@ -1329,6 +1329,13 @@
     };
     if (s.tab === 'tickets') drawTickets(); else drawVendre();
   };
+  // (1.357.9, L11 ; docs/leger.md) La feuille de la caisse tactile (`plateforme/caisse.css`, toute sous `body.mode-caisse`,
+  // `.ct-*` et `.cs-*`) ne part plus avec la première ouverture : la caisse l'attend (« Un instant… », puis la caisse), une
+  // fois, à sa place dans la cascade (après celle du téléphone). Sans réseau et jamais chargée, la caisse le dit et
+  // s'ouvre seule au retour du réseau ; une fois chargée, le service des écrans la garde pour le hors-ligne.
+  const SANS_RESEAU_CAISSE = 'La caisse n\'est pas encore sur ce poste, et le réseau manque : elle s\'ouvre dès qu\'il revient.';
+  const pageCaisse = routes.caisse;
+  routes.caisse = parts => attendreAvant(() => feuillePrete(FEUILLE_CAISSE), () => chargerFeuille(FEUILLE_CAISSE, '../plateforme/telephone.css'), 'Caisse', SANS_RESEAU_CAISSE, pageCaisse)(parts);
 
   routes.stock = () => {
     const cur = company().currency;
@@ -5327,12 +5334,24 @@
     // ---------- onglet TVA : la soustraction qui manquait ----------
     function drawVat() {
       const year = comptaState.year;
+      const chain = C.vatChain(data, company(), year, 12);
+      // (1.357.9, bout en bout 17 ; règle U-12) La TVA d'un mois se déclare et se paie le mois SUIVANT : tant qu'on n'a pas choisi
+      // de mois, l'onglet s'ouvrait sur le mois en cours, vide le 13 novembre (« Rien à déclarer »), pendant que la TVA d'octobre
+      // — déposée par le cabinet, à verser avant le 28 — attendait trois écrans plus bas. Le mois en cours n'est pas terminé :
+      // l'onglet s'ouvre sur le mois d'avant quand celui-ci a des chiffres. Un mois choisi à la main ne bouge jamais.
+      const moisCourant = C.today().slice(5, 7);
+      if (!comptaState.moisChoisi && year === C.today().slice(0, 4) && comptaState.month === moisCourant && Number(moisCourant) > 1) {
+        const prec = chain[Number(moisCourant) - 2];
+        if (prec && (prec.collected || prec.deductible || prec.carryIn)) {
+          comptaState.month = String(Number(moisCourant) - 1).padStart(2, '0');
+          if ($('#c-month')) $('#c-month').value = comptaState.month;
+        }
+      }
       // La TVA se déclare par mois : le bloc du haut porte toujours sur UN mois. Sans mois choisi,
       // on prend le mois en cours si l'année affichée est l'année en cours, sinon décembre — et on le dit.
       const auto = !comptaState.month;
       const upTo = comptaState.month ? Number(comptaState.month)
         : (year === C.today().slice(0, 4) ? Number(C.today().slice(5, 7)) : 12);
-      const chain = C.vatChain(data, company(), year, 12);
       const cur1 = chain[upTo - 1] || null;
       const res = C.simpleResult(data, company(), period());
       // Le crédit avec lequel l'année commence (10.14.0) : CALCULÉ dès que SkanFact connaît l'année
@@ -5357,11 +5376,42 @@
       const parCabinet = lignesCabinet.find(x => x.periode === `${year}-${String(upTo).padStart(2, '0')}`) || null;
       const moisNom = `${MONTHS[upTo - 1]} ${year}`;
       const signe = n => `${n > 0 ? '+' : '−'} ${C.money(Math.abs(n), cur)}`;
+      // (1.357.9, bout en bout 17) Ce que la déclaration déposée fait VERSER au Trésor, et le geste qui le note. Octobre disait
+      // « Déposée par ton cabinet le 25/11 » et rien d'autre : ni le montant à payer, ni la date limite, ni où noter le
+      // virement — Sarra payait à la recette des finances, et sa banque, dans SkanFact, ne le voyait jamais. Le versement noté
+      // est un mouvement « Impôts et taxes » contre le 4365 (la TVA à décaisser que l'écriture du mois a créditée), qui part au
+      // cabinet comme tout mouvement ; la part paie, elle, se paie depuis la Paie (la ligne d'en dessous).
+      const ligneVersementTva = x => {
+        if (!x.aDecaisser) return '';
+        const v = x.verse, dernier = v.mouvements[v.mouvements.length - 1];
+        const compteDe = m => ((data.accounts || []).find(a => a.id === m.accountId) || {}).name || '';
+        const nomPart = { tva: 'de TVA', timbres: 'de timbres', retenues: 'de retenues à la source' };
+        const quoi = `<span class="small muted">(${x.composition
+          ? x.composition.map(c => `<span class="nw">${h(C.money(c.montant, cur))}</span> ${nomPart[c.quoi]}`).join(' + ')
+          : 'TVA nette, timbres et retenues'})</span>`;
+        const echeance = x.limite < C.today() ? `la date limite était le ${h(C.fmtDate(x.limite))}` : `avant le ${h(C.fmtDate(x.limite))}`;
+        const noter = (lib, principal) => `<button type="button" class="btn btn-sm${principal && !x.ecarts.length ? ' btn-primary' : ''}" id="vat-verser">${lib}</button>`;
+        if (v.montant && x.resteAVerser <= 0.0005) {
+          const cpt = compteDe(dernier);
+          return `<p class="small cpt-cab" id="vat-verse">${lfIc('coche', 15, 2.4)}<span>Versée au Trésor le ${h(C.fmtDate(v.date))} : <b class="nw">${h(C.money(v.montant, cur))}</b>${cpt ? `, depuis ${h(cpt)}` : ''}. ${info('compta.tvaVersee')}</span> <button type="button" class="btn-lien" id="vat-verse-voir">Voir le mouvement</button></p>`;
+        }
+        if (x.payeeCabinet && !v.montant) {
+          return `<p class="small cpt-cab" id="vat-verse">${lfIc('coche', 15, 2.4)}<span>Payée le ${h(C.fmtDate(x.payeeCabinet))}, d'après ton cabinet : <b class="nw">${h(C.money(x.aDecaisser, cur))}</b>. Ta trésorerie ne montre pas encore ce paiement : note-le pour que ton solde de banque soit juste. ${info('compta.tvaVersee')}</span></p>
+            <div class="inline mt">${noter('Noter le paiement…', false)}</div>`;
+        }
+        if (v.montant) {
+          return `<p class="small cpt-cab warn-text" id="vat-verse"><span>Versé le ${h(C.fmtDate(v.date))} : <b class="nw">${h(C.money(v.montant, cur))}</b> sur <span class="nw">${h(C.money(x.aDecaisser, cur))}</span> ${quoi} ; il reste <b class="nw">${h(C.money(x.resteAVerser, cur))}</b> à verser, ${echeance}. ${info('compta.tvaVersee')}</span></p>
+            <div class="inline mt">${noter('Noter le reste…', true)}<button type="button" class="btn-lien" id="vat-verse-voir">Voir le dernier versement</button></div>`;
+        }
+        return `<p class="small cpt-cab cpt-a-verser${x.limite < C.today() ? ' warn-text' : ''}" id="vat-verse"><span>À verser au Trésor : <b class="nw">${h(C.money(x.aDecaisser, cur))}</b> ${quoi}, ${echeance}. ${info('compta.tvaVersee')}</span></p>
+          <div class="inline mt">${noter('Noter le paiement…', true)}</div>`;
+      };
       const blocCabinet = !parCabinet ? '' : parCabinet.deposee
         ? `<p class="small cpt-cab" id="vat-cabinet">${lfIc('coche', 15, 2.4)}<span>Déposée par ton cabinet le ${h(C.fmtDate(parCabinet.deposee.le))}${parCabinet.deposee.reference ? ` (réf. ${h(parCabinet.deposee.reference)})` : ''}. ${info('compta.cabinetDecl')}</span></p>
           ${parCabinet.ecarts.length ? `<div class="warn-box cpt-ecart" id="vat-ecart"><p>${parCabinet.ecarts.map(e => `Tes pièces ${h(deMois(moisNom))} disent aujourd'hui une TVA ${e.nom} de <b class="nw">${h(C.money(e.maintenant, cur))}</b> ; ton cabinet en a déclaré <span class="nw">${h(C.money(e.declare, cur))}</span> (<span class="nw">${h(signe(e.ecart))}</span>).`).join(' ')}
             Une pièce arrivée après le dépôt se reprend sur une déclaration suivante : dis-le à ton cabinet. <em>À VÉRIFIER avec ton comptable.</em></p>
-            <div class="inline"><button class="btn btn-sm btn-primary" id="vat-ecart-dire">Le dire à mon comptable</button></div></div>` : ''}`
+            <div class="inline"><button class="btn btn-sm btn-primary" id="vat-ecart-dire">Le dire à mon comptable</button></div></div>` : ''}
+          ${ligneVersementTva(parCabinet)}`
         : messagerieVue.declarationsConfiees
           ? `<p class="small cpt-cab${parCabinet.retard ? ' warn-text' : ''}" id="vat-cabinet"><span>${parCabinet.retard ? `Ton cabinet ne l'a pas encore déposée : la date limite était le ${h(C.fmtDate(parCabinet.limite))}.` : `Ton cabinet ne l'a pas encore déposée : il a jusqu'au ${h(C.fmtDate(parCabinet.limite))}.`}</span> <button type="button" class="btn-lien" id="vat-cabinet-ecrire">Lui écrire</button></p>` : '';
       // (1.355.9) La même déclaration porte la part paie du mois (retenues et taxes sur les salaires) : octobre disait « Déposée
@@ -5447,12 +5497,25 @@
       // fallait retenir le mois, changer d'onglet, refaire le filtre. Les douze lignes du tableau
       // ouvrent maintenant leur propre mois, et deux boutons mènent au journal correspondant.
       const versOnglet = (tab, mois) => { comptaState.month = mois; comptaState.tab = tab; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab)); };
-      $$('#c-body tr[data-vm]').forEach(tr => tr.onclick = () => { comptaState.month = tr.dataset.vm; if ($('#c-month')) $('#c-month').value = tr.dataset.vm; draw(); });
+      $$('#c-body tr[data-vm]').forEach(tr => tr.onclick = () => { comptaState.month = tr.dataset.vm; comptaState.moisChoisi = true; if ($('#c-month')) $('#c-month').value = tr.dataset.vm; draw(); });
       if ($('#vat-ventes')) $('#vat-ventes').onclick = () => versOnglet('ventes', String(upTo).padStart(2, '0'));
       if ($('#vat-paie-voir')) $('#vat-paie-voir').onclick = () => pointMensuel.ouvrirMois(ymTva);
       if ($('#vat-achats')) $('#vat-achats').onclick = () => versOnglet('achats', String(upTo).padStart(2, '0'));
       if ($('#vat-ecart-dire')) $('#vat-ecart-dire').onclick = () => ecrireAuComptable(`Bonjour, ma TVA ${deMois(moisNom)} : ${parCabinet.ecarts.map(e => `tu as déclaré une TVA ${e.nom} de ${C.money(e.declare, cur)}, mes pièces disent aujourd'hui ${C.money(e.maintenant, cur)} (${signe(e.ecart)})`).join(' ; ')}. Une pièce est sans doute arrivée après le dépôt : peux-tu la reprendre sur la prochaine déclaration ?`);
       if ($('#vat-cabinet-ecrire')) $('#vat-cabinet-ecrire').onclick = () => ecrireAuComptable(`Bonjour, où en est ma déclaration de TVA ${deMois(moisNom)} ? ${parCabinet.retard ? `La date limite était le ${C.fmtDate(parCabinet.limite)}.` : `Elle est à déposer d'ici le ${C.fmtDate(parCabinet.limite)}.`}`);
+      // (1.357.9) « Noter le paiement… » : le mouvement de trésorerie déjà rempli — Impôts et taxes, contre le 4365, le montant qui
+      // reste à verser, le libellé et la référence du mois —, qui reste modifiable (le jour, le compte, la quittance).
+      if ($('#vat-verser')) $('#vat-verser').onclick = () => movementForm(null, m => {
+        toast(`Paiement noté : ${C.money(m.amount, cur)} versés le ${C.fmtDate(m.date)}.`);
+        draw();
+      }, {
+        kind: 'impot', compte: '4365', amount: parCabinet.resteAVerser || parCabinet.aDecaisser, tvaPeriode: parCabinet.periode,
+        label: `TVA ${deMois(moisNom)}`, reference: `TVA-${parCabinet.periode}`,
+      });
+      if ($('#vat-verse-voir')) $('#vat-verse-voir').onclick = () => {
+        const mv = parCabinet.verse.mouvements[parCabinet.verse.mouvements.length - 1];
+        if (mv) movementForm(mv, () => draw());
+      };
       if ($('#carry-voir')) $('#carry-voir').onclick = vers('#/compta', () => { comptaState.year = rep.depuis; comptaState.month = '12'; resetPages(); });
       if ($('#carry-oublier')) $('#carry-oublier').onclick = () => {
         const avant = { ...(data.vatCarryIn || {}) };
@@ -6628,7 +6691,11 @@
       const lignesCab = livresOk && !livresCabinetLus.illisible ? C.declarationsDuCabinet(data, company(), anneeCab, livresCabinetLus.declarations, C.today()) : [];
       const parPeriodeCab = new Map(lignesCab.map(x => [x.periode, x]));
       const periodeDeLEcheance = iso => { const [y, m] = String(iso).split('-').map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`; };
-      const etatCab = x => (x.deposee ? `<span class="ok-text">Déposée le ${h(C.fmtDate(x.deposee.le))}</span>${x.deposee.reference ? ` <span class="small muted">réf. ${h(x.deposee.reference)}</span>` : ''}${x.ecarts.length ? '<div class="small warn-text">tes pièces du mois ont changé depuis</div>' : ''}`
+      // (1.357.9, bout en bout 17) Ce que le dépôt fait verser, et s'il est versé : la ligne mène à la TVA du mois, où il se note.
+      const versementCab = x => (!x.deposee || !x.aDecaisser ? ''
+        : x.resteAVerser <= 0.0005 ? `<div class="small muted">${x.verse.montant ? `versée le ${h(C.fmtDate(x.verse.date))}` : `payée le ${h(C.fmtDate(x.payeeCabinet))}, d'après ton cabinet`}</div>`
+        : `<div class="small${x.limite < C.today() ? ' warn-text' : ''}">${h(C.money(x.resteAVerser, company().currency))} à verser${x.verse.montant ? ' (le reste)' : ''}</div>`);
+      const etatCab = x => (x.deposee ? `<span class="ok-text">Déposée le ${h(C.fmtDate(x.deposee.le))}</span>${x.deposee.reference ? ` <span class="small muted">réf. ${h(x.deposee.reference)}</span>` : ''}${x.ecarts.length ? '<div class="small warn-text">tes pièces du mois ont changé depuis</div>' : ''}${versementCab(x)}`
         : x.retard ? `<span class="badge retard">en retard</span> <span class="small">${x.preparee ? 'préparée, pas encore déposée' : 'pas encore préparée'}</span>`
         : `<span class="small">${x.preparee ? 'préparée, pas encore déposée' : 'à préparer'}</span>`);
       const panneauCabinet = !cabDecl ? '' : `<div class="panel" id="p-decl-cabinet"><h2>Tes déclarations de TVA, chez ton cabinet ${info('compta.cabinetDecl')}</h2>
@@ -6637,7 +6704,7 @@
             : !lignesCab.length ? `<p class="small muted">Aucun mois terminé à déclarer en ${h(anneeCab)} pour l'instant.</p>`
             : `<div class="scroll-x"><table class="list compact" id="decl-cabinet"><thead><tr><th>Mois</th><th>Date limite</th><th>Chez ton cabinet</th><th></th></tr></thead><tbody>
               ${lignesCab.map(x => `<tr data-periode="${h(x.periode)}" class="${x.retard ? 'row-warn' : ''}"><td><strong>${h(x.label)}</strong></td><td class="nw">${h(C.fmtDate(x.limite))}</td><td>${etatCab(x)}</td>
-                <td class="actions">${x.ecarts.length ? `<button class="btn btn-sm" data-decl-voir="${h(x.periode)}">Voir la TVA</button>` : !x.deposee ? `<button class="btn btn-sm" data-decl-ecrire="${h(x.periode)}">Lui écrire</button>` : ''}</td></tr>`).join('')}
+                <td class="actions">${x.ecarts.length || x.resteAVerser > 0.0005 ? `<button class="btn btn-sm" data-decl-voir="${h(x.periode)}">Voir la TVA</button>` : !x.deposee ? `<button class="btn btn-sm" data-decl-ecrire="${h(x.periode)}">Lui écrire</button>` : ''}</td></tr>`).join('')}
             </tbody></table></div><p class="small muted mt">Ton cabinet dépose ces déclarations : son dépôt s'affiche ici de lui-même, tu n'as rien à pointer. <em>À VÉRIFIER avec ton comptable</em> pour les dates limites.</p>`}
         </div>`;
       // La ligne « tva » de « Ce qui arrive » quand le cabinet dépose : son dépôt s'il est fait, sinon « Ton cabinet la dépose » ;
@@ -6727,7 +6794,7 @@
     const tagOf = () => comptaState.month ? `${comptaState.year}-${comptaState.month}` : comptaState.year;
     const resetPages = () => { comptaState.journal.page = 1; comptaState.pays.page = 1; comptaState.buys.page = 1; comptaState.decs.page = 1; };
     $('#c-year').onchange = e => { comptaState.year = e.target.value; resetPages(); draw(); };
-    $('#c-month').onchange = e => { comptaState.month = e.target.value; resetPages(); draw(); };
+    $('#c-month').onchange = e => { comptaState.month = e.target.value; comptaState.moisChoisi = true; resetPages(); draw(); };
     // La porte mène à LA CASE, pas à la page qui mène à la page qui la contient. Les Paramètres
     // n'en portent qu'un bouton (« Choisir les modules affichés… ») : y envoyer ferait deux clics
     // de plus pour trouver une ligne au milieu de dix-neuf. `pageFocus` amène la ligne à l'écran et
