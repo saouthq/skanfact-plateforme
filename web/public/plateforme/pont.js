@@ -1265,14 +1265,14 @@
         const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
         return x ? { statut: x.statut, numero: x.numero, date: x.date, libelle: x.libelle, lignes: (x.lignes || []).map((/** @type {any} */ l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit, credit: l.credit })), valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
       },
-      // (1.155.12) L'écriture née d'un achat (son numéro et son identifiant) : la frise de l'achat dit ce qu'en a fait le
-      // cabinet. Une lecture, rien n'est envoyé ; qui ne lit pas les livres, ou un achat pas encore au journal : null.
+      // (1.155.12) L'écriture née d'un achat : la frise et le résumé de l'achat disent ce qu'en a fait le cabinet. Son origine est l'id SERVEUR
+      // de la pièce, pas celui de l'écran (1.357.8) : sinon la SEULE écriture d'achat du numéro, jamais celle d'un autre. Une lecture ; sans livres : null.
       ecritureAchat: async (/** @type {string} */ id, /** @type {string} */ numero) => {
         /** @type {any} */
         let r;
         try { r = await appel('GET', `/compta/ecritures?journal=AC&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
-        const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'achat' && e.origine.id === id);
-        return x ? { statut: x.statut, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
+        const ach = (r.ecritures || []).filter((/** @type {any} */ e) => e.origine && e.origine.type === 'achat'), x = ach.find((/** @type {any} */ e) => e.origine.id === id) || (ach.length === 1 ? ach[0] : null);
+        return x ? { statut: x.statut, numero: x.numero, date: x.date, libelle: x.libelle, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null, lignes: (x.lignes || []).map((/** @type {any} */ l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit, credit: l.credit })) } : null;
       },
       // (1.157.1) Le fil de l'entreprise, lu tel que la messagerie le montre (la page « Photo envoyée au cabinet » y suit sa
       // photo : vue, rangée). Une lecture, rien n'est envoyé.

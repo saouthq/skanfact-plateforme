@@ -28592,6 +28592,30 @@ prouver 'emprunt 1.357.7 q : l'"'"'avance d'"'"'hier s'"'"'écrit à la caisse o
   '  if (jour && t?.depart && jour < t.depart) return { journal: '"'"'OD'"'"', compte: p.plan.attente };
 ' '' \
   'un salaire et une avance payés du tiroir, caisse ouverte : le Z les retire de l'"'"'attendu, la caisse ne les sort qu'"'"'une fois'
+prouver 'resume-achat 1.357.8 a : l'"'"'écriture d'"'"'un achat se cherche à son identifiant d'"'"'écran, et ne se trouve jamais (pont)' web/public/plateforme/pont.js \
+  'x = ach.find((/** @type {any} */ e) => e.origine.id === id) || (ach.length === 1 ? ach[0] : null);' \
+  'x = ach.find((/** @type {any} */ e) => e.origine.id === id);' \
+  'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
+prouver 'resume-achat 1.357.8 b : la frise redessinée quand le cabinet est appris perd « vue, pas encore validée »' modules/socle/ecrans/entreprise/app-1.js \
+  'if (avecFriseAchat && $('"'"'#ed-frise'"'"')) { regreffer($('"'"'#ed-frise'"'"'), friseAchat()); remplirCabinetFrise(); }' \
+  'if (avecFriseAchat && $('"'"'#ed-frise'"'"')) { regreffer($('"'"'#ed-frise'"'"'), friseAchat()); }' \
+  'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
+prouver 'resume-achat 1.357.8 c : « Nouvelle affaire » de la bulle du résumé d'"'"'achat ne fait rien' modules/socle/ecrans/entreprise/app-1.js \
+  '$('"'"'#pop-aff-nv'"'"', pop).onclick = () => { const nom = $('"'"'#pop-aff-q'"'"', pop).value.trim();' \
+  '$('"'"'#pop-aff-nv'"'"', pop).onclick = () => { if (pop) return; const nom = $('"'"'#pop-aff-q'"'"', pop).value.trim();' \
+  'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
+prouver 'resume-achat 1.357.8 d : au téléphone le tableau empilé des lignes reste au-dessus de la liste (le :has de telephone.css gagne)' web/public/plateforme/piece.css \
+  '.buy-editor.lecture table.buy-lines, .buy-editor.lecture table.buy-lines:has(> #b-lines) { display: none; }' \
+  '.buy-editor.lecture table.buy-lines { display: none; }' \
+  'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
+prouver 'resume-achat 1.357.8 e : une affaire sans client se dit « — · en cours »' modules/socle/ecrans/entreprise/app-1.js \
+  'const cl = p.clientId ? clientName(p.clientId) : '"'"''"'"';' \
+  'const cl = clientName(p.clientId);' \
+  'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
+prouver 'rouge 1.357.8 a : l'"'"'état El Fatoora d'"'"'une facture, arrivé après le départ vers le devis, repeint la frise du devis' modules/socle/ecrans/entreprise/app-1.js \
+  'const f = friseIci(); const e = r && r[doc.id];' \
+  'const f = $('"'"'#ed-frise'"'"'); const e = r && r[doc.id];' \
+  'le devis respecte le seuil, l'"'"'acompte s'"'"'annonce comme il naîtra, et le message dit le montant de la facture'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

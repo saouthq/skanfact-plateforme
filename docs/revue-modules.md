@@ -3216,3 +3216,39 @@ solde de départ de la BIAT (48 250 DT au 11/11), qui le comprend déjà —, pu
 - Deux tests suivent la règle de la 1.357.7 : l'avance d'hier, avant le solde de départ de la caisse posé aujourd'hui, passe
   en OD au 471 ; les frais du mois dernier sur une BIAT ouverte aujourd'hui y passeraient aussi — le test recule le départ.
 
+
+### 1.357.8 : le résumé de l'achat, comme celui de la facture
+
+Demandé par Skander, deux captures à l'appui : l'achat PK-2611-07 « reste comme ça » (le formulaire) pendant que la facture de
+vente se lit en résumé. La première capture datait d'avant la 1.357.0 (12/11 à 10 h 02 ; la 1.357.0 est arrivée à 17 h 12) ;
+ce qui restait différent de la vente, cette version l'aligne, et le joue à la souris.
+- **La ligne « Comptabilité »** du résumé, comme celle d'une facture émise : « Au journal des achats, au brouillard : ton
+  cabinet la validera » ou « Validée par ton cabinet le …, écriture n° … », et « voir l'écriture » ouvre la MÊME fenêtre que la
+  vente (`fenetreEcriture`, sortie de la page de la facture : journal, date, comptes, total équilibré).
+- **Le pont ne trouvait jamais l'écriture d'un achat** : l'origine d'une écriture est l'identifiant SERVEUR de la pièce
+  (`achats.piece.id`), l'écran cherchait le sien (`ref_v10`). La frise « Au cabinet » ne disait donc jamais « vue » ni
+  « validée » depuis la 1.155.12 — rien ne le montrait, puisqu'aucun test ne lisait cette étape. L'identifiant d'abord ; sinon
+  la SEULE écriture d'achat de ce numéro ; deux achats au même numéro (le « 001 » de deux fournisseurs) : rien, plutôt que
+  l'écriture d'un autre.
+- **Et la frise perdait la réponse** quand le cabinet est appris après la page : l'étape « Au cabinet » naît au redessin, et
+  disait « attend le justificatif » à côté d'un résumé qui la savait au brouillard. L'écriture se lit UNE fois pour la page, et
+  la frise la repose après chaque redessin. Le test retarde la réponse qui apprend le cabinet pour jouer ce cas.
+- **La ligne « Affaire » est toujours là**, avec son geste : la MÊME bulle que la facture (recherche, la liste, « Nouvelle
+  affaire » avec le nom tapé), et la pièce s'enregistre avec (`persist` : clôture et licence passent par leurs portes). La
+  première version posait une liste fermée sur « Aucune affaire » quand l'entreprise n'en a pas : une impasse. Ranger ne touche
+  ni un montant ni l'écriture.
+- **Au téléphone, les lignes en liste** (désignation, montant, ce qui le fait — quantité, prix, TVA, stock ou immobilisation,
+  TVA non déductible), comme la facture émise ; le tableau empilé se cache. La règle de telephone.css qui l'empile porte
+  `:has(> #b-lines)` — un id compte dans la priorité d'un `:has` — et gagnait contre la première version : le tableau restait
+  au-dessus de la liste. Vu sur la capture du téléphone, jamais dans un test de source.
+- **Une affaire sans client** se disait « — · en cours » dans toutes les listes d'affaires (`clientName('')` rend un tiret) :
+  le client ne s'écrit que s'il existe.
+- Le test du résumé 1.357.0 suit la règle : le résumé finit par l'affaire, et la ligne « Comptabilité » s'y glisse quand
+  l'écriture est lue.
+- **Rouge GitHub de 8bd8be8 (1.357.7, Node 24), réparé** : acompte-1356 lisait sur la page du devis la frise d'une facture
+  (« Émise aujourd'hui… El Fatoora partira après la signature »). Pas un test fragile : un vrai défaut, que la machine lente
+  a montré. Trois rappels de la frise d'une vente (l'état El Fatoora, les deux « vue par le lien ») cherchaient `#ed-frise` au
+  moment de la RÉPONSE ; arrivée après le départ vers le devis, celle de la facture d'acompte remplaçait la frise du devis par
+  la sienne — le garde `isConnected` ne protégeait rien, la frise trouvée était déjà celle de la page d'arrivée (règle 10.5.0 :
+  une réponse en retard ne repeint pas l'écran qu'on a quitté). La frise de la page se garde par son hôte. Le test retarde
+  désormais la réponse El Fatoora pour jouer ce cas à chaque fois.

@@ -90,7 +90,9 @@ describe('1.357.0 : la facture d\'achat enregistrée se lit en résumé, et « M
     expect(await p.locator('#view .buy-editor').getAttribute('class')).toMatch(/\blecture\b/);
     const lu = net(await resume.innerText());
     // 2 400 HT + 19 % + 1 DT de timbre = 2 857,000 à payer.
-    expect(lu).toMatch(/^Date \d{2}\/\d{2}\/\d{4} · échéance le \d{2}\/\d{2}\/\d{4} Objet Peinture de la boutique Catégorie Entretien et réparations Net à payer 2 857,000 DT · TTC 2 857,000 · timbre et frais 1,000$/);
+    // (1.357.8) Comme la facture émise, le résumé finit par l'affaire, toujours là avec son geste ; la ligne « Comptabilité »
+    // vient s'y glisser quand l'écriture d'achat est lue (asynchrone : elle peut ne pas être encore là).
+    expect(lu).toMatch(/^Date \d{2}\/\d{2}\/\d{4} · échéance le \d{2}\/\d{2}\/\d{4} Objet Peinture de la boutique Catégorie Entretien et réparations Net à payer 2 857,000 DT · TTC 2 857,000 · timbre et frais 1,000( Comptabilité Au journal des achats, au brouillard : pas encore validée\. · voir l'écriture)? Affaire Aucune · Ranger dans une affaire$/);
     expect(net(await p.locator('#ac-sup').innerText())).toContain('Peinture Ksibi');
     expect(await visible('#b-head [name=number]')).toBe(false);
     expect(await visible('#b-subject')).toBe(false);

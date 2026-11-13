@@ -817,6 +817,14 @@
 .ed-tel-l .t-l { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 11px 12px; border: 0; border-top: 1px solid var(--sb-trait); background: none; color: inherit;
   font: inherit; font-size: 13.5px; text-align: left; font-variant-numeric: tabular-nums; cursor: pointer; min-height: 52px; }
 .ed-tel-l .t-l:first-child { border-top: 0; }
+/* (1.357.8) La pièce d'achat enregistrée lit ses lignes comme la facture émise, au téléphone : la grille du formulaire cède sa
+   place à la liste, et une rangée qu'on ne touche pas (rien à modifier dans un résumé) ne réagit pas au doigt. */
+/* (1.357.8) Au téléphone, la pièce en lecture montre ses lignes en liste (`#ac-tel-l`), comme une facture émise : le tableau
+   empilé se cache. Le sélecteur porte le même `:has(> #b-lines)` que celui de telephone.css qui l'empile (un id compte dans
+   la priorité d'un :has) : sans lui, le tableau restait affiché au-dessus de la liste. */
+@media (max-width: 760px) { .buy-editor.lecture table.buy-lines, .buy-editor.lecture table.buy-lines:has(> #b-lines) { display: none; } }
+.ed-tel-l div.t-l { cursor: default; }
+.ed-tel-l div.t-l:active { background: none; }
 .ed-tel-l .t-l:active { background: var(--sb-doux); }
 .ed-tel-l .t-l b { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
 .ed-tel-l .t-l small { color: var(--sb-gris-2); font-size: 12px; grid-column: 1; }

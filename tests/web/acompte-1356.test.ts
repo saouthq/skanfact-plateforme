@@ -136,6 +136,11 @@ describe('bout en bout 1.356.5 : le devis de l\'hôtel, son acompte et son solde
     await p.screenshot({ path: path.join(PHOTOS, 'acompte-1356-2-facture.png') });
     // 5. L'acompte émis, le devis annonce LA FACTURE DE SOLDE : l'acompte déduit (son TTC hors timbre), le timbre du solde,
     //    et pas de retenue — le solde est sous le seuil. Avant, l'encadré annonçait encore la facture entière (1 273,348).
+    // (1.357.8) L'état El Fatoora de la facture d'acompte répondait APRÈS le départ vers le devis, et repeignait la frise du
+    // devis (rouge GitHub de 8bd8be8, Node 24) : la réponse est retardée ici, pour jouer ce cas à chaque fois.
+    let servie: () => void = () => undefined;
+    const reponseServie = new Promise<void>((ok) => { servie = ok; });
+    await p.route('**/efacture/etats**', async (r) => { await new Promise((ok) => setTimeout(ok, 2_500)); await r.continue(); servie(); });
     await p.locator('#ed-geste #issue').click();
     await p.locator('#modal-root #ok').waitFor({ timeout: 10_000 });
     await p.locator('#modal-root [data-apres]:checked').evaluateAll((l) => l.forEach((x) => { (x as HTMLInputElement).checked = false; x.dispatchEvent(new Event('change', { bubbles: true })); }));
@@ -144,7 +149,11 @@ describe('bout en bout 1.356.5 : le devis de l\'hôtel, son acompte et son solde
     const numAcompte = net(await p.locator('#view h1').first().innerText()).split(' ')[0] ?? '';
     await p.evaluate(() => { location.hash = '#/doc/d-sem'; });
     await expect.poll(siFacture, { timeout: 15_000 }).toBe(`LA FACTURE DE SOLDE Acompte ${numAcompte} déduit − 385,560 Timbre fiscal + 1,000 Le client paiera 900,640`);
-    // 6. La frise ne dit plus « marqué envoyé » d'un devis qu'on n'a ni envoyé ni marqué (accepté par l'acompte).
+    // 6. La frise ne dit plus « marqué envoyé » d'un devis qu'on n'a ni envoyé ni marqué (accepté par l'acompte). Lue APRÈS
+    // la réponse retardée de la facture : elle reste celle du devis.
+    await reponseServie;
+    await new Promise((ok) => setTimeout(ok, 800));
+    await p.unroute('**/efacture/etats**');
     const frise = net(await p.locator('#ed-frise').innerText());
     expect(frise).toMatch(/Envoyé\W*aucun envoi noté/i);
     expect(frise).not.toMatch(/marqué envoyé/i);

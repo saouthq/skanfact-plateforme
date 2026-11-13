@@ -5834,6 +5834,20 @@
   // C'est la même règle que le timbre gelé à l'émission (7.1.1), un cran plus tôt : une facture
   // émise à un client qu'on déclare exonéré six mois plus tard ne doit pas changer de total. Si
   // `computeTotals` allait lire le client, chaque pièce déjà partie chez lui se réécrirait.
+  // (1.133.0, 1.357.8) Les lignes qu'une pièce a passées au journal, débit et crédit, telles que le comptable les lit : la
+  // facture émise et (1.357.8) la pièce d'achat enregistrée ouvrent la MÊME fenêtre (« voir l'écriture »).
+  function fenetreEcriture(numero, x, code, journal, cab) {
+    const nu = v => C.money(Number(v) || 0, null, 3);
+    const td = x.lignes.reduce((t, l) => t + (Number(l.debit) || 0), 0), tc = x.lignes.reduce((t, l) => t + (Number(l.credit) || 0), 0);
+    modal(`<h2>L'écriture de ${h(numero)}</h2>
+      <p class="small muted">${h(journal)} · ${x.date ? C.fmtDate(String(x.date).slice(0, 10)) : ''} · ${x.statut === 'validee' ? `validée${x.numero ? `, n° ${h(String(x.numero))}` : ''}` : 'au brouillard'}</p>
+      <table class="list compact ecr"><thead><tr><th>Journal</th><th>Date</th><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
+        ${x.lignes.map(l => `<tr><td>${h(code)}</td><td>${x.date ? lfJm(String(x.date).slice(0, 10)) : ''}</td><td class="mono"><b>${h(l.compte)}</b></td><td>${h(l.libelle || '')}</td><td class="r">${Number(l.debit) ? nu(l.debit) : ''}</td><td class="r">${Number(l.credit) ? nu(l.credit) : ''}</td></tr>`).join('')}
+        <tr class="ecr-tot"><td colspan="3"></td><td><b>Total · ${Math.abs(td - tc) < 0.0005 ? 'équilibrée' : 'déséquilibrée'}</b></td><td class="r"><b>${nu(td)}</b></td><td class="r"><b>${nu(tc)}</b></td></tr></tbody></table>
+      <p class="note-v">${lfIc('info', 13)}${x.statut === 'validee' ? 'Validée, elle ne se modifie plus : une correction passe par une contre-passation.' : 'Au brouillard, ton cabinet la relit et la valide ; ensuite elle ne se modifie plus.'} Les comptes suivent le plan comptable des entreprises, À VÉRIFIER avec ton comptable.</p>
+      <div class="modal-actions">${cab ? `<button class="btn" data-close id="ecr-ecrire">${lfIc('message', 15)}Écrire à ton comptable</button>` : ''}<button class="btn btn-primary" data-close>Fermer</button></div>`);
+    const ecrire = $('#ecr-ecrire'); if (ecrire) ecrire.addEventListener('click', () => navigate('#/comptable'));
+  }
   function applyClientDefaults(doc, clientId) {
     const c = clientById(clientId); if (!c) return;
     // 10.14.1 — un client SANS langue ni devise propres est un client aux réglages de la société :
@@ -6957,19 +6971,7 @@
         el.hidden = false;
         // (maquette « l'écriture ») Les lignes que la vente a passées au journal, débit et crédit, telles que le comptable les lit.
         const lien = $('#lp-ecriture', el);
-        if (lien) lien.onclick = e => {
-          e.preventDefault();
-          const nu = v => C.money(Number(v) || 0, null, 3);
-          const td = x.lignes.reduce((t, l) => t + (Number(l.debit) || 0), 0), tc = x.lignes.reduce((t, l) => t + (Number(l.credit) || 0), 0);
-          modal(`<h2>L'écriture de ${h(numero)}</h2>
-            <p class="small muted">Journal des ventes · ${x.date ? C.fmtDate(String(x.date).slice(0, 10)) : ''} · ${x.statut === 'validee' ? `validée${x.numero ? `, n° ${h(String(x.numero))}` : ''}` : 'au brouillard'}</p>
-            <table class="list compact ecr"><thead><tr><th>Journal</th><th>Date</th><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
-              ${x.lignes.map(l => `<tr><td>VT</td><td>${x.date ? lfJm(String(x.date).slice(0, 10)) : ''}</td><td class="mono"><b>${h(l.compte)}</b></td><td>${h(l.libelle || '')}</td><td class="r">${Number(l.debit) ? nu(l.debit) : ''}</td><td class="r">${Number(l.credit) ? nu(l.credit) : ''}</td></tr>`).join('')}
-              <tr class="ecr-tot"><td colspan="3"></td><td><b>Total · ${Math.abs(td - tc) < 0.0005 ? 'équilibrée' : 'déséquilibrée'}</b></td><td class="r"><b>${nu(td)}</b></td><td class="r"><b>${nu(tc)}</b></td></tr></tbody></table>
-            <p class="note-v">${lfIc('info', 13)}${x.statut === 'validee' ? 'Validée, elle ne se modifie plus : une correction passe par une contre-passation.' : 'Au brouillard, ton cabinet la relit et la valide ; ensuite elle ne se modifie plus.'} Les comptes suivent le plan comptable des entreprises, À VÉRIFIER avec ton comptable.</p>
-            <div class="modal-actions">${cab ? `<button class="btn" data-close id="ecr-ecrire">${lfIc('message', 15)}Écrire à ton comptable</button>` : ''}<button class="btn btn-primary" data-close>Fermer</button></div>`);
-          const ecrire = $('#ecr-ecrire'); if (ecrire) ecrire.addEventListener('click', () => navigate('#/comptable'));
-        };
+        if (lien) lien.onclick = e => { e.preventDefault(); fenetreEcriture(numero, x, 'VT', 'Journal des ventes', cab); };
       }).catch(() => {});
     }
 
@@ -9793,20 +9795,26 @@
 
       const brancherFrise = () => $$('#ed-frise [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
       brancherFrise();
+      // (1.357.8) Une réponse en retard ne repeint pas l'écran qu'on a quitté (10.5.0) : les trois rappels qui suivent cherchaient
+      // `#ed-frise` au moment de la RÉPONSE. Arrivée après le départ vers le devis, l'état El Fatoora de la facture d'acompte
+      // remplaçait la frise du devis par la sienne (« Émise aujourd'hui… », rouge GitHub de 8bd8be8) : le garde `isConnected`
+      // ne protégeait rien, la frise cherchée était déjà celle de la page d'arrivée. La frise de CETTE page se garde par son hôte.
+      const hoteFrise = ($('#ed-frise') || {}).parentElement || null, lpVueIci = $('#lp-vue');
+      const friseIci = () => (hoteFrise && hoteFrise.isConnected ? $('#ed-frise', hoteFrise) : null);
       // (1.157.3, maquette « Facture · payée en partie ») La facture envoyée dit quand son client l'a ouverte par le lien.
       // (1.162.0, maquette « Émise en euros ») L'étape « Envoyée » dit la date, puis « vue le … » ou « pas encore vue » (ce que
       // le serveur a noté des ouvertures du lien) ; l'adresse se lit en survolant la date.
       if (!isQ && bridge.vuesPiece && doc.clientId && doc.number && ($('#lp-vue') || $('#ed-frise li.fait[data-k=envoyee]'))) bridge.vuesPiece(doc).then(v => {
         if (!v) return;
-        const d = $('#ed-frise li.fait[data-k=envoyee] .ed-fr-txt > span');
+        const fi = friseIci(), d = fi && $('li.fait[data-k=envoyee] .ed-fr-txt > span', fi);
         if (!v.vues) { if (d && !/vue/.test(d.textContent)) d.insertAdjacentHTML('beforeend', ' · pas encore vue'); return; }
         const quand = lfJm(v.vuLe.slice(0, 10));
-        const lv = $('#lp-vue'); if (lv) lv.innerHTML = ` · <b>vue le ${quand}</b> par le lien`;
+        const lv = lpVueIci && lpVueIci.isConnected ? lpVueIci : null; if (lv) lv.innerHTML = ` · <b>vue le ${quand}</b> par le lien`;
         if (d && !/vue le/.test(d.textContent)) d.insertAdjacentHTML('beforeend', ` · vue le ${quand}`);
       }, () => {});
       // L'étape « Vu » du devis : ce que le serveur a noté des ouvertures de son lien (jamais une ouverture inventée).
       if ($('#ed-frise li[data-k=vu]') && doc.clientId) bridge.vuesPiece(doc).then(v => {
-        const li = $('#ed-frise li[data-k=vu]'); if (!li || !v || !v.vues) return;
+        const fi = friseIci(), li = fi && $('li[data-k=vu]', fi); if (!li || !v || !v.vues) return;
         li.classList.add('fait');
         const rond = $('.rond', li); if (rond) rond.innerHTML = lfIc('coche', 13, 3);
         const d = $('.ed-fr-txt > span', li); if (d) d.textContent = `${lfJm(v.vuLe.slice(0, 10))} · ${v.vues > 1 ? `${v.vues} fois` : 'une fois'} par le lien`;
@@ -9825,9 +9833,10 @@
       if (avecFrise && C.estDemo(data)) bandeauEmise('gris', 'info', 'Entreprise d\'essai : cette facture ne part jamais à El Fatoora', 'Elle se signe pour que tu voies le geste, mais rien n\'est déposé à la TTN : l\'essai sert à apprendre. Ta vraie entreprise, elle, enverra chaque facture signée.', 'Créer ma vraie entreprise', demoSortie);
 
       if (avecFrise && bridge.etatsTtnDe) bridge.etatsTtnDe([doc.id]).then(r => {
-        const f = $('#ed-frise'); const e = r && r[doc.id];
+        const f = friseIci(); const e = r && r[doc.id];
+        if (!f) return;
         ttnConnu = e || null;
-        if (!f || !e || !f.isConnected) return;
+        if (!e) return;
         f.outerHTML = friseCharte(e); brancherFrise();
         if (e.etat === 'refusee' || e.etat === 'retenue') bandeauEmise('rouge', 'alerte', e.etat === 'refusee' ? 'El Fatoora a refusé la facture' : 'La facture est retenue avant El Fatoora',
           `${e.motif ? `Message de la TTN : « ${e.motif} ». ` : ''}Corrige ce qui est en cause (souvent la fiche du client), puis renvoie-la. Ce que devient une facture refusée (son numéro, une nouvelle signature) : À VÉRIFIER avec la TTN.`,
@@ -17708,7 +17717,6 @@
       const lie = C.PURCHASE_LIES.includes(p.kind);
       const L = lie && p.achatLie ? purchaseById(p.achatLie) : null;
       const retard = retardRange() ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
-      const pr = p.projectId ? projectById(p.projectId) : null;
       // (1.357.2, bout en bout joué à la souris) Une facture tirée d'une commande nomme sa commande : le résumé ne disait
       // pas d'où venait la pièce, et revenir à la commande demandait de passer par une réception.
       const cmdsLiees = [...new Map((Array.isArray(p.receptions) ? p.receptions : [])
@@ -17726,9 +17734,19 @@
         ${String(p.subject || '').trim() ? ligne('Objet', h(p.subject)) : ''}
         ${p.category ? ligne('Catégorie', h(p.category)) : ''}
         ${ligne(lie || isDep ? 'Montant' : 'Net à payer', `<b class="lp-montant">${argentLu(t.netToPay, cur)}</b>${details.map(x => ' · ' + x).join('')}`)}
-        ${pr ? ligne('Affaire', `<a href="#/affaire/${h(pr.id)}">${h(pr.name)}</a>`) : ''}
+        <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
+        <div class="lp-ligne" id="lp-affaire"><dt>Affaire</dt><dd>${affaireAchatLue()}</dd></div>
         ${String(p.notes || '').trim() ? ligne('Notes internes', h(p.notes).replace(/\n/g, '<br>')) : ''}
       </dl>`;
+    };
+    // (1.357.8, demandé par Skander, capture à l'appui : « pourquoi la facture d'achat n'est pas comme la facture, avec le
+    // résumé ? ») Comme celui d'une facture émise, le résumé d'achat dit TOUJOURS son affaire — « Aucune », sinon son lien — et
+    // on l'y range sans rouvrir le formulaire : une affaire ne change ni un montant ni une écriture, elle range la pièce dans
+    // le chantier dont elle fait la marge. Un mois clôturé ne bouge pas (le formulaire l'éteint aussi).
+    const affaireAchatLue = () => {
+      const pr = p.projectId ? projectById(p.projectId) : null;
+      return `${pr ? `<a href="#/affaire/${h(pr.id)}">${h(pr.name)}</a>` : '<span class="muted">Aucune</span>'}${clos ? ''
+        : ` · <button type="button" class="lien-fl" id="lp-aff-b">${pr ? 'Changer' : 'Ranger dans une affaire'}</button>`}`;
     };
     $('#view').innerHTML = `
       <div class="page-head ed-tete">
@@ -17936,6 +17954,21 @@
         <td class="line-tools">${clos || lecture ? '' : `<button type="button" class="row-menu-btn btn ico" data-rowmenu="${i}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de la ligne ${i + 1}">${lfIc('plus', 16)}</button>`}</td></tr>`).join('');
       // Une pièce d'un mois clôturé se lit : chaque case de ses lignes est éteinte.
       if (clos || lecture) $$('input, select', body).forEach(el => { el.disabled = true; });
+      // (1.357.8) Au téléphone, une pièce enregistrée lit ses lignes comme une facture émise (`ed-tel-l`) : la désignation et
+      // son total, « 1 × 2 400,000 · TVA 19 % » dessous — la grille du formulaire, serrée à 390 px, coupait le prix.
+      if (lecture) {
+        const tb = body.closest('table');
+        let tl = $('#ac-tel-l');
+        if (!tl && tb) { tb.insertAdjacentHTML('afterend', '<div id="ac-tel-l" class="ed-tel-l"></div>'); tl = $('#ac-tel-l'); }
+        if (tl) {
+          const tt = C.purchaseTotals(p, company()), dec = C.decimalsFor(cur);
+          const dest = Object.fromEntries(C.LINE_DESTINATIONS.map(([v, l]) => [v, l]));
+          tl.innerHTML = p.lines.map((l, i) => `<div class="t-l"><b>${h(l.label || 'Ligne sans désignation')}</b><span class="m">${C.money((tt.lines[i] || {}).ht || 0, null, dec)}</span>
+            <small>${[`${frChiffre(l.qty)}${l.unit ? ' ' + h(l.unit) : ''} × ${C.money(Number(l.unitPrice) || 0, null, dec)}`, `TVA ${pct(Number(l.vatRate) || 0)} %`,
+              p.kind !== 'acompte' && l.destination && l.destination !== 'charge' ? h(dest[l.destination] || l.destination) : '',
+              l.deductible === false ? 'TVA non déductible' : ''].filter(Boolean).join(' · ')}</small></div>`).join('');
+        }
+      }
       $$('[data-k]', body).forEach(el => {
         const ev = el.type === 'checkbox' || el.tagName === 'SELECT' ? 'onchange' : 'oninput';
         el[ev] = () => {
@@ -18497,13 +18530,82 @@
       const fi = $('#sup-fiche', carte); if (fi) fi.onclick = () => supplierForm(sup, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); });
     }
     majFournisseur();
-    if ($('#ed-fr-cab') && stored && String(stored.number || '').trim() && bridge.messagerie && bridge.messagerie.ecritureAchat) {
-      bridge.messagerie.ecritureAchat(stored.id, stored.number).then(x => {
+    // (1.357.8) L'écriture d'achat se lit UNE fois pour la page : la frise (« Au cabinet ») et le résumé (« Comptabilité ») la
+    // partagent. Et la frise la repose après chaque redessin (`majEtatJustif`) : quand le cabinet est appris après la page, l'étape
+    // naît plus tard, et elle disait « attend le justificatif » à côté d'un résumé qui la savait au brouillard.
+    let ecrAchatP = null;
+    const ecritureDeLAchat = () => {
+      if (!stored || !String(stored.number || '').trim() || !bridge.messagerie || !bridge.messagerie.ecritureAchat) return Promise.resolve(null);
+      if (!ecrAchatP) ecrAchatP = Promise.resolve(bridge.messagerie.ecritureAchat(stored.id, String(stored.number).trim())).catch(() => null);
+      return ecrAchatP;
+    };
+    const remplirCabinetFrise = () => {
+      if (!$('#ed-fr-cab')) return;
+      ecritureDeLAchat().then(x => {
         const li = $('#ed-fr-cab'), sp = $('#ed-fr-cabinet'); if (!li || !sp || !x) return;
         if (x.statut === 'validee') { li.className = 'fait'; const r = $('.rond', li); if (r) r.innerHTML = lfIc('coche', 13, 3); sp.textContent = x.valideeLe ? `validée le ${lfJm(x.valideeLe)}` : 'validée'; }
         else sp.textContent = 'vue, pas encore validée';
+      });
+    };
+    remplirCabinetFrise();
+    // (1.357.8) Le résumé dit ce que le comptable a fait de la pièce, comme celui d'une facture émise : son écriture d'achat,
+    // au brouillard ou validée, et « voir l'écriture » ouvre la MÊME fenêtre (`fenetreEcriture`). Sans réponse (qui ne lit pas
+    // les livres, une pièce pas encore au journal, pas de réseau), la ligne ne s'affiche pas.
+    if (lecture && $('#lp-compta') && stored && String(stored.number || '').trim()) {
+      const idLu = stored.id, numeroLu = String(stored.number).trim();
+      ecritureDeLAchat().then(x => {
+        const el = $('#lp-compta');
+        if (!x || !el || p.id !== idLu) return;
+        const cab = !!(messagerieVue && messagerieVue.cabinet);
+        const dd = el.querySelector('dd');
+        dd.innerHTML = (x.statut === 'validee'
+          ? `Validée${cab ? ' par ton cabinet' : ''}${x.valideeLe ? ` le ${C.fmtDate(x.valideeLe)}` : ''}${x.numero ? `, écriture n° ${h(String(x.numero))}` : ''}.`
+          : `Au journal des achats, au brouillard : ${cab ? 'ton cabinet la validera' : 'pas encore validée'}.`) + (x.lignes && x.lignes.length ? ' · <a href="#" id="lp-ecriture">voir l\'écriture</a>' : '');
+        el.hidden = false;
+        const lien = $('#lp-ecriture', el);
+        if (lien) lien.onclick = e => { e.preventDefault(); fenetreEcriture(numeroLu, x, 'AC', 'Journal des achats', cab); };
       }, () => {});
     }
+    // (1.357.8) « Ranger dans une affaire » depuis le résumé : la MÊME bulle que la facture émise (recherche, la liste, « Nouvelle
+    // affaire »), puis la pièce s'enregistre avec (persist : la clôture et la licence passent par leurs portes, comme à
+    // l'enregistrement du formulaire). Une liste fermée sur « Aucune affaire » quand l'entreprise n'en a pas encore serait une
+    // impasse : le geste qui en crée une est dans la bulle.
+    const ranger = v => {
+      const avant = p.projectId || '';
+      if (v === avant) return;
+      p.projectId = v;
+      if (!persist()) { p.projectId = avant; return; }
+      const dd = $('#lp-affaire dd'); if (dd) { dd.innerHTML = affaireAchatLue(); brancherAffaireLue(); }
+      const pr = v ? projectById(v) : null;
+      toast(pr ? `Rangée dans l'affaire ${pr.name}` : 'Retirée de son affaire');
+    };
+    const brancherAffaireLue = () => {
+      const b = $('#lp-aff-b'); if (!b) return;
+      b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+      b.onclick = () => {
+        const affaires = projectItems('').filter(x => !x.vide);
+        const choix = (v, libelle, sous, on) => `<button type="button" class="pop-o${on ? ' on' : ''}" data-pr="${h(v)}"><span>${libelle}${sous ? `<small>${sous}</small>` : ''}</span>${on ? lfIc('coche', 15, 2.6) : ''}</button>`;
+        ouvrirBulle(b, `<div class="pop-t">Affaire</div>
+            <label class="pop-q">${lfIc('loupe', 15)}<input type="search" id="pop-aff-q" placeholder="Rechercher une affaire…" autocomplete="off"></label>
+            <div id="pop-aff-l" class="pop-liste"></div>
+            <button type="button" class="pop-plus" id="pop-aff-nv">${lfIc('ajout', 14, 2.4)}Nouvelle affaire</button>
+            <p class="pop-n">L'affaire ne change ni un montant ni une écriture : elle range la pièce dans le chantier dont elle fait la marge.</p>`,
+          (pop, fermer) => {
+            const dessiner = q => {
+              const l = affaires.filter(x => !q || sansAccents(x.text || x.label).includes(sansAccents(q))).slice(0, 6);
+              $('#pop-aff-l', pop).innerHTML = (p.projectId ? choix('', 'Aucune affaire', 'ne compte dans aucun chantier', false) : '')
+                + (l.length ? l.map(x => choix(x.v, h(x.label), h(x.sub || ''), x.v === p.projectId)).join('')
+                  : `<p class="pop-vide">${affaires.length ? 'Aucune affaire ne correspond.' : 'Aucune affaire pour l\'instant : crée la première ci-dessous.'}</p>`);
+              $$('[data-pr]', pop).forEach(x => x.onclick = () => { fermer(); ranger(x.dataset.pr); });
+            };
+            dessiner('');
+            $('#pop-aff-q', pop).oninput = e => dessiner(e.target.value.trim());
+            $('#pop-aff-nv', pop).onclick = () => { const nom = $('#pop-aff-q', pop).value.trim(); fermer(); projectForm(null, pr => ranger(pr.id), { name: nom, startDate: p.date || C.today() }); };
+            $('#pop-aff-q', pop).focus();
+          }, { label: 'Affaire' });
+      };
+    };
+    brancherAffaireLue();
     // ↶ (Ctrl Z) et Ctrl Maj Z : la pièce revient comme avant la dernière modification ; la page se redessine avec elle.
     // Les justificatifs et les règlements ne s'annulent pas ainsi (ils ont leurs gestes, et leur « Annuler ») : la pièce
     // remise garde ceux d'aujourd'hui.
@@ -18648,7 +18750,7 @@
       if (!pill && np && tete) $('h1', tete).after(np);
       const nb = regreffer($('#view [data-band-range]'), bandeauRange());
       if (nb && !nb.isConnected) { const apres = $('#view .ed-gauche > #ed-frise') || $('#view .ed-gauche > .ed-entete'); if (apres) apres.before(nb); }
-      if (avecFriseAchat && $('#ed-frise')) regreffer($('#ed-frise'), friseAchat());
+      if (avecFriseAchat && $('#ed-frise')) { regreffer($('#ed-frise'), friseAchat()); remplirCabinetFrise(); }
       if ($('#ed-geste')) regreffer($('#ed-geste'), gesteAchat());
       $$('#ed-frise [data-frise], #ac-band-justif [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
       if ($('#ac-geste-joindre')) $('#ac-geste-joindre').onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
@@ -19840,7 +19942,9 @@
   const projectItems = (clientId) => [{ v: '', label: '— Aucune affaire —', sub: 'Ne compte dans aucun chantier', text: 'aucune affaire', vide: true }].concat(data.projects
     .filter(p => !clientId || !p.clientId || p.clientId === clientId)
     .sort((a, b) => (a.status === 'en cours' ? 0 : 1) - (b.status === 'en cours' ? 0 : 1) || (b.startDate || '').localeCompare(a.startDate || ''))
-    .map(p => ({ v: p.id, label: p.name, sub: [clientName(p.clientId), p.status].filter(Boolean).join(' · '), text: `${p.name} ${clientName(p.clientId)}` })));
+    // (1.357.8) Une affaire sans client (un chantier de la boutique elle-même) ne dit pas « — · en cours » : `clientName('')`
+    // rend un tiret, que le filtre gardait.
+    .map(p => { const cl = p.clientId ? clientName(p.clientId) : ''; return { v: p.id, label: p.name, sub: [cl, p.status].filter(Boolean).join(' · '), text: `${p.name} ${cl}`.trim() }; }));
 
   function projectForm(proj, done, preset, focus) {
     // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
