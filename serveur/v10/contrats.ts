@@ -35,14 +35,22 @@ export const echeanceSuivante = (iso: string, every: unknown, jour: unknown) => 
 // l'échéance qu'elle couvre quand elle part plus tard (une période rattrapée) ; elle se date du jour, son objet dit la période.
 export function factureDuContrat(rec: Json, date: string, societe: Json, client: Json | null, periode: string = date): Json {
   const v = { mois: moisDe(periode), annee: periode.slice(0, 4) };
-  const delai = societe.paymentTermsDays === '' || societe.paymentTermsDays == null ? 30
-    : Number.isFinite(Number(societe.paymentTermsDays)) && Number(societe.paymentTermsDays) >= 0 ? Math.round(Number(societe.paymentTermsDays)) : 30;
-  const echeance = new Date(`${date}T00:00:00Z`);
+  // (1.362.0) Le délai de la fiche du client d'abord (fin de mois s'il le dit), comme `echeancePour` de la v10 : la facture
+  // émise seule par le serveur et celle que l'écran prépare pour le même client tombent le même jour.
+  const propre = !!client && client.paymentTermsDays !== '' && client.paymentTermsDays != null
+    && Number.isFinite(Number(client.paymentTermsDays)) && Number(client.paymentTermsDays) >= 0;
+  const delai = propre ? Math.round(Number(client?.paymentTermsDays))
+    : societe.paymentTermsDays === '' || societe.paymentTermsDays == null ? 30
+      : Number.isFinite(Number(societe.paymentTermsDays)) && Number(societe.paymentTermsDays) >= 0 ? Math.round(Number(societe.paymentTermsDays)) : 30;
+  let echeance = new Date(`${date}T00:00:00Z`);
   echeance.setUTCDate(echeance.getUTCDate() + delai);
+  if (propre && client?.paymentTermsEom) echeance = new Date(Date.UTC(echeance.getUTCFullYear(), echeance.getUTCMonth() + 1, 0));
   return {
     type: 'facture', number: '', status: 'brouillon', date, dueDate: echeance.toISOString().slice(0, 10), periode,
     clientId: rec.clientId, subject: remplir(rec.subject, v), reference: rec.reference ?? '',
-    lines: (Array.isArray(rec.lines) ? rec.lines as Json[] : []).map((l) => ({ ...l, label: remplir(l.label, v), description: remplir(l.description ?? '', v) })),
+    // (1.362.0) La vente à l'exportation du contrat, comme `buildRecurringInvoice` : lignes à 0 %, sans timbre.
+    ...(rec.export === true ? { export: true } : {}),
+    lines: (Array.isArray(rec.lines) ? rec.lines as Json[] : []).map((l) => ({ ...l, ...(rec.export === true && l.kind !== 'titre' ? { vatRate: 0 } : {}), label: remplir(l.label, v), description: remplir(l.description ?? '', v) })),
     calcul: 2, discountRate: rec.discountRate ?? 0, applyStamp: !(client && client.stampExempt), notes: remplir(rec.notes ?? '', v), payments: [],
     withholdingRate: rec.withholdingRate ?? 0, recurringId: rec.id, lang: rec.lang ?? societe.defaultLang ?? 'fr',
     currency: rec.currency ?? societe.currency, exchangeRate: rec.exchangeRate ?? '',

@@ -3573,3 +3573,45 @@ Sahel pour une facture de farine de 1 190 DT, à échéance du 31 janvier. Ce qu
   quatre écritures et les soldes au 31 décembre, l'écran de la facture et celui de l'achat, les deux fenêtres de
   règlement et les deux listes) ; vingt-cinq preuves
   « traite 1.361.0 ».
+
+### 1.362.0 : un contrat mensuel, de la facture générée jusqu'au Cabinet (bout en bout 25)
+
+Joué à la souris dans l'environnement de test : la pâtisserie livre chaque matin les viennoiseries de l'Hôtel Mouradi
+Gammarth (1 200 DT HT par mois), puis signe un second contrat avec la Maison Olivier, à Lyon, pour 300 € de pain par
+mois, à l'export. Les deux brouillons du mois générés, relus, émis, l'hôtel réglé par virement, et le Cabinet qui lit
+les mêmes ventes. Ce qui était faux, et ce qui ne l'est plus :
+- **L'échéance de la facture d'un contrat** (date du paiement attendu). Une facture tapée à la main pour l'hôtel, réglé
+  à soixante jours sur sa fiche, tombait à soixante jours ; celle que son contrat prépare chaque mois tombait à trente,
+  le délai des réglages. La relance partait un mois trop tôt. La règle vit maintenant à un seul endroit du moteur
+  (`echeancePour`) : la facture tapée, celle du contrat, celle que le serveur émet seul et une facture dupliquée suivent
+  le délai de la fiche du client (fin de mois s'il le dit), sinon celui des réglages.
+- **Un contrat pour un client à l'étranger** (vente à l'exportation). La case « Vente à l'exportation : sans TVA, sans
+  droit de timbre » n'existait que sur la facture : chaque facture du mois partait à 19 %, et il fallait la corriger à
+  chaque fois. Le contrat a maintenant la même case, avec la même phrase, quand sa devise n'est pas le dinar. Elle est
+  proposée cochée si la dernière facture du client l'était, et elle passe les lignes à 0 %. Chaque facture du contrat la
+  reprend, à l'écran comme au serveur. Le total du contrat le dit : « 300,00 EUR HT · 300,00 EUR TTC par facture · sans
+  TVA ni timbre (export) ».
+- **Le total du contrat attendait un taux déjà tapé** : « le TTC s'affichera avec le taux de change » sous « 3,4 », lu
+  comme un nombre anglais. Il lit le taux comme il s'écrit.
+- **L'étape suivante d'un contrat dû** : le vert passe de « Nouveau contrat » à « Générer le brouillon » quand une
+  facture attend. La question qui précède n'est plus rouge (rien n'est détruit), et le message qui suit mène au brouillon
+  (« Ouvrir le brouillon », ou « Voir les factures » pour plusieurs).
+- **Le brouillon à émettre se retrouve depuis la liste** : le menu de la ligne propose « Ouvrir le brouillon à émettre »
+  (le plus ancien d'abord), et la ligne dit « brouillon à émettre » dès la génération, sans changer de page.
+- **La facture émise dit le contrat d'où elle vient** : une ligne « Origine » (« Le contrat Viennoiseries du
+  petit-déjeuner · chaque mois · novembre 2026 ») y mène, comme la ligne d'un devis. Son taux de change s'écrit à trois
+  décimales (« 1 € = 3,400 DT »), comme partout ailleurs.
+- **La fiche du contrat lit ses factures par mois** : « Période » (Novembre 2026) au lieu de « Type » et de l'objet
+  entier, qui passait sur cinq lignes.
+- **Une liste ouverte dans une fenêtre qui défile** (le nouveau contrat, ses lignes et ses notes) faisait sortir
+  « Annuler » et « Enregistrer » sous la fenêtre. La fenêtre garde son défilement ; la règle de la 1.80.0 (déborder
+  pour ne pas couper une liste) ne vaut plus que pour une fenêtre basse, qui ne défile pas.
+- L'invite de l'objet d'un contrat ne parle plus d'un autre métier (« Entretien des portes » chez une pâtisserie).
+- Au Cabinet : la vente de l'hôtel au 411 (1 429 DT), 706, 4367 et 4368 ; l'encaissement au 532 ; la vente à l'export
+  au 411 et au 706 (1 020 DT), sans TVA ni timbre.
+- À VÉRIFIER avec le comptable : une vente à l'export au 706, ou à un compte de ventes à l'export à part ; et une
+  prestation rendue à l'étranger n'est pas toujours exonérée (la bulle de la case le dit).
+- Tests : `tests/moteur/contrat-1362.test.ts` (l'échéance de la fiche du client, à l'écran et au serveur, fin de mois
+  comprise ; l'export du contrat repris par chaque facture) et `tests/web/contrat-mensuel-1362.test.ts` (le contrat à
+  l'export créé à la souris, la fenêtre qui défile avec la liste ouverte, la génération, le menu, l'échéance, l'origine,
+  la fiche, la duplication, le Cabinet) ; vingt-trois preuves « contrat 1.362.0 ».

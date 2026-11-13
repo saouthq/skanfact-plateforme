@@ -126,13 +126,19 @@ describe('la facturation récurrente 1.315.0 : les contrats de la société de m
     const objets2 = async () => p.locator('#c-wrap tbody tr').evaluateAll((trs) => trs.map((tr) => (tr.querySelectorAll('td')[1]?.textContent || '').replace(/\s+/g, ' ').trim()));
     expect((await objets2()).sort()).toEqual(['Caisse et wifi', 'Entretien de la salle informatique', 'Hébergement des serveurs — trimestre', 'Maintenance du parc informatique', 'Support à distance']);
     await photo('a-liste');
+    // (1.361.0) Tant qu'une facture attend, l'étape suivante est la générer : le vert est sur la bande, pas sur « Nouveau contrat ».
+    expect(await p.locator('#gen-due').evaluate((b) => b.classList.contains('btn-primary'))).toBe(true);
+    expect(await p.locator('#new').evaluate((b) => b.classList.contains('btn-primary'))).toBe(false);
     await p.locator('#gen-due').click();
     noter('==== B confirmation', net(await p.locator('#modal-root').innerText()).slice(0, 600));
     expect(net(await p.locator('#modal-root').innerText())).toContain('Générer 5 brouillons de facture ?');
+    expect(await p.locator('#modal-root #ok').evaluate((b) => b.classList.contains('btn-primary') && !b.classList.contains('btn-danger'))).toBe(true);
     await p.locator('#modal-root #ok').click();
     await p.waitForTimeout(800);
     noter('==== B après', await toast(p), (await vue()).slice(0, 1500));
-    expect(await toast(p)).toContain('5 brouillons créés — à émettre depuis Factures');
+    // Le message mène aux brouillons, et la question qui le précède n'était pas un geste qui détruit.
+    expect(await toast(p)).toContain('5 brouillons créés — à relire puis émettre');
+    expect(net(await p.locator('#toast-undo').innerText())).toBe('Voir les factures');
     expect((await chiffres())[2]).toBe('À générer 0 rien en attente');
     await aller('#/factures');
     noter('==== C factures', (await vue()).slice(0, 2500));
@@ -201,7 +207,7 @@ describe('la facturation récurrente 1.315.0 : les contrats de la société de m
     await aller(`#/doc/${lum?.id}`);
     noter('==== I avant d\'émettre Lumière', net(await p.locator('#ed-avant').innerText().catch(() => '')));
     // I. Le taux de l'euro vient du contrat : l'écran le dit avant d'émettre.
-    expect(net(await p.locator('#ed-avant').innerText())).toContain('Le taux est celui du contrat (1 EUR = 3,35 DT) : vérifie celui du jour');
+    expect(net(await p.locator('#ed-avant').innerText())).toContain('Le taux est celui du contrat (1 EUR = 3,350 DT) : vérifie celui du jour');
     await aller('#/contrats');
     noter('==== J liste après', (await vue()).slice(0, 2500));
     await photo('j-liste');

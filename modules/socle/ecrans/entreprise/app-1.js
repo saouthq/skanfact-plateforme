@@ -1751,6 +1751,11 @@
     const close = () => { pop.hidden = true; btn.setAttribute('aria-expanded', 'false'); el.classList.remove('up'); if (closeOverlay === close) closeOverlay = null; };
     const open = () => {
       if (closeOverlay) closeOverlay();
+      // (1.362.0) Une fenêtre qui défile déjà (le contrat récurrent, ses lignes, ses notes) garde son défilement quand la liste
+      // s'ouvre : la laisser déborder (la règle des fenêtres basses, 1.80.0) faisait sortir son pied — « Annuler »,
+      // « Enregistrer » — sous la fenêtre. Mesuré AVANT d'ouvrir : la liste ouverte allonge la fenêtre.
+      const mo = el.closest('.modal');
+      if (mo) mo.classList.toggle('defile', mo.scrollHeight > mo.clientHeight + 1);
       pop.hidden = false; btn.setAttribute('aria-expanded', 'true');
       // Dans une fenêtre modale il n'y a pas toujours la place en dessous : on ouvre vers le haut.
       // (27/10/2026, revue des fenêtres) La place se mesure dans la fenêtre qui contient la liste : ouverte vers le bas,
@@ -4745,6 +4750,10 @@
       // classait une facture de 3 190 DT derrière une de 2 000. L'affichage reste dans la devise de la pièce.
       { key: 'amount', label: opts.extra === 'proforma' || !opts.quotes ? 'Net à payer' : 'Total TTC', r: true, val: d => C.toBase(d, amountOf(d), company()), get: d => C.money(amountOf(d), cur(d)) }
     ];
+    // (1.362.0) Sur la fiche d'un contrat, toutes les lignes sont des factures du même contrat, à l'objet qui se répète :
+    // la colonne utile est le mois couvert. « Type » et l'objet en entier écrasaient l'objet sur cinq lignes.
+    if (opts.contrat) cols.splice(1, 2, { key: 'periode', label: 'Période', val: d => d.periode || d.date || '',
+      get: d => { const m = String(C.monthLabel(d.periode || d.date) || ''); return `<span title="${h(d.subject || '')}">${h(m.charAt(0).toUpperCase() + m.slice(1))}</span>`; } });
     if (!opts.quotes) cols.push({ key: 'rest', label: 'Reste', r: true, val: d => C.toBase(d, restOf(d) || 0, company()), get: d => { const x = restOf(d); return x != null && x > 0.0005 ? C.money(x, cur(d)) : '<span class="muted">—</span>'; } });
     return { cols, amountOf, restOf };
   }
@@ -4959,7 +4968,9 @@
     // (1.306.0) Le refus (ou l'acceptation) d'un devis et sa marque « modifié après l'envoi » restent au devis d'origine.
     delete copy.reponse; delete copy.modifieApresEnvoi;
     (copy.lines || []).forEach(l => { if (l) delete l.fromBon; });   // (1.316.0) une copie est une autre vente : elle sort le stock
-    if (copy.dueDate) copy.dueDate = C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30));
+    // (1.362.0) Une facture dupliquée suit le délai de la fiche du client, comme une facture neuve (`echeancePour`).
+    if (copy.dueDate) copy.dueDate = isQ || copy.type !== 'facture' ? C.addDays(copy.date, C.delaiJours(isQ ? company().quoteValidityDays : company().paymentTermsDays, 30))
+      : C.echeancePour(copy.date, clientById(copy.clientId), company());
     if (numbered) copy.number = C.nextNumber(data, doc.type, copy.date);
     data.documents.push(copy); save(true);
     toast(numbered ? 'Copie créée : ' + copy.number : 'Brouillon créé à partir de ' + (doc.number || 'ce brouillon'));
@@ -5892,9 +5903,9 @@
     if (doc.type === 'facture') doc.applyStamp = !c.stampExempt;
     // (1.200.0) Le délai de paiement de sa fiche donne l'échéance d'une facture neuve (fin de mois s'il le dit) ; sans
     // délai à lui, celle des réglages reste. Jamais sur une pièce déjà numérotée.
+    // (1.362.0) La règle vit dans le moteur (`echeancePour`), celle que la facture d'un contrat suit aussi.
     if (doc.type === 'facture' && !doc.number && c.paymentTermsDays !== '' && c.paymentTermsDays != null && Number(c.paymentTermsDays) >= 0) {
-      const iso = C.addDays(doc.date || C.today(), Number(c.paymentTermsDays));
-      doc.dueDate = c.paymentTermsEom ? (d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10))(new Date(iso + 'T00:00:00Z')) : iso;
+      doc.dueDate = C.echeancePour(doc.date || C.today(), c, company());
     }
   }
 
@@ -6042,7 +6053,7 @@
         Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '',
         t.withholding ? `retenue à la source ${C.money(t.withholding, cur)}` : '',
         t.stamp ? `timbre fiscal ${C.money(t.stamp, cur)}` : '',
-        cur !== company().currency && doc.exchangeRate ? `1 ${h(cur)} = ${h(pct(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
+        cur !== company().currency && doc.exchangeRate ? `1 ${h(cur)} = ${h(tauxLu(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
       const recu = bal ? C.round3(bal.paid + bal.credited) : 0;
       const situation = !bal ? '' : bal.annulee ? 'Annulée : plus rien n\'est dû.'
         : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client.`
@@ -6057,7 +6068,7 @@
         ${ligne('Date', `${C.fmtDate(doc.date)}${isInv && doc.dueDate ? ` · échéance le ${C.fmtDate(doc.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
         ${doc.subject && !charte ? ligne('Objet', h(doc.subject)) : ''}
         ${doc.reference ? ligne('Référence', h(doc.reference)) : ''}
-        ${charte ? ligne(isAv ? 'Montant' : 'Net à payer', `<b class="lp-montant">${argentLu(t.netToPay, cur)}</b>${[t.withholding || t.stamp ? `TTC ${nuR(t.totalTTC)}` : '', t.withholding ? `retenue ${nuR(t.withholding)}` : '', t.stamp ? `timbre ${nuR(t.stamp)}` : doc.export ? 'sans timbre (export)' : '', Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '', cur !== company().currency && doc.exchangeRate ? `1 ${h(symboleDevise(cur))} = ${h(pct(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean).map(x => ' · ' + x).join('')}`)
+        ${charte ? ligne(isAv ? 'Montant' : 'Net à payer', `<b class="lp-montant">${argentLu(t.netToPay, cur)}</b>${[t.withholding || t.stamp ? `TTC ${nuR(t.totalTTC)}` : '', t.withholding ? `retenue ${nuR(t.withholding)}` : '', t.stamp ? `timbre ${nuR(t.stamp)}` : doc.export ? 'sans timbre (export)' : '', Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '', cur !== company().currency && doc.exchangeRate ? `1 ${h(symboleDevise(cur))} = ${h(tauxLu(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean).map(x => ' · ' + x).join('')}`)
           : ligne(isAv ? 'Montant' : 'Net à payer', `<span class="lp-montant">${C.money(t.netToPay, cur)}</span>${conditions.length ? ` <span class="small muted">· ${conditions.join(' · ')}</span>` : ''}`)}
         ${bal && !charte ? ligne('Situation', `${statusBadge(stored)} <span id="lp-situation">${situation}</span>`) : ''}
         ${charte ? (() => {
@@ -6069,6 +6080,9 @@
         <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
         ${charte ? `<div class="lp-ligne" id="lp-affaire"><dt>Affaire</dt><dd>${affaireLue()}</dd></div>` : ''}
         ${charte && doc.fromQuoteId && docById(doc.fromQuoteId) ? ligne('Origine', `Suite au devis <a href="#/doc/${h(doc.fromQuoteId)}">${h(docById(doc.fromQuoteId).number || 'devis')}</a>${(() => { const r = docById(doc.fromQuoteId).reponse; return r && r.statut === 'accepté' && r.le ? `, accepté le ${lfJm(r.le)}` : ''; })()}`) : ''}
+        ${/* (1.362.0) La facture d'un contrat dit de quel contrat elle vient, et y mène : sa bannière « préparée par le
+           contrat » disparaît à l'émission, et c'est sur le contrat qu'on lit les mois déjà facturés. */''}
+        ${charte && !doc.fromQuoteId && doc.recurringId && (data.recurring || []).find(r => r.id === doc.recurringId) ? (r => ligne('Origine', `Le contrat <a href="#/contrat/${h(r.id)}">${h(r.subject ? C.fillTemplate(r.subject, { mois: '', annee: '' }).replace(/[\s—–-]+$/, '') : clientName(r.clientId))}</a> · ${h(String(((C.PERIODS || []).find(x => x[0] === r.every) || [])[1] || 'récurrent').toLowerCase())}${doc.periode ? ' · ' + h(C.monthLabel(doc.periode)) : ''}`))((data.recurring || []).find(r => r.id === doc.recurringId)) : ''}
       </dl>`;
     };
     // Le timbre fiscal est fixé EN DINARS (7.0.1) : sur une facture en euros il vaut 1 DT converti,
@@ -8168,7 +8182,7 @@
         if (cur !== co.currency && !(Number(doc.exchangeRate) > 0)) points.push([false, 'Le taux de change manque', '']);
         // (1.315.0) Le brouillon d'un contrat en devise reprend le taux noté au contrat, parfois vieux de plusieurs mois.
         const rcT = doc.recurringId && cur !== co.currency && (data.recurring || []).find(x => x.id === doc.recurringId);
-        if (rcT && Number(rcT.exchangeRate) > 0 && Number(rcT.exchangeRate) === Number(doc.exchangeRate)) points.push([false, `Le taux est celui du contrat (1 ${cur} = ${pct(doc.exchangeRate)} ${co.currency}) : vérifie celui du jour`, '']);
+        if (rcT && Number(rcT.exchangeRate) > 0 && Number(rcT.exchangeRate) === Number(doc.exchangeRate)) points.push([false, `Le taux est celui du contrat (1 ${cur} = ${tauxLu(doc.exchangeRate)} ${co.currency}) : vérifie celui du jour`, '']);
         doc.lines.forEach(l => {
           const it = C.itemOfLine(l, data); if (!it || !it.serialized) return;
           const manque = Math.max(0, Math.round(Number(l.qty) || 0) - (data.serials || []).filter(x => x.outDocId === doc.id && x.itemId === it.id).length);
@@ -13583,13 +13597,16 @@
     let cur = C.normCurrency(r.currency || co0.currency);
     const enDevise = () => cur !== C.normCurrency(co0.currency);
     let retenueTouchee = !isNew;
+    // (1.362.0) La vente à l'exportation du contrat : proposée d'après la dernière facture du client, jamais réécrite une fois touchée.
+    let exportTouche = !isNew;
+    const exportOn = () => enDevise() && !!r.export;
     // 10.12.0 — une bulle par champ (la règle du projet) : le formulaire n'en avait qu'une, sur
     // l'unité, et « ({mois} = mois facturé) » faisait passer l'étiquette de l'objet sur deux lignes.
     modal(`<h2>${isNew ? 'Nouveau contrat récurrent' : 'Modifier le contrat'} ${info('contrat.form')}</h2>
       <form id="rf" class="grid-3">
         <div class="field span-2 obligatoire">${lbl('Client', 'contrat.client')}${combo({ name: 'clientId', value: r.clientId, items: clientItems(r.clientId), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: '+ Nouveau client' })}</div>
         <label class="field">${lbl('Période', 'contrat.periode')}<select name="every">${C.PERIODS.map(p => `<option value="${p[0]}" ${p[0] === r.every ? 'selected' : ''}>${p[1]}</option>`).join('')}</select></label>
-        <label class="field span-2 obligatoire">${lbl('Objet des factures', 'contrat.objet')}<input type="text" name="subject" value="${h(r.subject)}" placeholder="Entretien des portes — {mois}"></label>
+        <label class="field span-2 obligatoire">${lbl('Objet des factures', 'contrat.objet')}<input type="text" name="subject" value="${h(r.subject)}" placeholder="Ce que couvre le contrat — {mois}"></label>
         ${field(lbl('Jour du mois', 'contrat.jour'), 'day', r.day || 1, 'number', 'min="1" max="31" class="num"')}
         ${dateFieldHtml(lbl('Prochaine facture', 'contrat.next'), 'nextDate', r.nextDate || C.today(), { quick: true, obligatoire: true })}
         ${dateFieldHtml(lbl('Fin du contrat (facultatif)', 'contrat.fin'), 'endDate', r.endDate || '', { clearable: true })}
@@ -13597,6 +13614,8 @@
         ${field(lbl('Remise (%)', 'ed.discount'), 'discountRate', r.discountRate || 0, 'number', 'min="0" max="100" step="0.5" class="num"')}
         <label class="field">${lbl('Devise des factures', 'contrat.devise')}<select name="currency">${C.CURRENCIES.map(x => `<option value="${x}" ${x === cur ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
         <label class="field obligatoire" id="rf-rate" ${enDevise() ? '' : 'hidden'}><span class="fl"><span id="rf-rate-lbl">1 ${h(cur)} = ? ${h(co0.currency)}</span> ${info('contrat.taux')}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(r.exchangeRate || ''))}" class="num" placeholder="ex. 3,4"></label>
+        ${/* (1.362.0) La case de la facture, au contrat : sans elle, chaque facture du mois d'un client à l'étranger partait à 19 %. */''}
+        <label class="check span-3" id="rf-export" ${enDevise() ? '' : 'hidden'}><input type="checkbox" name="export" ${r.export ? 'checked' : ''}> <span>Vente à l'exportation : sans TVA, sans droit de timbre ${info('contrat.export')}</span></label>
         <label class="field span-3">${lbl('Notes sur la facture', 'ed.notes')}<textarea name="notes" rows="2">${h(r.notes || '')}</textarea></label>
         <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
         ${bridge.droitsDossier ? `<label class="check span-3"><input type="checkbox" name="emettreSeul" ${r.emettreSeul ? 'checked' : ''} ${bridge.droitsDossier().responsable ? '' : 'disabled'}> <span>Émise seule : SkanFact émet chaque facture à sa date, avec son numéro, sans brouillon à relire${bridge.droitsDossier().responsable ? '' : ' (choix du propriétaire ou d\'un administrateur)'} ${info('contrat.seul')}</span></label>` : ''}
@@ -13618,8 +13637,16 @@
           $('#rl-cur', root).textContent = `(${cur})`;
           poserDevise($('#rl', root), cur);   // les prix s'écrivent avec les décimales de la devise
           if (!enDevise()) txTaux.value = '';
-          tot();
+          $('#rf-export', root).hidden = !enDevise();
+          appliquerExport();
         };
+        // Cochée, chaque ligne passe à 0 % (comme sur la facture, 1.360.1) ; la colonne TVA se grise.
+        const appliquerExport = () => {
+          r.export = enDevise() && $('input[name=export]', root).checked;
+          if (r.export) r.lines.forEach(l => { if (l.kind !== 'titre') l.vatRate = 0; });
+          drawL();   // appelée seulement après le premier dessin (un geste de l'utilisateur)
+        };
+        $('input[name=export]', root).onchange = () => { exportTouche = true; appliquerExport(); };
         const poserClient = id => {
           const c = clientById(id); if (!c) return;
           if (c.lang) r.lang = c.lang;
@@ -13630,6 +13657,12 @@
             const tx = clientWithholding(id);
             if (sel && ![...sel.options].some(o => Number(o.value) === tx && o.value !== '__autre__')) sel.insertAdjacentHTML('afterbegin', `<option value="${tx}">${pct(tx)} %</option>`);
             if (sel) sel.value = String(tx);
+          }
+          if (!exportTouche) {
+            const derniere = data.documents.filter(d => d.clientId === id && d.type === 'facture' && d.number)
+              .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))[0];
+            $('input[name=export]', root).checked = !!(derniere && derniere.export === true);
+            appliquerExport();
           }
         };
         const cliCombo = bindCombo($('[data-combo=clientId]', root), {
@@ -13655,7 +13688,7 @@
           const extraUnits = C.usedUnits(data, r.lines.map(l => l.unit));
           body.innerHTML = r.lines.map((l, i) => l.kind === 'titre' ? `<tr data-i="${i}" class="rl-titre"><td colspan="5"><input type="text" data-k="label" value="${h(l.label)}" placeholder="Titre de la section" aria-label="Titre de la section"></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" aria-label="Retirer le titre">✕</button></td></tr>` : `<tr data-i="${i}"><td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation">
               ${openRl.has(i) ? `<textarea data-k="description" rows="2" placeholder="Description reprise sur chaque facture">${h(l.description || '')}</textarea>` : `<button type="button" class="link-add" tabindex="-1" data-rdesc="${i}">+ description</button>`}</td>
-            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty))}"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frChiffre(l.unitPrice))}"></td><td><select data-k="vatRate">${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
+            <td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-k="qty" value="${h(frChiffre(l.qty))}"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-k="unitPrice" value="${h(frChiffre(l.unitPrice))}"></td><td><select data-k="vatRate" ${exportOn() ? 'disabled title="Vente à l\'exportation : sans TVA."' : ''}>${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
           $$('[data-k]', body).forEach(el => {
             if (el.dataset.k === 'unit') return;
             el.oninput = () => { const i = Number(el.closest('tr').dataset.i); r.lines[i][el.dataset.k] = el.type === 'number' || el.dataset.montant !== undefined ? lireChiffre(el) : el.value; tot(); };
@@ -13677,13 +13710,15 @@
         // Sans ligne chiffrée, le total n'était que le timbre : « 0,000 DT HT · 1,000 DT TTC par
         // facture » sur un contrat vide. On dit ce qui manque au lieu d'annoncer un dinar.
         const tot = () => {
-          const t2 = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: lireChiffre($('input[name=discountRate]', root)), currency: cur, exchangeRate: lireChiffre(txTaux) || '' }, co0);
+          const t2 = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: lireChiffre($('input[name=discountRate]', root)), currency: cur, exchangeRate: lireChiffre(txTaux) || '', ...(exportOn() ? { export: true } : {}) }, co0);
           // Sans taux, le TTC n'est pas encore connu : le timbre est en dinars, et le convertir à 1
           // pour 1 afficherait un total faux le temps de la frappe.
-          const sansTaux = enDevise() && !(Number(txTaux.value) > 0);
+          // (1.362.0) Le taux se lit comme il s'écrit (« 3,4 ») : `Number('3,4')` ne valait rien, et le total disait attendre un
+          // taux déjà tapé. À l'export, ni TVA ni timbre : le TTC est le HT, sans taux.
+          const sansTaux = enDevise() && !exportOn() && !(lireChiffre(txTaux) > 0);
           $('#rl-total', root).textContent = !(t2.netHT > 0.0005) ? 'Le montant par facture s\'affichera ici dès qu\'une ligne aura un prix.'
             : sansTaux ? `${C.money(t2.netHT, cur)} HT par facture · le TTC s'affichera avec le taux de change (le timbre est en ${co0.currency})`
-            : `${C.money(t2.netHT, cur)} HT · ${C.money(t2.totalTTC, cur)} TTC par facture`;
+            : `${C.money(t2.netHT, cur)} HT · ${C.money(t2.totalTTC, cur)} TTC par facture${exportOn() ? ' · sans TVA ni timbre (export)' : ''}`;
         };
         $('#rl-add', root).onclick = () => { r.lines.push(C.newLine(company())); drawL(); };
         $('input[name=discountRate]', root).oninput = tot;
@@ -13705,7 +13740,8 @@
           // facture du contrat compterait 1 € pour 1 DT jusqu'à ce qu'on la corrige à la main.
           if (enDevise() && !(Number(v.exchangeRate) > 0)) return refus(txTaux, `Indique le taux de change : combien vaut 1 ${cur} en ${co0.currency} ? Chaque facture du contrat le reprendra — tu pourras l'ajuster sur la facture.`);
           Object.assign(r, v, { day: Math.min(31, Math.max(1, Number(v.day) || 1)), withholdingRate: Number(v.withholdingRate) || 0, discountRate: Number(v.discountRate) || 0,
-            currency: cur, exchangeRate: enDevise() ? Number(v.exchangeRate) : '' });
+            currency: cur, exchangeRate: enDevise() ? Number(v.exchangeRate) : '', export: exportOn() });
+          if (!r.export) delete r.export;
           // (plateforme, brique 129) Corrigé, un contrat refusé par le serveur se retente au tour suivant, pas demain.
           delete r.refusServeur;
           const idx = data.recurring.findIndex(x => x.id === r.id);
@@ -13741,6 +13777,15 @@
     if (n || skipped) save(true);
     if (skipped) toast(`${pl(skipped, 'échéance passée', 'échéances passées')} : leur mois est clôturé. Rouvre la période si ces factures doivent exister.`, true);
     return { n, skipped, ids };
+  }
+
+  // (1.361.0) Après une génération, le geste suivant est de relire le brouillon : le message l'ouvre. Il disait « à émettre
+  // depuis Factures » et disparaissait, sans chemin.
+  function annoncerBrouillons(res) {
+    const ids = (res && res.ids) || [];
+    if (!ids.length) return;
+    if (ids.length === 1) toastUndo('1 brouillon créé — à relire puis émettre', () => navigate('#/doc/' + ids[0]), 'Ouvrir le brouillon');
+    else toastUndo(`${pl(ids.length, 'brouillon créé', 'brouillons créés')} — à relire puis émettre`, () => navigate('#/factures'), 'Voir les factures');
   }
 
   // Générer un contrat en le rendant annulable : on garde les deux dates AVANT, et « Annuler »
@@ -13888,10 +13933,10 @@
     previewRedraw = drawPv;
 
     const drawDocs = (sortKey) => {
-      const cols = docColumns({ hideClient: true }).cols;
+      const cols = docColumns({ hideClient: true, contrat: true }).cols;
       if (typeof sortKey === 'string' && sortKey) { contratDocState.sort = toggleSort(contratDocState.sort, sortKey, cols); contratDocState.page = 1; }
       $('#c-docs').innerHTML = docTable(invoices, {
-        hideClient: true, sort: contratDocState.sort, onSort: true, page: contratDocState, mini: true,
+        hideClient: true, contrat: true, sort: contratDocState.sort, onSort: true, page: contratDocState, mini: true,
         empty: termine ? 'Ce contrat n\'a produit aucune facture.' : !active ? 'Aucune facture pour l\'instant : le contrat est suspendu.'
           : `Aucune facture pour l'instant. La première sera ${r.emettreSeul ? 'émise' : 'préparée'} le ${C.fmtDate(r.nextDate)}.`
       });
@@ -13935,7 +13980,16 @@
     // euros à des dinars — donc classait de travers.
     const curOf = r => r.currency || cur;
     // (1.290.0) Un brouillon préparé par le contrat et pas encore émis : la ligne le dit, comme la fiche (« Émettre la facture »).
-    const attente = new Set(data.documents.filter(d => d.recurringId && d.type === 'facture' && d.status === 'brouillon').map(d => d.recurringId));
+    // (1.362.0) Le plus ancien d'abord : c'est celui qu'on émet en premier, et le menu de la ligne l'ouvre.
+    // Relue à chaque dessin : « Générer le brouillon » ajoute un brouillon sans changer de page, et la ligne doit le dire.
+    const attente = new Map();
+    const lireAttente = () => {
+      attente.clear();
+      data.documents.filter(d => d.recurringId && d.type === 'facture' && d.status === 'brouillon')
+        .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+        .forEach(d => { if (!attente.has(d.recurringId)) attente.set(d.recurringId, d); });
+    };
+    lireAttente();
     const enAttenteDe = r => attente.has(r.id);
     const htOf = r => C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate,
       currency: r.currency, exchangeRate: r.exchangeRate }, company()).netHT;
@@ -13976,6 +14030,7 @@
       });
     }
     const draw = dansUnLot((sortKey) => {
+      lireAttente();
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
       const due = C.dueRecurrences(data);
       const all = data.recurring.slice();
@@ -13991,7 +14046,7 @@
       const parMois = C.round3(parAn / 12);
       drawResumeC(all, due);
       const nb = nDus(due);
-      $('#c-wrap').innerHTML = `${due.length ? `<div class="banner" id="c-a-generer">${pl(nb, 'facture')} récurrente${sPl(nb)} à générer${due.length > 1 ? ` (${pl(due.length, 'contrat')})` : ''}<button class="btn" id="gen-due">Générer les brouillons</button></div>` : ''}
+      $('#c-wrap').innerHTML = `${due.length ? `<div class="banner" id="c-a-generer">${pl(nb, 'facture')} récurrente${sPl(nb)} à générer${due.length > 1 ? ` (${pl(due.length, 'contrat')})` : ''}<button class="btn btn-primary" id="gen-due">Générer ${nb > 1 ? 'les brouillons' : 'le brouillon'}</button></div>` : ''}
         ${filtersBar(`
           <input type="text" id="q" placeholder="Rechercher : client, objet…" value="${h(s.q)}">
           <select id="st">${STATES.map(([v, l]) => `<option value="${v}" ${s.st === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -14046,7 +14101,8 @@
       // Seul `#c-wrap` se redessine : l'en-tête suit l'état vide ICI, pas au dessin de la page. Tant
       // que l'état vide porte son bouton principal, celui de l'en-tête est secondaire (U-11).
       const nouveau = $('#new');
-      if (nouveau) nouveau.classList.toggle('btn-primary', !!(kept.length || filtered));
+      // (1.361.0) Et tant qu'une facture attend d'être générée, l'étape suivante est la générer : le vert va à la bande.
+      if (nouveau) nouveau.classList.toggle('btn-primary', !!(kept.length || filtered) && !due.length);
       const q = $('#q');
       if (q) q.oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; sansPerdreLaFrappe(e.target, draw); };
       if ($('#st')) $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
@@ -14061,8 +14117,8 @@
         if (!await confirmDialog(
           `Générer ${combien} brouillon${combien > 1 ? 's' : ''} de facture ?\n\n`
           + `${combien > 1 ? 'Ils arrivent' : 'Il arrive'} en brouillon dans Factures : rien n'est émis, rien n'est numéroté et rien ne part chez un client tant que tu ne l'as pas relu.`,
-          `Générer ${combien > 1 ? 'les brouillons' : 'le brouillon'}`)) return;
-        const res = generateRecurring(); toast(`${pl(res.n, 'brouillon créé', 'brouillons créés')} — à émettre depuis Factures`); draw();
+          `Générer ${combien > 1 ? 'les brouillons' : 'le brouillon'}`, false)) return;
+        const res = generateRecurring(); annoncerBrouillons(res); draw();
       };
       // Reprendre un contrat suspendu DÉPLACE sa prochaine échéance, et l'ancienne date est perdue :
       // un clic de trop sur « Suspendre » puis « Reprendre » décale la facturation sans qu'on puisse
@@ -14082,7 +14138,11 @@
       bindRowMenus($('#c-wrap'), id => {
         const r = data.recurring.find(x => x.id === id); if (!r) return [];
         const suspendu = r.active === false;
+        // (1.362.0) Un brouillon préparé par le contrat attend : l'étape suivante est de le relire puis l'émettre, et la
+        // ligne qui dit « brouillon à émettre » doit y mener — sinon on le cherche dans la liste des factures.
+        const att = attente.get(r.id);
         return [
+          ...(att ? [{ icon: 'facture', label: 'Ouvrir le brouillon à émettre', hint: `${(m => m.charAt(0).toUpperCase() + m.slice(1))(String(C.monthLabel(att.date) || ''))}, à relire puis émettre`, run: () => navigate('#/doc/' + att.id) }] : []),
           { icon: 'contrat', label: 'Ouvrir la fiche', hint: 'Ce qu\'il facturera, et ce qu\'il a déjà facturé', run: () => navigate('#/contrat/' + r.id) },
           // On mène à la fiche du contrat : c'est là qu'on voit le brouillon qui vient d'être créé.
           // `vers()` redessine quand on y est déjà — l'annulation repasse par ici et le hash n'a pas
@@ -14622,7 +14682,7 @@
     // (plateforme) 1.102.0 — ce que le cabinet attend se règle dans son fil.
     'cabinet-attend': { label: 'Répondre', run: vers('#/comptable') },
     // (17 lot P1b) Les lignes de la paie (rangs 1 à 4, 32 et 33) sont posées par le Personnel, dans sa boîte.
-    contrats: { label: 'Générer les brouillons', run: () => { const res = generateRecurring(); toast(`${pl(res.n, 'brouillon créé', 'brouillons créés')} — à relire puis émettre`); render(); } },
+    contrats: { label: 'Générer les brouillons', run: () => { const res = generateRecurring(); annoncerBrouillons(res); render(); } },
     retards: { label: 'Voir les relances', run: vers('#/relances') },
     'bons-a-facturer': { label: 'Voir les bons', run: vers('#/autres/livraison') },
     'receptions-a-facturer': { label: 'Voir les réceptions', run: vers('#/commandesf/receptions') },

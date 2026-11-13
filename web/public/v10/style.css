@@ -778,7 +778,9 @@ table.lignes-doc th { padding-bottom: 4px; }
 #r-wrap table.list td:first-child a { white-space: nowrap; }
 /* (plateforme) 1.80.0 — dans une fenêtre basse (« Partir d'une pièce existante »), la liste ouverte était coupée par la
    fenêtre : une seule ligne visible, et une barre de défilement minuscule. Ouverte, elle déborde de la fenêtre. */
-.modal:has(.combo-pop:not([hidden])) { overflow: visible; }
+/* (1.362.0) Seulement dans une fenêtre qui ne défile pas : dans une fenêtre qui défile, déborder faisait sortir son pied
+   (« Annuler », « Enregistrer ») sous la fenêtre ; la liste s'y ouvre dans le défilement (`defile`, posé à l'ouverture). */
+.modal:not(.defile):has(.combo-pop:not([hidden])) { overflow: visible; }
 
 /* ---------- toast ---------- */
 #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(6px); background: var(--text); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .18s, transform .18s; pointer-events: none; z-index: 950; box-shadow: 0 10px 30px rgba(20,40,60,.25); }

@@ -2284,13 +2284,27 @@
   // formulaire de contrat qui promettait le contraire.
   // (plateforme 1.315.0) `periodeIso` : l'échéance que la facture couvre, quand elle se prépare plus tard (une période en
   // retard) ; la facture se date du jour où on la fait (`dateIso`), jamais dans un mois passé, et son objet dit la période.
+  // (1.362.0) L'échéance d'une facture neuve : le délai de la fiche du client s'il en a un (fin de mois s'il le dit), sinon
+  // celui des réglages. UNE règle pour la facture tapée et pour celle du contrat : le contrat de l'hôtel, réglé à soixante
+  // jours sur sa fiche, sortait ses factures à trente — celles des réglages —, et la relance partait un mois trop tôt.
+  function echeancePour(dateIso, client, company) {
+    const propre = !!client && client.paymentTermsDays !== '' && client.paymentTermsDays != null
+      && Number.isFinite(Number(client.paymentTermsDays)) && Number(client.paymentTermsDays) >= 0;
+    const iso = addDays(dateIso, propre ? Math.round(Number(client.paymentTermsDays)) : delaiJours((company || {}).paymentTermsDays, 30));
+    if (!propre || !client.paymentTermsEom) return iso;
+    const d = new Date(iso + 'T00:00:00Z');
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10);
+  }
+
   function buildRecurringInvoice(rec, dateIso, company, client, periodeIso) {
     const per = periodeIso || dateIso;
     const vars = { mois: monthLabel(per), annee: per.slice(0, 4) };
     return {
-      type: 'facture', number: '', status: 'brouillon', date: dateIso, dueDate: addDays(dateIso, delaiJours(company.paymentTermsDays, 30)), periode: per,
+      type: 'facture', number: '', status: 'brouillon', date: dateIso, dueDate: echeancePour(dateIso, client, company), periode: per,
       clientId: rec.clientId, subject: fillTemplate(rec.subject, vars), reference: rec.reference || '',
-      lines: (rec.lines || []).map(l => ({ ...l, label: fillTemplate(l.label, vars), description: fillTemplate(l.description || '', vars) })),
+      // (1.362.0) La vente à l'exportation du contrat passe à chaque facture : sans TVA (lignes à 0 %) et sans timbre.
+      ...(rec.export === true ? { export: true } : {}),
+      lines: (rec.lines || []).map(l => ({ ...l, ...(rec.export === true && l.kind !== 'titre' ? { vatRate: 0 } : {}), label: fillTemplate(l.label, vars), description: fillTemplate(l.description || '', vars) })),
       discountRate: rec.discountRate || 0, applyStamp: !(client && client.stampExempt), notes: fillTemplate(rec.notes || '', vars), payments: [],
       withholdingRate: Number(rec.withholdingRate) || 0, recurringId: rec.id, lang: rec.lang || company.defaultLang || 'fr', currency: rec.currency || company.currency, exchangeRate: rec.exchangeRate || ''
     };

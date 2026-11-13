@@ -18041,7 +18041,7 @@ prouver 'le ticket de caisse proposé comme pièce de départ d'"'"'un bon de li
   "data.documents.filter(d => d.type !== type && (C.CONVERSIONS[d.type] || []).includes(type))" \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
 prouver 'la liste d'"'"'un choix coupée par une petite fenêtre' 'web/public/v10/style.css' \
-  '.modal:has(.combo-pop:not([hidden])) { overflow: visible; }' \
+  '.modal:not(.defile):has(.combo-pop:not([hidden])) { overflow: visible; }' \
   '' \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
 prouver 'le refus de deux phrases qui disparaît avant sa lecture' modules/socle/ecrans/entreprise/app-1.js \
@@ -29063,6 +29063,98 @@ prouver $'traite 1.361.0 y : « déjà réglé » compte le règlement qu\'on mo
   $'déjà réglé\\u00a0${C.money(dejaHors, cur)}' \
   $'déjà réglé\\u00a0${C.money(b.paid, cur)}' \
   $'la traite de l\'hôtel : le 411 soldé le jour de la traite, le 413 jusqu\'à l\'échéance ; la traite à la minoterie : le 403'
+prouver $'contrat 1.362.0 a : la facture du contrat prend le délai des réglages, pas celui de la fiche du client' modules/socle/moteur/core-1.js \
+  $'dueDate: echeancePour(dateIso, client, company), periode: per,' \
+  $'dueDate: addDays(dateIso, delaiJours(company.paymentTermsDays, 30)), periode: per,' \
+  $'l\'hôtel à soixante jours'
+prouver $'contrat 1.362.0 b : le délai « fin de mois » de la fiche est oublié' modules/socle/moteur/core-1.js \
+  $'    if (!propre || !client.paymentTermsEom) return iso;' \
+  $'    return iso;' \
+  $'à trente jours fin de mois'
+prouver $'contrat 1.362.0 c : le serveur qui émet seul prend le délai des réglages' serveur/v10/contrats.ts \
+  $'  const propre = !!client && client.paymentTermsDays !== \'\'' \
+  $'  const propre = false && !!client && client.paymentTermsDays !== \'\'' \
+  $'l\'hôtel à soixante jours'
+prouver $'contrat 1.362.0 d : le serveur oublie la fin de mois' serveur/v10/contrats.ts \
+  $'  if (propre && client?.paymentTermsEom) echeance' \
+  $'  if (false && propre && client?.paymentTermsEom) echeance' \
+  $'à trente jours fin de mois'
+prouver $'contrat 1.362.0 e : la facture du contrat perd la vente à l\'exportation' modules/socle/moteur/core-1.js \
+  $'      ...(rec.export === true ? { export: true } : {}),\n      lines:' \
+  $'      lines:' \
+  $'la vente à l\'exportation du contrat passe à chaque facture : lignes à 0 %, sans timbre'
+prouver $'contrat 1.362.0 f : les lignes de la facture d\'export gardent 19 %' modules/socle/moteur/core-1.js \
+  $'...(rec.export === true && l.kind !== \'titre\' ? { vatRate: 0 } : {}), label: fillTemplate' \
+  $'label: fillTemplate' \
+  $'la vente à l\'exportation du contrat passe à chaque facture : lignes à 0 %, sans timbre'
+prouver $'contrat 1.362.0 g : le serveur perd la vente à l\'exportation du contrat' serveur/v10/contrats.ts \
+  $'    ...(rec.export === true ? { export: true } : {}),\n    lines:' \
+  $'    lines:' \
+  $'la vente à l\'exportation du contrat passe à chaque facture : lignes à 0 %, sans timbre'
+prouver $'contrat 1.362.0 h : le serveur garde 19 % aux lignes d\'export' serveur/v10/contrats.ts \
+  $'...(rec.export === true && l.kind !== \'titre\' ? { vatRate: 0 } : {}), label: remplir' \
+  $'label: remplir' \
+  $'la vente à l\'exportation du contrat passe à chaque facture : lignes à 0 %, sans timbre'
+prouver $'contrat 1.362.0 i : une facture dupliquée prend le délai des réglages' modules/socle/ecrans/entreprise/app-1.js \
+  $'      : C.echeancePour(copy.date, clientById(copy.clientId), company());' \
+  $'      : C.addDays(copy.date, C.delaiJours(company().paymentTermsDays, 30));' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 j : le menu de la ligne n\'ouvre pas le brouillon à émettre' modules/socle/ecrans/entreprise/app-1.js \
+  $'          ...(att ? [{ icon: \'facture\', label: \'Ouvrir le brouillon à émettre\'' \
+  $'          ...(false ? [{ icon: \'facture\', label: \'Ouvrir le brouillon à émettre\'' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 k : la ligne ne dit pas le brouillon qui vient d\'être généré' modules/socle/ecrans/entreprise/app-1.js \
+  $'    const draw = dansUnLot((sortKey) => {\n      lireAttente();' \
+  $'    const draw = dansUnLot((sortKey) => {' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 l : la fenêtre qui défile déborde quand une liste s\'ouvre' web/public/v10/style.css \
+  $'.modal:not(.defile):has(.combo-pop:not([hidden])) { overflow: visible; }' \
+  $'.modal:has(.combo-pop:not([hidden])) { overflow: visible; }' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 m : la liste ne mesure pas si la fenêtre défile' modules/socle/ecrans/entreprise/app-1.js \
+  $'      if (mo) mo.classList.toggle(\'defile\', mo.scrollHeight > mo.clientHeight + 1);\n' \
+  $'' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 n : la facture émise ne dit pas son contrat' modules/socle/ecrans/entreprise/app-1.js \
+  $'        ${charte && !doc.fromQuoteId && doc.recurringId && (data.recurring' \
+  $'        ${false && charte && !doc.fromQuoteId && doc.recurringId && (data.recurring' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 o : la fiche du contrat garde « Type » et l\'objet entier' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (opts.contrat) cols.splice(1, 2,' \
+  $'    if (false) cols.splice(1, 2,' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 p : le total du contrat lit « 3,4 » avec Number' modules/socle/ecrans/entreprise/app-1.js \
+  $'const sansTaux = enDevise() && !exportOn() && !(lireChiffre(txTaux) > 0);' \
+  $'const sansTaux = enDevise() && !exportOn() && !(Number(txTaux.value) > 0);' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 q : la case de l\'export n\'est pas proposée d\'après la dernière facture' modules/socle/ecrans/entreprise/app-1.js \
+  $'$(\'input[name=export]\', root).checked = !!(derniere && derniere.export === true);' \
+  $'$(\'input[name=export]\', root).checked = false;' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 r : cocher l\'export laisse les lignes à 19 %' modules/socle/ecrans/entreprise/app-1.js \
+  $'          if (r.export) r.lines.forEach(l => { if (l.kind !== \'titre\') l.vatRate = 0; });\n' \
+  $'' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 s : le résumé écrit le taux « 3,4 »' modules/socle/ecrans/entreprise/app-1.js \
+  $'`1 ${h(symboleDevise(cur))} = ${h(tauxLu(doc.exchangeRate))}' \
+  $'`1 ${h(symboleDevise(cur))} = ${h(pct(doc.exchangeRate))}' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 t : le vert reste sur « Nouveau contrat » quand une facture attend' modules/socle/ecrans/entreprise/app-1.js \
+  $'nouveau.classList.toggle(\'btn-primary\', !!(kept.length || filtered) && !due.length);' \
+  $'nouveau.classList.toggle(\'btn-primary\', !!(kept.length || filtered));' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 u : la question de la génération est rouge' modules/socle/ecrans/entreprise/app-1.js \
+  $'`Générer ${combien > 1 ? \'les brouillons\' : \'le brouillon\'}`, false)) return;' \
+  $'`Générer ${combien > 1 ? \'les brouillons\' : \'le brouillon\'}`)) return;' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 v : le message ne mène pas aux brouillons' modules/socle/ecrans/entreprise/app-1.js \
+  $'— à relire puis émettre`, () => navigate(\'#/factures\'), \'Voir les factures\');' \
+  $'— à émettre depuis Factures`);' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
+prouver $'contrat 1.362.0 w : l\'invite de l\'objet parle d\'un autre métier' modules/socle/ecrans/entreprise/app-1.js \
+  $'placeholder="Ce que couvre le contrat — {mois}"' \
+  $'placeholder="Entretien des portes — {mois}"' \
+  $'l\'hôtel et la maison de Lyon : deux contrats, deux brouillons, la bonne échéance, l\'export, et le comptable lit les mêmes ventes'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
