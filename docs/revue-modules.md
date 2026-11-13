@@ -3633,3 +3633,49 @@ les mêmes ventes. Ce qui était faux, et ce qui ne l'est plus :
   `tests/web/paie-1355.test.ts`, `tests/web/messagerie.test.ts` (la feuille du fil absente de la première ouverture,
   la page sans réseau toujours en page, la feuille posée une fois, juste après `messagerie.css`), `tests/web/leger.test.ts` ;
   sept preuves « rouge 1.362.1 », et sept preuves anciennes repointées vers `messagerie-fil.css`.
+
+### 1.362.2 : une facture émise deux fois, annulée par un avoir total (bout en bout 26)
+
+Joué à la souris par la pâtisserie de Nour : la facture du mois de l'Hôtel Mouradi (1 200 HT + 228 de TVA + 1 de timbre
+= 1 429 DT) refaite depuis la fiche du client, émise une seconde fois par erreur, puis annulée par un avoir total ; et le
+Cabinet qui lit les deux pièces.
+
+- **Le doublon se voit avant d'émettre.** Une facture de même client, même devise et même net à payer, datée à moins de
+  soixante jours et pas annulée, s'annonce dans « Avant d'émettre » (« Un doublon ? FAC-2026-004 du 13/11 : même client,
+  même montant, même objet », avec « L'ouvrir ») et dans la fenêtre d'émission. On peut émettre quand même : deux
+  livraisons du même forfait existent.
+- **« la refaire » demande avant, pas après.** Le lien de la dernière facture du client créait la copie PUIS posait
+  « Quitter sans enregistrer ? » : « Annuler » laissait un brouillon orphelin. Sur une facture neuve où seul le client
+  est choisi (la copie porte le même), la copie s'ouvre sans question ; quand quelque chose est tapé, la question est
+  posée d'abord. « ← » ne menait déjà pas à la page vierge (la pile n'entre jamais une page de création, 10.12.0) : une
+  première version passait une option de plus à `duplicateDoc`, que sa preuve a montrée inutile — retirée. La copie ne
+  reprend plus la période du contrat (`periode`), comme elle ne reprenait déjà ni le contrat ni les bons de livraison.
+- **L'avoir d'annulation totale reprend le timbre.** Sans lui, la facture « annulée » laissait 1 DT dû pour toujours :
+  relances, retard, compte du client chez le comptable. Le motif « Annulation totale » coche le timbre quand la facture
+  en porte un, et un autre motif le rend ; le menu « Avoir total » suit la même règle (il posait le motif sans le
+  timbre). L'étiquette « Timbre » reste modifiable à la main. **À VÉRIFIER avec le comptable : la reprise du timbre fiscal
+  par un avoir d'annulation totale.**
+- **Un second avoir ne se crée plus en silence.** Chaque passage par « Créer un avoir » ouvrait un NOUVEAU brouillon : une
+  facture finissait avec deux ou trois avoirs en attente. Quand un brouillon d'avoir attend déjà sur la facture, la
+  fenêtre « Un avoir sur FAC-… attend déjà » propose de l'ouvrir ; en commencer un autre reste possible. Les cinq portes
+  (bouton de la pièce, bandeau d'une pièce émise, menu de la pièce, menu de la liste, fenêtre de relance) passent par
+  la même fonction (`avoirSur`).
+- **Un brouillon d'avoir resté en double ne promet plus d'argent à rendre.** Sur une facture jamais payée, déjà annulée
+  par AVO-2026-002, le bandeau annonçait « 1 429,000 DT à rendre au client ». La règle vit dans le moteur
+  (`C.apresAvoir`), lue par le bandeau de l'éditeur ET la fenêtre d'émission : « à rendre » ne compte que ce que le
+  client a PAYÉ ; ce qui dépasse ce que la facture porte encore se dit à part, en nommant l'avoir qui l'a déjà corrigée
+  (« c'est presque toujours un brouillon en double »), avec le bouton « Supprimer ce brouillon ».
+- **Le rouge GitHub de 36aa1da** : `plateforme/pont.js` avait 3 157 lignes pour 3 142 au plus (la feuille du fil de la
+  1.362.1). Le chargement de la messagerie et de sa feuille passe par les portes de l'application
+  (`SkanChargerMessagerie`, `chargerScript` et `chargerFeuille` dans `app-1.js`) : `pont.js` redescend à 3 129 lignes, et
+  sa limite avec lui.
+- Vérifié à la souris : l'avoir total à 1 429,000 (timbre compris), « Après cet avoir, FAC-2026-006 ne laisse plus rien
+  à payer », la facture « Annulée par AVO-2026-002 : plus rien n'est dû », les relances qui ne la citent plus, l'écriture
+  de l'avoir (411 au crédit 1 429, 706 1 200, 4367 228 et 4368 1 au débit) ; au Cabinet, FAC-2026-006 et AVO-2026-002 au
+  brouillard, 1 429,000 chacune. Les brouillons restés de l'ancienne règle se sont retirés par leur nouveau bouton.
+- À VÉRIFIER avec le comptable : une facture annulée garde « Signer » et « Envoyer » dans sa frise (El Fatoora : une
+  facture numérotée puis annulée se transmet-elle avant son avoir ?).
+- Tests : `tests/moteur/annulation-avoir-1362-2.test.ts` (à rendre, de trop, et les deux ensemble, comptés à la main),
+  `tests/web/annulation-avoir-1362-2.test.ts` (le doublon, « la refaire » sans question après un client choisi à la main, l'avoir total et son timbre, le second avoir
+  proposé, le brouillon en double retiré, le Cabinet) ; preuves « avoir 1.362.2 », les preuves « rouge 1.362.1 c/d »
+  repointées vers `app-1.js`.

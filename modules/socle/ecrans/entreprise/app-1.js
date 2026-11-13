@@ -794,6 +794,17 @@
     }));
     return feuillesEnCours.get(chemin);
   }
+  // (1.239.0, L8 ; 1.362.2) La messagerie (messagerie.js, 48 Ko) et sa feuille du fil (messagerie-fil.css, 1.362.1, L12) ne
+  // partent pas avec la première ouverture : « Mon comptable » (le pont) les demande ici, à la première conversation ou au
+  // premier fichier envoyé au cabinet, deux gestes qui demandent le réseau de toute façon. Servies sans empreinte, donc
+  // revalidées, jamais une copie d'hier. La feuille se pose juste après messagerie.css, à la place qu'avaient ses règles,
+  // et la conversation attend les deux ; sans réseau, le refus se dit et le prochain geste réessaie.
+  window.SkanChargerMessagerie = () => window.SkanMessagerie ? Promise.resolve(window.SkanMessagerie)
+    : Promise.all([chargerScript('../plateforme/messagerie.js'), chargerFeuille('../plateforme/messagerie-fil.css', '../plateforme/messagerie.css')])
+      .then(([script, feuille]) => {
+        if (script && feuille && window.SkanMessagerie) return window.SkanMessagerie;
+        throw new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.');
+      });
   // Le texte de l'aide : déjà là quand guide.js est entier (le développement), sinon chargé.
   const textesPrets = () => !G.textesPrets || G.textesPrets();
   const chargerTextes = () => (textesPrets() ? Promise.resolve(true) : chargerScript('guide-textes.js').then(ok => ok && textesPrets()));
@@ -1326,12 +1337,15 @@
     // facture ; s'il n'a rien payé, c'est un avoir plus gros que ce qu'il reste à corriger, donc
     // presque toujours une faute de saisie. Dire « déjà payée » d'une facture qu'un autre avoir a
     // couverte serait écrire le contraire du vrai.
-    const bInv = inv ? balance(inv) : null;
-    const reste = bInv ? bInv.remaining : null;
-    const aRendre = bInv ? C.round3(Math.max(0, t.netToPay - Math.max(0, reste))) : 0;
-    const surplus = aRendre > 0.0005 ? (bInv.paid > 0
-      ? `${reste > 0.0005 ? `Il ne reste que ${C.money(reste, cur)} à payer sur ${h(inv.number)}` : `${h(inv.number)} est déjà payée`} : cet avoir laisse <strong>${C.money(aRendre, cur)}</strong> à rendre à ${h(cl ? cl.name : 'ton client')} — par un remboursement, ou en déduction de sa prochaine facture.`
-      : `${reste > 0.0005 ? `Il ne reste que ${C.money(reste, cur)} à corriger sur ${h(inv.number)}` : `${h(inv.number)} est déjà entièrement couverte par un avoir`} : cet avoir la dépasse de <strong>${C.money(aRendre, cur)}</strong>. Vérifie son montant avant de l'émettre.`) : '';
+    // (1.362.2) La règle vit dans C.apresAvoir, que le bandeau de l'éditeur lit aussi : « à rendre » ne compte que ce que le
+    // client a payé, et ce qui dépasse la facture se dit à part, en nommant l'avoir qui l'a déjà corrigée.
+    const a = inv ? C.apresAvoir(inv, t.netToPay, data, company()) : null;
+    const reste = a ? C.round3(a.reste + t.netToPay) : null;
+    const deja = a ? a.credits.map(x => x.number).filter(Boolean).join(', ') : '';
+    const surplus = !a ? '' : [
+      a.aRendre > 0.0005 ? `${reste > 0.0005 ? `Il ne reste que ${C.money(reste, cur)} à payer sur ${h(inv.number)}` : `${h(inv.number)} est déjà payée`} : cet avoir laisse <strong>${C.money(a.aRendre, cur)}</strong> à rendre à ${h(cl ? cl.name : 'ton client')} — par un remboursement, ou en déduction de sa prochaine facture.` : '',
+      a.depasse > 0.0005 ? `${deja ? `${h(inv.number)} est déjà corrigée par ${h(deja)}` : `Il ne reste que ${C.money(C.round3(t.netToPay - a.depasse), cur)} à corriger sur ${h(inv.number)}`} : cet avoir la dépasse de <strong>${C.money(a.depasse, cur)}</strong>. Vérifie son montant avant de l'émettre${deja ? ' : un second avoir sur la même facture est presque toujours un brouillon en double' : ''}.` : ''
+    ].filter(Boolean).join(' ');
     const ligne = (k, v) => `<div><span>${h(k)}</span><span>${v}</span></div>`;
     // Une facture tirée d'un devis le DIT avant l'émission : le solde nomme le devis et les acomptes
     // qu'il déduit, l'acompte sa part du devis. C'est ce qu'un gérant vérifie avant d'envoyer — que
@@ -1370,7 +1384,7 @@
         <div class="kv recap-emission">
           ${ligne('Client', `<strong>${h(cl ? cl.name : doc.passage ? nomClientPiece(doc) + ' · de passage' : '—')}</strong>`)}
           ${origine}
-          ${inv ? ligne('Facture corrigée', `${h(inv.number || '—')} · ${C.money(bInv.totals.netToPay, cur)}`) : ''}
+          ${inv ? ligne('Facture corrigée', `${h(inv.number || '—')} · ${C.money(C.computeTotals(inv, company()).netToPay, cur)}`) : ''}
           ${premiere ? `<div id="em-num-ligne"><span>Numéro</span><span><span class="mono" id="em-num">${h(numero)}</span> — ${isAv ? 'ton tout premier avoir' : 'ta toute première ' + laPiece().replace(/^la /, '')} ici${/* (1.329.0) Continuer la numérotation est un réglage fiscal (le serveur le refuse aux autres) : le bouton pour qui
                  le règle, la phrase qui dit à qui le demander pour les autres. */''}${estResponsable()
               ? ` <button type="button" class="btn btn-sm" id="num-suite">${isAv ? 'J\'émettais déjà des avoirs' : 'Je facturais déjà'} : continuer ma numérotation…</button>`
@@ -4968,10 +4982,19 @@
   }
 
   // Duplication d'un document : nouveau brouillon aux dates du jour, sans paiement ni rattachement
+  // (1.362.2) La facture émise qui ressemble à celle qu'on s'apprête à émettre : même client, même devise, même net à payer,
+  // datée à moins de soixante jours, et pas annulée par ses avoirs. La plus proche dans le temps.
+  function jumelleDe(doc, net) {
+    const cur = docCur(doc), dl = C.addDays(doc.date, -60), dh = C.addDays(doc.date, 60);
+    return data.documents.filter(d => d.type === 'facture' && d.number && d.id !== doc.id && d.clientId === doc.clientId && docCur(d) === cur
+      && d.date >= dl && d.date <= dh && C.effectiveStatus(d, data, company()) !== 'annulée'
+      && Math.abs(C.computeTotals(d, company()).netToPay - net) < 0.0005)
+      .sort((a, b) => Math.abs(Date.parse(a.date) - Date.parse(doc.date)) - Math.abs(Date.parse(b.date) - Date.parse(doc.date)))[0] || null;
+  }
   function duplicateDoc(doc) {
     const isQ = doc.type === 'devis';
     const numbered = isQ || C.EXTRA_TYPES.includes(doc.type);   // ces pièces portent un numéro dès l'enregistrement
-    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };
+    const copy = { ...deepCopy(doc), id: C.uid(), number: '', status: 'brouillon', date: C.today(), createdAt: Date.now(), issuedTs: undefined, regimeTva: undefined, exonerationRS: undefined, payments: [], emails: [], reminders: [], attachments: [], withholdingCertificate: false, ticket: undefined, caisse: undefined, fromQuoteId: undefined, fromQuoteNumber: undefined, fromDocId: undefined, fromDocType: undefined, fromDocNumber: undefined, deposit: undefined, settles: undefined, recurringId: undefined, periode: undefined, bonsLivraison: undefined, assetId: undefined };
     // (1.306.0) Le refus (ou l'acceptation) d'un devis et sa marque « modifié après l'envoi » restent au devis d'origine.
     delete copy.reponse; delete copy.modifieApresEnvoi;
     (copy.lines || []).forEach(l => { if (l) delete l.fromBon; });   // (1.316.0) une copie est une autre vente : elle sort le stock
@@ -5473,7 +5496,7 @@
     if (!lecture) piece.push({ icon: 'copier', label: 'Dupliquer', hint: 'un brouillon, mêmes lignes', run: () => duplicateDoc(d) });
     if (peutEcrireAuCabinet()) piece.push({ icon: 'message', label: 'Écrire au cabinet sur cette pièce', hint: 'la question arrive dans votre fil', run: () => ecrireAuCabinetSur(d) });
     const corriger = d.type === 'facture' && st !== 'annulée' && !commercial && !lecture
-      ? [{ icon: 'restaurer', label: 'Créer un avoir', hint: 'corrige tout ou partie : la facture ne se modifie plus', run: () => navigate('#/doc/new/avoir/' + d.id) }] : [];
+      ? [{ icon: 'restaurer', label: 'Créer un avoir', hint: 'corrige tout ou partie : la facture ne se modifie plus', run: () => avoirSur(d) }] : [];
     const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
     return [...tete, ...groupe('Envoyer', envoyer), ...groupe('Légal', legal), ...groupe('La pièce', piece), ...groupe('Corriger', corriger)];
   }
@@ -5955,7 +5978,7 @@
     } else if (parts[0] === 'new') {
       const type = ['devis', 'facture', 'avoir'].concat(C.EXTRA_TYPES).includes(parts[1]) ? parts[1] : 'devis';
       doc = newDocument(type); isNew = true;
-      if (type === 'avoir' && parts[2] && !['tpl', 'client', 'affaire', 'cession'].includes(parts[2])) { const inv = docById(parts[2]); if (inv) { Object.assign(doc, creditDraftFrom(inv)); if (parts[3] === 'total') doc.creditReason = 'Annulation totale'; } }
+      if (type === 'avoir' && parts[2] && !['tpl', 'client', 'affaire', 'cession'].includes(parts[2])) { const inv = docById(parts[2]); if (inv) { Object.assign(doc, creditDraftFrom(inv)); if (parts[3] === 'total') { doc.creditReason = 'Annulation totale'; if (timbreDAnnulation(inv)) doc.applyStamp = true; } } }
       if (parts[2] === 'tpl' && parts[3]) applyTemplate(doc, parts[3]);
       // (1.289.0) Depuis la fiche d'un bien vendu : la facture de la cession naît avec le bien et son prix de vente, et
       // garde le lien (la fiche la retrouve et ne propose plus d'en faire une seconde). Le taux de TVA reste celui de la
@@ -7998,7 +8021,18 @@
       // « Changer » rouvre « Pour qui ? » à la place de la carte ; Échap la rend.
       if (ch) ch.onclick = () => { if (!pourQui) return; carte.hidden = true; pourQui.hidden = false; const q = $('#ed-pq-q', pourQui); q.value = ''; q.dispatchEvent(new Event('input')); q.focus(); };
       const rf = $('#cl-refaire', carte);
-      if (rf) rf.onclick = () => { const d = docById(rf.dataset.refaire); if (d) duplicateDoc(d); };
+      // (1.362.2, bout en bout 26) « la refaire » créait la copie PUIS demandait « Quitter sans enregistrer ? » : « Annuler »
+      // laissait un brouillon orphelin. On demande d'abord. Une pièce neuve où seul le client est choisi n'a rien à perdre
+      // (la copie porte le même client) : elle cède la place sans question. Elle ne reste pas derrière « ← » : la pile
+      // n'entre jamais une page de création (`pushHistory`, 10.12.0).
+      if (rf) rf.onclick = async () => {
+        const d = docById(rf.dataset.refaire); if (!d) return;
+        const rien = isNew && !String(doc.subject || '').trim() && !String(doc.notes || '').trim() && !(doc.attachments || []).length
+          && !(doc.lines || []).some(l => l && (String(l.label || '').trim() || Number(l.unitPrice)));
+        if (rien) clearGuard();
+        else if (!(await leaveOk())) return;
+        duplicateDoc(d);
+      };
       const rl = $('#cl-relancer', carte);
       if (rl) rl.onclick = () => { relState.q = c.name || ''; relState.page = 1; navigate('#/relances'); };
     };
@@ -8200,6 +8234,14 @@
           if (avant) points.push([false, `La date (${lfJm(doc.date)}) précède ${avant.number} du ${lfJm(avant.date)} : la numérotation ne suivrait plus l'ordre des dates`, '']);
         }
         if (doc.dueDate && doc.date && doc.dueDate < doc.date) points.push([false, 'L\'échéance tombe avant la date de la facture', '']);
+        // (1.362.2, bout en bout 26) Une facture qui ressemble à une facture déjà émise pour le même client (même montant, à
+        // moins de soixante jours) : un doublon de bonne foi (la facture du contrat retapée à la main) se voit avant d'émettre,
+        // au lieu de finir en avoir. Un point à vérifier, jamais un refus : un client peut commander deux fois la même chose.
+        if (isInv && !doc.number && doc.clientId && doc.date && t.netToPay > 0) {
+          const jumelle = jumelleDe(doc, t.netToPay);
+          if (jumelle) points.push([false, `Un doublon ? ${jumelle.number} du ${lfJm(jumelle.date)} : même client, même montant${String(jumelle.subject || '').trim() && jumelle.subject === doc.subject ? ', même objet' : ''}`,
+            `<button type="button" class="lien" data-avant="jumelle" data-id="${h(jumelle.id)}">L'ouvrir</button>`]);
+        }
         // (1.317.0, la droguerie jouée) Une ligne du catalogue plus chère que le prix du client (sa liste, le palier de sa
         // quantité) : la facture d'un devis fait avant la liste de l'hôtel gardait ses pots à 89 DT, la liste les met à 74.
         // Le devis accepté reste le prix convenu : on le dit, et « Reprendre ses prix » les pose d'un geste, si on le veut.
@@ -8228,9 +8270,10 @@
         points.push([!!String(doc.subject || '').trim(), String(doc.subject || '').trim() ? 'L\'objet dit ce que couvre le devis' : 'L\'objet est vide : le client lira d\'abord une ligne qui dit ce que couvre le devis', '']);
         points.push([true, `La facture fera ${C.money(tf.netToPay, cur)} à payer${tf.stamp || tf.withholding ? ` (${[tf.stamp ? 'timbre' : '', tf.withholding ? 'retenue' : ''].filter(Boolean).join(' et ')} compris)` : ''}`, '']);
       }
-      el.innerHTML = `<h3>${isQ || (isExtra && envoiSuivant) ? 'Avant d\'envoyer' : isExtra ? 'Avant d\'enregistrer' : 'Avant d\'émettre'}</h3><ul>${points.map(([ok, txt, g]) => `<li class="${ok ? 'ok' : 'alerte'}">${lfIc(ok ? 'coche' : 'aide', 15, 2.4)}<span>${h(txt)}</span>${g}</li>`).join('')}</ul>`;
+      el.innerHTML = `<h3>${isQ || (isExtra && envoiSuivant) ? 'Avant d\'envoyer' : isExtra ? 'Avant d\'enregistrer' : 'Avant d\'émettre'}</h3><ul>${points.map(([ok, txt, g]) => `<li class="${ok ? 'ok' : 'alerte'}">${lfIc(ok ? 'coche' : 'aide', 15, 2.4)}<span>${numerosInsecables(h(txt))}</span>${g}</li>`).join('')}</ul>`;
       const f = $('[data-avant=fiche]', el); if (f) f.onclick = () => allerParametres('societe', 'p-identite');
       const c = $('[data-avant=client]', el); if (c) c.onclick = ouvrirFicheClient;
+      const jm = $('[data-avant=jumelle]', el); if (jm) jm.onclick = () => navigate('#/doc/' + jm.dataset.id);
       const px = $('[data-avant=prix]', el);
       if (px) px.onclick = () => {
         const n = prixAReprendre.length;
@@ -8330,9 +8373,21 @@
       if (apres) {
         apres.hidden = !fi;
         if (fi) {
-          const reste = C.round3(balance(fi).remaining - t.netToPay);
-          apres.className = 'bandeau ' + (reste < -0.0005 ? 'ambre' : 'gris');
-          apres.innerHTML = `${lfIc(reste < -0.0005 ? 'alerte' : 'coche', 18, 2.4)}<span class="txt"><b>Après cet avoir, ${h(fi.number)} ${reste > 0.0005 ? `laisse ${C.money(reste, docCur(fi))} à payer` : 'ne laisse plus rien à payer'}</b><span>${reste < -0.0005 ? `${C.money(-reste, docCur(fi))} à rendre au client, ou à déduire de sa prochaine facture.` : 'Rien à rendre au client : l\'avoir ne dépasse pas ce qui reste dû.'}</span></span>`;
+          // (1.362.2, bout en bout 26) La règle de la fenêtre d'émission (C.apresAvoir) : « à rendre » ne compte que ce que le
+          // client a PAYÉ. Un avoir sur une facture qu'un autre avoir a déjà couverte disait « 1 429,000 DT à rendre au client »
+          // d'une facture jamais payée : c'est un brouillon en double, et le bandeau porte le geste qui le retire.
+          const a = C.apresAvoir(fi, t.netToPay, data, company());
+          const cur = docCur(fi);
+          const deja = a.credits.map(x => x.number).filter(Boolean).join(', ');
+          const sous = a.depasse > 0.0005
+            ? `Il dépasse de ${C.money(a.depasse, cur)} ce que la facture porte encore${deja ? ` : ${h(deja)} l'a déjà corrigée` : ''}. Ce n'est pas une somme à rendre${a.aRendre > 0.0005 ? ` (seuls ${C.money(a.aRendre, cur)} payés le sont)` : ''} : ${deja ? 'c\'est presque toujours un brouillon en double.' : 'vérifie son montant.'}`
+            : a.aRendre > 0.0005 ? `${C.money(a.aRendre, cur)} à rendre au client, ou à déduire de sa prochaine facture.`
+              : 'Rien à rendre au client : l\'avoir ne dépasse pas ce qui reste dû.';
+          const alerte = a.reste < -0.0005;
+          const geste = a.depasse > 0.0005 && deja && !isNew ? '<button type="button" class="btn btn-sm" id="ed-suppr-double">Supprimer ce brouillon</button>' : '';
+          apres.className = 'bandeau ' + (alerte ? 'ambre' : 'gris');
+          apres.innerHTML = `${lfIc(alerte ? 'alerte' : 'coche', 18, 2.4)}<span class="txt"><b>Après cet avoir, ${h(fi.number)} ${a.reste > 0.0005 ? `laisse ${C.money(a.reste, cur)} à payer` : 'ne laisse plus rien à payer'}</b><span>${sous}</span></span>${geste}`;
+          if (geste) $('#ed-suppr-double', apres).onclick = () => supprimerCeBrouillon();
         }
       }
       if (pq) {
@@ -8685,6 +8740,10 @@
       const accEnc = enc && isInv ? accordDe(doc.id, 'encours') : null;
       const encAccorde = !!(accEnc && accEnc.statut === 'accorde' && Number(accEnc.montant) >= Math.round(enc.piece * Math.pow(10, C.decimalsFor(co.currency))));
       if (enc && !encAccorde) w.push(`${(clientById(doc.clientId) || {}).name || 'Ce client'} dépasserait son encours autorisé de ${C.money(enc.depasse, co.currency)} : il doit déjà ${C.money(enc.encours, co.currency)} (factures non réglées et bons livrés à facturer), cette pièce en ajoute ${C.money(enc.piece, co.currency)}, pour ${C.money(enc.plafond, co.currency)} autorisés. Fais-le régler avant, ou émets quand même.`);
+      // (1.362.2, bout en bout 26) Le doublon de bonne foi se redit au dernier écran avant le numéro définitif : « Avant
+      // d'émettre » le disait à côté, et le récapitulatif n'en parlait pas. Un avertissement, jamais un refus.
+      const jum = isInv && !doc.number && doc.clientId && doc.date ? jumelleDe(doc, C.computeTotals(doc, co).netToPay) : null;
+      if (jum) w.push(`Un doublon ? ${jum.number} du ${lfJm(jum.date)} porte déjà ce montant pour ${(clientById(doc.clientId) || {}).name || 'ce client'}${String(jum.subject || '').trim() && jum.subject === doc.subject ? ', avec le même objet' : ''}. Émise, celle-ci ne s'annulera plus que par un avoir.`);
       // (1.330.0) L'accord d'un responsable (l'encours au-delà, la remise au-delà ; briques 100, 103, 104) ne se dit plus
       // ici : depuis la 1.328.0, `accordAttendu` le sait avant, le bouton vert le demande et `phraseAccord` en dit les
       // chiffres. Les deux phrases d'ici n'étaient plus lues par personne (trois preuves restaient vertes sur GitHub).
@@ -9011,10 +9070,14 @@
     // (1.358.2) Supprimée depuis son éditeur, la pièce ne laisse rien à garder : sur un poste qui ne garde rien, « Quitter sans
     // enregistrer ? … cet avoir commencé est perdu » tombait juste après « Supprimer », sur une pièce qu'on venait de jeter.
     // Sa copie sur l'appareil part avec elle (sinon « Nouvel avoir » la proposerait encore).
-    if ($('#del')) $('#del').onclick = () => supprimerPiece(doc, () => {
-      if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = ''; }
-      untouch(); navigate(backTo);
-    });
+    // (1.362.2) La même suppression sert au bandeau d'un avoir qui corrigerait une facture déjà couverte (dessinerAvoir).
+    function supprimerCeBrouillon() {
+      return supprimerPiece(doc, () => {
+        if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = ''; }
+        untouch(); navigate(backTo);
+      });
+    }
+    if ($('#del')) $('#del').onclick = () => supprimerCeBrouillon();
     if ($('#unlock')) $('#unlock').onclick = async () => {
       if (!await confirmDialog(`Modifier ${doc.number} après émission ? Ce n'est pas conforme : une facture émise se corrige par un avoir. À réserver à une erreur repérée avant l'envoi au client.`, 'Modifier quand même')) return;
       unlockedIds.add(doc.id); render();
@@ -9136,11 +9199,11 @@
     if ($('#settle')) $('#settle').onclick = () => facturerSolde(doc);
     if ($('#pay')) $('#pay').onclick = () => paymentForm(docById(doc.id), () => render());
     if ($('#rembourser-avoir')) $('#rembourser-avoir').onclick = () => paymentForm(docById($('#rembourser-avoir').dataset.facture), () => render(), null, true);
-    if ($('#credit')) $('#credit').onclick = () => navigate('#/doc/new/avoir/' + doc.id);
+    if ($('#credit')) $('#credit').onclick = () => avoirSur(doc);
     // Les deux mêmes sorties, portées cette fois par le bandeau plutôt que cachées dans « Plus ▾ » :
     // quelqu'un qui vient de comprendre pourquoi il ne peut rien taper doit trouver la suite là où il
     // l'a lu, pas dans un menu qu'il n'a pas encore ouvert.
-    if ($('#lock-credit')) $('#lock-credit').onclick = () => navigate('#/doc/new/avoir/' + doc.id);
+    if ($('#lock-credit')) $('#lock-credit').onclick = () => avoirSur(doc);
     // Les deux sorties d'une pièce d'un mois clôturé (10.14.0), celles que la fenêtre de clôture
     // donne APRÈS le refus : refaire la pièce aujourd'hui (la copie prend la date du jour, donc un
     // mois ouvert), ou aller voir la clôture — et la rouvrir avec un motif si c'est vraiment le passé
@@ -9327,8 +9390,8 @@
       }
       if (emise && isInv && !annulee) {
         a.push({ titre: 'Corriger' });
-        a.push({ icon: 'facture', label: 'Créer un avoir', hint: peutCorriger ? 'corrige une partie' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? navigate('#/doc/new/avoir/' + doc.id) : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
-        a.push({ icon: 'non', label: 'Avoir total', hint: peutCorriger ? 'neutralise toute la facture' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? navigate('#/doc/new/avoir/' + doc.id + '/total') : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
+        a.push({ icon: 'facture', label: 'Créer un avoir', hint: peutCorriger ? 'corrige une partie' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? avoirSur(doc) : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
+        a.push({ icon: 'non', label: 'Avoir total', hint: peutCorriger ? 'neutralise toute la facture' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? avoirSur(doc, true) : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
       }
       if ($('#del')) { a.push({ sep: true }); a.push({ icon: 'supprimer', label: isNew ? 'Abandonner ce brouillon' : 'Supprimer le brouillon', hint: 'il n\'a pas de numéro : rien ne manque à la série', danger: true, run: parBouton('del') }); }
       RowMenu.ouvrir(bouton, a, { titre: doc.number || (isNew ? title : `${title}${doc.clientId ? ' · ' + ((clientById(doc.clientId) || {}).name || '') : ''}`), classe: 'gestes-menu', label: 'Tous les gestes de la pièce' });
@@ -9528,9 +9591,12 @@
         }
         if (k === 'timbre') {
           const avec = isInv ? doc.applyStamp !== false : doc.applyStamp === true;
+          // (1.362.2) Sur un avoir, le timbre se dit par rapport à la facture qu'il diminue (s'il y en a un sur elle).
+          const faAv = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+          const faTb = faAv && faAv.number && C.computeTotals(faAv, company()).stamp > 0 ? faAv : null;
           return ouvrirBulle(b, `<div class="pop-t">Droit de timbre</div>
-              ${choix('data-tb', '1', `Avec le timbre (${h(libelleTimbre())})`, isInv ? 'le droit de timbre d\'une facture' : 'il se demande sur cette pièce', avec)}
-              ${choix('data-tb', '0', 'Sans timbre', cl && cl.stampExempt ? `${h(cl.name)} en est exonéré` : 'un client exonéré, une pièce qui n\'en porte pas', !avec)}
+              ${choix('data-tb', '1', `Avec le timbre (${h(libelleTimbre())})`, isInv ? 'le droit de timbre d\'une facture' : faTb ? `l'avoir reprend le timbre de ${h(faTb.number)} : elle ne le laisse plus à payer` : 'il se demande sur cette pièce', avec)}
+              ${choix('data-tb', '0', 'Sans timbre', faTb ? `${h(faTb.number)} garde son timbre : il y reste à payer` : cl && cl.stampExempt ? `${h(cl.name)} en est exonéré` : 'un client exonéré, une pièce qui n\'en porte pas', !avec)}
               <p class="pop-n">Le montant du timbre vient des règles fiscales du jour de la pièce ; il se fige à l'émission. À VÉRIFIER avec un comptable.</p>`,
             (pop, fermer) => $$('[data-tb]', pop).forEach(x => x.onclick = () => { mettre('applyStamp', x.dataset.tb === '1'); fermer(); }), { label: 'Droit de timbre' });
         }
@@ -9936,7 +10002,19 @@
     }
     if ($('#ed-pourquoi')) {
       const pq = $('#ed-pourquoi'), autre = $('#ed-motif-autre', pq);
+      // (1.362.2, bout en bout 26) « Annulation totale » d'une facture qui porte le timbre : l'avoir le reprend, sinon la
+      // facture « annulée » laisse un dinar à payer pour toujours (relances, retard, compte du client chez le comptable).
+      // Un autre motif rend le choix d'avant ; l'étiquette « Timbre » le change à la main. À VÉRIFIER avec le comptable.
+      // Un avoir né par « Avoir total » (route « /total ») a déjà pris le timbre par la même règle : un autre motif le rend.
+      let timbreParMotif = isNew && doc.creditReason === 'Annulation totale' && doc.applyStamp === true;
+      const timbreDeLAvoir = (avec) => {
+        const c = $('[name="applyStamp"]', head); if (!c) return;
+        c.checked = avec; c.dispatchEvent(new Event('change', { bubbles: true }));
+      };
       $$('[data-motif]', pq).forEach(b => b.onclick = () => {
+        const fa = doc.creditOf ? docById(doc.creditOf) : null;
+        if (b.dataset.motif === 'Annulation totale' && timbreDAnnulation(fa) && doc.applyStamp !== true) { timbreParMotif = true; timbreDeLAvoir(true); }
+        else if (b.dataset.motif !== 'Annulation totale' && timbreParMotif) { timbreParMotif = false; timbreDeLAvoir(false); }
         if (b.dataset.motif) { autre.hidden = true; poserMotif(b.dataset.motif); }
         else { autre.hidden = false; if (MOTIFS_AVOIR.includes(doc.creditReason)) { autre.value = ''; poserMotif(''); } autre.focus(); refreshTotals(); }
       });
@@ -10215,6 +10293,24 @@
     const rep = { statut: 'accepté', le: C.today() };
     orig.reponse = rep;
     if (bridge.profil) bridge.profil().then(p => { if (p && p.nom && orig.reponse === rep) { rep.par = p.nom.trim().split(/\s+/)[0]; save(true); } }).catch(() => {});
+  }
+  // (1.362.2, bout en bout 26) Un avoir d'ANNULATION TOTALE reprend le timbre de la facture qu'il annule : sans lui, la
+  // facture « annulée » laisse un dinar dû pour toujours. Une règle pour le motif cliqué et pour « Avoir total » (À VÉRIFIER).
+  const timbreDAnnulation = inv => !!inv && C.computeTotals(inv, company()).stamp > 0;
+  // (1.362.2, bout en bout 26) « Créer un avoir » sur une facture qui en a déjà un en brouillon en ouvrait un SECOND : chaque
+  // passage par le bouton en laissait un de plus, et une fois le bon émis, les autres annonçaient une somme « à rendre » sur
+  // une facture déjà annulée. Le brouillon qui attend est proposé d'abord ; en commencer un autre reste possible.
+  async function avoirSur(inv, total) {
+    const nouveau = '#/doc/new/avoir/' + inv.id + (total ? '/total' : '');
+    const attente = data.documents.filter(d => d.type === 'avoir' && d.creditOf === inv.id && !d.number)
+      .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0));
+    if (!attente.length) { navigate(nouveau); return; }
+    const d0 = attente[0];
+    const c = await choiceDialog(`Un avoir sur ${inv.number} attend déjà`,
+      `${attente.length > 1 ? `${attente.length} brouillons d'avoir sur ${inv.number} attendent ; le plus récent` : `Un brouillon d'avoir sur ${inv.number} attend`} : ${C.money(C.computeTotals(d0, company()).netToPay, docCur(d0))}, du ${C.fmtDate(d0.date)}. L'ouvrir évite d'en laisser un second : deux avoirs sur la même facture la corrigeraient deux fois.`,
+      'Ouvrir le brouillon', 'En commencer un autre');
+    if (c === 'a') navigate('#/doc/' + d0.id);
+    else if (c === 'b') navigate(nouveau);
   }
   function creditDraftFrom(inv) {
     return {

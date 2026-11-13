@@ -10271,7 +10271,7 @@
             modal(`<h2>Et la facture ?</h2>
               <p>La facture <strong>${h(inv.number)}</strong> est émise : la rembourser se fait par un avoir, qui reprend ses lignes et son client.</p>
               <div class="modal-actions"><button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="rv-av">Créer l'avoir</button></div>`,
-              (r2, c2) => { $('#rv-av', r2).onclick = () => { c2(); navigate('#/doc/new/avoir/' + inv.id); }; });
+              (r2, c2) => { $('#rv-av', r2).onclick = () => { c2(); avoirSur(inv); }; });
           } else {
             toast('Licence révoquée');
           }

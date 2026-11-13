@@ -7804,7 +7804,7 @@
     debutExercice, soldesOuverture, balanceGenerale, grandLivre, grandLivreRows, balanceAuxiliaire,
     balanceCsvColumns, balanceAuxCsvColumns, grandLivreCsvColumns,
     salesCsvColumns, buyCsvColumns, payCsvColumns, supplierPayCsvColumns, cashCsvColumns, cashCsvRows,
-    estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, estRejet, paiementsTenus, rejetDuPaiement, libelleImpaye, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
+    estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, apresAvoir, estRemboursement, estRejet, paiementsTenus, rejetDuPaiement, libelleImpaye, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, periodesDues, contratTermine, catchUpRecurrence, fillTemplate, buildRecurringInvoice, echeancePour,
     estTitre, sousTotauxDeSections,

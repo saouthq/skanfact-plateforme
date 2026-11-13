@@ -1789,6 +1789,22 @@
     return { totals, credits, credited, paid, remaining, annulee };
   }
 
+  // Ce qu'un avoir laisse sur la facture qu'il corrige (1.362.2, bout en bout 26). UNE règle pour le bandeau de l'éditeur
+  // et pour la fenêtre d'émission : ce qui dépasse le reste dû n'est « à rendre » qu'à hauteur de ce que le client a PAYÉ ;
+  // au-delà, l'avoir corrige plus que la facture ne porte encore — un autre avoir l'a déjà couverte, presque toujours un
+  // brouillon resté en double —, et ce n'est pas une somme à rendre. Le bandeau disait « 1 429,000 DT à rendre au client »
+  // sur une facture jamais payée, déjà annulée par son avoir. Toujours : -reste = aRendre + depasse quand reste < 0.
+  function apresAvoir(inv, net, data, company) {
+    const b = invoiceBalance(inv, data, company);
+    const n = round3(Number(net) || 0);
+    const portee = b.annulee ? 0 : round3(b.totals.netToPay - b.credited);
+    return {
+      reste: round3(b.remaining - n), paid: b.paid, credits: b.credits,
+      aRendre: round3(Math.max(0, b.paid - Math.max(0, portee - n))),
+      depasse: round3(Math.max(0, n - portee))
+    };
+  }
+
   // Le titre d'une question (10.14.0). Les quatre-vingt-sept questions de l'app entreprise
   // s'intitulaient toutes « Confirmation », ce qui ne dit pas ce qu'on confirme : on lit le corps
   // pour savoir si l'on supprime un paiement ou si l'on quitte l'exemple. Le Cabinet donne un titre

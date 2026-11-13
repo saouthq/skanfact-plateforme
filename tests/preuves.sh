@@ -4586,7 +4586,7 @@ prouver "« Transformer » d'une commande livrée en partie qui n'est plus l'ét
   "      : resteALivrer ? 'transform'" "      : false ? 'transform'" \
   "$LCW"
 prouver "une copie de la facture qui reprend ses bons de livraison" modules/socle/ecrans/entreprise/app-1.js \
-  "settles: undefined, recurringId: undefined, bonsLivraison: undefined, assetId: undefined };" "settles: undefined, recurringId: undefined, assetId: undefined };" \
+  "periode: undefined, bonsLivraison: undefined, assetId: undefined };" "periode: undefined, assetId: undefined };" \
   "$LCW"
 prouver "les bons de livraison d'une facture émise hors du scellé" serveur/v10/dossier.ts \
   "'applyStamp', 'bonsLivraison', 'stampFee'" "'applyStamp', 'stampFee'" \
@@ -28796,8 +28796,8 @@ prouver $'tiers de janvier 1.358.2 k : « Supprimer Avoir (brouillon) ? »' modu
   $'if (!await confirmDialog(`Supprimer ${docLabel(doc)} ?${doc.number' \
   'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
 prouver $'tiers de janvier 1.358.2 l : « Quitter sans enregistrer ? » juste après avoir supprimé la pièce' modules/socle/ecrans/entreprise/app-1.js \
-  $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => {\n      if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = \'\'; }\n      untouch(); navigate(backTo);\n    });\n' \
-  $'    if ($(\'#del\')) $(\'#del\').onclick = () => supprimerPiece(doc, () => navigate(backTo));\n' \
+  $'      return supprimerPiece(doc, () => {\n        if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = \'\'; }\n        untouch(); navigate(backTo);\n      });\n' \
+  $'      return supprimerPiece(doc, () => navigate(backTo));\n' \
   'Nour facture en décembre, l'"'"'hôtel règle en janvier : un seul tiers au lettrage de 2026, la grille dans son exercice, le brouillard compté en entier'
 prouver $'chèque impayé 1.359.0 a : un rejet compté comme un remboursement (son jour devient « le dernier règlement »)' modules/socle/moteur/core-1.js \
   $'return (Number(p && p.amount) || 0) < 0 && !estRejet(p); }' \
@@ -29165,13 +29165,13 @@ prouver $'rouge 1.362.1 b : la bulle ne sait pas se rattacher à un nouveau bout
   $'    bulleReancrer = reancrer;' \
   $'    bulleReancrer = null;' \
   $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
-prouver $'rouge 1.362.1 c : la conversation se dessine sans la feuille du fil' web/public/plateforme/pont.js \
-  $'    }), feuille()]).then(([M]) => M,' \
-  $'    }), Promise.resolve(true)]).then(([M]) => M,' \
+prouver $'rouge 1.362.1 c : la conversation se dessine sans la feuille du fil' modules/socle/ecrans/entreprise/app-1.js \
+  $'    : Promise.all([chargerScript(\'../plateforme/messagerie.js\'), chargerFeuille(' \
+  $'    : Promise.all([chargerScript(\'../plateforme/messagerie.js\'), true || chargerFeuille(' \
   $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
-prouver $'rouge 1.362.1 d : la feuille du fil se pose à la fin de la page, hors de sa place dans la cascade' web/public/plateforme/pont.js \
-  $'      if (page) page.after(l); else document.head.appendChild(l);' \
-  $'      document.head.appendChild(l);' \
+prouver $'rouge 1.362.1 d : la feuille du fil se pose à la fin de la page, hors de sa place dans la cascade' modules/socle/ecrans/entreprise/app-1.js \
+  $'chargerFeuille(\'../plateforme/messagerie-fil.css\', \'../plateforme/messagerie.css\')' \
+  $'chargerFeuille(\'../plateforme/messagerie-fil.css\')' \
   $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver $'rouge 1.362.1 e : la page sans réseau perd sa mise en page (ses règles parties avec le fil)' web/public/plateforme/messagerie.css \
   $'.msg-vide { display: flex;' \
@@ -29185,6 +29185,67 @@ prouver $'rouge 1.362.1 g : la première ouverture emporte la feuille du fil (la
   $'  <link rel="stylesheet" href="../plateforme/messagerie.css">' \
   $'  <link rel="stylesheet" href="../plateforme/messagerie.css"><link rel="stylesheet" href="../plateforme/messagerie-fil.css">' \
   $'Amine et son comptable s\'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+# (1.362.2, bout en bout 26) Une facture émise deux fois, annulée par un avoir total : le doublon dit avant d'émettre,
+# « la refaire » sans page vierge, le timbre repris, le second avoir proposé, le brouillon en double qui ne promet plus
+# d'argent à rendre.
+W=$'le doublon, l\'avoir total qui reprend le timbre, le second avoir proposé plutôt que créé, et le Cabinet'
+prouver $'avoir 1.362.2 a : un avoir de trop sur une facture impayée se dit « à rendre au client »' modules/socle/moteur/core-1.js \
+  $'      aRendre: round3(Math.max(0, b.paid - Math.max(0, portee - n))),' \
+  $'      aRendre: round3(Math.max(0, n - Math.max(0, b.remaining))),' \
+  $'le second avoir d\'une facture impayée déjà annulée par AVO-2026-002 : rien à rendre, 1 429 de trop'
+prouver $'avoir 1.362.2 b : l\'avoir déjà émis ne compte pas dans ce que la facture porte encore' modules/socle/moteur/core-1.js \
+  $'    const portee = b.annulee ? 0 : round3(b.totals.netToPay - b.credited);' \
+  $'    const portee = b.annulee ? 0 : round3(b.totals.netToPay);' \
+  $'le second avoir d\'une facture impayée déjà annulée par AVO-2026-002 : rien à rendre, 1 429 de trop'
+prouver $'avoir 1.362.2 c : une facture marquée annulée porte encore tout son montant' modules/socle/moteur/core-1.js \
+  $'const portee = b.annulee ? 0 :' \
+  $'const portee = false ? 0 :' \
+  $'une facture marquée annulée ne porte plus rien : tout avoir dessus est de trop'
+prouver $'avoir 1.362.2 d : le bandeau d\'un avoir en double ne dit pas qu\'il dépasse la facture' modules/socle/ecrans/entreprise/app-1.js \
+  $'          const sous = a.depasse > 0.0005' \
+  $'          const sous = false && a.depasse > 0.0005' \
+  "$W"
+prouver $'avoir 1.362.2 e : le brouillon en double n\'a pas de bouton pour se retirer' modules/socle/ecrans/entreprise/app-1.js \
+  $'          const geste = a.depasse > 0.0005 && deja && !isNew ?' \
+  $'          const geste = false ?' \
+  "$W"
+prouver $'avoir 1.362.2 f : la fenêtre d\'émission ne dit pas que la facture est déjà corrigée' modules/socle/ecrans/entreprise/app-1.js \
+  $'      a.depasse > 0.0005 ? `${deja ?' \
+  $'      false ? `${deja ?' \
+  "$W"
+prouver $'avoir 1.362.2 g : « Créer un avoir » ouvre un second brouillon en silence' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (!attente.length) { navigate(nouveau); return; }' \
+  $'    { navigate(nouveau); return; }' \
+  "$W"
+prouver $'avoir 1.362.2 h : « Avoir total » pose le motif sans le timbre' modules/socle/ecrans/entreprise/app-1.js \
+  $' if (timbreDAnnulation(inv)) doc.applyStamp = true; }' \
+  $' }' \
+  "$W"
+prouver $'avoir 1.362.2 i : un autre motif ne rend pas le timbre qu\'« Avoir total » a pris' modules/socle/ecrans/entreprise/app-1.js \
+  $'      let timbreParMotif = isNew && doc.creditReason === \'Annulation totale\' && doc.applyStamp === true;' \
+  $'      let timbreParMotif = false;' \
+  "$W"
+prouver $'avoir 1.362.2 j : le motif « Annulation totale » ne reprend pas le timbre' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (b.dataset.motif === \'Annulation totale\' && timbreDAnnulation(fa) && doc.applyStamp !== true) {' \
+  $'        if (false) {' \
+  "$W"
+prouver $'avoir 1.362.2 k : le doublon ne se voit pas avant d\'émettre' modules/socle/ecrans/entreprise/app-1.js \
+  $'          if (jumelle) points.push(' \
+  $'          if (false && jumelle) points.push(' \
+  "$W"
+prouver $'avoir 1.362.2 l : la fenêtre d\'émission ne nomme pas la facture jumelle' modules/socle/ecrans/entreprise/app-1.js \
+  $'      const jum = isInv && !doc.number && doc.clientId && doc.date ? jumelleDe(' \
+  $'      const jum = false ? jumelleDe(' \
+  "$W"
+prouver $'avoir 1.362.2 m : « la refaire » demande « Quitter sans enregistrer ? » sur une pièce où rien n\'est tapé' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (rien) clearGuard();' \
+  $'        if (false) clearGuard();' \
+  "$W"
+prouver $'avoir 1.362.2 n : la copie d\'une facture de contrat garde sa période' modules/socle/ecrans/entreprise/app-1.js \
+  $'recurringId: undefined, periode: undefined,' \
+  $'recurringId: undefined,' \
+  "$W"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

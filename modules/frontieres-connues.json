@@ -35,8 +35,8 @@
       "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro après le lot A1 (17 § 5)"
     },
     "plateforme/pont.js": {
-      "auPlus": 3142,
-      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 3 127 à 3 142 au 1.358.2 (13/11/2026) pour le 1.358.1 : l'enregistrement en arrière-plan survit à la page qu'on ferme ou qu'on recharge (keepalive, borné à 60 Ko en route) ; c'est la fonction d'envoi elle-même, elle ne se sort pas du pont"
+      "auPlus": 3129,
+      "pourquoi": "mesuré au lot R0c (03/11/2026) : ne fait que baisser, à zéro quand les deux ponts sont découpés (lots de fin, 17 § 5) ; relevé de 3 127 à 3 142 au 1.358.2 (13/11/2026) pour le 1.358.1 : l'enregistrement en arrière-plan survit à la page qu'on ferme ou qu'on recharge (keepalive, borné à 60 Ko en route) ; c'est la fonction d'envoi elle-même, elle ne se sort pas du pont ; redescendu à 3 129 au 1.362.2 (13/11/2026) : le chargement de la messagerie et de sa feuille du fil passe par les portes de l'application (SkanChargerMessagerie, app-1.js)"
     },
     "plateforme/pont-cabinet.js": {
       "auPlus": 2809,
