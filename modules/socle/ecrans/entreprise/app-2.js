@@ -239,7 +239,12 @@
         const v = formValues($('#rdf', root));
         if (closedBlock(C.today(), 'Ce remboursement')) return;
         if (licenceBlock('Émettre un avoir sur un ticket', 'caisse')) return;
+        // (1.357.7) Quand le serveur numérote l'avoir, le numéro que le moteur prend sur ce poste se REND, comme pour un ticket
+        // (`encaisser`) : gardé, le compteur d'avoirs bougé partait au prochain enregistrement — le comptage du tiroir avant le Z
+        // (1.357.6) — et le serveur le refusait (« SkanFact a déjà donné AVO-2026-001 »), le Z restait sous la question.
+        const compteurs = JSON.stringify(data.counters || {});
         const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
+        if (bridge.rendreTicket || !r.ok) data.counters = JSON.parse(compteurs);
         // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
         if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
         // (plateforme, brique 124) Le serveur numérote l'avoir et rend l'argent : le numéro pris sur ce poste ne sert pas.
@@ -3137,6 +3142,7 @@
         <label class="check span-2"><input type="checkbox" name="isDefault" ${a.isDefault ? 'checked' : ''}> Compte par défaut ${info('tre.default')}</label>
         <label class="field span-2">${lbl('Notes', 'tre.notes')}<input type="text" name="notes" value="${h(a.notes || '')}"></label>
       </form>
+      ${acc ? avertValideHtml('af-depart') : ''}
       <div class="modal-actions">
         ${acc ? '<button class="btn btn-danger" id="del-acc" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
@@ -3145,6 +3151,30 @@
         // (plateforme) 1.74.0 — ouverte pour UNE case (le RIB que l'ordre de virement réclame), elle y met le curseur.
         // La valeur de la case visée se sélectionne : la première frappe la remplace (9.4.5), comme depuis la fiche société.
         if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) { c.focus(); try { c.select(); } catch (_) { /* une case sans sélection */ } } }
+        // (1.357.7, bout en bout 16) Ce que la date du solde de départ englobe, et ce que la changer fait au solde : le prêt du
+        // 02/11 passait de « déjà compris » à « en plus » en déplaçant la date du 11/11 au 01/11, et la BIAT de 25 853 DT à
+        // 43 853 DT, sans un mot. La phrase le dit pendant la saisie, avant d'enregistrer (9.4.2).
+        if (acc) {
+          const flux = C.cashMovements(data, company(), { from: '', to: '9999-12-31' }, a.id);
+          const majDepart = () => {
+            const v = formValues($('#af', root));
+            const jour = v.openingDate || '';
+            const avant = jour ? flux.filter(m => m.date && String(m.date) < jour) : [];
+            const somme = C.round3(avant.reduce((x, m) => x + m.amount, 0));
+            const phrases = [];
+            if (avant.length) phrases.push(`Avant le ${C.fmtDate(jour)} : ${pl(avant.length, 'mouvement')} (${moneySigne(somme, company().currency)}), déjà compris dans ce solde de départ — ni la Trésorerie ni tes comptes ne ${avant.length > 1 ? 'les' : 'le'} comptent une seconde fois.`);
+            if (jour && (Number(v.opening) !== Number(acc.opening) || jour !== acc.openingDate)) {
+              const auj = C.today();
+              const avantChg = C.accountBalance(data, company(), a.id, auj).balance;
+              const apres = jour > auj ? 0 : C.round3((Number(v.opening) || 0) + flux.filter(m => m.date && String(m.date) >= jour && String(m.date) <= auj).reduce((x, m) => x + m.amount, 0));
+              if (Math.abs(apres - avantChg) > 0.0005) phrases.push(`Le solde d'aujourd'hui passera de ${C.money(avantChg, company().currency)} à ${C.money(apres, company().currency)}.`);
+            }
+            majAvantDepart($('#af-depart', root), phrases.join(' '));
+          };
+          $('#af', root).addEventListener('input', majDepart);
+          $('#af', root).addEventListener('change', majDepart);
+          majDepart();
+        }
         $('#ok', root).onclick = () => {
           const v = formValues($('#af', root));
           if (!v.name.trim()) return refus($('[name=name]', root), 'Donne un nom à ce compte.');
@@ -3211,6 +3241,10 @@
           .map(([v, l, s]) => `<option value="${v}" ${m.kind === v ? 'selected' : ''}>${v === 'virement' ? '⇄' : s > 0 ? '↑' : '↓'} ${l}</option>`).join('')}</select></label>
         ${obligatoire(field(lbl(`Montant (${h(C.normCurrency(company().currency))})`, 'tre.moveAmount'), 'amount', Math.abs(m.amount) || 0, 'number', 'step="0.001" min="0" class="num"'))}
         <label class="field">${lbl('<span class="mf-compte-t">Compte</span>', 'tre.moveAccount')}<select name="accountId">${data.accounts.map(a => `<option value="${a.id}" ${m.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+        ${/* (1.357.7, bout en bout 16) Une échéance d'emprunt porte ses intérêts : une charge, le reste diminue la dette. La
+           rangée n'existe que pour cette nature, juste sous le montant qu'elle partage. */''}
+        ${field(lbl(`Dont intérêts (${h(C.normCurrency(company().currency))})`, 'tre.moveInterets'), 'interets', Number(m.interets) > 0 ? Number(m.interets) : '', 'number', 'step="0.001" min="0" class="num" placeholder="0,000"').replace('<label class="field"', `<label class="field" id="mf-int" ${m.kind === 'emprunt' ? '' : 'hidden'}`)}
+        <p class="small muted" id="mf-int-cap" ${m.kind === 'emprunt' ? '' : 'hidden'}></p>
         <label class="field span-2">${lbl('Libellé', 'tre.moveLabel')}<input type="text" name="label" value="${h(m.label || '')}" placeholder="Salaires de septembre"></label>
         ${field(lbl('Référence', 'tre.moveRef'), 'reference', m.reference || '', 'text', 'placeholder="N° de chèque, référence du virement…"')}
         <label class="field">${lbl('Mode', 'tre.moveMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${m.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
@@ -3222,6 +3256,7 @@
         <label class="field span-2" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}>${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label>
       </form>
       ${avertValideHtml('mf-valide')}
+      ${avertValideHtml('mf-avant')}
       <div class="mv-pj"><div class="field">${lbl('Justificatifs', 'tre.moveJustif')}</div><div id="mv-pj"></div></div>
       <div class="modal-actions">
         ${mv ? '<button class="btn btn-danger" id="del-mv" style="margin-inline-end:auto">Supprimer</button>' : ''}
@@ -3239,6 +3274,12 @@
         const libelle = $('[name=label]', root);
         const accorder = () => {
           const vir = kindSel.value === 'virement';
+          const ech = kindSel.value === 'emprunt';
+          $('#mf-int', root).hidden = !ech; $('#mf-int-cap', root).hidden = !ech;
+          const total = C.round3(lireChiffre($('[name=amount]', root))), int = C.interetsDeLEcheance({ kind: 'emprunt', amount: total, interets: lireChiffre($('[name=interets]', root)) });
+          $('#mf-int-cap', root).textContent = ech && total > 0
+            ? `Capital remboursé : ${C.money(C.round3(total - int), company().currency)} · les intérêts sont une charge.`
+            : 'Le montant de l\'échéance d\'abord : le capital remboursé se calcule.';
           $('#mf-cp', root).hidden = vir; $('#mf-vers', root).hidden = !vir;
           texteCompte.textContent = vir ? 'Depuis le compte' : 'Compte';
           // Le compte d'où l'argent part ne se propose pas comme compte d'arrivée : l'enregistrement le
@@ -3247,7 +3288,8 @@
           [...versSel.options].forEach(o => { o.hidden = !!o.value && o.value === depuis; });
           if (versSel.value && versSel.value === depuis) versSel.value = '';
           const cible = data.accounts.find(a => a.id === versSel.value);
-          libelle.placeholder = vir ? (cible ? `Virement vers ${cible.name}` : 'Virement vers le compte choisi') : 'Salaires de septembre';
+          libelle.placeholder = vir ? (cible ? `Virement vers ${cible.name}` : 'Virement vers le compte choisi')
+            : ({ emprunt: 'Échéance mensuelle du prêt', pret: 'Prêt de la banque pour le matériel', impot: 'TVA du mois', banque: 'Frais de tenue de compte', apport: 'Apport de l\'associé', retrait: 'Retrait de l\'associé' })[kindSel.value] || 'Salaires de septembre';
           // (1.266.0) Un virement entre tes comptes ne se répète pas ici ; « jusqu'au » n'a de sens que pour ce qui revient.
           // Les deux gardent leur place (visibilité seule) : rien ne bouge sous le curseur.
           // (1.357.6) « Se répète » cède sa place à « Vers le compte » (même rangée) ; « jusqu'au » garde la sienne.
@@ -3267,6 +3309,8 @@
         $('[name=accountId]', root).addEventListener('change', modeDuCompte);
         modeDuCompte();
         $('[name=repete]', root).addEventListener('change', accorder);
+        $('[name=amount]', root).addEventListener('input', accorder);
+        $('[name=interets]', root).addEventListener('input', accorder);
         kindSel.addEventListener('change', accorder);
         versSel.addEventListener('change', accorder);
         $('[name=accountId]', root).addEventListener('change', accorder);
@@ -3280,6 +3324,18 @@
         $('#mf2', root).addEventListener('input', majValideM);
         $('#mf2', root).addEventListener('change', majValideM);
         majValideM();
+        // (1.357.7, bout en bout 16) Le prêt du four noté au 02/11 sur une BIAT dont le solde de départ (48 250 DT) date du 11/11 :
+        // il y est déjà compris. La phrase le dit pendant la saisie, et le nom de chaque compte concerné.
+        const majAvantM = () => {
+          const v = formValues($('#mf2', root));
+          const vir = v.kind === 'virement';
+          const depart = C.compteAvantDepart(data, v.accountId, v.method, v.date);
+          const vers = vir && v.versAccountId ? C.compteAvantDepart(data, v.versAccountId, v.method, v.date) : null;
+          majAvantDepart($('#mf-avant', root), phraseAvantDepart([depart, vers], vir ? 'ce virement' : 'ce mouvement'));
+        };
+        $('#mf2', root).addEventListener('input', majAvantM);
+        $('#mf2', root).addEventListener('change', majAvantM);
+        majAvantM();
         // L'instantané des champs APRÈS le montage et les montants complétés (modal() le fait juste
         // après ce rappel) : le garde-fou additionne les champs et les fichiers joints.
         queueMicrotask(() => { champs = suivreSaisie(root); });
@@ -3319,6 +3375,8 @@
           if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
           if (v.kind === 'virement' && !v.versAccountId) return refus($('[name=versAccountId]', root), 'Choisis le compte qui reçoit l\'argent.');
           if (v.kind === 'virement' && v.versAccountId === v.accountId) return refus($('[name=versAccountId]', root), 'Un virement va d\'un compte à un AUTRE : choisis le compte qui reçoit l\'argent.');
+          // (1.357.7) Les intérêts d'une échéance tiennent dans l'échéance : au-delà, la part du capital serait négative.
+          if (v.kind === 'emprunt' && Number(v.interets) > Number(v.amount) + 0.0005) return refus($('[name=interets]', root), `Les intérêts ne peuvent pas dépasser l'échéance (${C.money(Number(v.amount), company().currency)}) : écris la part d'intérêts de cette échéance, par exemple 135,000.`);
           if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
           if (v.date > C.today() && !await confirmDialog(`La date (${C.fmtDate(v.date)}) est dans le futur. Un mouvement de trésorerie se saisit quand il a eu lieu. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un mouvement daté dans le futur' })) return;
           if (closedBlock([mv && mv.date, v.date], 'Ce mouvement')) return;
@@ -3327,6 +3385,7 @@
           const vir = v.kind === 'virement';
           Object.assign(m, v, { amount: Math.abs(Number(v.amount)), compte: vir ? '' : String(v.compte || '').trim() });
           if (!vir) { delete m.versAccountId; delete m.reconciledVers; }
+          if (v.kind === 'emprunt' && Number(v.interets) > 0) m.interets = C.round3(Number(v.interets)); else delete m.interets;
           if (vir || !m.repete) { delete m.repete; delete m.repeteJusqu; } else if (!m.repeteJusqu) delete m.repeteJusqu;
           if (!mv) data.movements.push(m);
           enregistre = true;
@@ -3435,7 +3494,7 @@
       const quand = e.occurrence || e.date;
       movementForm(null, () => render(true), {
         kind: src.kind, amount: Math.abs(Number(src.amount) || 0), accountId: src.accountId, label: src.label || '', method: src.method || 'virement',
-        compte: src.compte || '', date: quand > C.today() ? C.today() : quand, repeteDe: src.id, occurrence: quand });
+        compte: src.compte || '', ...(Number(src.interets) > 0 ? { interets: src.interets } : {}), date: quand > C.today() ? C.today() : quand, repeteDe: src.id, occurrence: quand });
     };
 
     // --- Où j'en suis
@@ -3704,15 +3763,19 @@
         let b = Number(accSolde.opening) || 0;
         C.cashMovements(data, company(), { from: accSolde.openingDate || '', to: '9999-12-31' }, accSolde.id).forEach(m => { b = C.round3(b + m.amount); soldeApres.set(m.id, b); });
       }
+      // (1.357.7, bout en bout 16) Un mouvement daté avant le solde de départ de son compte y est déjà compris : le solde ne le
+      // compte pas, le pied non plus (il annonçait + 18 000 DT de variation pour un prêt que le solde de la BIAT portait déjà),
+      // et la ligne le dit.
+      const avantDepart = m => C.compteAvantDepart(data, m.accountId, m.method, m.date);
       const cols = [
         { key: 'date', label: 'Date', cls: 'nw', asc: true, val: m => m.date || '', get: m => C.fmtDate(m.date) },
         // Le 📎 d'une ligne DÉDUITE est celui de la pièce d'où elle vient (10.14.1, S-04) : le règlement
         // d'un achat montre le justificatif de l'achat, un mouvement libre le sien.
-        { key: 'label', label: 'Libellé', asc: true, val: m => (m.label || '').toLowerCase(), get: m => `<span class="tr-lib">${h(m.label)}</span>${marqueJustif(C.justificatifsDe(data, m))}${m.party ? `<div class="small muted">${h(m.party)}</div>` : ''}` },
+        { key: 'label', label: 'Libellé', asc: true, val: m => (m.label || '').toLowerCase(), get: m => { const av = avantDepart(m); const src = m.source === 'libre' ? (data.movements || []).find(x => x.id === m.movementId) : null; const int = C.interetsDeLEcheance(src); return `<span class="tr-lib">${h(m.label)}</span>${marqueJustif(C.justificatifsDe(data, m))}${m.party ? `<div class="small muted">${h(m.party)}</div>` : ''}${int ? `<div class="small muted">dont ${h(C.money(int, cur))} d'intérêts</div>` : ''}${av ? `<div class="small muted" title="Daté avant le solde de départ de ce compte (${h(C.fmtDate(av.openingDate))}) : ce solde le comprend déjà. Ni le solde ni le pied du tableau ne le comptent une seconde fois.">Déjà dans le solde de départ du ${h(C.fmtDate(av.openingDate))}</div>` : ''}`; } },
         { key: 'account', label: 'Compte', asc: true, val: m => m.accountId, get: m => h(((data.accounts.find(a => a.id === m.accountId)) || {}).name || '—') },
         { key: 'method', label: 'Mode', asc: true, val: m => m.method || '', get: m => h(methodLabel(m.method)) },
         { key: 'reference', label: 'Référence', asc: true, val: m => (m.reference || '').toLowerCase(), get: m => h(m.reference || '') || '<span class="muted">—</span>' },
-        { key: 'amount', label: 'Montant', r: true, val: m => m.amount, get: m => `<span class="${m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</span>` },
+        { key: 'amount', label: 'Montant', r: true, val: m => m.amount, get: m => `<span class="${avantDepart(m) ? 'muted' : m.amount > 0 ? 'ok-text' : ''}">${moneySigne(m.amount, cur)}</span>` },
         ...(soldeOk ? [{ key: 'solde', label: 'Solde après', r: true, get: m => (soldeApres.has(m.id) ? `<span class="${soldeApres.get(m.id) < 0 ? 'rouge' : ''}">${C.money(soldeApres.get(m.id), cur)}</span>` : '<span class="muted">—</span>') }] : [])
       ].filter(c => !(c.key === 'account' && s.account));   // un compte choisi : la colonne « Compte » répéterait son nom
       // L'année se choisit. Elle était figée sur l'année en cours, sans le moindre moyen de
@@ -3736,8 +3799,10 @@
       const all = cherche.filter(m => (!s.sens || (s.sens === 'entrees' ? m.amount > 0 : m.amount < 0) && !interne(m)) && (!s.sansPj || sansPj(m)));
       const rows = applySort(all.slice().reverse(), cols, s.moves.sort);
       const pg = paginate(rows, s.moves);
-      const entrees = C.round3(all.filter(m => m.amount > 0 && !interne(m)).reduce((x, m) => x + m.amount, 0));
-      const sorties = C.round3(all.filter(m => m.amount < 0 && !interne(m)).reduce((x, m) => x + m.amount, 0));
+      const compte = m => !interne(m) && !avantDepart(m);
+      const entrees = C.round3(all.filter(m => m.amount > 0 && compte(m)).reduce((x, m) => x + m.amount, 0));
+      const sorties = C.round3(all.filter(m => m.amount < 0 && compte(m)).reduce((x, m) => x + m.amount, 0));
+      const nbAvant = all.filter(m => !interne(m) && avantDepart(m)).length;
       const nbInternes = s.account ? 0 : all.filter(m => m.virement && !m.arrivee).length;
       const filtre = !!(s.q || s.sens || s.sansPj);
       const parDate = !s.moves.sort || s.moves.sort.key === 'date';
@@ -3756,7 +3821,7 @@
             const sep = parDate && mois && mois !== avant ? `<tr class="tr-mois"><td colspan="${cols.length}">${h(enTete(C.MONTHS_FR[Number(mois.slice(5, 7)) - 1] || ''))} ${h(mois.slice(0, 4))}</td></tr>` : '';
             return `${sep}<tr class="${m.source === 'libre' || cible ? 'clickable' : ''}" data-mv="${m.source === 'libre' ? h(m.movementId) : ''}" data-go="${h(cible)}">
             ${cols.map(c => `<td class="${c.r ? 'r nw m' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(m)}</td>`).join('')}</tr>`; }).join('')}
-        </tbody><tfoot><tr><td colspan="3"><b>${pl(all.length, 'mouvement')}</b> <small class="muted">en ${h(s.year)}${nbInternes ? ` · hors ${pl(nbInternes, 'virement')} entre tes comptes` : ''}</small></td>
+        </tbody><tfoot><tr><td colspan="3"><b>${pl(all.length, 'mouvement')}</b> <small class="muted">en ${h(s.year)}${nbInternes ? ` · hors ${pl(nbInternes, 'virement')} entre tes comptes` : ''}${nbAvant ? ` · hors ${pl(nbAvant, 'mouvement')} déjà compris dans ${nbAvant > 1 ? 'les soldes' : 'le solde'} de départ` : ''}</small></td>
           <td colspan="${cols.length - 3}" class="r nw m"><span class="tr-pied"><span>Entrées <b class="ok-text">${moneySigne(entrees, cur)}</b></span><span>Sorties <b>${moneySigne(sorties, cur)}</b></span><span>Variation <b class="${entrees + sorties < 0 ? 'rouge' : ''}">${moneySigne(C.round3(entrees + sorties), cur)}</b></span></span></td></tr></tfoot></table></div>${pagerBar(pg.pg, { noun: 'mouvement' })}</div>`
           : `<div class="mg-vide">${lfIc(filtre ? 'recherche' : 'carte', 24, 1.6)}<b>${filtre ? 'Aucun mouvement ne correspond' : `Aucun mouvement en ${h(s.year)}`}</b><span>${filtre ? (s.q ? `Rien pour « ${h(s.q)} »` : 'Rien dans ce sens') + ` en ${h(s.year)}.` : 'Les paiements des factures, les règlements des achats et les mouvements saisis arrivent ici tout seuls.'}</span>${filtre ? '<button type="button" class="btn" id="t-tout">Tout revoir</button>' : ''}</div>`}
         <p class="small muted tr-note">Une ligne s'ouvre sur la pièce d'où elle vient : le compte et le mode de règlement se corrigent là-bas. Les mouvements libres (impôts, apports, frais bancaires) se modifient ici même, et leur justificatif s'y joint.</p>`;

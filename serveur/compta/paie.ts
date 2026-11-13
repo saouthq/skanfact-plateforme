@@ -100,13 +100,13 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
   }
 
   // 2. Les salaires versés : un total par jour et par compte de trésorerie.
-  const verses = new Map<string, { date: string; journal: 'BQ' | 'CA'; compte: string; montant: bigint }>();
+  const verses = new Map<string, { date: string; journal: 'BQ' | 'CA' | 'OD'; compte: string; montant: bigint }>();
   const payes = await requetes(tx).selectFrom('paie.bulletin').select(['paye_le', 'mode', 'compte', 'net'])
     .where('entreprise', '=', entreprise).where('annee', '=', m.annee).where('mois', '=', m.mois).where((eb) => eb.not(eb('paye_le', 'is', null)))
     .orderBy('paye_le').orderBy('id').execute();
   for (const p of payes) {
     if (p.net <= 0n || !p.paye_le) continue;
-    const j = journalDeCompte(plan, p.compte, p.mode ?? '');
+    const j = journalDeCompte(plan, p.compte, p.mode ?? '', p.paye_le);
     const cle = `${p.paye_le}/${j.journal}/${j.compte}`;
     const v = verses.get(cle) ?? { date: p.paye_le, ...j, montant: 0n };
     v.montant += p.net;
@@ -121,14 +121,14 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
   }
 
   // 3. Les avances sur salaire versées ce mois-là : un total par jour et par compte de trésorerie.
-  const avances = new Map<string, { date: string; journal: 'BQ' | 'CA'; compte: string; montant: bigint }>();
+  const avances = new Map<string, { date: string; journal: 'BQ' | 'CA' | 'OD'; compte: string; montant: bigint }>();
   const du = `${cleDuMois(m)}-01`, au = dernierJour(m);
   const objets = await requetes(tx).selectFrom('socle.dossier_v10').select('contenu').where('entreprise', '=', entreprise).where('collection', '=', 'advances')
     .orderBy('rang').orderBy('cle').execute();
   for (const o of objets) {
     const a = lireAvance(o.contenu);
     if (!lisible(a) || a.date < du || a.date > au) continue;
-    const j = journalDeCompte(plan, a.compte, a.mode);
+    const j = journalDeCompte(plan, a.compte, a.mode, a.date);
     const cle = `${a.date}/${j.journal}/${j.compte}`;
     const v = avances.get(cle) ?? { date: a.date, ...j, montant: 0n };
     v.montant += a.montant;
@@ -150,7 +150,7 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
   for (const o of declarations) {
     const f = lireDeclaration(o.contenu);
     if (!lisible(f) || f.date < du || f.date > au) continue;
-    const j = journalDeCompte(plan, f.compte, f.mode);
+    const j = journalDeCompte(plan, f.compte, f.mode, f.date);
     const pieceF = (f.id || o.cle).toUpperCase();
     // (1.355.6) « Déclaration DM-2026-10 payée » arrivait au Cabinet : l'identifiant de l'écran, pas un mot du comptable.
     const dm = /^dm-(\d{4})-(\d{2})$/.exec(f.id || o.cle), cn = /^cnss-(\d{4})-T([1-4])$/.exec(f.id || o.cle);
@@ -174,7 +174,7 @@ export async function ecrituresDuMois(tx: Transaction, entreprise: string, m: Mo
     for (const s of versementsDeSaisie(o.contenu)) {
       const v = s.lu;
       if (!lisible(v) || v.date < du || v.date > au) continue;
-      const j = journalDeCompte(plan, v.compte, v.mode);
+      const j = journalDeCompte(plan, v.compte, v.mode, v.date);
       const entree = libelle('compta.libelle.saisies_versees', { periode: periode(m) });
       ecritures.push({ date: v.date, ordre: ordre++, e: {
         journal: j.journal, date: v.date, origineType: 'saisie_salaire', origine: identifiant(famille, 'saisie', o.cle, s.cle), piece: `SAISIE-${v.date}`, tiers: null, libelle: entree,

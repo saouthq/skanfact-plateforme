@@ -1672,7 +1672,7 @@ prouver "un fournisseur écrit sans son compte auxiliaire" $CAS \
   "fournisseurs: compteFournisseur(plan, m.fournisseur), charges:" "fournisseurs: P.fournisseurs, charges:" \
   "$LAC"
 prouver "un règlement fournisseur écrit au journal de banque quoi qu'il arrive" $CAS \
-  "const j = journalDeCompte(plan, r.compte, r.mode);" "const j = journalDeCompte(plan, r.compte, 'virement');" \
+  "const j = journalDeCompte(plan, r.compte, r.mode, r.date);" "const j = journalDeCompte(plan, r.compte, 'virement', r.date);" \
   "$LAC"
 prouver "un avoir détaché que son ancienne famille garde" $VAC \
   "const familles = await famillesDesAchats(tx, entreprise, achats.map((c) => c.cle));" "const familles: string[] = [];" \
@@ -1707,7 +1707,7 @@ prouver "une paie du mois sans les charges patronales" moteur/paie.ts \
   poser(comptes.personnel, b.accidentTravail, 'debit');" \
   "$PE"
 prouver "les salaires versés tous portés à la banque" $CPA \
-  "    const j = journalDeCompte(plan, p.compte, p.mode ?? '');" "    const j = journalDeCompte(plan, p.compte, 'virement');" \
+  "    const j = journalDeCompte(plan, p.compte, p.mode ?? '', p.paye_le);" "    const j = journalDeCompte(plan, p.compte, 'virement', p.paye_le);" \
   "$PP"
 prouver "les avances oubliées" $CPA \
   "    if (!lisible(a) || a.date < du || a.date > au) continue;" "    continue;" \
@@ -23214,7 +23214,7 @@ prouver 'paie 10.1-3 c : la TFP et le FOPROLOS payés restés dus' serveur/compt
   "tfp: cnss ? 0n : tfp < montant ? tfp : montant," "tfp: 0n," \
   "$LPP"
 prouver 'paie 10.1-3 d : la déclaration payée en caisse portée à la banque' serveur/compta/paie.ts \
-  "    const j = journalDeCompte(plan, f.compte, f.mode);" "    const j = journalDeCompte(plan, null, 'virement');" \
+  "    const j = journalDeCompte(plan, f.compte, f.mode, f.date);" "    const j = journalDeCompte(plan, null, 'virement', f.date);" \
   "$LPP"
 prouver 'paie 10.1-3 e : les versements de saisie absents des livres du serveur' serveur/compta/paie.ts \
   "      if (!lisible(v) || v.date < du || v.date > au) continue;" "      continue;" \
@@ -27722,12 +27722,14 @@ prouver 'bout en bout 1.353.0 f : le virement tombe dans le tiroir (Trésorerie 
 prouver 'bout en bout 1.353.0 g : le virement sans compte ignore le compte bancaire' modules/socle/moteur/core-2.js \
   '    return comptes.find(a => a.kind !== '\''caisse'\'');
   }
-  function cashMovements' '    return undefined;
+  // (1.357.7, bout en bout 16) Le compte' '    return undefined;
   }
-  function cashMovements' \
+  // (1.357.7, bout en bout 16) Le compte' \
   "$BB1353M3"
 prouver 'bout en bout 1.353.0 h : les écritures gardent l'\''ancienne règle' modules/socle/moteur/core-2.js \
-  '|| compteSansNom(comptes, method);' '|| comptes.find(a => a.isDefault) || comptes[0];' \
+  '|| compteSansNom(comptes, method);
+    // (1.357.7, bout en bout 16) Un flux daté AVANT' '|| comptes.find(a => a.isDefault) || comptes[0];
+    // (1.357.7, bout en bout 16) Un flux daté AVANT' \
   "$BB1353M1"
 
 # 1.354.0 : les finitions du bout en bout. Le comptable proposé, le total qui pousse, l'article à créer, le téléphone ; et la clé de l'appareil prouvée sans le hasard.
@@ -28497,7 +28499,7 @@ prouver 'tiroir 1.357.6 f : une pièce changée garde ce qu'"'"'elle avait noté
 ' '' \
   'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
 prouver 'tiroir 1.357.6 g : le fond de l'"'"'ouverture compte comme une entrée' serveur/caisse/sortie.ts \
-  'if (o.ouverture === true || texte(o.reference)' 'if (texte(o.reference)' \
+  'if (o.ouverture === true || c.cle' 'if (c.cle' \
   'le versement à la BIAT, la farine payée à la caisse, la facture de l'"'"'hôtel encaissée : le Z tombe juste'
 prouver 'tiroir 1.357.6 h : un mouvement d'"'"'avant la session compte' serveur/caisse/sortie.ts \
   'if (f.montant === 0n || !f.jour || f.jour < s.jour || f.jour > auj) continue;' 'if (f.montant === 0n || !f.jour || f.jour > auj) continue;' \
@@ -28524,6 +28526,72 @@ prouver 'tiroir 1.357.6 n : la dépense dit « Payé » sans règlement' modules
 prouver 'tiroir 1.357.6 o : la question appelle la dépense « l'"'"'achat »' modules/socle/ecrans/entreprise/app-1.js \
   '(s2.kind === '"'"'depense'"'"' ? '"'"'La dépense'"'"' : '"'"'L\'"'"'achat'"'"')' ''"'"'L\'"'"'achat'"'"'' \
   'la caisse se compte, l'"'"'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver 'emprunt 1.357.7 a : le prêt d'"'"'avant le départ écrit à la banque (client)' modules/socle/moteur/core-2.js \
+  '    if (compteAvantDepart(data, accountId, method, date)) return { journal: '"'"'OD'"'"', compte: acc.reportANouveau, avantDepart: true };
+' '' \
+  'le prêt du 02/11 : la banque ne bouge pas, le prêt entre au 16 contre le report à nouveau — chez le client'
+prouver 'emprunt 1.357.7 b : le prêt d'"'"'avant le départ écrit à la banque (serveur)' serveur/compta/plan.ts \
+  '  if (jour && t?.depart && jour < t.depart) return { journal: '"'"'OD'"'"', compte: p.plan.attente };
+' '' \
+  '… et sur le serveur, contre le compte d'"'"'attente où arrive le solde de départ'
+prouver 'emprunt 1.357.7 c : le virement d'"'"'avant les deux départs s'"'"'écrit quand même (client)' modules/socle/moteur/core-2.js \
+  '        if (j.avantDepart && jVers && jVers.avantDepart) return;
+' '' \
+  'un virement dont les deux côtés précèdent leurs soldes de départ n'"'"'écrit rien ; un seul côté, l'"'"'autre seul bouge'
+prouver 'emprunt 1.357.7 d : le virement d'"'"'avant les deux départs s'"'"'écrit quand même (serveur)' serveur/compta/mouvements.ts \
+  '  if (j.journal === '"'"'OD'"'"' && jVers?.journal === '"'"'OD'"'"') return [];
+' '' \
+  'un virement dont les deux côtés précèdent leurs soldes de départ n'"'"'écrit rien ; un seul côté, l'"'"'autre seul bouge'
+prouver 'emprunt 1.357.7 e : les intérêts restent au 16 (client)' modules/socle/moteur/core-2.js \
+  'const interets = vers ? 0 : interetsDeLEcheance(m);' 'const interets = 0;' \
+  '1 635 DT dont 135 d'"'"'intérêts : 1 500 au 16, 135 au 651, la banque du tout — dans les deux moteurs'
+prouver 'emprunt 1.357.7 f : les intérêts restent au 16 (serveur)' serveur/compta/mouvements.ts \
+  'const interets = kind === '"'"'emprunt'"'"' ? exact(m.interets ?? 0, 3) : null;' 'const interets = kind === '"'"'nulle-part'"'"' ? exact(m.interets ?? 0, 3) : null;' \
+  '1 635 DT dont 135 d'"'"'intérêts : 1 500 au 16, 135 au 651, la banque du tout — dans les deux moteurs'
+prouver 'emprunt 1.357.7 g : des intérêts plus grands que l'"'"'échéance' modules/socle/moteur/core-2.js \
+  'return i > 0 ? Math.min(i, montant) : 0;' 'return i > 0 ? i : 0;' \
+  'la part d'"'"'intérêts : bornée à l'"'"'échéance, rien pour une autre nature ni sans montant'
+prouver 'emprunt 1.357.7 h : le pied compte le prêt d'"'"'avant le départ' modules/socle/ecrans/entreprise/app-2.js \
+  'const compte = m => !interne(m) && !avantDepart(m);' 'const compte = m => !interne(m);' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 i : la fenêtre ne dit rien du prêt d'"'"'avant le départ' modules/socle/ecrans/entreprise/app-1.js \
+  '    if (!cs.length) return '"'"''"'"';
+    const solde' '    if (cs.length < 2) return '"'"''"'"';
+    const solde' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 j : la fenêtre du compte ne dit pas ce que sa date englobe' modules/socle/ecrans/entreprise/app-2.js \
+  'if (avant.length) phrases.push(' 'if (false) phrases.push(' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 k : « Dont intérêts » reste caché' modules/socle/ecrans/entreprise/app-2.js \
+  '$('"'"'#mf-int'"'"', root).hidden = !ech;' '$('"'"'#mf-int'"'"', root).hidden = true;' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 l : des intérêts plus grands que l'"'"'échéance s'"'"'enregistrent' modules/socle/ecrans/entreprise/app-2.js \
+  'if (v.kind === '"'"'emprunt'"'"' && Number(v.interets) > Number(v.amount) + 0.0005) return refus(' 'if (false) return refus(' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 m : les intérêts ne se rangent pas' modules/socle/ecrans/entreprise/app-2.js \
+  'if (v.kind === '"'"'emprunt'"'"' && Number(v.interets) > 0) m.interets = C.round3(Number(v.interets)); else delete m.interets;' 'delete m.interets;' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 n : la liste ne dit pas les intérêts' modules/socle/ecrans/entreprise/app-2.js \
+  'const int = C.interetsDeLEcheance(src);' 'const int = 0;' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 o : le capital ne se calcule pas pendant la frappe' modules/socle/ecrans/entreprise/app-2.js \
+  '        $('"'"'[name=interets]'"'"', root).addEventListener('"'"'input'"'"', accorder);
+' '' \
+  'le prêt d'"'"'avant le départ se dit et ne compte pas deux fois ; l'"'"'échéance porte ses intérêts, jusqu'"'"'au pont'
+prouver 'emprunt 1.357.7 p : le résultat oublie les intérêts' modules/socle/moteur/core-2.js \
+  '          e.debit(acc.interets, `${label} — intérêts`, interets);' '          e.debit(acc.emprunts, `${label} — intérêts`, interets);' \
+  'le résultat compte les intérêts, jamais le capital'
+prouver 'rouge 1.357.6 a : le retour d'"'"'un ticket garde le numéro d'"'"'avoir pris sur ce poste' modules/socle/ecrans/entreprise/app-2.js \
+  '        if (bridge.rendreTicket || !r.ok) data.counters = JSON.parse(compteurs);
+' '' \
+  'l'"'"'épicerie de Sfax tient sa caisse un samedi : trois tickets, un pain rendu, le tiroir compté, et la journée se retrouve partout'
+prouver 'rouge 1.357.6 b : le serveur reconnaît l'"'"'ouverture de la caisse à sa phrase' serveur/caisse/sortie.ts \
+  '    if (o.ouverture === true || c.cle.startsWith('"'"'ecart-z-'"'"')) return [];' '    if (o.ouverture === true || texte(o.reference) === '"'"'Ouverture de la caisse'"'"' || c.cle.startsWith('"'"'ecart-z-'"'"')) return [];' \
+  'aucune phrase n'"'"'est écrite en dur dans le code du serveur'
+prouver 'emprunt 1.357.7 q : l'"'"'avance d'"'"'hier s'"'"'écrit à la caisse ouverte aujourd'"'"'hui (serveur)' serveur/compta/plan.ts \
+  '  if (jour && t?.depart && jour < t.depart) return { journal: '"'"'OD'"'"', compte: p.plan.attente };
+' '' \
+  'un salaire et une avance payés du tiroir, caisse ouverte : le Z les retire de l'"'"'attendu, la caisse ne les sort qu'"'"'une fois'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

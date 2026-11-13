@@ -2609,6 +2609,31 @@
   // Le paragraphe d'une fenêtre (paiement, règlement, opération diverse) : caché tant qu'il n'y a rien à dire, posé sous le
   // formulaire (rien ne bouge sous le curseur, qui est sur la date).
   const avertValideHtml = id => `<p class="cab-valide" id="${id}" role="status" hidden></p>`;
+  // (1.357.7, bout en bout 16) Un flux daté AVANT le solde de départ de son compte (`C.compteAvantDepart`) : il y est déjà
+  // compris. Ni la Trésorerie ni la banque des livres ne le comptent ; la fenêtre qui le saisit le dit AVANT d'enregistrer
+  // (9.4.2), sous le formulaire comme la période validée. `comptes` : les comptes concernés (les deux côtés d'un virement).
+  const phraseAvantDepart = (comptes, quoi) => {
+    const cs = comptes.filter(Boolean);
+    if (!cs.length) return '';
+    const solde = a => `« ${a.name} » (${C.money(Number(a.opening) || 0, company().currency)} au ${C.fmtDate(a.openingDate)})`;
+    if (cs.length > 1) return `Daté avant les soldes de départ de ${solde(cs[0])} et de ${solde(cs[1])} : ${quoi} y est déjà compris des deux côtés, et ne les fera pas bouger. Passé après tes relevés de départ ? Corrige sa date.`;
+    return `Daté avant le solde de départ de ${solde(cs[0])} : ${quoi} y est déjà compris, et ne le fera pas bouger. Passé après ton relevé de départ ? Corrige sa date.`;
+  };
+  const majAvantDepart = (el, phrase) => {
+    if (!el) return;
+    el.hidden = !phrase;
+    el.innerHTML = phrase ? `${lfIc('aide', 15)}<span>${h(phrase)}</span>` : '';
+  };
+  // Les fenêtres d'un règlement (client, fournisseur, virement groupé) : leur compte, leur mode et leur date. Un mode choisi
+  // par un bouton (`data-mode`) ne déclenche ni « input » ni « change » : son clic, qui remonte au formulaire APRÈS avoir posé
+  // le mode, relit aussi.
+  const brancherAvantDepart = (form, el, quoi) => {
+    if (!form || !el) return;
+    const maj = () => { const v = formValues(form); majAvantDepart(el, phraseAvantDepart([C.compteAvantDepart(data, v.accountId, v.method, v.date)], quoi)); };
+    form.addEventListener('input', maj); form.addEventListener('change', maj);
+    form.addEventListener('click', e => { if (e.target.closest('[data-mode]')) maj(); });
+    maj();
+  };
   const majAvertValide = (el, d, nouvelle, opts) => {
     if (!el) return;
     el.hidden = !d;
@@ -10256,6 +10281,7 @@
         ${!rend && Number(inv.withholdingRate) > 0 ? '<p class="small span-2 annonce-stable" id="pf-rs" aria-live="polite"></p>' : ''}
       </form>`}
       ${avertValideHtml('pf-valide')}
+      ${avertValideHtml('pf-avant')}
       ${/* 10.12.0 — la fiche société porte déjà la banque et le RIB ; le paiement disait « aucun compte » et
          n'offrait qu'un lien vers la Trésorerie, qui QUITTAIT la fenêtre et jetait la saisie. Le compte
          se crée par-dessus, prérempli avec ce que l'entreprise a déjà donné. */''}${/* (1.353.0) Une caisse pour seul compte : un virement n'y tombe plus (`compteSansNom`), et la fenêtre le dit. */''}${!(data.accounts || []).some(x => x.kind !== 'caisse') ? `<div class="inline small muted mt" id="pf-sans-compte">${(data.accounts || []).length ? `Pas encore de compte bancaire : un virement, un chèque ou une carte ne sera rattaché à aucun compte (ta caisse ne reçoit que les espèces).` : `Aucun compte de trésorerie : ${rend ? 'ce remboursement' : 'ce paiement'} ne sera rattaché à aucun compte.`}
@@ -10268,6 +10294,7 @@
         $('#pf2', root).addEventListener('input', majValideP);
         $('#pf2', root).addEventListener('change', majValideP);
         majValideP();
+        brancherAvantDepart($('#pf2', root), $('#pf-avant', root), rend ? 'ce remboursement' : 'ce règlement');
         if (!$('.pf-charte', root) && $('select[name=method]', root)) { const suivreS = compteSuitLeMode($('#pf2', root), p0); $('select[name=method]', root).addEventListener('change', e => suivreS(e.target.value)); }
         if ($('.pf-charte', root)) {
           const f = $('#pf2', root), m = $('[name=amount]', root), ok = $('#ok', root);
@@ -17014,12 +17041,14 @@
         ${avecRs || avecExo ? '<div class="pf-rs-boite annonce-stable" id="spf-rs" aria-live="polite"></div>' : ''}
       </form>
       ${avertValideHtml('spf-valide')}
+      ${avertValideHtml('spf-avant')}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => { brancherTauxReglement(root, p, rend, rend ? 'Reçu' : 'Payé'); brancherEffet(root);
       const majValideS = () => { const x = valideDuReglement(formValues($('#spf', root)), majValideS); majAvertValide($('#spf-valide', root), x.d, x.nouvelle, sujetReglement); };
       $('#spf', root).addEventListener('input', majValideS);
       $('#spf', root).addEventListener('change', majValideS);
       majValideS();
+      brancherAvantDepart($('#spf', root), $('#spf-avant', root), rend ? 'ce remboursement' : 'ce règlement');
       const fS = $('#spf', root), mS = $('[name=amount]', root), okS = $('#ok', root);
       const cible0 = C.round3(rend ? aRecuperer : reste);
       const suivreS = compteSuitLeMode(fS, r0);
@@ -17120,6 +17149,7 @@
         <div class="pf-rs-boite annonce-stable" id="rge-rs" aria-live="polite"></div>
       </form>
       ${avertValideHtml('rge-valide')}
+      ${avertValideHtml('rge-avant')}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (root, close) => {
       const fS = $('#rge', root), mS = $('[name=amount]', root);
@@ -17140,6 +17170,7 @@
         majAvertValide($('#rge-valide', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date, { sujet: 'Ce virement', fem: false, neuve: true, geste: 'En l\'enregistrant' });
       };
       fS.addEventListener('input', annoncer); fS.addEventListener('change', annoncer); annoncer();
+      brancherAvantDepart(fS, $('#rge-avant', root), 'ce virement');
       $('#ok', root).onclick = async () => {
         const v = formValues(fS), montant = C.round3(Number(v.amount) || 0);
         if (!(montant > 0)) return refus(mS, 'Écris le montant versé en chiffres, plus grand que zéro : par exemple 250,500.');

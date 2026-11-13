@@ -60,8 +60,11 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     const frais = (id: string, montant: string) => ({ collection: 'movements', cle: id, rang: 0, revision: null,
       contenu: { id, date: aujourdhui, kind: 'banque', amount: { '~n': montant }, accountId: 'k-banque', method: 'virement', label: `Frais ${id}` } });
     const envoyer = async (changements: unknown[]) => expect((await api('POST', `/entreprises/${ent}/dossier-v10`, client, { changements })).statut).toBe(200);
+    // Le solde de départ de la BIAT date d'avant les frais du mois dernier (étape 4) : un flux daté AVANT lui y serait déjà
+    // compris, et ne s'écrirait pas à la banque (1.357.7).
+    const ouverte = new Date(Date.parse(`${aujourdhui}T12:00:00Z`) - 60 * 86_400_000).toISOString().slice(0, 10);
     await envoyer([{ collection: 'accounts', cle: 'k-banque', rang: 0, revision: null,
-      contenu: { id: 'k-banque', name: 'BIAT', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: aujourdhui, isDefault: true, statementBalance: '', notes: '' } },
+      contenu: { id: 'k-banque', name: 'BIAT', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: ouverte, isDefault: true, statementBalance: '', notes: '' } },
     frais('m1', '7.125')]);
 
     const erreurs: string[] = [];

@@ -265,7 +265,8 @@ describe('la Comptabilité 1.304.0 : la période validée par le cabinet dite da
 
     await p.evaluate(() => { location.hash = '#/achat/a7'; });
     await p.locator('#more-btn').click({ timeout: 15_000 });
-    await p.getByRole('menuitem', { name: /Supprimer.*elle et son justificatif/ }).click();
+    // (1.357.6) Sans justificatif joint, le menu dit ce qui part : « la pièce entière » (il promettait « son justificatif »).
+    await p.getByRole('menuitem', { name: /Supprimer.*la pièce entière/ }).click();
     await expect.poll(async () => net(await dessus(p).innerText()), { timeout: 10_000 }).toContain(annulation('18/09/2026', 'Il'));
     await dessus(p).locator('#ok').click();
     await expect.poll(() => toast(p), { timeout: 15_000 }).toBe(`EC-4402 supprimée — ${PHRASE} Le dire à mon comptable`);

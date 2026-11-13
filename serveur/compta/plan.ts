@@ -5,9 +5,10 @@
 
 import { planDeLEntreprise, type Plan } from '../../moteur/comptes.ts';
 import { requetes, type Transaction } from '../base.ts';
-import { estObjet } from '../v10/lecture.ts';
+import { estJour, estObjet } from '../v10/lecture.ts';
 
-type CompteDeTresorerie = { id: string; caisse: boolean; parDefaut: boolean };
+// `depart` : le jour du solde de départ du compte (`openingDate`), s'il en a un (1.357.7).
+type CompteDeTresorerie = { id: string; caisse: boolean; parDefaut: boolean; depart: string | null };
 export type PlanDuDossier = {
   plan: Plan;
   auxiliaires: boolean;
@@ -55,7 +56,7 @@ export async function lirePlan(tx: Transaction, entreprise: string): Promise<Pla
   }
   const tresorerie = (await objetsDe(tx, entreprise, 'accounts')).filter((o) => estObjet(o.contenu)).map((o) => {
     const a = o.contenu as Record<string, unknown>;
-    return { id: o.cle, caisse: a.kind === 'caisse', parDefaut: a.isDefault === true };
+    return { id: o.cle, caisse: a.kind === 'caisse', parDefaut: a.isDefault === true, depart: estJour(a.openingDate) ? a.openingDate : null };
   });
   return { plan: planDeLEntreprise(estObjet(reglage) ? reglage : null), auxiliaires, codesClients, codesFournisseurs, tresorerie };
 }
@@ -84,8 +85,14 @@ export const compteDeTresorerie = (p: PlanDuDossier, compte: string | null, mode
   if (!defaut || !defaut.caisse || !mode || ESPECES.includes(mode)) return defaut;
   return p.tresorerie.find((a) => !a.caisse);
 };
-export function journalDeCompte(p: PlanDuDossier, compte: string | null, mode: string): { journal: 'BQ' | 'CA'; compte: string } {
+// (1.357.7, bout en bout 16) Un flux daté AVANT le solde de départ de son compte est déjà compris dans ce solde : la
+// Trésorerie de la v10 ne le compte pas (`accountBalance`). L'écrire à la banque la comptait deux fois — le prêt du four du
+// 02/11 dans un solde de départ du 11/11 : le 532 à 66 250 pour 48 250 au relevé. Son côté trésorerie va à la contrepartie du
+// solde de départ (le compte d'attente, comme `ecrituresDOuverture`), en opération diverse : la banque ne bouge pas, et ce que
+// le solde de départ portait sans explication diminue d'autant. Le jour d'un flux est facultatif : sans lui, rien ne change.
+export function journalDeCompte(p: PlanDuDossier, compte: string | null, mode: string, jour = ''): { journal: 'BQ' | 'CA' | 'OD'; compte: string } {
   const t = compteDeTresorerie(p, compte, mode);
+  if (jour && t?.depart && jour < t.depart) return { journal: 'OD', compte: p.plan.attente };
   const caisse = t ? t.caisse : ESPECES.includes(mode);
   return caisse ? { journal: 'CA', compte: p.plan.caisse } : { journal: 'BQ', compte: p.plan.banque };
 }

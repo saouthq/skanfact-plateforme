@@ -97,7 +97,9 @@ function fluxDuTiroir(c: ChangementLu, plan: PlanDuDossier, tiroir: string, devi
     return Number(nombreEnTexte(p.exchangeRate)) || Number(nombreEnTexte(piece.exchangeRate)) || 1;
   };
   if (c.collection === 'movements') {
-    if (o.ouverture === true || texte(o.reference) === 'Ouverture de la caisse' || c.cle.startsWith('ecart-z-')) return [];
+    // L'ajustement du fond noté à l'ouverture porte sa marque (`ouverture: true`, posée par l'écran qui ouvre la caisse) :
+    // le serveur ne reconnaît jamais une saisie à sa phrase française (le catalogue des textes, tests/socle/textes.test.ts).
+    if (o.ouverture === true || c.cle.startsWith('ecart-z-')) return [];
     const montant = enEntier(o.amount, 1, decimales);
     const m = montant < 0n ? -montant : montant;
     if (o.kind === 'virement') {
@@ -118,7 +120,9 @@ function fluxDuTiroir(c: ChangementLu, plan: PlanDuDossier, tiroir: string, devi
       .map((p) => ({ nature: 'achat' as const, cle: texte(p.id) || 'p', montant: sens * enEntier(p.amount, tauxDe(o, p), decimales), jour: texte(p.date) || null }));
   }
   // Une facture (pas un ticket : ses espèces sont celles du Z) : un paiement reçu ENTRE dans le tiroir, un remboursement en sort.
+  // L'argent rendu sur un retour de ticket ne passe jamais ici : un retour ne se fait QUE sur un ticket (`retour.ts` refuse le
+  // reste), et le ticket est écarté juste au-dessus.
   if (o.type !== 'facture' || o.ticket) return [];
-  return paiements.filter((p) => compte(p.accountId, p.method) === tiroir && !texte(p.note).startsWith('Rendu sur le ticket'))
+  return paiements.filter((p) => compte(p.accountId, p.method) === tiroir)
     .map((p) => ({ nature: 'vente' as const, cle: texte(p.id) || 'p', montant: -enEntier(p.amount, tauxDe(o, p), decimales), jour: texte(p.date) || null }));
 }

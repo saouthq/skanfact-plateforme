@@ -294,6 +294,14 @@ tenus par le serveur : le Cabinet tenait une banque et une caisse fausses de ces
   par défaut ; la contrepartie choisie à la main, sinon le rôle de la nature ; un salaire d'un mois sans bulletin (ni le
   mois d'avant) au 640, sinon au 425 ; un virement : l'arrivée est la contrepartie, un départ disparu laisse l'arrivée
   contre le 471, un virement d'un compte vers lui-même n'écrit rien.
+- (1.357.7) **Un flux daté avant le solde de départ de son compte** (`openingDate`) y est déjà compris : ni la Trésorerie
+  ni la banque des livres ne le comptent. Son côté trésorerie va à la contrepartie du solde de départ (le 12 chez le client,
+  le 471 sur le serveur, où le solde de départ arrive), en opération diverse (`journalDeCompte` reçoit la date, dans les
+  deux moteurs, pour un règlement, un mouvement, un salaire, une avance) ; un virement dont les deux côtés précèdent leurs
+  soldes de départ n'écrit rien. Changer la date d'un solde de départ réécrit tout le brouillard (`planChange`).
+- (1.357.7) **Une échéance d'emprunt porte ses intérêts** (`interets`, bornés au montant : `interetsDeLEcheance`) : le
+  capital à la contrepartie (16), les intérêts au rôle `interets` (651, **À VÉRIFIER**), la banque du montant entier — une
+  seule pièce, comme la ligne du relevé. Sans intérêts saisis, l'échéance reste entière au 16.
 - **L'écart d'un Z** devient un mouvement de la caisse posé par le serveur qui fige le Z (`serveur/caisse/routes.ts`) :
   un manque sort contre le 658, un excédent entre contre le 758 (**À VÉRIFIER** avec un comptable). Le fond proposé à la
   session suivante (le solde du compte de caisse) dit alors ce que le tiroir contient vraiment.

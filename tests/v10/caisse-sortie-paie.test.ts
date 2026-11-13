@@ -127,7 +127,11 @@ describe('la sortie de caisse de la paie', () => {
     // Aucun manque sorti contre le 658 ; la caisse (54) n'est créditée qu'une fois de chaque paiement.
     expect(await sql(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'movements'`)).toEqual([{ n: 0 }]);
     expect(await sql(`select e.origine_type o, sum(l.credit)::text c from compta.ecriture e join compta.ligne l on l.ecriture = e.id
-      where e.entreprise = $1 and l.compte = '54' and l.credit > 0 group by e.origine_type order by 1`)).toEqual([{ o: 'avance', c: String(37_250n + 12_345n + 45_678n) }, { o: 'salaires', c: String(net) }]);
+      where e.entreprise = $1 and l.compte = '54' and l.credit > 0 group by e.origine_type order by 1`)).toEqual([{ o: 'avance', c: String(37_250n + 45_678n) }, { o: 'salaires', c: String(net) }]);
+    // L'avance d'hier précède le solde de départ de la caisse (posé aujourd'hui) : elle y est déjà comprise, et passe au compte
+    // d'attente, en opération diverse (1.357.7).
+    expect(await sql(`select e.journal j, sum(l.credit)::text c from compta.ecriture e join compta.ligne l on l.ecriture = e.id
+      where e.entreprise = $1 and e.origine_type = 'avance' and l.compte = '471' and l.credit > 0 group by 1`)).toEqual([{ j: 'OD', c: String(12_345n) }]);
   });
 
   it('caisse fermée, le paiement passe et rien n\'est noté ; le Z figé ne change pas, la session suivante ne le compte pas', async () => {

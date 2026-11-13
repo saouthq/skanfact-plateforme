@@ -176,8 +176,9 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     await expect.poll(() => toast(p)).toContain('Enregistré');
     // Rattaché, il se déduit de CS-26-1187 : la fiche ne le dit plus « à toi », et ce qu'on lui doit ne bouge pas.
     await aller('#/fournisseur/s1');
-    expect(await p.locator('#ff-avoir').count()).toBe(0);
-    expect(await tete()).toContain('tu lui dois 2 125,108 DT');
+    // (rouge GitHub de b0e64c1, Node 22) La fiche peut se dessiner avant que l'enregistrement soit revenu : on attend l'état.
+    await expect.poll(() => p.locator('#ff-avoir').count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(tete, { timeout: 10_000 }).toContain('tu lui dois 2 125,108 DT');
     await aller('#/achats');
     await p.locator('#list-wrap tbody tr[data-id]').first().waitFor();
     expect(net(await p.locator('#list-wrap tbody tr[data-id]').filter({ hasText: 'CS-26-1187' }).innerText())).toMatch(/2 457,999.* 2 125,108 Régler$/);

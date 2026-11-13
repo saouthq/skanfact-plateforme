@@ -3168,3 +3168,51 @@ versés à la BIAT, une dépense payée « à la caisse », puis le Z ; puis le 
   changée ou supprimée, l'ouverture, l'ancien Z et la veille hors du compte ; l'avoir remboursé et le trop-perçu rendu ;
   les contraintes de 0209) ; `tiroir-1357` (écran, neuf : le comptage, l'écart noté et parti au Cabinet, le compte qui suit
   le mode, la dépense « À payer »). Quinze preuves.
+
+### 1.357.7 : le prêt du four, d'avant le solde de départ, et sa première échéance
+
+Bout en bout 16, joué à la souris par la boulangerie : le prêt BIAT de 18 000 DT pour le four, reçu le 02/11 — avant le
+solde de départ de la BIAT (48 250 DT au 11/11), qui le comprend déjà —, puis la première échéance ; puis le Cabinet.
+- Le prêt figurait dans la liste des mouvements, **compté dans la variation du pied** (+ 18 000 DT), mais pas dans le solde
+  de la BIAT : l'écran se contredisait. Et les livres l'écrivaient à la banque, dans les deux moteurs : le 532 à 66 250 DT
+  pour un compte qui en a 48 250. Un flux daté avant le solde de départ de son compte (`compteAvantDepart`, une règle pour
+  les écritures, la liste et les fenêtres) passe maintenant en opération diverse contre la contrepartie du solde de départ
+  (12 chez le client, 471 sur le serveur) : la banque ne bouge pas, le prêt entre au 16.
+- La fenêtre du mouvement le dit **avant** d'enregistrer (« Daté avant le solde de départ de « BIAT compte courant »
+  (48 250,000 DT au 11/11/2026) : ce mouvement y est déjà compris, et ne le fera pas bouger. Passé après ton relevé de
+  départ ? Corrige sa date. ») ; les fenêtres de règlement (client, fournisseur, virement groupé) aussi. La liste marque la
+  ligne « Déjà dans le solde de départ du … », grise son montant, et son pied ne la compte plus (« hors 1 mouvement déjà
+  compris dans le solde de départ »).
+- La fenêtre du compte disait seulement « tout ce qui est saisi après s'y ajoute » : déplacer la date du départ du 11/11 au
+  01/11 faisait passer la BIAT de 25 853 à 43 853 DT **sans un mot**. Elle dit maintenant ce que la date englobe (« Avant le
+  11/11/2026 : 1 mouvement (+ 18 000,000 DT), déjà compris dans ce solde de départ ») et ce que le changement ferait au
+  solde d'aujourd'hui. Changer cette date réécrit le brouillard au pont (`planChange`) : c'est par là que le prêt écrit
+  avant cette version a rejoint le 471. **À VÉRIFIER** : un brouillard écrit avant la 1.357.7 ne se corrige qu'à la
+  prochaine modification de la pièce ou du plan de trésorerie (aucune réécriture à la montée de version).
+- **L'échéance d'emprunt** envoyait tout au 16 : 1 635 DT dont 135 d'intérêts diminuaient la dette de 1 635 et oubliaient
+  135 DT de charges — le résultat trop beau, la dette trop basse. « Dont intérêts » n'existe que pour cette nature, juste
+  sous le montant ; le capital se calcule pendant la frappe (« Capital remboursé : 1 500,000 DT · les intérêts sont une
+  charge. ») ; des intérêts plus grands que l'échéance sont refusés en montrant la case ; une échéance qui se répète les
+  reprend (à corriger chaque mois). L'écriture : 16 1 500 / 651 135 / 532 1 635, la même au pont ; le résultat et le seuil
+  comptent les 135. La liste dit « dont 135,000 DT d'intérêts ». Rôle neuf `interets` (651, **À VÉRIFIER**) dans les deux
+  plans.
+- L'invite du libellé suit la nature (« Échéance mensuelle du prêt », « Prêt de la banque pour le matériel »…) au lieu de
+  « Salaires de septembre » partout.
+- Au Cabinet (deux chemins, un chiffre) : le prêt arrive en OD 471 / 16, l'échéance en 16 / 651 / 532 ; hors l'historique
+  saisi par le cabinet, le 532 du pont tombe sur la BIAT de la Trésorerie (25 853,413 DT avant l'échéance).
+- Tests : `tests/moteur/emprunt-1357` (les deux moteurs : la règle partagée, le prêt d'avant le départ, le jour du départ,
+  le virement dont un côté ou les deux précèdent, les intérêts bornés, l'échéance à trois lignes, le résultat) ;
+  `tests/web/emprunt-1357` (écran : la ligne marquée et le pied, la fenêtre du mouvement, celle du compte, l'échéance et son
+  refus, le pont).
+- Rouge GitHub de la 1.357.6 (b0e64c1), réparé ici. (1) Le serveur reconnaissait deux saisies de l'écran à leur phrase
+  française (« Ouverture de la caisse », « Rendu sur le ticket ») : le catalogue des textes l'interdit. L'ouverture porte sa
+  marque `ouverture: true` ; l'argent rendu sur un retour ne peut être que sur un ticket, déjà écarté. (2) Un retour de
+  ticket prenait un numéro d'avoir SUR LE POSTE alors que le serveur numérote : le compteur bougé partait au prochain
+  enregistrement — le comptage du tiroir avant le Z, ajouté en 1.357.6 — et le serveur refusait (« SkanFact a déjà donné
+  AVO-2026-001 »), le Z restait sous la question. Le numéro local se rend, comme pour un ticket (`encaisser`). Rejoué à la
+  souris : vente, retour d'un pain (AVO-2026-002 donné par le serveur), comptage, Z sans question. (3) Deux tests recopiaient
+  l'état d'avant : « elle et son justificatif » sur un achat qui n'en a pas (la 1.357.6 dit « la pièce entière ») ; et une
+  fiche lue avant la fin de l'enregistrement (attente).
+- Deux tests suivent la règle de la 1.357.7 : l'avance d'hier, avant le solde de départ de la caisse posé aujourd'hui, passe
+  en OD au 471 ; les frais du mois dernier sur une BIAT ouverte aujourd'hui y passeraient aussi — le test recule le départ.
+

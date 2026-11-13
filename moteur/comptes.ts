@@ -37,6 +37,8 @@ export const PLAN_PAR_DEFAUT = {
   impots: '434',
   associes: '4421',
   emprunts: '16',
+  // (1.357.7) La part d'une échéance d'emprunt qui est des intérêts : une charge. À VÉRIFIER avec le comptable.
+  interets: '651',
   attente: '471',
   reportANouveau: '12',
   dotations: '681',

@@ -60,7 +60,7 @@ export function ecrituresDuMouvement(famille: string, m: unknown, p: PlanDuDossi
   const n = NATURES[kind] ?? { sens: -1 as const, role: 'attente' as const };
   const nom = (id: string) => ctx.noms.get(id) || libelle('compta.libelle.mouvement.un_autre_compte', {});
   const piece = texte(m.reference).trim() || nature(kind);
-  const ecriture = (journal: 'BQ' | 'CA', entree: string, debit: string, credit: string): EcritureAEcrire[] => [{
+  const ecriture = (journal: 'BQ' | 'CA' | 'OD', entree: string, debit: string, credit: string): EcritureAEcrire[] => [{
     journal, date, origineType: 'mouvement', origine: famille, piece, tiers: null, libelle: entree,
     lignes: [{ compte: debit, libelle: entree, debit: montant, credit: 0n, tauxTva: null }, { compte: credit, libelle: entree, debit: 0n, credit: montant, tauxTva: null }],
   }];
@@ -74,15 +74,31 @@ export function ecrituresDuMouvement(famille: string, m: unknown, p: PlanDuDossi
     if (!depart && (!texte(m.accountId) || !vers)) depart = defaut ? defaut.id : '';
     if (depart && depart === vers) return [];
     if (!depart && vers) {
-      const jv = journalDeCompte(p, vers, mode);
+      const jv = journalDeCompte(p, vers, mode, date);
       return ecriture(jv.journal, texte(m.label) || libelle('compta.libelle.mouvement.virement_sans_depart', { compte: nom(vers) }), jv.compte, p.plan.attente);
     }
   }
-  const j = journalDeCompte(p, (kind === 'virement' ? depart : texte(m.accountId)) || null, mode);
+  const j = journalDeCompte(p, (kind === 'virement' ? depart : texte(m.accountId)) || null, mode, date);
   let role = n.role;
   if (kind === 'salaire' && !ctx.moisAvecBulletin.has(date.slice(0, 7)) && !ctx.moisAvecBulletin.has(moisPrecedent(date.slice(0, 7)))) role = 'salairesBruts';
-  const contrepartie = vers ? journalDeCompte(p, vers, mode).compte : (kind !== 'virement' && texte(m.compte).trim()) || p.plan[role];
+  const jVers = vers ? journalDeCompte(p, vers, mode, date) : null;
+  // Les deux côtés d'un virement déjà dans leurs soldes de départ : rien ne bouge, rien ne s'écrit (1.357.7).
+  if (j.journal === 'OD' && jVers?.journal === 'OD') return [];
+  const contrepartie = jVers ? jVers.compte : (kind !== 'virement' && texte(m.compte).trim()) || p.plan[role];
   const entree = texte(m.label) || (vers ? libelle('compta.libelle.mouvement.virement_vers', { compte: nom(vers) }) : nature(kind));
+  // (1.357.7, bout en bout 16) Une échéance d'emprunt porte ses intérêts : le capital à la contrepartie, les intérêts en charge
+  // (651), une seule pièce (`interetsDeLEcheance`, core.js : bornés au montant, rien pour une autre nature).
+  const interets = kind === 'emprunt' ? exact(m.interets ?? 0, 3) : null;
+  if (interets !== null && interets > 0n) {
+    const i = interets > montant ? montant : interets;
+    const libInterets = libelle('compta.libelle.mouvement.interets', { libelle: entree });
+    const lignes = [
+      { compte: contrepartie, libelle: entree, debit: montant - i, credit: 0n, tauxTva: null },
+      { compte: p.plan.interets, libelle: libInterets, debit: i, credit: 0n, tauxTva: null },
+      { compte: j.compte, libelle: entree, debit: 0n, credit: montant, tauxTva: null },
+    ].filter((l) => l.debit > 0n || l.credit > 0n);
+    return [{ journal: j.journal, date, origineType: 'mouvement', origine: famille, piece, tiers: null, libelle: entree, lignes }];
+  }
   return n.sens > 0 ? ecriture(j.journal, entree, j.compte, contrepartie) : ecriture(j.journal, entree, contrepartie, j.compte);
 }
 

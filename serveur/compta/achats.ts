@@ -144,7 +144,7 @@ export async function ecrituresDeLaFamilleDAchat(tx: Transaction, entreprise: st
     const numero = numeroDe(m);
     // À date égale, dans l'ordre où ils ont été saisis.
     for (const r of [...m.reglements].sort((x, y) => x.rang - y.rang)) {
-      const j = journalDeCompte(plan, r.compte, r.mode);
+      const j = journalDeCompte(plan, r.compte, r.mode, r.date);
       // Un règlement porté par un avoir est un remboursement : l'argent entre.
       const cle = m.nature === 'avoir' || r.montant < 0n ? 'compta.libelle.remboursement_fournisseur' : 'compta.libelle.reglement_fournisseur';
       const entree = libelle(cle, { numero, fournisseur: m.nom });

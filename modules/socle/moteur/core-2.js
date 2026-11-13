@@ -535,6 +535,17 @@
     ['virement', 'Virement entre mes comptes', -1]
   ];
   const moveSign = kind => { const m = MOVE_KINDS.find(x => x[0] === kind); return m ? m[2] : -1; };
+  // (1.357.7, bout en bout 16) La part d'une échéance d'emprunt qui est des INTÉRÊTS : une charge (651), pas du capital.
+  // « Échéance d'emprunt » envoyait tout au 16 : une échéance de 1 635 DT (1 500 de capital, 135 d'intérêts) diminuait la
+  // dette de 1 635 et oubliait 135 DT de charges — le résultat trop beau, la dette trop basse. Bornée au montant (une
+  // échéance de différé n'est que des intérêts) ; rien pour une autre nature. Les deux moteurs lisent la même règle
+  // (`interetsDeLEcheance`, mouvements.ts).
+  function interetsDeLEcheance(m) {
+    if (!m || m.kind !== 'emprunt') return 0;
+    const montant = round3(Math.abs(Number(m.amount) || 0));
+    const i = round3(Number(m.interets) || 0);
+    return i > 0 ? Math.min(i, montant) : 0;
+  }
   // Les deux côtés d'un virement entre deux comptes de l'entreprise (10.14.1) : chacun est un compte
   // qui EXISTE, ou ''. Un côté dont le compte a été supprimé n'est plus rien : l'autre garde ce que
   // SON relevé dit (la banque qui a vraiment reçu 300 DT les garde), et la contrepartie va au compte
@@ -599,6 +610,15 @@
     const defaut = comptes.find(a => a.isDefault) || comptes[0];
     if (!defaut || defaut.kind !== 'caisse' || !method || modeEspeces(method)) return defaut;
     return comptes.find(a => a.kind !== 'caisse');
+  }
+  // (1.357.7, bout en bout 16) Le compte de trésorerie d'un flux daté AVANT son solde de départ : ce flux y est déjà compris.
+  // La Trésorerie ne le compte pas (`accountBalance` part du solde de départ), les écritures non plus (`journalDeCompte`) ;
+  // la fenêtre qui le saisit et la liste qui le montre le DISENT par cette même règle. Le compte se résout comme partout :
+  // celui qui est nommé, sinon `compteSansNom`. Rien (null) quand le flux tombe à son départ ou après.
+  function compteAvantDepart(data, accountId, method, date) {
+    const comptes = (data && data.accounts) || [];
+    const compte = (accountId && comptes.find(a => a.id === accountId)) || compteSansNom(comptes, method);
+    return date && compte && compte.openingDate && String(date) < String(compte.openingDate) ? compte : null;
   }
   function cashMovements(data, company, period, accountId) {
     const out = [];
@@ -2272,6 +2292,7 @@
     impots: '434',               // État — acomptes provisionnels et impôts réglés sans autre précision
     associes: '4421',            // Associés — comptes courants : apports, retraits, dividendes
     emprunts: '16',              // Emprunts : déblocage et échéances (capital)
+    interets: '651',             // (1.357.7) Intérêts des emprunts : la part d'une échéance qui est une charge — À VÉRIFIER
     attente: '471',              // Compte d'attente : ce que le comptable ventilera
     reportANouveau: '12',        // Résultats reportés : contrepartie des soldes de départ saisis à la main
     // 9.0.0 — l'exercice : amortissements, cessions, taxes sur salaires
@@ -2306,7 +2327,7 @@
     personnel: 'Personnel — net à payer', cnss: 'CNSS', irpp: 'IRPP retenu',
     resultat: 'Résultat des exercices passés',
     tvaAPayer: 'TVA à payer', fraisBancaires: 'Frais bancaires', impots: 'Impôts et acomptes réglés',
-    associes: 'Compte courant des associés', emprunts: 'Emprunts', attente: 'Compte d\'attente (à ventiler)',
+    associes: 'Compte courant des associés', emprunts: 'Emprunts', interets: 'Intérêts des emprunts', attente: 'Compte d\'attente (à ventiler)',
     reportANouveau: 'Report à nouveau (soldes de départ)',
     dotations: 'Dotations aux amortissements', amortissements: 'Amortissements cumulés', vncCedee: 'Valeur comptable des immobilisations cédées',
     produitsCession: 'Produits des cessions d\'immobilisations', taxesSalaires: 'TFP et FOPROLOS (charge)', tfpFoprolos: 'TFP et FOPROLOS à payer',
@@ -2417,10 +2438,16 @@
   // La règle est CELLE de la Trésorerie (`cashMovements`) : le compte affecté, sinon le compte par
   // défaut — le même argent ne peut pas être à la banque sur une page et en caisse sur l'autre.
   // Sans aucun compte de trésorerie, le mode de paiement décide.
-  function journalDeCompte(data, acc, accountId, method) {
+  function journalDeCompte(data, acc, accountId, method, date) {
     const comptes = (data && data.accounts) || [];
     // (1.353.0) Sans compte nommé : `compteSansNom` — un virement ne tombe jamais dans une caisse par défaut.
     const compte = (accountId && comptes.find(a => a.id === accountId)) || compteSansNom(comptes, method);
+    // (1.357.7, bout en bout 16) Un flux daté AVANT le solde de départ de son compte est déjà compris dans ce solde : la
+    // Trésorerie ne le compte pas (`accountBalance` part du solde de départ). L'écrire à la banque la comptait DEUX fois — le
+    // prêt du four du 02/11, dans un solde de départ du 11/11 relevé à 48 250 DT : le 532 à 66 250. Son côté trésorerie va
+    // à la contrepartie du solde de départ (le report à nouveau) : la banque ne bouge pas, le prêt entre au 164, et ce que le
+    // solde de départ portait sans explication diminue d'autant (deux chemins, un chiffre).
+    if (compteAvantDepart(data, accountId, method, date)) return { journal: 'OD', compte: acc.reportANouveau, avantDepart: true };
     const caisse = compte ? compte.kind === 'caisse' : cashAccountFor(method, acc) === acc.caisse;
     return caisse ? { journal: 'CA', compte: acc.caisse } : { journal: 'BQ', compte: acc.banque };
   }
@@ -2635,7 +2662,7 @@
     // --- encaissements clients
     if (want('encaissements')) {
       paymentsJournal(data, company, period).forEach(r => {
-        const j = journalDeCompte(data, acc, r.accountId, r.method);
+        const j = journalDeCompte(data, acc, r.accountId, r.method, r.date);
         const e = entrySet({ date: r.date, journal: j.journal, piece: r.number || '', tiers: r.client, tiersId: r.clientId || '', source: 'encaissement', docId: r.docId, currency: cur, lettre: lettreDoc(r.docId) });
         const label = `${r.remboursement ? 'Remboursement' : 'Règlement'} ${r.number || ''}${r.client ? ' — ' + r.client : ''}${r.reference ? ' (' + r.reference + ')' : ''}`;
         e.debit(j.compte, label, r.amount);
@@ -2654,7 +2681,7 @@
     // --- règlements fournisseurs
     if (want('reglements')) {
       supplierPayments(data, company, period).forEach(r => {
-        const j = journalDeCompte(data, acc, r.accountId, r.method);
+        const j = journalDeCompte(data, acc, r.accountId, r.method, r.date);
         const e = entrySet({ date: r.date, journal: j.journal, piece: refAchat(achatsById[r.purchaseId]) || r.number || '', tiers: r.supplier, tiersId: r.supplierId || '', source: 'règlement', docId: r.purchaseId, currency: cur, lettre: lettreAchat(achatsById[r.purchaseId]) });
         // (1.356.8) L'argent qui REVIENT d'un fournisseur (un avoir remboursé, une facture payée en trop) n'est pas un règlement :
         // le Cabinet lisait « Règlement fournisseur » sur un virement reçu, pendant que le moteur du serveur écrit « Remboursement »
@@ -2727,21 +2754,30 @@
         if (cotes && cotes.neutre) return;
         const nomDe = id => ((data.accounts || []).find(a => a.id === id) || {}).name || 'un autre compte';
         if (cotes && !cotes.depart && cotes.vers) {
-          const jv = journalDeCompte(data, acc, cotes.vers, m.method);
+          const jv = journalDeCompte(data, acc, cotes.vers, m.method, m.date);
           const e = entrySet({ date: m.date, journal: jv.journal, piece: m.reference || nature, tiers: '', tiersId: '', source: 'mouvement', docId: m.id, currency: cur });
           const label = m.label || `Virement vers ${nomDe(cotes.vers)} (compte de départ supprimé)`;
           e.debit(jv.compte, label, montant); e.credit(acc.attente, label, montant);
           out.push(...e.done());
           return;
         }
-        const j = journalDeCompte(data, acc, cotes ? cotes.depart : m.accountId, m.method);
+        const j = journalDeCompte(data, acc, cotes ? cotes.depart : m.accountId, m.method, m.date);
         const vers = cotes ? cotes.vers : '';
-        const contrepartie = vers ? journalDeCompte(data, acc, vers, m.method).compte
+        const jVers = vers ? journalDeCompte(data, acc, vers, m.method, m.date) : null;
+        // Les deux côtés d'un virement déjà dans leurs soldes de départ : rien ne bouge, rien ne s'écrit.
+        if (j.avantDepart && jVers && jVers.avantDepart) return;
+        const contrepartie = jVers ? jVers.compte
           : (m.kind !== 'virement' && String(m.compte || '').trim()) || acc[compteDuMouvement(data, m, bulletins)];
         const e = entrySet({ date: m.date, journal: j.journal, piece: m.reference || nature, tiers: '', tiersId: '', source: 'mouvement', docId: m.id, currency: cur });
         const label = m.label || (vers ? `Virement vers ${nomDe(vers)}` : nature);
+        const interets = vers ? 0 : interetsDeLEcheance(m);
         if (moveSign(m.kind) > 0) { e.debit(j.compte, label, montant); e.credit(contrepartie, label, montant); }
-        else { e.debit(contrepartie, label, montant); e.credit(j.compte, label, montant); }
+        else if (interets) {
+          // Le capital à la contrepartie, les intérêts en charge : une seule pièce, comme la ligne du relevé.
+          e.debit(contrepartie, label, round3(montant - interets));
+          e.debit(acc.interets, `${label} — intérêts`, interets);
+          e.credit(j.compte, label, montant);
+        } else { e.debit(contrepartie, label, montant); e.credit(j.compte, label, montant); }
         out.push(...e.done());
       });
     }
@@ -2777,7 +2813,7 @@
           const emp = (data.employees || []).find(x => x.id === s.employeeId) || {};
           const net = round3(((s.computed || {}).net) || 0);
           if (!net) return;
-          const j = journalDeCompte(data, acc, s.accountId, s.method);
+          const j = journalDeCompte(data, acc, s.accountId, s.method, s.paidDate);
           const e = entrySet({ date: s.paidDate, journal: j.journal, piece: `PAIE-${s.year}-${String(s.month).padStart(2, '0')}`, tiers: emp.name || '', tiersId: '', source: 'salaire', docId: s.id, currency: cur });
           const label = `Paiement salaire ${emp.name || ''} ${MONTHS_FR[Number(s.month) - 1] || ''} ${s.year}`;
           e.debit(acc.personnel, label, net);
@@ -2795,7 +2831,7 @@
           const montant = round3(Number(a.amount) || 0);
           if (!montant) return;
           const emp = (data.employees || []).find(x => x.id === a.employeeId) || {};
-          const j = journalDeCompte(data, acc, a.accountId, a.method);
+          const j = journalDeCompte(data, acc, a.accountId, a.method, a.date);
           const e = entrySet({ date: a.date, journal: j.journal, piece: `AVANCE-${a.date || ''}`, tiers: emp.name || '', tiersId: '', source: 'avance', docId: a.id, currency: cur });
           const label = `Avance sur salaire ${emp.name || ''}`.trim();
           e.debit(acc.personnel, label, montant);
@@ -2810,7 +2846,7 @@
         .filter(f => f.paidDate && Number(f.amount) && inPeriod(f.paidDate, period && period.from, period && period.to))
         .forEach(f => {
           const montant = round3(Number(f.amount) || 0);
-          const j = journalDeCompte(data, acc, f.accountId, f.method);
+          const j = journalDeCompte(data, acc, f.accountId, f.method, f.paidDate);
           const cnss = /^cnss-/.test(f.id);
           const e = entrySet({ date: f.paidDate, journal: j.journal, piece: String(f.id).toUpperCase(), tiers: cnss ? 'CNSS' : 'Recette des finances', tiersId: '', source: 'social', docId: f.id, currency: cur });
           const label = f.label || 'Déclaration sociale';
@@ -2831,7 +2867,7 @@
         .filter(v => v.date && Number(v.amount) && inPeriod(v.date, period && period.from, period && period.to))
         .forEach(v => {
           const montant = round3(Number(v.amount) || 0);
-          const j = journalDeCompte(data, acc, v.accountId, v.method);
+          const j = journalDeCompte(data, acc, v.accountId, v.method, v.date);
           const e = entrySet({ date: v.date, journal: j.journal, piece: `SAISIE-${v.date}`, tiers: String(x.creancier || '').trim() || 'Créancier', tiersId: '', source: 'saisie', docId: x.id, currency: cur });
           const label = `Saisie sur salaire ${emp.name || ''}`.trim();
           e.debit(acc.personnel, label, montant);
@@ -7692,7 +7728,7 @@
     STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, declarationsDuCabinet, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
-    ACCOUNT_KINDS, MOVE_KINDS, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
+    ACCOUNT_KINDS, MOVE_KINDS, interetsDeLEcheance, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, compteAvantDepart, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,

@@ -21,6 +21,7 @@ const core = exiger('../../banc/v10/core.js') as {
   payrollSettings: (d: unknown) => Reglages;
 };
 const ecran = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: Salarie10, i: unknown, s: Reglages) => Record<string, unknown> };
+const ecranCore = ecranDeLaPlateforme('core.js') as { compteAvantDepart: (d: unknown, id: string, mode: string, date: string) => { id: string } | null };
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -89,7 +90,14 @@ describe('les mouvements de trésorerie, tenus par le serveur, contre la v10', (
     // (1.356.0) Le solde de départ d'un compte est une famille à part, au compte d'attente là où la v10 écrit l'à-nouveau :
     // il a son test plus bas.
     const t = (await tenues()).filter((l) => l.piece !== 'OUVERTURE');
-    const attendu = v.map((l) => cleDe({ date: l.date, journal: l.journal, piece: l.piece, compte: l.account, libelle: l.label ?? '', debit: entier(l.debit, 3) ?? -1n, credit: entier(l.credit, 3) ?? -1n })).sort();
+    // (1.357.7) Un mouvement daté avant le solde de départ de son compte y est déjà compris (le salaire sans bulletin de
+    // 2019, avant le départ du compte de l'exemple) : la v10 figée l'écrit à la banque, le serveur au compte d'attente où
+    // arrive le solde de départ, en opération diverse (tests/moteur/emprunt-1357.test.ts). Le reste ne change pas.
+    const avantDepart = new Set(tousLesMouvements.filter((m) => m.kind !== 'virement' && ecranCore.compteAvantDepart(donneesV10, m.accountId ?? '', m.method ?? '', m.date)).map((m) => m.id));
+    expect([...avantDepart]).toEqual(['p-salaire-sans']);
+    const tresorerieV10 = new Set(['532', '54']);
+    const v2 = v.map((l) => (avantDepart.has(String((l as { docId?: string }).docId)) ? { ...l, journal: 'OD', account: tresorerieV10.has(l.account) ? '471' : l.account } : l));
+    const attendu = v2.map((l) => cleDe({ date: l.date, journal: l.journal, piece: l.piece, compte: l.account, libelle: l.label ?? '', debit: entier(l.debit, 3) ?? -1n, credit: entier(l.credit, 3) ?? -1n })).sort();
     const tenu = t.map((l) => cleDe({ date: l.date, journal: l.journal, piece: l.piece ?? '', compte: l.compte, libelle: l.ligne, debit: BigInt(l.debit), credit: BigInt(l.credit) })).sort();
     expect(tenu).toEqual(attendu);
     // Le banc a mesuré quelque chose : l'exemple, et chaque piège.
