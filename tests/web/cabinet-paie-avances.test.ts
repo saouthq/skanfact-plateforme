@@ -258,7 +258,7 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     const erreurs: string[] = [];
     const p = await page(associe, erreurs);
     await ouvrirLaPaie(p, `${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${boulangerie}/comptabilite/paie/2025`);
-    expect(net(await p.locator('#av-qui').innerText())).toBe('1 en cours · 600,750 DT encore à retenir. Ce client les saisit dans son SkanFact (Paie › Avances) : le Cabinet les lit, et un bulletin nouveau en retient l\'échéance.');
+    expect(net(await p.locator('#av-qui').innerText())).toBe('1 en cours · 600,750 DT encore à retenir. Ce client les saisit dans son SkanFact (Paie › L\'équipe › Avances et prêts) : le Cabinet les lit, et un bulletin nouveau en retient l\'échéance.');
     expect(await p.locator('#av-ajouter').count()).toBe(0);
     // La ligne se lit ; elle ne s'ouvre ni au clic ni au clavier.
     const tr = p.locator('#av-liste tbody tr');

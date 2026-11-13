@@ -7653,9 +7653,14 @@
       if (!s.annee) {
         // L'exercice du dernier paquet reçu ; sans paquet, le dernier exercice que le cabinet tient ;
         // sinon l'année en cours — celle qu'on commence.
-        const m = brut.tousLesMois;
-        const ex = (brut.exercices || []).map(x => x.annee).sort();
-        s.annee = m.length ? m[m.length - 1].slice(0, 4) : ex.length ? ex[ex.length - 1] : String(new Date().getFullYear());
+        // (1.362.3, bout en bout 27) Un mois ou un exercice DÉJÀ commencé : une écriture datée de janvier 2027 au brouillard,
+        // ou un exercice ouvert d'avance, ouvraient le dossier en novembre 2026 sur douze mois « à venir », et la Paie
+        // réclamait le bulletin de janvier 2027 (U-12 : jamais un mois futur). Sans rien de commencé, le premier à venir.
+        const auj = String(K.today()), an = auj.slice(0, 4);
+        const m = (brut.tousLesMois || []).filter(x => String(x).slice(0, 7) <= auj.slice(0, 7));
+        const ex = (brut.exercices || []).map(x => String(x.annee)).sort(), commences = ex.filter(a => a <= an);
+        const avenir = [...(brut.tousLesMois || []).map(x => String(x).slice(0, 4)), ...ex].sort();
+        s.annee = m.length ? m[m.length - 1].slice(0, 4) : commences.length ? commences[commences.length - 1] : avenir.length ? avenir[0] : an;
       }
       await chargerLeLivre(dossier);
     } catch (e) { s.data = { erreur: plainError(e) }; }
@@ -7672,14 +7677,19 @@
     // — et personne ne le verrait, puisque le tableau serait plein (règle 7.1.x).
     s.decl = null; s.immo = null; s.inv = null; s.cloture = null;
     const annee = s.annee || String(new Date().getFullYear());
-    s.livreCle = dossier.id + '|' + annee;
+    const cle = dossier.id + '|' + annee;
+    s.livreCle = cle;
+    // (1.362.3) Une réponse en retard ne repeint pas l'écran qu'on a quitté (10.5.0) : passé à 2027 puis revenu sur 2026
+    // avant que 2027 n'arrive, le livre de 2027 remplaçait celui de 2026 sous l'étiquette « 2026 » — ses écritures, ses
+    // salariés, sa paie. Seul le livre de l'exercice qu'on regarde encore s'installe.
     try {
       const r = await api.livre(dossier.id, annee);
+      if (s.livreCle !== cle) return;
       if (r.livre) { s.livre = r.livre; s.livreEtat = 'ouvert'; return; }
       if (r.versionInconnue) { s.livreEtat = 'version-inconnue'; return; }
       if (r.illisible) { s.livreEtat = 'illisible'; s.livreMotif = r.motif || ''; return; }
       s.livreEtat = 'absent';
-    } catch (e) { s.livreEtat = 'erreur'; s.livreMotif = plainError(e); }
+    } catch (e) { if (s.livreCle === cle) { s.livreEtat = 'erreur'; s.livreMotif = plainError(e); } }
   }
 
   // Les lignes de la période, analysées par compta.js. On garde la provenance (le mois et le
@@ -9310,7 +9320,7 @@
     };
     // La paie du mois déclaré, ouverte sur CE mois : c'est lui qu'il faut écrire.
     $$('[data-vers-paie]', el).forEach(b => { b.onclick = () => {
-      s.paieMois = Number(String(s.decl && s.decl.periode || '').slice(5, 7)) || s.paieMois;
+      s.paieMois = Number(String(s.decl && s.decl.periode || '').slice(5, 7)) || s.paieMois; s.paieMoisAnnee = String(s.annee);
       allerSousOnglet(root, dossier, 'paie');
     }; });
     $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }; });

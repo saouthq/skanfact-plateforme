@@ -157,7 +157,7 @@
     CONTRACT_TYPES, contractLabel, REGIME_TAUX, regimeDuContrat, normaliserRegimes, libelleRegime, DEFAULT_PAYROLL, baremesPaie,
     irppAnnual, computePayslip, employerChargesOf, CSS_JUSQU_AU, cssPoseePour, baremesNonRelus,
     COMPTES_PAIE, MOIS_PAIE, moisPaie, TRIMESTRES_PAIE,
-    salarieValide, normaliserSalarie, ajouterSalarie, retirerSalarie, salariesActifs,
+    salarieValide, normaliserSalarie, ajouterSalarie, retirerSalarie,
     bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, virementsRevenus, moisEmployeur,
     // (plateforme) 1.64.0
     baremesDuBulletin,

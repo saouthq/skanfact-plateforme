@@ -3679,3 +3679,59 @@ Cabinet qui lit les deux pièces.
   `tests/web/annulation-avoir-1362-2.test.ts` (le doublon, « la refaire » sans question après un client choisi à la main, l'avoir total et son timbre, le second avoir
   proposé, le brouillon en double retiré, le Cabinet) ; preuves « avoir 1.362.2 », les preuves « rouge 1.362.1 c/d »
   repointées vers `app-1.js`.
+
+### 1.362.3 : une avance sur salaire retenue sur le bulletin, jusqu'au Cabinet (bout en bout 27)
+
+Joué à la souris par la pâtisserie de Nour : 300 DT d'avance versés à Yassine le 05/11, retenus 150 DT sur ses bulletins
+de novembre et de décembre ; la prévision de trésorerie côté entreprise, puis la Paie du Cabinet qui lit le même salarié.
+
+- **La prévision ne sort plus l'avance deux fois.** Les salaires des mois sans bulletin s'estimaient au net de la fiche,
+  sans la retenue : l'avance sortait le 05/11, puis une seconde fois dans le salaire entier du 30/11. Le salaire prévu
+  retranche maintenant ce que le bulletin retiendra (`echeancesDuMois`), jamais plus que ce qui reste à rembourser d'un
+  mois sur l'autre, et la ligne le dit (« Salaire novembre 2026 — Yassine Trabelsi (avance retenue : 150,000 DT) »).
+  Deux chemins, un chiffre : le salaire prévu de novembre côté entreprise et le net du bulletin de novembre au Cabinet
+  tombent tous deux sur 830,932 DT.
+- **Les salariés qu'un mois attend : une règle, `salariesDuMois`.** Le contrôle des bulletins manquants jugeait sur le
+  28 du mois : une entrée le 30 ou une sortie le 15 n'avaient pas leur bulletin réclamé. Et l'écran du Cabinet, quand rien
+  ne manquait, retombait sur tous les salariés en poste aujourd'hui : janvier réclamait « Bulletins : 1 à faire » et
+  « CNSS du 1er trimestre à déposer » pour un salarié entré le 1er novembre. Un salarié est attendu quand son contrat
+  couvre au moins un jour du mois ; le pointage, « n à faire », « + Un bulletin… », la CNSS du trimestre et la retenue
+  se comptent sur eux. Un mois sans personne le dit : « Personne n'est en poste en janvier : Yassine Trabelsi entre le
+  01/11/2026. Aucun bulletin à faire. »
+- **La comptabilité s'ouvre sur l'exercice qui a commencé.** Une écriture datée de janvier prochain au brouillard
+  faisait ouvrir le dossier sur l'exercice suivant, douze mois « à venir ». Les mois et les exercices pris d'office sont
+  ceux qui ont commencé ; un exercice futur ne s'ouvre que s'il n'y a rien d'autre.
+- **Le mois regardé appartient à l'exercice où il a été choisi.** Passé de 2026 (novembre) à 2027, la Paie montrait
+  novembre 2027, un mois qui n'existe pas encore. Changer d'exercice refait le mois — une garde au dessin, jamais une par
+  porte.
+- **Une réponse en retard ne repeint plus l'exercice qu'on regarde.** Passé à 2027 puis revenu sur 2026 avant que le
+  livre de 2027 n'arrive, celui-ci s'installait sous l'étiquette « 2026 » : ses écritures, son brouillard, sa paie. Seul
+  le livre de l'exercice qu'on regarde encore s'installe (règle 10.5.0).
+- **La carte du dossier dit le dernier mois commencé.** La même écriture de janvier prochain faisait dire « janvier au
+  brouillard » à la carte du dossier ouvert, et classait le dossier sur ce mois dans le portefeuille. Le dernier mois d'un
+  dossier est le dernier qui a commencé (`dossierRow`) ; sans mois commencé, le premier à venir.
+- **Les chemins cités dans le SkanFact du client existent.** Sous les avances de Yassine, le Cabinet écrivait « Ce client
+  les saisit dans son SkanFact (Paie › Avances) », et ses taux « Paie › Barèmes » : aucun des deux n'existe dans la Paie de
+  l'entreprise. Ils deviennent « Paie › L'équipe › Avances et prêts », « Paie › Réglages » et « Paie › Aujourd'hui ›
+  Congés et absences » ; un test lit les noms des vues dans la source de l'entreprise et refuse un chemin qui n'y est pas.
+- Vérifié à la souris : l'avance versée, la prévision à 830,932 DT en novembre (avance retenue nommée), octobre payé
+  980,932 DT le 31/10 ; au Cabinet, « novembre au brouillard » sur la carte du dossier, l'avance de 300 DT dont 150
+  retenus et 150 restants sous « Congés et avances », le bulletin de novembre à 830,932 DT, janvier « personne en poste ce mois »,
+  l'exercice 2026 ouvert d'office malgré une écriture de janvier 2027.
+- Tests : `tests/moteur/avance-prevision-1362-3.test.ts` (sans avance, 150 par mois, 200 par mois plafonné au reste,
+  avance déjà remboursée en partie, avance de décembre, le libellé ; montants comptés à la main),
+  `tests/moteur/paie-du-mois-1362-3.test.ts` (janvier, l'entrée du 30, la sortie du 15, février, le contrôle),
+  `tests/web/cabinet-paie-1362-3.test.ts` (l'exercice et le mois d'ouverture, janvier sans personne en poste, le
+  changement d'exercice, la réponse en retard retardée de 2,5 s), `tests/moteur/dernier-mois-dossier-1362-3.test.ts`,
+  `tests/moteur/chemins-paie-cabinet-1362-3.test.ts` ; quatorze preuves « paie 1.362.3 ».
+- **Le rouge de la nuit du 15/11/2026 (toutes les preuves, sur la 1.362.2) : sept preuves devenues muettes.** Aucune ne
+  disait un défaut revenu : chacune visait un écran que les versions d'après avaient changé. (1) Les lignes d'un achat au
+  téléphone : depuis la 1.357.0 la pièce enregistrée s'ouvre en résumé, l'instrument de rendu n'ouvrait plus son
+  formulaire — il l'ouvre (`#/achat/p1/modifier`), et il y a trouvé un vrai défaut : le chemin gardait la pièce en lien de
+  16 px au-dessus du formulaire. Au téléphone, le retour est désormais le DERNIER lien du chemin (le parent le plus proche :
+  la pièce qu'on modifie, la commande d'une réception), les autres se cachent. (2) Le signe moins et les valeurs proposées :
+  la remise de la pièce est une case de texte depuis la 1.356.9, l'instrument tape aussi dans la remise d'une ligne, une
+  vraie case de nombre. (3) Le prix d'un article tapé « 12,500 » : la case est en texte, la preuve avale la virgule à la
+  relecture du formulaire. (4) « Quitter sans enregistrer ? » après la suppression d'une pièce : la question arrive au
+  changement d'adresse, une image plus tard ; le test attend d'être parti puis regarde un instant. (5) Le jour d'arrivée
+  des pièces : le défaut posait « 15 », juste le 15 du mois ; il pose un jour de plus. Neuf preuves refaites.

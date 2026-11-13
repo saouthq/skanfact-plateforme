@@ -1,6 +1,6 @@
 {
   "_": "Le cliquet du contrôle des frontières (docs/cadrage/17-rangement.md § 4.2 ; outils/rangement/frontieres.ts). « ecarts » : les écarts d'aujourd'hui, comptés ; un écart neuf fait tomber le contrôle, un écart disparu mais encore listé aussi ; la liste ne peut que baisser (`npm run frontieres -- --ecrire`). « lignes » : les lignes de chaque gros fichier hors de modules/, au plus (F12). « empreinte » : les écrans servis à la dernière écriture (un déplacement à l'identique, et lui seul, peut inscrire les écarts qu'il révèle).",
-  "empreinte": "223e80bc7d42774234cf577e4f59469efabe091f291382b3d2265c9679fa3afb",
+  "empreinte": "af29c74630b0c3463e12a3125a3e3adca6dec0eb8972470738c03727630806a3",
   "lignes": {
     "v10/app.js": {
       "auPlus": 0,
@@ -189,7 +189,6 @@
     "F4 v10/compta.js socle→personnel saisiesDuMois": 1,
     "F4 v10/compta.js socle→personnel saisiesOf": 1,
     "F4 v10/compta.js socle→personnel salarieValide": 1,
-    "F4 v10/compta.js socle→personnel salariesActifs": 1,
     "F4 v10/compta.js socle→personnel supprimerBulletin": 1,
     "F4 v10/compta.js socle→personnel trancheAnciennete": 1,
     "F4 v10/compta.js socle→personnel variablesDuMois": 1,

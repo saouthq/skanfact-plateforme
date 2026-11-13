@@ -7374,8 +7374,10 @@ CPA="« + Nouvel article » ouvre « Nouvel article » ; tapé « 12,500 » HT, 
 prouver "la caisse qui ouvre une « Nouvelle prestation »" modules/socle/ecrans/entreprise/app-2.js \
   "catalogForm(null, () => vers('#/caisse')(), { titre: 'Nouvel article', comptoir: true });" "catalogForm(null, () => vers('#/caisse')(), { comptoir: true });" \
   "$CPA"
-prouver "le prix d'un article tapé avec la virgule, avalé" web/public/v10/index.html \
-  '  <script src="../plateforme/virgule.js"></script>' "" \
+# (1.362.3) Depuis la 1.356.9 le prix d'un article est une case de texte en français (field, `data-montant`) : retirer
+# virgule.js ne la touche plus, et la preuve restait verte. La virgule s'avale désormais à la relecture du formulaire.
+prouver "le prix d'un article tapé avec la virgule, avalé" modules/socle/ecrans/entreprise/app-1.js \
+  "(el.value.trim() === '' ? '' : lireMontant(el.value)) :" "(el.value.trim() === '' ? '' : Number(el.value.replace(/,/g, ''))) :" \
   "$CPA"
 
 # Le comptoir après le parcours de la caisse sur le vrai serveur (05/10/2026 ; web/v10/comptoir.txt, dates.js).
@@ -21593,8 +21595,10 @@ prouver 'tableau 32 : le seuil réglé ne compte pas' modules/socle/ecrans/cabin
 prouver 'tableau 33 : le seuil ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
   "'relanceDay', 'seuilPieces', 'deadlines'" "'relanceDay', 'deadlines'" \
   'Quand les pièces arrivent'
+# (1.362.3) Le défaut posait « 15 » : le 15 du mois, il tombait juste (rouge de la nuit du 15/11/2026). Un jour de plus ne
+# tombe juste aucun jour.
 prouver 'tableau 34 : le jour d'"'"'arrivée se lit de travers' modules/socle/ecrans/cabinet/app-1.js \
-  "le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) : 32" "le.slice(0, 7) === moisApres(m) ? 15 : 32" \
+  "le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) : 32" "le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) + 1 : 32" \
   'Quand les pièces arrivent'
 prouver 'tableau 35 : qui n'"'"'envoie rien ne passe plus en tête' modules/socle/ecrans/cabinet/app-1.js \
   "const rang = a => (a.rien ? 100 + a.sans : a.max);" "const rang = a => (a.rien ? 0 : a.max);" \
@@ -29245,6 +29249,72 @@ prouver $'avoir 1.362.2 n : la copie d\'une facture de contrat garde sa période
   $'recurringId: undefined, periode: undefined,' \
   $'recurringId: undefined,' \
   "$W"
+
+# (1.362.3, bout en bout 27) Une avance sur salaire retenue sur le bulletin, jusqu'au Cabinet : la prévision qui ne sort
+# l'avance qu'une fois, les salariés qu'un mois attend, l'exercice et le mois qui ont commencé, la réponse en retard.
+W=$'l\'exercice qui a commencé, le mois qui a commencé, et janvier sans personne en poste'
+prouver $'paie 1.362.3 a : la prévision sort l\'avance deux fois (le jour du versement, puis dans le salaire entier)' modules/socle/moteur/core-2.js \
+  $'const net = round3((ficheDe(e).net || 0) - avance);' \
+  $'const net = round3((ficheDe(e).net || 0));' \
+  $'300 DT à 150 par mois : 150 retenus en novembre et en décembre, rien en janvier'
+prouver $'paie 1.362.3 b : la prévision retient plus que ce qui reste de l\'avance' modules/socle/moteur/core-2.js \
+  $'(restes[d.advanceId] || 0) - (retenuPrevu[d.advanceId] || 0)' \
+  $'(restes[d.advanceId] || 0)' \
+  $'300 DT à 200 par mois : 200 en novembre, les 100 qui restent en décembre — jamais plus que l\'avance'
+prouver $'paie 1.362.3 c : une entrée le 30 n\'est pas attendue du mois' modules/personnel/moteur/compta-paie.js \
+  $'(!s.embauche || s.embauche <= dernier)' \
+  $'(!s.embauche || s.embauche <= ajouterJoursIso(premier, 27))' \
+  $'novembre attend l\'entrée du 30 et la sortie du 15'
+prouver $'paie 1.362.3 d : une sortie le 15 n\'a pas son dernier bulletin réclamé' modules/personnel/moteur/compta-paie.js \
+  $'(!s.sortie || s.sortie >= premier)' \
+  $'(!s.sortie || s.sortie >= ajouterJoursIso(premier, 27))' \
+  $'novembre attend l\'entrée du 30 et la sortie du 15'
+prouver $'paie 1.362.3 e : le contrôle réclame le bulletin de tous les salariés en poste aujourd\'hui' modules/personnel/moteur/compta-paie.js \
+  $'const attendus = salariesDuMois(livre, annee, mois);' \
+  $'const attendus = (livre.salaries || []).filter(s => s.actif);' \
+  $'le contrôle réclame les bulletins de ces salariés-là, et eux seuls'
+prouver $'paie 1.362.3 f : la frise d\'un mois sans personne en poste parle d\'un pointage à saisir' modules/personnel/ecrans/cabinet/paie.js \
+  $'[\'Pointage\', !P.duMois ? \'personne en poste ce mois\' : ' \
+  $'[\'Pointage\', ' \
+  "$W"
+prouver $'paie 1.362.3 g : janvier réclame « 1 à faire » pour un salarié entré en novembre' modules/personnel/ecrans/cabinet/paie.js \
+  $'(P.manquants ? `${P.manquants} à faire` : \'aucun à faire\')' \
+  $'`${P.manquants || P.actifs} à faire`' \
+  "$W"
+prouver $'paie 1.362.3 h : le mois sans personne en poste ne dit pas qui entre et quand' modules/personnel/ecrans/cabinet/paie.js \
+  $'!P.duMois ? `Personne n\'est en poste en' \
+  $'false ? `Personne n\'est en poste en' \
+  "$W"
+prouver $'paie 1.362.3 i : la frise réclame la CNSS d\'un trimestre où personne n\'était en poste' modules/personnel/ecrans/cabinet/paie.js \
+  $'const personneAuTrim = !bulletins.length &&' \
+  $'const personneAuTrim = false &&' \
+  "$W"
+prouver $'paie 1.362.3 j : changer d\'exercice garde le mois qu\'on regardait (un mois qui n\'existe pas encore)' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) s.paieMois = 0;' \
+  $'if (false) s.paieMois = 0;' \
+  "$W"
+prouver $'paie 1.362.3 k : la comptabilité s\'ouvre sur l\'exercice d\'une écriture de l\'an prochain' modules/socle/ecrans/cabinet/app-1.js \
+  $'const m = (brut.tousLesMois || []).filter(x => String(x).slice(0, 7) <= auj.slice(0, 7));' \
+  $'const m = (brut.tousLesMois || []);' \
+  "$W"
+prouver $'paie 1.362.3 l : le livre d\'un exercice quitté, arrivé en retard, s\'installe sous l\'exercice regardé' modules/socle/ecrans/cabinet/app-1.js \
+  $'      if (s.livreCle !== cle) return;\n' \
+  $'      if (false) return;\n' \
+  "$W"
+prouver $'paie 1.362.3 m : la carte du dossier dit « janvier au brouillard » pour une écriture de l\'an prochain' web/public/v10/cabinet/cabcore.js \
+  $'const last = parMois.find(p => String(p.month) <= moisDuJour) || parMois[parMois.length - 1] || null;' \
+  $'const last = parMois[0] || null;' \
+  $'une écriture de janvier prochain ne l\'emporte pas sur octobre, validé'
+prouver $'paie 1.362.3 n : le Cabinet envoie le client dans « Paie › Avances », qui n\'existe pas' modules/personnel/ecrans/cabinet/paie.js \
+  $'(<b>Paie › L\\\'équipe › Avances et prêts</b>)' \
+  $'(<b>Paie › Avances</b>)' \
+  $'chaque étape d\'un « Paie › … » du Cabinet est un nom de l\'écran de l\'entreprise'
+# (1.362.3) Le chemin d'une pièce au téléphone : le retour est le parent le plus proche ; la pièce qu'on modifie restait
+# un lien de 16 px au-dessus du formulaire (trouvé en remettant le formulaire de l'achat sous l'instrument).
+prouver $'le chemin d\'une pièce modifiée laisse un lien de 16 px au doigt' web/public/plateforme/piece.css \
+  $'  .ed-chemin > a:not(:last-of-type), .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }' \
+  $'  .ed-chemin > a:first-child, .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }' \
+  "$RV"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

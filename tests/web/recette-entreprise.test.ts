@@ -174,9 +174,8 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     const suite = await nouvellePage(jeton);
     p = suite.p;
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
-    // Une case de nombre qui ne descend pas sous zéro (la remise de la pièce, plateforme/virgule.js) : elle ne propose pas
-    // les valeurs déjà tapées, et le signe moins ne s'y écrit pas. Le montant d'un paiement, lui, est une case de texte
-    // qui a ses propres gardes (plus bas) : l'instrument ne passait plus par aucune case de nombre.
+    // La remise de la pièce, une case de texte en français (1.356.9) : elle ne propose pas les valeurs déjà tapées, et le
+    // signe moins ne s'y écrit pas. Le montant d'un paiement aussi (plus bas).
     const remise = p.locator('#ed-remise');
     await remise.click({ timeout: 20_000 });
     expect(await remise.getAttribute('autocomplete')).toBe('off');
@@ -184,6 +183,18 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await p.keyboard.type('-5');
     expect(await remise.inputValue()).toBe('5');
     await remise.fill('0');
+    // (1.362.3) Une vraie case de nombre qui ne descend pas sous zéro (plateforme/virgule.js) : la remise d'une ligne. Depuis
+    // que la remise de la pièce est une case de texte, l'instrument ne passait plus par aucune, et les deux preuves de
+    // virgule.js restaient vertes.
+    const remiseLigne = p.locator('#lines tr[data-i="0"] input[data-k=discount]');
+    expect(await remiseLigne.getAttribute('type')).toBe('number');
+    await remiseLigne.click();
+    expect(await remiseLigne.getAttribute('autocomplete')).toBe('off');
+    await p.keyboard.press('Control+A');
+    await p.keyboard.type('-5');
+    expect(await remiseLigne.inputValue()).toBe('5');
+    await remiseLigne.fill('');
+    await remiseLigne.press('Tab');
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
     // (1.309.0) « Juste après l'émission » : ni signature ni envoi, le paiement s'enregistre d'ici. Laissé coché, ce qui
     // suit s'ouvre 400 ms après l'émission, par-dessus « Enregistrer un paiement » d'un utilisateur moins pressé que

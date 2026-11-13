@@ -1059,8 +1059,17 @@
     return { ok: true };
   }
 
-  const salariesActifs = (livre, dateIso) => (livre.salaries || []).filter(s =>
-    (!s.embauche || s.embauche <= dateIso) && (!s.sortie || s.sortie >= dateIso));
+  // (1.362.3, bout en bout 27) Les salariés qu'un mois attend : leur contrat couvre au moins un jour du mois. Le contrôle
+  // jugeait sur le 28 seul : une entrée le 30 ou une sortie le 15 n'avaient pas leur bulletin réclamé ce mois-là. L'écran
+  // du Cabinet lit la même liste (« Bulletins : n à faire »), sinon il retombait sur tous les salariés en poste — un
+  // bulletin réclamé en janvier pour une embauche d'octobre.
+  function salariesDuMois(livre, annee, mois) {
+    const premier = `${annee}-${String(mois).padStart(2, '0')}-01`;
+    const dernier = ajouterJoursIso(premier, daysInMonth(Number(annee), Number(mois)) - 1);
+    return (livre.salaries || []).filter(s => s.actif && (!s.embauche || s.embauche <= dernier) && (!s.sortie || s.sortie >= premier));
+  }
+  // Le socle ne nomme pas une fonction d'un module (1.276.1) : l'écran de la Paie du Cabinet la lit dans ses ajouts.
+  Object.assign(ajoutsDesModules, { salariesDuMois });
 
   const bulletinsDuMois = (livre, annee, mois) => (livre.bulletins || [])
     .filter(b => Number(b.annee) === Number(annee) && Number(b.mois) === Number(mois));
@@ -1538,8 +1547,7 @@
   function controlesPaie(livre, annee, mois) {
     const out = [];
     const add = (id, niveau, quoi, detail, n) => out.push({ id, niveau, quoi, detail, count: n });
-    const fin = `${annee}-${String(mois).padStart(2, '0')}-28`;
-    const attendus = salariesActifs(livre, fin).filter(s => s.actif);
+    const attendus = salariesDuMois(livre, annee, mois);
     const faits = bulletinsDuMois(livre, annee, mois);
     const sans = attendus.filter(s => !faits.some(b => b.salarieId === s.id));
     if (sans.length) add('bulletins-manquants', 'warn', `${plFr(sans.length, 'salarié')} sans bulletin`,

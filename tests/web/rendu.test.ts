@@ -150,6 +150,9 @@ describe('l\'instrument de rendu des écrans', () => {
     // (1.289.0) Une facture d'achat remplie : la nouvelle ne montre plus que « Comment arrive cette pièce ? » (6b), et
     // l'instrument ne voyait plus aucune ligne d'achat au téléphone (les preuves de leurs cartes restaient vertes).
     { nom: 'achat', hash: '#/achat/p1', titre: /CB-2026-0457|d'achat/ },
+    // (1.362.3) Depuis la 1.357.0 la pièce enregistrée s'ouvre en résumé : ses lignes ne sont plus une grille de saisie,
+    // et les deux preuves des lignes d'achat au téléphone restaient vertes. « Modifier la pièce » rouvre le formulaire.
+    { nom: 'achat-modifier', hash: '#/achat/p1/modifier', titre: /CB-2026-0457|d'achat/ },
     { nom: 'parametres', hash: '#/parametres', titre: /^Paramètres/ },
     // Le responsable décide d'un accord depuis son téléphone (brique 100).
     { nom: 'accords', hash: '#/accords', titre: /^Demandes d'accord/ },

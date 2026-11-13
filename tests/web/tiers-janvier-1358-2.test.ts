@@ -125,7 +125,13 @@ describe('bout en bout 20 : une facture de décembre, son règlement de janvier,
     await expect.poll(async () => net(await question.innerText().catch(() => '')), { timeout: 10_000 }).toContain('Supprimer ce brouillon d\'avoir ?');
     expect(net(await question.innerText())).not.toContain('(brouillon)');
     await question.getByRole('button', { name: 'Supprimer', exact: true }).click();
-    await expect.poll(async () => (await p.locator('#modal-root .modal').count()) ? net(await p.locator('#modal-root .modal').last().innerText()) : '', { timeout: 10_000 }).toBe('');
+    // (1.362.3) La question du garde-fou n'arrive qu'au changement d'adresse, une image plus tard : lue tout de suite, la
+    // fenêtre venait de se fermer et rien n'était encore posé — la preuve restait verte. On attend d'être parti de l'avoir,
+    // puis on regarde un instant : l'adresse ne revient pas sur la pièce supprimée, aucune question ne s'ouvre.
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).not.toMatch(/^#\/doc\/new\/avoir/);
+    await p.waitForTimeout(1_200);
+    expect((await p.locator('#modal-root .modal').count()) ? net(await p.locator('#modal-root .modal').last().innerText()) : '').toBe('');
+    expect(await p.evaluate(() => location.hash)).not.toMatch(/^#\/doc\/new\/avoir/);
 
     // 2. Au Cabinet, le 20 janvier : la grille de 2025 propose son dernier jour ; « Ouvrir 2026 » pose les à-nouveaux et
     //    emmène à la saisie de 2026, dont la grille propose un jour de 2026.

@@ -1154,7 +1154,12 @@
     const missing = months.filter(m => m.state === 'manquant');
     const attendus = months.filter(m => m.state === 'attendu');
     const provisional = months.filter(m => m.state === 'provisoire');
-    const last = (dossier.packs || []).slice().sort((a, b) => a.month < b.month ? 1 : -1)[0] || null;
+    // (1.362.3, bout en bout 27) Le dernier mois d'un dossier est le dernier qui a COMMENCÉ (U-12) : une écriture datée de
+    // janvier prochain au brouillard faisait dire « janvier au brouillard » à la carte du dossier ouvert, et le portefeuille
+    // classait le dossier sur un mois qui n'existe pas encore. Sans mois commencé, le premier à venir.
+    const parMois = (dossier.packs || []).slice().sort((a, b) => a.month < b.month ? 1 : -1);
+    const moisDuJour = String(todayIso || today()).slice(0, 7);
+    const last = parMois.find(p => String(p.month) <= moisDuJour) || parMois[parMois.length - 1] || null;
     const issues = (dossier.packs || []).reduce((s, p) => s + (p.missing || []).reduce((a, x) => a + (x.count || 0), 0), 0);
     // « hors » n'est pas « à jour » : un client qui n'utilise pas SkanFact n'a rien envoyé, mais il
     // n'est pas en retard non plus. Les confondre ferait afficher « tout est à jour » à un cabinet

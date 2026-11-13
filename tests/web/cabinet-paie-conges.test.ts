@@ -236,9 +236,9 @@ describe('les congés au Cabinet, à la souris et au clavier', () => {
     const erreurs: string[] = [];
     const p = await page(associe, erreurs);
     await ouvrirLaPaie(p, `${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${boulangerie}/comptabilite/paie/2025`);
-    expect(net(await p.locator('#cg-droit').innerText())).toBe('Le droit annuel : 21,5 jours ouvrables, acquis au prorata des mois travaillés ; ce client le règle dans son SkanFact (Paie › Barèmes).');
+    expect(net(await p.locator('#cg-droit').innerText())).toBe('Le droit annuel : 21,5 jours ouvrables, acquis au prorata des mois travaillés ; ce client le règle dans son SkanFact (Paie › Réglages).');
     expect(await solde(p, 'Numéro Un')).toEqual(['21,5', '5', '16,5']);
-    expect(net(await p.locator('#cg-qui').innerText())).toBe('Ce client les saisit dans son SkanFact (Paie › Congés et absences) : le Cabinet les lit.');
+    expect(net(await p.locator('#cg-qui').innerText())).toBe('Ce client les saisit dans son SkanFact (Paie › Aujourd\'hui › Congés et absences) : le Cabinet les lit.');
     expect(await p.locator('#cg-ajouter, #cg-droit-regler').count()).toBe(0);
     // La ligne se lit ; elle ne s'ouvre ni au clic ni au clavier.
     const ligne = p.locator('#cg-liste tbody tr');

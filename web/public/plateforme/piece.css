@@ -240,10 +240,12 @@
 /* ── au téléphone : « ‹ Factures », la frise en colonne, le geste dans une barre au bas ── */
 @media (max-width: 760px) {
   .ed-tete { flex-direction: column; gap: 10px; }
-  .ed-chemin > a:first-child, .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }
+  /* (1.362.3) Le retour est le DERNIER lien du chemin, le parent le plus proche : la pièce qu'on modifie (« ‹ CB-2026-0457 »),
+     la commande d'une réception. Les autres liens se cachent : ils restaient visibles, 16 px de haut, sous le doigt. */
+  .ed-chemin > a:not(:last-of-type), .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }
   .ed-retour-btn { display: none; }
-  .ed-chemin .ed-retour { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
-  .ed-chemin .ed-retour::before { content: '‹'; font-size: 20px; line-height: 1; margin-inline-end: 6px; }
+  .ed-chemin > a:last-of-type { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
+  .ed-chemin > a:last-of-type::before { content: '‹'; font-size: 20px; line-height: 1; margin-inline-end: 6px; }
   .ed-h1 h1 { font-size: 22px; }
   .ed-h1 .ed-pill { margin-inline-start: auto; }
   .ed-enreg { display: none; }

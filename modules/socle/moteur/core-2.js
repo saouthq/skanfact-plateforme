@@ -1029,6 +1029,16 @@
       return (data.employees || []).filter(e => !(e.active === false || (e.hireDate && e.hireDate > fin) || (e.endDate && e.endDate < debut)) && !aBulletin.has(`${e.id}|${y}-${m}`));
     };
     if (o.salaires !== false) {
+      // (1.362.3, bout en bout 27) Une avance sur salaire déjà versée se retient sur ces bulletins : le net prévu la retranche,
+      // comme le vrai bulletin le fera (`echeancesDuMois`, la saisie du bulletin). Sans elle, l'avance sortait deux fois de la
+      // prévision — le jour où elle est versée, puis dans le salaire entier. D'un mois sur l'autre, jamais plus que ce qui reste.
+      const restes = Object.fromEntries(Compta.advancesOf(data, '').map(a => [a.id, a.remaining]));
+      const retenuPrevu = {};
+      const retenuesDuMois = (e, y, m) => round3(Compta.echeancesDuMois(data, e.id, y, m).reduce((s, d) => {
+        const pris = round3(Math.max(0, Math.min(d.amount, (restes[d.advanceId] || 0) - (retenuPrevu[d.advanceId] || 0))));
+        retenuPrevu[d.advanceId] = round3((retenuPrevu[d.advanceId] || 0) + pris);
+        return s + pris;
+      }, 0));
       for (let k = 0; k < 8; k++) {
         const y0 = Number(t.slice(0, 4)), m0 = Number(t.slice(5, 7)) - 1 + k;
         const y = y0 + Math.floor(m0 / 12), m = (m0 % 12) + 1;
@@ -1036,9 +1046,11 @@
         if (fin < t) continue;
         if (debut > horizon || fin > horizon) break;
         sansBulletin(y, m).forEach(e => {
-          const net = round3(ficheDe(e).net || 0);
+          const avance = retenuesDuMois(e, y, m);
+          const net = round3((ficheDe(e).net || 0) - avance);
           if (!(net > 0)) return;
-          events.push({ date: fin, amount: -net, kind: 'salaire-prevu', estime: true, label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}`, id: `${e.id}@${y}-${pad2(m)}` });
+          events.push({ date: fin, amount: -net, kind: 'salaire-prevu', estime: true, avanceRetenue: avance || undefined,
+            label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}${avance > 0 ? ` (avance retenue : ${money(avance, company.currency || 'DT')})` : ''}`, id: `${e.id}@${y}-${pad2(m)}` });
         });
       }
     }

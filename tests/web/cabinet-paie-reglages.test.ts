@@ -1,5 +1,5 @@
 // Le Cabinet lit les réglages de paie du client, à la souris (1.67.0 ; docs/paie.md, « Le Cabinet lit les réglages de paie
-// du client »). Un client qui tient sa paie dans son SkanFact y règle ses taux (Paie › Barèmes) ; sous un mandat de paie,
+// du client »). Un client qui tient sa paie dans son SkanFact y règle ses taux (Paie › Réglages) ; sous un mandat de paie,
 // le Cabinet les lit à la racine de son dossier (migration 0148), sans les écrire. Ce que le parcours vérifie, écran ET
 // serveur :
 //   - le panneau des salariés dit ses taux et d'où ils viennent ; la fenêtre les montre, sans une case à changer ;
@@ -107,7 +107,7 @@ describe('les réglages de paie du client sur SkanFact, lus au Cabinet, à la so
     await ouvrir('#pa-regimes', '#rc-lu');
     expect((await fenetre.locator('#rc-lu').innerText()).replace(/\s+/g, ' ')).toContain('Accident du travail 2,25 % le sien TFP 1 % le sien FOPROLOS 1 % le barème général');
     expect(await fenetre.locator('input').count()).toBe(0);
-    expect(await fenetre.innerText()).toContain('Paie › Barèmes');
+    expect(await fenetre.innerText()).toContain('Paie › Réglages');
     await fenetre.locator('[data-close]').first().click();
     await expect.poll(() => p.locator('#rc-lu').count()).toBe(0);
 

@@ -34,6 +34,11 @@
     // U-12 — le dernier mois qui a des bulletins, sinon le mois courant : jamais décembre en
     // septembre, un mois futur qui avait l'air d'un dossier vide.
     // (1.355.4) Mais d'abord le mois terminé dont un salarié attend encore son bulletin (la règle de l'entreprise).
+    // (1.362.3, bout en bout 27) Le mois regardé appartient à l'exercice où il a été choisi : changer d'exercice le refait —
+    // une garde au dessin, jamais une par porte. Revenu de 2027 à 2026, la Paie restait sur janvier, le premier mois de 2027,
+    // pendant qu'octobre attendait le premier bulletin d'un salarié.
+    if (s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) s.paieMois = 0;
+    s.paieMoisAnnee = String(s.annee);
     if (!s.paieMois) s.paieMois = KC.moisPaieEnRetard(L, s.annee, K.today())
       || K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
     const m = s.paieMois;
@@ -214,8 +219,11 @@
     const controles = KC.controlesPaie(L, annee, m);
     const manquants = (controles.find(c => c.id === 'bulletins-manquants') || {}).count || 0;
     const actifs = (L.salaries || []).filter(x => x.actif);
+    // (1.362.3) Ceux que CE mois attend (leur contrat couvre un jour du mois) : le pointage, « n à faire » et « + Un
+    // bulletin » se comptent sur eux. Sur tous les salariés en poste, janvier réclamait le bulletin d'une embauche d'octobre.
+    const duMois = KC.salariesDuMois(L, annee, m);
     const enAttente = bulletins.filter(b => b.correction && !b.correction.reponse);
-    const P = { ym, mode, ecrit, accordRequis, client, n, manquants, actifs: actifs.length, enAttente,
+    const P = { ym, mode, ecrit, accordRequis, client, n, manquants, actifs: actifs.length, duMois: duMois.length, enAttente,
       reponses: bulletins.filter(b => b.correction && b.correction.reponse),
       envoyes: tous(b => b.pourAccordLe), approuves: tous(b => b.bonAPayerLe), verifies: tous(b => b.verifieLe), valides: tous(b => b.valideLe),
       payes: bulletins.filter(b => b.payeLe).length, remis: tous(b => b.remisLe),
@@ -226,7 +234,9 @@
     // (1.330.0) Un mois validé par le client compte chacun de sa version figée : pointer à la main, c'est noter ce qui change,
     // et un salarié présent à ses horaires n'a pas de grille (joué : octobre validé par la boulangerie, « 1 sur 2 pointés »).
     P.ptValide = pointageValideDuMois(L, ym);
-    P.pointe = actifs.filter(x => KC.pointageEnregistre(donnees, x.id, Number(annee), m) || pointeDansLaVersion(L, ym, x.id)).length;
+    P.pointe = duMois.filter(x => KC.pointageEnregistre(donnees, x.id, Number(annee), m) || pointeDansLaVersion(L, ym, x.id)).length;
+    // Personne en poste ce mois-là : qui entre plus tard, qui est déjà sorti — dit au lieu d'un bulletin réclamé.
+    P.horsDuMois = duMois.length ? [] : actifs.filter(x => (x.embauche && x.embauche > `${ym}-31`) || (x.sortie && x.sortie < `${ym}-01`));
     // 1.237.0 — l'échéance d'une avance que le bulletin du mois ne retient pas (la maquette : « l'avance n'est pas retenue »).
     P.oublis = bulletins.flatMap(b => KC.echeancesDuMois(donnees, b.salarieId, Number(annee), m)
       .filter(d => !(b.retenues || []).some(r => r.advanceId === d.advanceId)).map(d => ({ b, d })));
@@ -258,7 +268,7 @@
     return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>Paie ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(annee)}</h2>
         <select id="pa-mois" aria-label="Le mois de la paie">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
         <p class="small muted" id="pa-qui">${esc(pl(P.actifs, 'salarié'))} · ${esc(qui)}</p></div>
-      <div class="cp-pa-vues">${vue !== 'mois' && (P.mode === 'cabinet' || P.mode === 'tenue') && P.actifs && !P.valides ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}
+      <div class="cp-pa-vues">${vue !== 'mois' && (P.mode === 'cabinet' || P.mode === 'tenue') && P.duMois && !P.valides ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}
       <div class="pa-so" role="group" aria-label="La paie">${V.map(([k, t, nb, ton]) => `<button type="button" data-pa-vue="${k}" aria-pressed="${vueDe === k}">${esc(t)}${nb ? ` <span class="cp-pa-nb${ton ? ` ${ton}` : ''}">${nb}</span>` : ''}</button>`).join('')}</div></div></div>`;
   }
   // Ce qui change depuis le mois d'avant, dit sur la ligne du bulletin (la maquette) : heures sup, jours sans solde, entrée
@@ -325,8 +335,11 @@
       if (!e || (!e.lu && !e.lecture)) void chargerDocsCl(dossier).then(() => { if ($('#pa-frise')) drawLivres($('#view'), dossier); });
       accuse = e && e.lu ? accuseCnssDe(dossier, annee, q) : null;
     }
-    const cnss = !trimFini ? 'CNSS au trimestre' : accuse ? `CNSS du ${qn} trimestre déposée` : `CNSS du ${qn} trimestre à déposer`;
-    const retenue = dep ? `déposée le ${jourCourt(dep)}${pay ? `, payée le ${jourCourt(pay)}` : ''}` : `IRPP et CSS avec ${KC.moisPaie(m)}`;
+    // (1.362.3, bout en bout 27) Un trimestre (ou un mois) où personne n'était en poste n'a rien à déposer : la frise de
+    // janvier réclamait « CNSS du 1er trimestre à déposer » pour un salarié entré le 1er octobre.
+    const personneAuTrim = !bulletins.length && [q * 3 - 2, q * 3 - 1, q * 3].every(mm => !KC.salariesDuMois(L, annee, mm).length);
+    const cnss = personneAuTrim ? `pas de CNSS au ${qn} trimestre : personne en poste` : !trimFini ? 'CNSS au trimestre' : accuse ? `CNSS du ${qn} trimestre déposée` : `CNSS du ${qn} trimestre à déposer`;
+    const retenue = dep ? `déposée le ${jourCourt(dep)}${pay ? `, payée le ${jourCourt(pay)}` : ''}` : !bulletins.length && !KC.salariesDuMois(L, annee, m).length ? 'aucune retenue sur salaire' : `IRPP et CSS avec ${KC.moisPaie(m)}`;
     return { fait: bulletins.length > 0 && !!dep && (!trimFini || !!accuse), dit: `${retenue} · ${cnss}` };
   }
   function paieLeMois(dossier, L, annee, m, bulletins, P, o) {
@@ -338,8 +351,8 @@
     const ecart = (a, b0) => (avants.length ? `${a - b0 >= 0 ? '+' : '−'} ${money(Math.abs(KC.round3(a - b0)))} sur ${KC.moisPaie(moisAvant)}` : '');
     // La frise : cinq étapes, la date de chacune, celle où l'on est.
     const E = [
-      ['Pointage', P.ptValide && P.pointe === P.actifs ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.actifs ? 'les' : `${P.pointe} sur`} ${pl(P.actifs, 'salarié')} pointé${P.actifs > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
-      ['Bulletins', !P.n ? `${P.manquants || P.actifs} à faire` : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
+      ['Pointage', !P.duMois ? 'personne en poste ce mois' : P.ptValide && P.pointe === P.duMois ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.duMois ? 'les' : `${P.pointe} sur`} ${pl(P.duMois, 'salarié')} pointé${P.duMois > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
+      ['Bulletins', !P.n ? (P.manquants ? `${P.manquants} à faire` : 'aucun à faire') : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
         : P.valides ? `${pl(P.n, 'validé', 'validés')} le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
           : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${pl(P.n, 'préparé', 'préparés')}${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
       ['Écriture de paie', o.auBrouillard ? `au brouillard${o.paieAttendSonJour ? ` · se valide le ${jourCourt(o.paieAttendSonJour)}` : ''}` : bulletins.some(b => o.etatDe(b) === 'ecrite') ? 'validée' : `datée du dernier jour du mois`, bulletins.length > 0 && bulletins.every(b => o.etatDe(b) === 'ecrite')],
@@ -388,9 +401,9 @@
         <tfoot><tr><th>${esc(pl(masse.count, 'bulletin'))}${avants.length ? ` <small class="muted">· ${esc(KC.moisPaie(moisAvant))} : ${avants.length}</small>` : ''}</th><th class="r nw">${esc(money(masse.brut))}</th><th class="r nw">${esc(money(masse.net))}</th><th class="r nw small">${avants.length ? esc(ecart(masse.net, masseAvant.net).split(' sur ')[0]) : ''}</th><th colspan="2"></th></tr></tfoot></table></div>
         <div class="cp-pa-touches small muted">↑ ↓ un salarié · Entrée son bulletin · Espace vérifié · P le bulletin en PDF${P.geste && P.geste.id ? `<span id="pa-touche-geste"> · Ctrl Entrée ${esc(P.geste.t.replace(/…$/, '').replace(/^./, c => c.toLowerCase()))}</span>` : ''}</div></div>
         ${sel ? paieVoletBulletin(dossier, L, sel, avantDe(sel), P, o.nomDe) : ''}</div>`
-      : `<div class="panel empty" id="pa-vide">${P.actifs && !P.pointe && (P.mode === 'tenue' || P.mode === 'cabinet') ? `<p><b>Le pointage ${esc(KC.deMois(KC.moisPaie(m)))} n'est pas encore là.</b> Sans lui, chaque bulletin part d'un mois complet ; une absence ou des heures sup se règlent à la main.</p>
+      : `<div class="panel empty" id="pa-vide">${P.duMois && !P.pointe && (P.mode === 'tenue' || P.mode === 'cabinet') ? `<p><b>Le pointage ${esc(KC.deMois(KC.moisPaie(m)))} n'est pas encore là.</b> Sans lui, chaque bulletin part d'un mois complet ; une absence ou des heures sup se règlent à la main.</p>
         <div class="ctrl-geste" id="pa-pt-attendu">${P.mode === 'tenue' && api.messagerie && !dossier.manual ? `<button type="button" class="btn btn-sm" id="pa-demander-pt">Le demander à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-saisir-pt">Le saisir moi-même</button><button type="button" class="btn btn-sm" id="pa-sans-pt">Préparer sans pointage : des mois complets</button></div>
-        ${P.entrees.length ? `<p class="small" id="pa-entrees">${P.entrees.map(x => `<b>${esc(x.nom)}</b>, entrée le ${esc(fmtJour(x.embauche))}`).join(', ')} : ${P.entrees.length > 1 ? 'leur premier bulletin sera' : 'son premier bulletin sera'} au prorata.</p>` : ''}` : ''}${!P.actifs ? 'Aucun salarié déclaré : c\'est par là qu\'une paie commence.' : P.mode === 'seule' || P.mode === 'sans' ? `Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} ne sont pas encore faits : ${esc(P.client)} les fait dans SkanFact, ils arrivent ici.` : `Aucun bulletin ${esc(KC.deMois(KC.moisPaie(m)))} : « Établir les bulletins » les prépare un à un, avec la fiche et le pointage de chacun.`}</div>`;
+        ${P.entrees.length ? `<p class="small" id="pa-entrees">${P.entrees.map(x => `<b>${esc(x.nom)}</b>, entrée le ${esc(fmtJour(x.embauche))}`).join(', ')} : ${P.entrees.length > 1 ? 'leur premier bulletin sera' : 'son premier bulletin sera'} au prorata.</p>` : ''}` : ''}${!P.actifs ? 'Aucun salarié déclaré : c\'est par là qu\'une paie commence.' : !P.duMois ? `Personne n'est en poste en ${esc(KC.moisPaie(m))} : ${P.horsDuMois.map(x => x.embauche && x.embauche > `${P.ym}-31` ? `${esc(x.nom)} entre le ${esc(fmtJour(x.embauche))}` : `${esc(x.nom)} est sorti le ${esc(fmtJour(x.sortie))}`).join(', ')}. Aucun bulletin à faire.` : P.mode === 'seule' || P.mode === 'sans' ? `Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} ne sont pas encore faits : ${esc(P.client)} les fait dans SkanFact, ils arrivent ici.` : `Aucun bulletin ${esc(KC.deMois(KC.moisPaie(m)))} : « Établir les bulletins » les prépare un à un, avec la fiche et le pointage de chacun.`}</div>`;
     const controles = paieControles(dossier, L, annee, m, bulletins, avants, masse, P, o);
     // Le jour d'après lequel l'écriture se valide se dit toujours (une information avant le geste) ; le bouton « La valider »
     // attend que les bulletins le soient (1.235.0).
@@ -403,7 +416,7 @@
       : `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b> : elle n'entre dans les livres — et dans la déclaration du mois — qu'une fois validée.</span><button type="button" class="btn btn-sm" id="pa-valider">Valider l'écriture de paie</button></div>`) : '';
     // « + Un bulletin… » reste à portée tant que le cabinet tient la paie et qu'elle n'est pas validée ; il prend le nom du
     // geste (#pa-bulletin) quand le bouton principal ne l'a pas déjà.
-    const secondaires = `<span class="cp-pa-sec">${(P.mode === 'cabinet' || P.mode === 'tenue') && P.actifs && !P.valides && !(g && g.id === 'pa-bulletin') ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}${bulletins.length ? '<button type="button" class="btn btn-sm" id="pa-journal">Journal de paie</button>' : ''}</span>`;
+    const secondaires = `<span class="cp-pa-sec">${(P.mode === 'cabinet' || P.mode === 'tenue') && P.duMois && !P.valides && !(g && g.id === 'pa-bulletin') ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}${bulletins.length ? '<button type="button" class="btn btn-sm" id="pa-journal">Journal de paie</button>' : ''}</span>`;
     return `<section class="panel cp-pa-mois" id="pa-mois-carte">${frise}<div class="cp-pa-geste">${secondaires}${bouton}</div></section>
       ${bandeaux}${paieAnomalies(L, P, o)}${faits}${tuiles}${controles}${brouillard}${table}${paieEcriture(L, m, bulletins, P)}${paieMoisDAvant(L, annee, m, avants)}`;
   }
@@ -655,7 +668,7 @@
       <p class="small muted" id="pa-param-qui">${duClient ? `réglé par ${esc(P.client)} dans son SkanFact : le cabinet le lit` : (rg => rg ? `réglé au cabinet par ${esc(prenomCl(rg.par) || rg.par || 'le cabinet')} le ${esc(fmtJour(jourTunisCl(rg.le)))}${rg.copieDe ? `, copié de ${esc(rg.copieDe)}` : ''}` : 'réglé au cabinet, pour ce dossier')((dossier.paie || {}).regle)} · ${regles} réglés · ${L2.length - regles} à régler</p>
       <div class="cp-pa-bandeau ambre" id="pa-param-conv"><b>La convention collective n'est pas réglée.</b> Si elle prévoit une prime d'ancienneté ou un minimum par catégorie, les bulletins sont faux d'autant : c'est la première chose à vérifier (<b>À VÉRIFIER</b> : son nom et son texte).</div>
       <div class="scroll-x"><table class="list compact"><tbody>${L2.map(([k, val, ok, abord]) => `<tr><td><b>${esc(k)}</b></td><td>${esc(val)}</td><td class="nw">${ok ? '<span class="badge b-paid">réglé</span>' : abord ? '<span class="badge b-due">à vérifier d\'abord</span>' : '<span class="badge">non réglé</span>'}</td></tr>`).join('')}</tbody></table></div>
-      <div class="ctrl-geste">${duClient ? '<span class="small muted">Ces taux se changent dans son SkanFact (Paie › Barèmes).</span>' : `<button type="button" class="btn btn-sm" id="pa-regimes">Régler les taux…</button>${dossiersACopier(dossier).length ? '<button type="button" class="btn btn-sm" id="pa-copier-param">Copier le paramétrage d\'un autre dossier…</button>' : ''}`}</div></div>`;
+      <div class="ctrl-geste">${duClient ? '<span class="small muted">Ces taux se changent dans son SkanFact (Paie › Réglages).</span>' : `<button type="button" class="btn btn-sm" id="pa-regimes">Régler les taux…</button>${dossiersACopier(dossier).length ? '<button type="button" class="btn btn-sm" id="pa-copier-param">Copier le paramétrage d\'un autre dossier…</button>' : ''}`}</div></div>`;
   }
   // (plateforme) 1.246.0 — « Copier le paramétrage d'un autre dossier » (la maquette, paieparam) : les dossiers du portefeuille
   // dont le cabinet a réglé la paie. Le taux d'accident du travail dépend de l'activité : il ne se copie que si on le coche.
@@ -792,7 +805,7 @@
     if (nonExpl.length) ko('Un écart de plus de 5 % sans raison', `${nonExpl.map(({ b }) => nom(b.salarieId)).join(', ')} : ni heures sup, ni absence, ni prorata ne l'expliquent.`, '<button type="button" class="btn btn-sm" data-pa-vue="ecarts">Les écarts ligne à ligne</button>');
     else ok(gros.length ? 'Écarts de plus de 5 % expliqués' : 'Aucun écart de plus de 5 %', gros.map(({ b, a }) => `${nom(b.salarieId)} ${Number(b.calcul.gross) > Number(a.calcul.gross) ? '+' : '−'} ${String(Math.round(Math.abs(Number(b.calcul.gross) / Number(a.calcul.gross) - 1) * 1000) / 10).replace('.', ',')} %`).join(' · '));
     if (P.mode !== 'cabinet') {
-      if (P.pointe === P.actifs) ok('Pointage repris sur chaque bulletin', ''); else ko('Un mois sans pointage', `${pl(P.actifs - P.pointe, 'salarié')} sans grille : son bulletin part d'un mois complet.`);
+      if (P.pointe === P.duMois) ok('Pointage repris sur chaque bulletin', ''); else ko('Un mois sans pointage', `${pl(P.duMois - P.pointe, 'salarié')} sans grille : son bulletin part d'un mois complet.`);
     }
     if (P.oublis.length) ko('Une avance pas retenue', P.oublis.map(({ b, d }) => `${nom(b.salarieId)} : ${money(d.amount)}`).join(' · '), '<button type="button" class="btn btn-sm" data-pa-vue="conges">Voir les avances</button>');
     else { const ret = bulletins.filter(b => (b.retenues || []).some(r => r.advanceId)); if (ret.length) ok('Avances retenues', ret.map(b => nom(b.salarieId)).join(', ')); }
@@ -1076,7 +1089,7 @@
       ${/* Sous la grille : apparue au-dessus, l'alerte poussait les cases sous la souris (vu dans l'entreprise, 1.60.0). */''}
       ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ b, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${esc(nomDe(b.salarieId))}</b> ne suit plus le pointage : ${esc(ecartDuPointage(r))}.${b.valideLe ? ` Il est validé depuis le ${esc(fmtJour(String(b.valideLe).slice(0, 10)))} : il ne change plus, la différence se régularise sur le bulletin du mois suivant.` : b.payeLe ? ' Il est déjà payé : il ne change plus, la différence se régularise sur le bulletin du mois suivant.' : ''}</span>${b.valideLe || b.payeLe ? '' : `<button type="button" class="btn btn-sm" data-pt-reprendre="${esc(b.id)}">Reprendre le pointage dans le bulletin</button>`}</div>`).join('')}</div>` : ''}
       ${majorations.length || clos || !lignes.length ? '' : L.reglagesPaie
-    ? '<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, il faut leurs majorations : ce client les règle dans son SkanFact (<b>Paie › Barèmes</b>).</p>'
+    ? '<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, il faut leurs majorations : ce client les règle dans son SkanFact (<b>Paie › Réglages</b>).</p>'
     : '<div class="small muted mt ctrl-geste" id="pt-sans-hs"><span>Pour pointer des heures supplémentaires, règle d\'abord leurs majorations. <em>À VÉRIFIER : le Code du travail et la convention collective du client.</em></span><button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button></div>'}
     </div>`;
   }
@@ -1731,7 +1744,7 @@
     const tiret = '<span class="muted">—</span>';
     return `<div class="panel mt" id="cg-panneau"><h2>Les congés et absences de ${esc(annee)} ${info('pa.conges')}</h2>
       <div class="small mb ctrl-geste" id="cg-droit"><span>Le droit annuel : <b>${esc(joursCg(droit))} ouvrables</b>, acquis au prorata des mois travaillés${L.reglagesPaie
-    ? ' ; ce client le règle dans son SkanFact (<b>Paie › Barèmes</b>).' : '. <em>À VÉRIFIER avec la convention collective du client.</em>'}</span>${L.reglagesPaie ? ''
+    ? ' ; ce client le règle dans son SkanFact (<b>Paie › Réglages</b>).' : '. <em>À VÉRIFIER avec la convention collective du client.</em>'}</span>${L.reglagesPaie ? ''
     : '<button type="button" class="btn btn-sm" id="cg-droit-regler">Régler le droit annuel…</button>'}</div>
       ${soldes.length ? `<div class="scroll-x"><table class="list compact" id="cg-soldes"><thead><tr><th>Salarié</th>
         <th class="r nw">Acquis ${esc(annee)}</th><th class="r">Pris</th><th class="r">Solde</th><th class="r">Maladie</th><th class="r nw">Sans solde</th></tr></thead>
@@ -1743,7 +1756,7 @@
       ${soldes.some(x => x.b.remaining < 0) ? '<p class="small muted mt">Un solde négatif : le salarié a pris plus de jours qu\'il n\'en a acquis. Ce n\'est pas interdit, mais il faut le savoir.</p>' : ''}`
     : '<div class="empty mini">Aucun salarié en poste : le solde de chacun se calcule dès qu\'il est déclaré.</div>'}
       <div class="filters mt">${tient && (L.salaries || []).some(x => x.actif) ? '<button type="button" class="btn btn-sm" id="cg-ajouter">+ Congé ou absence…</button>' : ''}
-        <span class="small muted" id="cg-qui">${L.reglagesPaie ? 'Ce client les saisit dans son SkanFact (<b>Paie › Congés et absences</b>) : le Cabinet les lit.'
+        <span class="small muted" id="cg-qui">${L.reglagesPaie ? 'Ce client les saisit dans son SkanFact (<b>Paie › Aujourd\'hui › Congés et absences</b>) : le Cabinet les lit.'
     : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses congés se lisent, ils ne se changent plus.`
       : 'Chacun se pose de lui-même sur la grille du pointage ; un bulletin établi ensuite retire du brut une absence non payée.'}</span></div>
       ${tous.length ? `<div class="scroll-x"><table class="list compact" id="cg-liste"><thead><tr><th>Salarié</th><th>Nature</th>
@@ -1892,7 +1905,7 @@
       <div class="filters">${tient && (L.salaries || []).some(x => x.actif) ? '<button type="button" class="btn btn-sm" id="av-ajouter">+ Avance sur salaire…</button>' : ''}
         <span class="small muted" id="av-qui">${toutes.length ? `${enCours.length} en cours${enCours.length
     ? ` · <b>${esc(money(KC.round3(enCours.reduce((s2, a) => s2 + a.remaining, 0))))}</b> encore à retenir` : ''}. ` : ''}${L.reglagesPaie
-    ? 'Ce client les saisit dans son SkanFact (<b>Paie › Avances</b>) : le Cabinet les lit, et un bulletin nouveau en retient l\'échéance.'
+    ? 'Ce client les saisit dans son SkanFact (<b>Paie › L\'équipe › Avances et prêts</b>) : le Cabinet les lit, et un bulletin nouveau en retient l\'échéance.'
     : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses avances se lisent, elles ne se changent plus.`
       : 'Un bulletin nouveau en retient l\'échéance du mois, jusqu\'à la dernière ; le versement s\'écrit le jour même, à la banque ou à la caisse.'}</span></div>
       ${toutes.length ? `<div class="scroll-x"><table class="list compact" id="av-liste"><thead><tr><th>Salarié</th><th class="nw">Versée le</th><th>Mode</th>
@@ -2237,7 +2250,7 @@
       .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
       .filter(x => Object.keys(x.r).length);
     modal(`<h2>Les taux de la paie de ce client</h2>
-      <p class="small">Ce client tient sa paie dans son SkanFact : ses taux sont ceux qu'il y règle (<b>Paie › Barèmes</b>), et
+      <p class="small">Ce client tient sa paie dans son SkanFact : ses taux sont ceux qu'il y règle (<b>Paie › Réglages</b>), et
       chaque bulletin que tu établis pour lui les prend. Le Cabinet les lit sans les changer : pour en corriger un, demande-le-lui.</p>
       <table class="list compact" id="rc-lu"><tbody>${KC.REGIME_TAUX.map(([k, lab]) => `<tr><td>${esc((TAUX_DU_CLIENT.find(t => t[0] === k) || [k, lab])[1])}</td>
         <td class="r nw">${esc(pct(bar[k]))} %</td><td class="small muted">${(reglages || {})[k] != null && (reglages || {})[k] !== '' ? 'le sien' : 'le barème général'}</td></tr>`).join('')}</tbody></table>
