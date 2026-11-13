@@ -25619,7 +25619,7 @@ prouver 'la liste de l'\''achat reproche à un fournisseur à l'\''étranger son
   "String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : supEtranger ?" "String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : false ?" \
   "$T311"
 prouver 'la carte de l'\''achat dit « sans matricule » d'\''un fournisseur à l'\''étranger' "$APP1" \
-  "? 'à l\\'étranger' : 'sans matricule'" "&& false ? 'à l\\'étranger' : 'sans matricule'" \
+  "C.normCurrency(company().currency) ? 'à l\\'étranger' : 'sans matricule'" "C.normCurrency(company().currency) && false ? 'à l\\'étranger' : 'sans matricule'" \
   "$T311"
 prouver 'un fournisseur archivé reste dans la liste' "$APP1" \
   "(f === 'archives' ? !!r.f.archived : r.f.archived ? false : !f ? true :" "(f === 'archives' ? !!r.f.archived : !f ? true :" \
@@ -28915,6 +28915,54 @@ prouver $'paiement groupé 1.360.0 l : le compte rendu du lettrage tait le broui
   $'const brl = r.auBrouillard > 0 ?' \
   $'const brl = false ?' \
   $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'export 1.360.1 a : le calcul garde le taux d\'une ligne d\'export' modules/socle/moteur/core-1.js \
+  $'const rate = sansTvaExport ? 0 : Number(l.vatRate) || 0;' \
+  $'const rate = Number(l.vatRate) || 0;' \
+  $'un brouillon d\'export : chaque ligne à 0 %, quel que soit le taux qu\'elle porte'
+prouver $'export 1.360.1 b : une pièce émise perd le calcul qu\'elle a eu' modules/socle/moteur/core-1.js \
+  $'const sansTvaExport = doc.export === true && (!doc.status || doc.status === \'brouillon\');' \
+  $'const sansTvaExport = doc.export === true;' \
+  $'une pièce déjà émise garde le calcul qu\'elle a eu'
+prouver $'export 1.360.1 c : l\'export est signalé « sans TVA par oubli »' modules/socle/moteur/core-1.js \
+  $'    if (doc.export === true) return false;\n    if (!assujettiTVA(company || {})' \
+  $'    if (!assujettiTVA(company || {})' \
+  $'une facture d\'export n\'est pas « sans TVA par oubli » ; la même facture hors export l\'est'
+prouver $'export 1.360.1 d : le serveur reprend le taux de la ligne d\'export' serveur/v10/dossier.ts \
+  $'tauxTva: decimal(doc.export === true ? 0 : l.vatRate ?? 0, DECIMALES.taux),' \
+  $'tauxTva: decimal(l.vatRate ?? 0, DECIMALES.taux),' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 e : le dossier garde le taux de 19 % sur une pièce d\'export émise' serveur/v10/dossier.ts \
+  $'return doc.export === true && Number(nombreEnTexte(figee.vatRate)) !== 0 ? { ...figee, vatRate: 0 } : figee;' \
+  $'return figee;' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 f : une ligne ajoutée après la case garde son taux' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (doc.export && !figee) doc.lines.forEach(l => { if (l.kind !== \'titre\') l.vatRate = 0; });' \
+  $'' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 g : un client à l\'étranger se voit réclamer un matricule tunisien' modules/socle/ecrans/entreprise/app-1.js \
+  $'cl && !String(cl.matricule || \'\').trim() && cl.currency && C.normCurrency(cl.currency) !== C.normCurrency(co.currency) ? [true, \'Client à l\\\'étranger : sans matricule tunisien\', \'\'] :' \
+  $'' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 h : la carte du client dit « sans matricule » d\'un client à l\'étranger' modules/socle/ecrans/entreprise/app-1.js \
+  $'c.currency && C.normCurrency(c.currency) !== C.normCurrency(base) ? \'à l\\\'étranger\' : \'sans matricule\', h(ville' \
+  $'\'sans matricule\', h(ville' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 i : « Avant d\'émettre » ne dit pas que la vente est à l\'export' modules/socle/ecrans/entreprise/app-1.js \
+  $'doc.export ? \'Vente à l\\\'exportation : aucune TVA\' : C.assujettiTVA(co) ? \'Chaque ligne a sa TVA\'' \
+  $'C.assujettiTVA(co) ? \'Chaque ligne a sa TVA\'' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 j : le taux du règlement s\'écrit à deux décimales' modules/socle/ecrans/entreprise/app-1.js \
+  $'const tauxLu = x => C.money(Number(x), null, Math.max(3, (String(x).split(\'.\')[1] || \'\').length));' \
+  $'const tauxLu = x => C.money(Number(x), null, Math.max(2, Math.min(3, (String(x).split(\'.\')[1] || \'\').length)));' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 k : l\'annonce du change ne réserve pas sa marge intérieure' web/public/plateforme/piece.css \
+  $'.pf-change.annonce-stable { min-height: calc(3lh + 28px); }' \
+  $'.pf-change.annonce-stable { min-height: 3lh; }' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
+prouver $'export 1.360.1 l : la liste des clients dit « 0 facture » d\'un client qui n\'a qu\'un brouillon' modules/socle/ecrans/entreprise/app-1.js \
+  $'r.brouillons ? `${pl(r.brouillons, \'brouillon\')} à émettre` : `aucune facture en ${r.an}`' \
+  $'`aucune facture en ${r.an}`' \
+  $'la facture d\'export ne porte aucune TVA, au serveur comme à l\'écran ; le règlement à un autre taux passe au change'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

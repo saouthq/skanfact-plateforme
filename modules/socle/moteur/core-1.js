@@ -766,6 +766,8 @@
   // qu'il corrige : une facture exonérée donne un avoir exonéré, et le lui reprocher serait faux.
   function factureSansTvaSuspecte(doc, company) {
     if (!doc || doc.type !== 'facture') return false;
+    // (1.360.1) Une vente à l'exportation est SANS TVA par la loi : ce n'est pas un oubli à signaler.
+    if (doc.export === true) return false;
     if (!assujettiTVA(company || {}) || !(defaultVat(company) > 0)) return false;
     const facturees = (doc.lines || []).filter(l => !l.noDiscount && String(l.label || '').trim() && Number(l.qty) * Number(l.unitPrice) !== 0);
     return facturees.length > 0 && facturees.every(l => !(Number(l.vatRate) > 0));
@@ -1568,11 +1570,15 @@
     // compte pour rien (elle reste dans `lines`, à zéro, pour que l'index d'une ligne soit le même partout) ; son
     // sous-total se lit avec `sousTotauxDeSections`. La remise d'une ligne (`discount`, en %) se retire de son montant
     // arrondi (`brut`) avant la remise globale, comme le serveur (moteur/piece.ts).
+    // (1.360.1, bout en bout 23) Une vente à l'exportation n'a pas de TVA, quelle que soit la ligne : une ligne ajoutée APRÈS
+    // la case cochée prenait le taux par défaut, et la facture « sans TVA » comptait 19 %. La règle vit dans le calcul (une
+    // pièce encore en brouillon) ; une pièce déjà émise garde le calcul qu'elle a eu (le serveur l'a figée).
+    const sansTvaExport = doc.export === true && (!doc.status || doc.status === 'brouillon');
     const lines = (doc.lines || []).map(l => {
       if (estTitre(l)) return { ...l, titre: true, qty: 0, unitPrice: 0, vatRate: 0, brut: 0, ht: 0, vat: 0, ttc: 0, noDiscount: true };
       const qty = Number(l.qty) || 0;
       const unit = Number(l.unitPrice) || 0;
-      const rate = Number(l.vatRate) || 0;
+      const rate = sansTvaExport ? 0 : Number(l.vatRate) || 0;
       const rl = Number(l.discount) || 0;
       if (prixTtc) {
         const brut = rd(qty * rd(unit * (1 + rate / 100)));

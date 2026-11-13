@@ -790,6 +790,10 @@
 /* (maquette « paiement en euros ») Ce qui passe à la banque en dinars, et l'écart de change, avant d'enregistrer. */
 .pf-change { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 12px; background: var(--sb-ambre-doux); border: 1px solid color-mix(in srgb, var(--sb-ambre) 30%, transparent); color: var(--sb-encre); font-size: 13.5px; }
 .pf-change:empty { display: none; }
+/* (1.360.1) La réserve de trois lignes (`annonce-stable`) se compte HORS de la marge intérieure : comptée dedans, l'encadré
+   passait de deux à trois lignes quand le taux du jour s'écartait de celui de la pièce, et « Enregistrer » descendait
+   de 17 px sous le curseur. */
+.pf-change.annonce-stable { min-height: calc(3lh + 28px); } /* 24 de marge, 2 de bordure, 2 d'écart sous la ligne en gras */
 .pf-change > svg { flex: none; color: var(--sb-ambre-texte); margin-top: 1px; }
 .pf-change > span { display: grid; gap: 2px; }
 .pf-change span span { color: var(--sb-gris); }

@@ -483,7 +483,9 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     // Une ligne de titre (1.155.0) ne compte pour rien : elle ne passe pas au serveur (le PDF et l'écran la gardent).
     lignes: lignesV10.filter((l) => l.kind !== 'titre').map((l) => ({
       designation: String(l.label ?? '').trim() || '—', ...(l.description ? { description: String(l.description) } : {}),
-      quantite: decimal(l.qty ?? 0, DECIMALES.quantite), prixUnitaire: decimal(l.unitPrice ?? 0, DECIMALES.prix), tauxTva: decimal(l.vatRate ?? 0, DECIMALES.taux),
+      quantite: decimal(l.qty ?? 0, DECIMALES.quantite), prixUnitaire: decimal(l.unitPrice ?? 0, DECIMALES.prix),
+      // (1.360.1) Une vente à l'exportation n'a pas de TVA, quelle que soit la ligne : la même règle que l'écran (core.js).
+      tauxTva: decimal(doc.export === true ? 0 : l.vatRate ?? 0, DECIMALES.taux),
       ...(l.noDiscount ? { sansRemise: true } : {}),
       // Une remise à virgule arrive en texte exact ({ "~n": "7.5" }) : on la lit comme les autres nombres, jamais par Number().
       ...(Number(nombreEnTexte(l.discount)) ? { tauxRemise: decimal(l.discount, DECIMALES.taux) } : {}),
@@ -522,7 +524,11 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   const lignesFigees = ticket ? doc.lines : lignesV10.map((l) => {
     if (!estObjet(l) || l.kind === 'titre') return l;
     const n = natureDe(l);
-    return n && l.nature !== n ? { ...l, nature: n } : l;
+    const figee = n && l.nature !== n ? { ...l, nature: n } : l;
+    // (1.360.1) Une vente à l'exportation garde dans le dossier le taux que le serveur vient de sceller (0 %) : sinon la pièce
+    // émise par un autre chemin que l'éditeur s'affichait TVA comprise (1 190 € pour 1 000 € scellés), et son fichier
+    // de facture électronique se serait calculé sur 19 %.
+    return doc.export === true && Number(nombreEnTexte(figee.vatRate)) !== 0 ? { ...figee, vatRate: 0 } : figee;
   });
   const contenu = { ...doc, ...(Array.isArray(doc.lines) ? { lines: lignesFigees } : {}), number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
     // La pièce émise avec un accord porte les deux noms (03 D11).

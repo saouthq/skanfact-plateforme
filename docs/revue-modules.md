@@ -3490,3 +3490,40 @@ deviner qu'on devait couper le virement en deux à la main.
   preuves « paiement groupé 1.360.0 ».
   Deux preuves anciennes visaient une ligne que ce geste reprend du paiement groupé des achats : leurs motifs désignent
   maintenant ce seul endroit.
+
+### 1.360.1 : une vente en euros à un client étranger, sans TVA, réglée à un autre taux (bout en bout 23)
+
+Joué à la souris dans l'environnement de test : la pâtisserie vend des plateaux de petits-fours à une maison de Lyon
+(2 500 €, facture au taux de 3,412). Le client règle au taux du jour de 3,380 : la banque reçoit 8 450 DT au lieu
+des 8 530 DT de la facture. Ce qui était faux, et ce qui ne l'est plus :
+- **Une facture « vente à l'exportation » comptait 19 % de TVA** (argent faux). La case remettait à 0 % les lignes déjà
+  posées, mais une ligne ajoutée APRÈS prenait le taux par défaut : 2 500 € devenaient 2 975 € TTC sur une facture qui
+  disait « sans TVA ». La case du taux était grisée, donc impossible à corriger. Le serveur reprenait le même taux. La
+  règle vit maintenant dans le calcul d'une pièce encore en brouillon, dans l'éditeur ET au serveur : une vente à
+  l'exportation n'a aucune TVA, quelle que soit la ligne.
+- **La pièce gardée dans le dossier porte le taux scellé.** Une facture d'export qui arrive au serveur avec une ligne
+  encore à 19 % (par un autre chemin que l'éditeur) est scellée sans TVA, et le serveur la range avec ses lignes à 0 % :
+  elle s'affiche comme il l'a scellée (1 000 €, et non 1 190 €), et son fichier de facture électronique se calcule sur
+  le même taux. Deux chemins, un chiffre.
+- **Un client à l'étranger ne se voit plus réclamer un matricule tunisien.** « Avant d'émettre » disait qu'il manquait
+  un matricule « obligatoire pour une entreprise ». Il dit maintenant « Client à l'étranger : sans matricule tunisien »,
+  coché. La carte du client dit « à l'étranger », et non plus « sans matricule ».
+- **« Avant d'émettre » ne signale plus une facture d'export comme « aucune ligne ne porte de TVA »** : elle est sans
+  TVA par la loi. Il dit « Vente à l'exportation : aucune TVA ».
+- **Le taux d'un règlement s'écrit à trois décimales** (« 3,380 », et non « 3,38 ») : dans la case, sous le paiement («
+  = 8 450,000 DT au taux de 3,380 ») et dans l'annonce du change. C'est ainsi que la banque l'écrit.
+- **« Enregistrer » ne bouge plus quand on change le taux.** L'annonce du change (« perte de change de 80,000 DT »)
+  passait de deux à trois lignes et poussait le bouton de 17 px sous le curseur. Elle garde sa hauteur.
+- **La liste des clients ne dit plus « 0 facture en 2026 »** d'un client qui n'a qu'un brouillon : elle dit « 1
+  brouillon à émettre ».
+- Chez le comptable, l'écriture de la vente est juste : 411 au débit, 706 au crédit pour 8 530 DT, sans TVA ni timbre.
+  Le règlement passe 8 450 DT à la banque et 80 DT de perte de change au 655, contre 8 530 DT au 411.
+- À VÉRIFIER avec le comptable : la déclaration mensuelle du Cabinet n'a pas de case « chiffre d'affaires à l'export /
+  exonéré », et le 706 ne distingue pas l'export. Faut-il un compte à part (la TCL de 0,1 % sur l'export, par exemple) ?
+  Une facture d'export doit-elle passer par El Fatoora ? L'export de services (une prestation rendue à l'étranger) est
+  déjà noté À VÉRIFIER sur le bandeau de la facture. Une facture d'export émise AVANT cette version avec une ligne à 19
+  % garde le calcul qu'elle a eu : c'est celui que le client a reçu.
+- Tests : `tests/moteur/export-tva-1360-1.test.ts` (le brouillon d'export à 0 %, la pièce émise qui garde son calcul,
+  l'export qui n'est pas un oubli) et `tests/web/export-euros-1360-1.test.ts` (l'émission par le serveur d'une pièce à
+  19 % scellée sans TVA et rangée à 0 %, la facture tapée à l'écran, le règlement à un autre taux, la liste des clients,
+  et l'écriture au Cabinet) ; douze preuves « export 1.360.1 ».

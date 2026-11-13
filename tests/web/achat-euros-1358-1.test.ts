@@ -140,7 +140,7 @@ describe('bout en bout 19 : un achat en euros chez un fournisseur à l\'étrange
     expect(await ligne('[name=exchangeRate]')).toBe(await ligne('.d-txt'));
     await f.locator('[name=exchangeRate]').fill('3,40');
     await expect.poll(async () => net(await f.locator('#rg-change').innerText()), { timeout: 10_000 })
-      .toBe('Payé en dinars : 1 496,000 DT La facture le portait au taux de 3,35 (1 474,000 DT) : perte de change de 22,000 DT, que l\'écriture passe au 655.');
+      .toBe('Payé en dinars : 1 496,000 DT La facture le portait au taux de 3,350 (1 474,000 DT) : perte de change de 22,000 DT, que l\'écriture passe au 655.');
     expect(await f.locator('#rg-change').getAttribute('class')).toContain('pf-change');
     await photo(p, '2-reglement');
     await f.locator('#ok').click();

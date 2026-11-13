@@ -7591,6 +7591,9 @@
       else if (e.key === 'Delete' && e.target.matches('.row-menu-btn, .ed-prise')) { e.preventDefault(); retirerLigneC(i); }
     });
     function drawLines() {
+      // (1.360.1) Une ligne ajoutée après « Vente à l'exportation » prend le taux par défaut : la case grisée disait 19 %
+      // d'une facture sans TVA. Le calcul l'ignore déjà ; la ligne le dit aussi.
+      if (doc.export && !figee) doc.lines.forEach(l => { if (l.kind !== 'titre') l.vatRate = 0; });
       if (charte) { dessinerLignesCharte(); return; }
       const n = doc.lines.length;
       // Unités déjà employées ailleurs dans les données, plus celles du document en cours :
@@ -7908,7 +7911,7 @@
       const s = C.clientSummary(data, company(), c.id);
       const base = company().currency;
       const ville = String(c.address || '').split(/\n/).map(x => x.trim()).filter(Boolean).pop() || '';
-      const qui = [c.matricule ? (/^(CIN|TVA|VAT|PASS)/i.test(String(c.matricule).trim()) ? h(c.matricule) : `MF ${h(c.matricule)}`) : 'sans matricule', h(ville.replace(/^\d{4}\s+/, '')), h(c.email || '')].filter(Boolean).join(' · ');
+      const qui = [c.matricule ? (/^(CIN|TVA|VAT|PASS)/i.test(String(c.matricule).trim()) ? h(c.matricule) : `MF ${h(c.matricule)}`) : c.currency && C.normCurrency(c.currency) !== C.normCurrency(base) ? 'à l\'étranger' : 'sans matricule', h(ville.replace(/^\d{4}\s+/, '')), h(c.email || '')].filter(Boolean).join(' · ');
       const derniere = s.docs.filter(d => d.type === 'facture' && d.id !== doc.id && d.number && d.status !== 'brouillon' && d.status !== 'annulée')
         .sort((a, b) => (b.date || '').localeCompare(a.date || '') || byNumberDesc(a, b))[0];
       // (maquette « Encours dépassé ») Un client en retard le dit en rouge, avec ce qui est en retard et le geste qui relance.
@@ -8134,8 +8137,11 @@
       const points = [
         [!manque.length, manque.length ? `Ta fiche : il manque ${C.liste(manque)}` : `Ta fiche : matricule, ${C.ribAttendu(co) ? 'RIB, ' : ''}adresse`, manque.length ? '<button type="button" class="lien" data-avant="fiche">Compléter</button>' : ''],
         isInv && !cl && doc.passage ? [true, String(doc.passage.matricule || '').trim() ? 'Le client a son identifiant' : 'Sans matricule : permis pour un particulier', ''] :
+        // (1.360.1) Un client à l'étranger n'a pas de matricule tunisien : l'encart ne le lui réclame plus (le jumeau des
+        // fournisseurs, 1.311.0). Il se reconnaît, comme dans la liste des clients, à la devise de sa fiche.
+        cl && !String(cl.matricule || '').trim() && cl.currency && C.normCurrency(cl.currency) !== C.normCurrency(co.currency) ? [true, 'Client à l\'étranger : sans matricule tunisien', ''] :
         [!!(cl && String(cl.matricule || '').trim()), !cl ? 'Le client n\'est pas choisi' : String(cl.matricule || '').trim() ? 'Le client a son matricule' : 'Le client n\'a pas de matricule (obligatoire pour une entreprise)', cl && !String(cl.matricule || '').trim() ? '<button type="button" class="lien" data-avant="client">Sa fiche</button>' : ''],
-        [!tvaFausse, tvaFausse ? (C.assujettiTVA(co) ? 'Aucune ligne ne porte de TVA' : 'Une ligne porte de la TVA que ton régime ne facture pas') : C.assujettiTVA(co) || doc.export ? 'Chaque ligne a sa TVA' : 'La mention « TVA non applicable » s\'imprime', ''],
+        [!tvaFausse, tvaFausse ? (C.assujettiTVA(co) ? 'Aucune ligne ne porte de TVA' : 'Une ligne porte de la TVA que ton régime ne facture pas') : doc.export ? 'Vente à l\'exportation : aucune TVA' : C.assujettiTVA(co) ? 'Chaque ligne a sa TVA' : 'La mention « TVA non applicable » s\'imprime', ''],
       ];
       // (maquette facture) Ce qui ne bloque pas mais se lit AVANT le geste : l'encours du client, le stock qui manque,
       // une ligne vendue à perte, le taux de change, une date qui casse l'ordre des numéros, l'échéance, le seuil de la retenue.
@@ -10242,11 +10248,15 @@
   // reçu ou payé, le tiers se solde au taux de sa pièce, et l'écart est un gain ou une perte de
   // change. Le champ n'existe que sur une pièce en devise ; il propose le taux de la pièce, et
   // l'annonce dit en dinars ce qui passe à la banque, AVANT d'enregistrer (9.4.2).
+  // (1.360.1) Un taux de règlement s'écrit comme sur la facture, à trois décimales au moins (« 3,380 », jamais « 3,38 » à
+  // côté de « 3,412 ») — et sans en perdre : un taux tapé à quatre décimales se relit tel quel, sinon rouvrir le paiement et
+  // l'enregistrer sans rien toucher changerait le taux.
+  const tauxLu = x => C.money(Number(x), null, Math.max(3, (String(x).split('.')[1] || '').length));
   function champTauxReglement(piece, pay, cle, sansPhrase) {
     const cur = piece.currency || company().currency;
     if (cur === company().currency) return '';
     const t = Number(pay && pay.exchangeRate) > 0 ? pay.exchangeRate : (Number(piece.exchangeRate) || 1);
-    return `${field(lbl(`Taux du jour (1 ${h(cur)} en ${h(company().currency)})`, cle), 'exchangeRate', String(t).replace('.', ','), 'text', 'inputmode="decimal" data-montant class="num"')}
+    return `${field(lbl(`Taux du jour (1 ${h(cur)} en ${h(company().currency)})`, cle), 'exchangeRate', tauxLu(t), 'text', 'inputmode="decimal" data-montant class="num"')}
       ${sansPhrase ? '' : '<p class="small span-2 annonce-stable" id="rg-change"></p>'}`;
   }
   // (1.358.1, bout en bout 19) La date, le compte et le taux du jour d'un règlement : UNE rangée pour les deux fenêtres (le
@@ -10265,14 +10275,14 @@
     const base = company().currency;
     if ((piece.currency || base) === base) return '';
     const t = C.tauxDuReglement(piece, p, company());
-    return `<div class="small muted">= ${C.money(Math.abs(C.montantRegle(piece, p, company())), base)} <span class="nw">au taux de ${String(t).replace('.', ',')}</span></div>`;
+    return `<div class="small muted">= ${C.money(Math.abs(C.montantRegle(piece, p, company())), base)} <span class="nw">au taux de ${tauxLu(t)}</span></div>`;
   }
   // `entre` : l'argent ENTRE à la banque (un encaissement, un remboursement reçu) ; sinon il sort.
   function brancherTauxReglement(root, piece, entre, verbe) {
     const z = $('#rg-change', root);
     if (!z) return;
     const base = company().currency, tp = Number(piece.exchangeRate) || 1;
-    const taux = x => String(x).replace('.', ',');
+    const taux = tauxLu;
     const dire = () => {
       const a = lireMontant($('[name=amount]', root).value), t = lireMontant($('[name=exchangeRate]', root).value);
       if (!(a > 0) || !(t > 0)) { z.textContent = ''; return; }
@@ -11181,7 +11191,10 @@
       const manqueMf = !c.matricule && !etranger, manqueMail = !c.email;
       const der = sum.docs.filter(d => d.date).sort((a, b) => b.date.localeCompare(a.date) || String(b.number || '').localeCompare(String(a.number || ''), undefined, { numeric: true }))[0] || null;
       return { c, sum, retard: C.round3(r.m), jours: r.j, relances: r.items, etranger, manqueMf, manqueMail, aCompleter: manqueMf || manqueMail,
-        an, factAn: sum.docs.filter(d => d.type === 'facture' && d.number && d.status !== 'brouillon' && (d.date || '').startsWith(an)).length, der };
+        an, factAn: sum.docs.filter(d => d.type === 'facture' && d.number && d.status !== 'brouillon' && (d.date || '').startsWith(an)).length,
+        // (1.360.1) Un client dont le seul document est un brouillon lisait « 1 · 0 facture en 2026 » : le chiffre et sa légende
+        // se contredisaient. Le brouillon se nomme.
+        brouillons: sum.docs.filter(d => d.type === 'facture' && d.status === 'brouillon').length, der };
     });
   }
   // (1.200.0) Un client archivé ne se voit que dans « Archivés » ; il ne compte nulle part ailleurs.
@@ -11248,7 +11261,7 @@
         <td class="cl"><span class="cl-i">${pastilleClient(c.id, c.name)}<span><b>${h(c.name)}</b>${sous ? `<small>${sous}</small>` : ''}</span></span></td>
         <td class="mf">${mf}</td>
         <td class="ct">${ct}</td>
-        <td class="r">${r.sum.count ? `${r.sum.count}<small>${pl(r.factAn, 'facture')} en ${r.an}</small>` : '<span class="mu">aucun</span>'}</td>
+        <td class="r">${r.sum.count ? `${r.sum.count}<small>${r.factAn ? `${pl(r.factAn, 'facture')} en ${r.an}` : r.brouillons ? `${pl(r.brouillons, 'brouillon')} à émettre` : `aucune facture en ${r.an}`}</small>` : '<span class="mu">aucun</span>'}</td>
         <td class="r m nw">${r.sum.ht ? m(r.sum.ht) : '<span class="mu">—</span>'}</td>
         <td class="r m nw">${doit}</td>
         <td class="der">${der}</td>
