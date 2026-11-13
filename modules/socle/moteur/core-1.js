@@ -722,6 +722,20 @@
     if (r > 0 || assujettiTVA(company || {})) return r;
     return defaultVat({ ...(company || {}), taxRegime: 'reel' }) || defaultVat({ taxRegime: 'reel' });
   }
+  // (1.358.1, bout en bout 19 : des moules achetés en France) Un fournisseur à l'étranger : ses factures sont dans une autre
+  // devise que la nôtre (sa fiche le dit). Il ne facture pas de TVA tunisienne : la TVA d'une importation se paie à la
+  // douane et se déduit sur la quittance de la douane, pas sur la facture du fournisseur (À VÉRIFIER avec le comptable).
+  // Une ligne neuve à 19 % y faisait récupérer 79,80 € de TVA qu'aucune pièce ne porte — 267 DT de trop sur la déclaration.
+  function fournisseurEtranger(supplier, company) {
+    const c = (supplier || {}).currency;
+    return !!c && normCurrency(c) !== normCurrency((company || {}).currency || 'TND');
+  }
+  // Le taux PROPOSÉ sur une ligne d'achat neuve : 0 chez un fournisseur à l'étranger, celui de l'article tiré du
+  // catalogue, sinon le taux ordinaire d'une ligne vide. Une proposition : la ligne reste modifiable.
+  function tauxAchatPropose(company, item, supplier) {
+    if (fournisseurEtranger(supplier, company)) return 0;
+    return item ? tauxAchatArticle(item, company) : 19;
+  }
   // Les articles du catalogue à 0 % chez une entreprise qui facture la TVA (10.14.0). Tant qu'elle
   // était au forfait, chaque article naissait à 0 % — c'était le taux de ses ventes. Le jour où elle
   // passe au réel, ces articles faisaient naître des lignes sans TVA : la TVA collectée manquait sur

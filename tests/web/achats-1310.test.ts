@@ -98,7 +98,16 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
+    // (1.358.1, rouge GitHub de d5b77f0) « Enregistré » se dit avant que le serveur ait répondu ; recharger la page dans la
+    // foulée lisait le dossier avant que l'envoi y soit écrit (en CI, la fiche disait encore l'avoir libre). Comme une
+    // personne qui attend que l'enregistrement soit parti, on recharge une fois les envois arrivés.
+    let enRoute = 0;
+    const envoi = (r: { method: () => string; url: () => string }) => r.method() !== 'GET' && /\/dossier-v10/.test(r.url());
+    p.on('request', (r) => { if (envoi(r)) enRoute++; });
+    p.on('requestfinished', (r) => { if (envoi(r)) enRoute--; });
+    p.on('requestfailed', (r) => { if (envoi(r)) enRoute--; });
     const aller = async (hash: string, attendre = '#view h1') => {
+      await expect.poll(() => enRoute, { timeout: 20_000 }).toBe(0);
       await p.goto('about:blank');
       await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
       await p.locator(attendre).first().waitFor({ timeout: 20_000 });

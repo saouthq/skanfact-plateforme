@@ -10198,12 +10198,22 @@
   // reçu ou payé, le tiers se solde au taux de sa pièce, et l'écart est un gain ou une perte de
   // change. Le champ n'existe que sur une pièce en devise ; il propose le taux de la pièce, et
   // l'annonce dit en dinars ce qui passe à la banque, AVANT d'enregistrer (9.4.2).
-  function champTauxReglement(piece, pay, cle) {
+  function champTauxReglement(piece, pay, cle, sansPhrase) {
     const cur = piece.currency || company().currency;
     if (cur === company().currency) return '';
     const t = Number(pay && pay.exchangeRate) > 0 ? pay.exchangeRate : (Number(piece.exchangeRate) || 1);
     return `${field(lbl(`Taux du jour (1 ${h(cur)} en ${h(company().currency)})`, cle), 'exchangeRate', String(t).replace('.', ','), 'text', 'inputmode="decimal" data-montant class="num"')}
-      <p class="small span-2 annonce-stable" id="rg-change"></p>`;
+      ${sansPhrase ? '' : '<p class="small span-2 annonce-stable" id="rg-change"></p>'}`;
+  }
+  // (1.358.1, bout en bout 19) La date, le compte et le taux du jour d'un règlement : UNE rangée pour les deux fenêtres (le
+  // paiement d'une facture, le règlement d'un achat). Le règlement d'un achat en euros posait la phrase du taux avec sa
+  // classe « span-2 » dans une grille à une colonne : elle en créait une seconde, invisible, et la case du montant tombait
+  // à 11 px (« 4: EUR » au lieu de 420,00), la date coupée. En devise : la date et le taux côte à côte, le compte dessous,
+  // puis l'encadré qui dit ce qui passe à la banque et l'écart de change.
+  function rangeeDateCompteTaux(piece, pay, cleTaux, dateHtml, compteHtml) {
+    const taux = champTauxReglement(piece, pay, cleTaux, true);
+    if (!taux) return `<div class="pf-deux">${dateHtml}${compteHtml}</div>`;
+    return `<div class="pf-deux">${dateHtml}${taux}</div>${compteHtml}<div class="pf-change annonce-stable" id="rg-change" aria-live="polite"></div>`;
   }
   // Sous le montant d'un règlement en devise, ce qui est VRAIMENT passé à la banque : la ligne ne
   // montrait que 1 100 EUR, et le taux du jour n'était écrit nulle part une fois la fenêtre fermée.
@@ -10225,8 +10235,11 @@
       const banque = C.round3(a * t), tiers = C.round3(a * tp), ecart = C.round3(banque - tiers);
       const gain = entre ? ecart > 0 : ecart < 0;
       if (z.classList.contains('pf-change')) {
-        z.innerHTML = `${lfIc('defaire', 17)}<span><b>${verbe} en dinars : ${C.money(banque, base)}</b><span>${Math.abs(ecart) < 0.0005 ? 'Même taux que la facture : aucun écart de change.'
-          : `La facture le portait au taux de ${taux(tp)} (${C.money(tiers, base)}) : ${gain ? 'gain' : 'perte'} de change de ${C.money(Math.abs(ecart), base)}, que l'écriture passe au ${gain ? '755' : '655'}.`}</span></span>`;
+        // (1.358.1) L'encadré sert aussi au règlement d'un achat : il nomme la pièce réglée (une facture, un avoir, une pièce).
+        const nature = piece.type || piece.kind;
+        const laPiece = nature === 'avoir' ? 'l\'avoir' : nature === 'facture' ? 'la facture' : 'la pièce';
+        z.innerHTML = `${lfIc('defaire', 17)}<span><b>${verbe} en dinars : ${C.money(banque, base)}</b><span>${Math.abs(ecart) < 0.0005 ? `Même taux que ${laPiece} : aucun écart de change.`
+          : `${laPiece.charAt(0).toUpperCase() + laPiece.slice(1)} le portait au taux de ${taux(tp)} (${C.money(tiers, base)}) : ${gain ? 'gain' : 'perte'} de change de ${C.money(Math.abs(ecart), base)}, que l'écriture passe au ${gain ? '755' : '655'}.`}</span></span>`;
         z.classList.toggle('neutre', Math.abs(ecart) < 0.0005);
         return;
       }
@@ -10285,8 +10298,7 @@
       <form id="pf2" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field">${lbl(rend ? 'Montant rendu' : 'Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${!rend && !p0 ? '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>' : ''}</div>
-        ${champTauxReglement(inv, p0, 'ed.payRate') ? `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}${champTauxReglement(inv, p0, 'ed.payRate').replace('<p class="small span-2 annonce-stable" id="rg-change"></p>', '')}</div>${accountFieldHtml(p0 && p0.accountId)}<div class="pf-change annonce-stable" id="rg-change" aria-live="polite"></div>`
-          : `<div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}${accountFieldHtml(p0 && p0.accountId)}</div>`}
+        ${rangeeDateCompteTaux(inv, p0, 'ed.payRate', dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true }), accountFieldHtml(p0 && p0.accountId))}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${C.PAYMENT_METHODS.map(m => `<button type="button" data-mode="${h(m[0])}" class="${m[0] === modeur ? 'on' : ''}">${h(m[1])}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(p0 ? p0.reference || '' : '')}" placeholder="n° du virement, du chèque…"></label>${rend ? '' : champEffetHtml(p0)}</div>
@@ -15984,7 +15996,7 @@
     const reprisCf = !!(isNew && cfReprise && cfReprise.hash === location.hash);
     const o = reprisCf ? cfReprise.o : stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today(), dueDate: '',
       supplierId: parts[1] && supplierById(parts[1]) ? parts[1] : '', reference: '', currency: company().currency, exchangeRate: '', discountRate: 0,
-      lines: [{ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }], notes: '', createdAt: Date.now() };
+      lines: [{ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, parts[1] ? supplierById(parts[1]) : null) }], notes: '', createdAt: Date.now() };
     o.type = 'commandeFournisseur';
     const suivi = stored ? C.suiviCommandeFournisseur(data, stored) : null;
     const statut = stored ? C.statutCommandeFournisseur(data, stored) : 'brouillon';
@@ -16203,7 +16215,7 @@
     const unitesCommande = () => C.usedUnits(data, commandesF().concat([o]).flatMap(c => (c.lines || []).map(l => l.unit))).filter(u => u !== UNIT_OTHER);
     // (1.357.2) Une ligne d'article : son coût d'achat, sa TVA d'achat, et le lien qui fera entrer la marchandise en stock à la
     // réception. Le catalogue, la désignation et l'article créé sur place passent par elle.
-    const ligneArticle = (it, qty) => ({ label: it.label, description: '', qty: Number(qty) || 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatArticle(it, company()), itemId: it.id });
+    const ligneArticle = (it, qty) => ({ label: it.label, description: '', qty: Number(qty) || 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatPropose(company(), it, supplierById(o.supplierId)), itemId: it.id });
     const poserArticleCF = (i, it) => {
       if (!o.lines[i]) return;
       o.lines[i] = ligneArticle(it, o.lines[i].qty);
@@ -16273,7 +16285,7 @@
       },
       onAdd: saisi => creerArticleCF(saisi, null),
     });
-    if ($('#cf-add')) $('#cf-add').onclick = () => { o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); touch(); dessinerLignes(); };
+    if ($('#cf-add')) $('#cf-add').onclick = () => { o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(o.supplierId)) }); touch(); dessinerLignes(); };
     const tete = $('#cf-head');
     tete.addEventListener('input', touch);
     tete.addEventListener('change', e => {
@@ -16294,7 +16306,7 @@
       // (1.285.0, F1 du Stock joué à la souris) Le refus MONTRE le champ (`refus`) : le message seul laissait chercher où.
       if (!o.supplierId) return refus($('[data-combo=supplierId] .combo-btn'), 'Choisis le fournisseur de la commande : c\'est à lui qu\'elle part.');
       if (!figee) o.lines = o.lines.filter(l => String(l.label || '').trim() || Number(l.unitPrice));
-      if (!o.lines.some(l => Number(l.qty) > 0)) { if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }); dessinerLignes(); return refus(figee ? null : $('#cf-lines input[data-k=qty]'), 'Ajoute au moins une ligne à commander, avec sa quantité.'); }
+      if (!o.lines.some(l => Number(l.qty) > 0)) { if (!o.lines.length) o.lines.push({ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(o.supplierId)) }); dessinerLignes(); return refus(figee ? null : $('#cf-lines input[data-k=qty]'), 'Ajoute au moins une ligne à commander, avec sa quantité.'); }
       if (o.currency !== company().currency && !(Number(o.exchangeRate) > 0)) return refus($('[name=exchangeRate]', tete), `Saisis le taux de change : 1 ${o.currency} = combien de ${company().currency} ?`);
       if (!o.number) o.number = C.numeroSuivant(data, commandesF(), 'BCF', o.date);
       // Au-delà du montant permis sans accord, elle ne part pas : elle s'enregistre telle qu'elle était, et la page
@@ -16922,7 +16934,7 @@
       withholdingRate: sup ? C.tauxRetenueFournisseur(sup, date) : 0,
       // Côté ACHAT, le taux est celui du FOURNISSEUR, pas le nôtre : une entreprise exonérée paie
       // quand même la TVA de ses fournisseurs. Le réglage `defaultVatRate` ne s'applique donc pas ici.
-      lines: [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }],
+      lines: [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, sup), destination: 'charge', deductible: true }],
       // Récupérer la TVA suit le régime DU JOUR DE LA PIÈCE (10.14.0) : un forfaitaire la paie et ne
       // la déduit jamais ; la pièce le retient, un changement de régime ne la réécrit pas.
       tvaRecuperable: C.assujettiTVA(company()),
@@ -17058,8 +17070,7 @@
       <form id="spf" class="pf-charte" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl(rend ? 'Montant reçu' : 'Montant payé', 'buy.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(r0 ? Math.abs(Number(r0.amount) || 0) : C.round3(rend ? aRecuperer : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${r0 ? '' : '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>'}</div>
-        <div class="pf-deux">${dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || '' : '', { poche: !rend })}</div>
-        ${champTauxReglement(p, r0, 'buy.payRate')}
+        ${rangeeDateCompteTaux(p, r0, 'buy.payRate', dateFieldHtml(lbl(rend ? 'Date du remboursement' : 'Date', 'buy.payDate'), 'date', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || '' : '', { poche: !rend }))}
         <div class="choix-t pf-modes" role="group" aria-label="Mode de règlement">${C.PAYMENT_METHODS.map(([v, l]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(l)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'buy.payReference')}<input type="text" name="reference" value="${h(r0 ? r0.reference || '' : '')}" placeholder="${rend ? 'VIR reçu, n° de chèque…' : 'n° du virement, du chèque…'}"></label>
@@ -17327,7 +17338,7 @@
         // ensuite la quantité ou le prix ; un acompte, lui, n'est qu'une part : il garde sa ligne vide.
         if (p.kind === 'avoir') {
           p.lines = deepCopy(vise.lines || []).map(l => ({ ...l }));
-          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }];
+          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(p.supplierId)), destination: 'charge', deductible: true }];
           p.projectId = vise.projectId || '';
           p.withholdingRate = vise.withholdingRate == null ? p.withholdingRate : vise.withholdingRate;
         }
@@ -17342,7 +17353,7 @@
       const iArt = parts.indexOf('article');
       const art = iArt > 0 ? data.catalog.find(c => c.id === parts[iArt + 1]) : null;
       if (art) p.lines = [{ label: art.label, itemId: art.id, qty: Number(parts[iArt + 2]) > 0 ? Number(parts[iArt + 2]) : 1, unit: art.unit || '',
-        unitPrice: Number(art.unitCost) || 0, vatRate: C.tauxAchatArticle(art, company()), destination: 'stock', deductible: true }];
+        unitPrice: Number(art.unitCost) || 0, vatRate: C.tauxAchatPropose(company(), art, supplierById(p.supplierId)), destination: 'stock', deductible: true }];
       isNew = true;
     } else {
       const stored = purchaseById(parts[0]);
@@ -17946,7 +17957,7 @@
     const poserArticle = (i, it) => {
       const l = p.lines[i]; if (!l) return;
       Object.assign(l, { label: it.label, itemId: it.id, unit: it.unit || '',
-        unitPrice: coutCatalogue(it), vatRate: C.tauxAchatArticle(it, company()) });
+        unitPrice: coutCatalogue(it), vatRate: C.tauxAchatPropose(company(), it, supplierById(p.supplierId)) });
       if (it.tracked) l.destination = 'stock';
       touch(); drawLines();
       const q = $(`tr[data-i="${i}"] input[data-k=qty]`, body); if (q) { q.focus(); q.select(); }
@@ -18020,14 +18031,14 @@
           { sep: true },
           { icon: 'annuler', label: 'Supprimer la ligne', danger: true, run: () => {
             p.lines.splice(i, 1);
-            if (!p.lines.length) p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true });
+            if (!p.lines.length) p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(p.supplierId)), destination: 'charge', deductible: true });
             touch(); drawLines();
           } },
         ];
       }, null, 'ligne-menu');
       refresh();
     }
-    if ($('#add-line')) $('#add-line').onclick = () => { p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); touch(); drawLines(); $$('input[data-k=label]', body).pop().focus(); };
+    if ($('#add-line')) $('#add-line').onclick = () => { p.lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(p.supplierId)), destination: 'charge', deductible: true }); touch(); drawLines(); $$('input[data-k=label]', body).pop().focus(); };
     // (plateforme, lot débutant) Le hors taxes d'une dépense à partir de ce qu'on a payé : celui dont le total, calculé par
     // le moteur des achats (la TVA arrondie au millime), tombe sur le montant payé ; à défaut, le plus proche, et la note le dit.
     const appliquerTtc = () => {
@@ -18085,7 +18096,7 @@
         // (plateforme) 1.80.0 — la ligne vide du départ cède sa place, comme dans la facture de vente.
         if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];
         p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
-          unitPrice: coutCatalogue(it), vatRate: C.tauxAchatArticle(it, company()),
+          unitPrice: coutCatalogue(it), vatRate: C.tauxAchatPropose(company(), it, supplierById(p.supplierId)),
           itemId: it.id, destination: it.tracked ? 'stock' : 'charge', deductible: true });
         touch(); drawLines();
       }
@@ -18278,14 +18289,18 @@
         const pj = (p.attachments || []).length;
         // La même règle que la fenêtre d'enregistrement (`C.achatDoublon`) : la liste et la question disent la même chose.
         const dejaSaisi = C.achatDoublon(data, p);
-        const supEtranger = !!(supR && supR.currency && C.normCurrency(supR.currency) !== C.normCurrency(company().currency));
+        const supEtranger = C.fournisseurEtranger(supR, company());
         const sansTva = p.lines.filter(l => String(l.label || '').trim() && !l.destination).length;
+        // (1.358.1) Une facture d'un fournisseur à l'étranger ne porte pas de TVA tunisienne : une ligne qui en porte la ferait
+        // récupérer sur une pièce qui ne la montre pas. On le dit avant d'enregistrer, avec le geste ; on ne bloque pas.
+        const tvaEtrangere = supEtranger && p.kind !== 'avoir' ? p.lines.filter(l => String(l.label || '').trim() && Number(l.vatRate) > 0).length : 0;
         const pts = [
           // (1.311.0) Un fournisseur à l'étranger n'a pas de matricule tunisien : la liste ne le lui reproche plus (sa fiche, 1.310.0).
           [!!(supR && String(supR.matricule || '').trim()) || (!supR && p.kind === 'depense') || supEtranger, !supR ? (p.kind === 'depense' ? `Sans fournisseur : rangée sous « ${h(NOM_DIVERS)} »` : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : supEtranger ? 'Fournisseur à l\'étranger : pas de matricule tunisien' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() && !supEtranger ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
           [pj > 0, pj ? `Justificatif joint : ${h((p.attachments[0] || {}).name || 'fichier')}${pj > 1 ? ` (+${pj - 1})` : ''}` : 'Aucun justificatif : joins la photo ou le PDF de la pièce', !pj && bridge.piecesJointes !== false ? '<button type="button" class="lien" data-avant="joindre">Joindre</button>' : ''],
           [!dejaSaisi, dejaSaisi ? `${h(p.number)} est déjà saisie, du ${lfJm(dejaSaisi.date)}` : 'Ce numéro n\'est pas déjà saisi', dejaSaisi ? `<a class="lien" href="#/achat/${h(dejaSaisi.id)}">Voir</a>` : '', 'aide'],
           [!sansTva, 'Chaque ligne a sa TVA et sa destination', ''],
+          ...(tvaEtrangere ? [[false, `TVA sur ${tvaEtrangere > 1 ? `${tvaEtrangere} lignes` : '1 ligne'} : un fournisseur à l'étranger n'en facture pas`, '<button type="button" class="lien" data-avant="tva0">Passer à 0 %</button>']] : []),
           // (1.160.0, maquette) Ce que l'IA n'a pas lu avec sûreté, compté comme les cases en ambre de la pièce.
           ...(marquesLues.length ? [[false, `${pl(marquesLues.length, 'case')} lue${marquesLues.length > 1 ? 's' : ''} ${luParIA && luParIA.pdf ? 'sur le PDF' : 'sur la photo'} à vérifier`, '', 'aide']] : []),
           ...(cur !== company().currency ? [[!C.missingRate(p, company()), C.missingRate(p, company()) ? `Le taux de change manque : 1 ${h(cur)} = ? ${h(company().currency)}` : `Le taux de change est saisi : 1 ${h(cur)} = ${pct(t.rate)} ${h(company().currency)}`, '']] : []),
@@ -18293,6 +18308,8 @@
         ];
         avant.innerHTML = `<h3>Avant d'enregistrer</h3><ul>${pts.map(([ok, txt, g, ic]) => `<li class="${ok ? 'ok' : 'alerte'}">${lfIc(ok ? 'coche' : ic || 'alerte', 15, 2.4)}<span>${txt}</span>${g}</li>`).join('')}</ul>`;
         if (phr && isNew && dejaSaisi) phr.textContent = 'SkanFact vérifie le numéro avant d\'enregistrer : cette facture semble déjà saisie.';
+        const t0 = $('[data-avant=tva0]', avant);
+        if (t0) t0.onclick = () => { p.lines.forEach(l => { if (String(l.label || '').trim() && Number(l.vatRate) > 0) l.vatRate = 0; }); touch(); drawLines(); refresh(); };
         const f = $('[data-avant=fiche]', avant); if (f) f.onclick = () => { const x = supplierById(p.supplierId); if (x) supplierForm(x, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); }); };
         const j = $('[data-avant=joindre]', avant); if (j) j.onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
         $$('[data-avant=fiche-bien]', avant).forEach(b => { b.onclick = () => modifierFiche(Number(b.dataset.i)); });
@@ -18425,7 +18442,8 @@
         cur = p.currency || company().currency;
         poserDevise(head, cur);
         const rf = $('#b-rate-field', head);
-        if (rf) { rf.hidden = cur === company().currency; $('.b-rate-lbl', rf).textContent = `· 1 ${symb(cur)} =`; }
+        // (1.358.1) Son nom aussi : il restait « combien de DT pour 1 DT » après le choix de l'euro.
+        if (rf) { rf.hidden = cur === company().currency; $('.b-rate-lbl', rf).textContent = `· 1 ${symb(cur)} =`; const tx = $('[name=exchangeRate]', rf); if (tx) tx.setAttribute('aria-label', `Taux de change : combien de ${company().currency} pour 1 ${cur}`); }
         const pd = $('#ac-puce-dev', head); if (pd) pd.classList.toggle('on', cur !== company().currency);
         drawLines();
       }
@@ -18463,7 +18481,7 @@
             withholdingRate: vise.withholdingRate == null ? p.withholdingRate : vise.withholdingRate,
             subject: p.subject || 'Avoir sur ' + (vise.number || vise.subject || 'la facture'),
             lines: deepCopy(vise.lines || []).map(l => ({ ...l })) });
-          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }];
+          if (!p.lines.length) p.lines = [{ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(p.supplierId)), destination: 'charge', deductible: true }];
           achatReprise = { hash: location.hash, p, isNew };
           render(true);
           return;
@@ -18502,6 +18520,13 @@
             devSel.value = sup.currency; const tx = $('[name=exchangeRate]', head); if (tx) tx.value = '';
             head.onchange({ target: devSel });
           }
+          // (1.358.1) Les lignes encore vides prennent le taux PROPOSÉ chez ce fournisseur : 0 % à l'étranger (aucune TVA
+          // tunisienne sur sa facture), le taux ordinaire sinon. Une ligne déjà remplie garde le sien : on ne réécrit pas ce
+          // qu'on a tapé ; « Avant d'enregistrer » signale une TVA tunisienne sur la facture d'un fournisseur à l'étranger.
+          const tauxSup = C.tauxAchatPropose(company(), null, sup);
+          let vides = 0;
+          p.lines.forEach(l => { if (!String(l.label || '').trim() && !Number(l.unitPrice) && !l.itemId && Number(l.vatRate) !== tauxSup) { l.vatRate = tauxSup; vides++; } });
+          if (vides) drawLines();
         }
       }
       refresh();

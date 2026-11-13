@@ -142,22 +142,37 @@
     }));
   };
 
-  /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
-  async function appel(methode, chemin, corps) {
+  // (1.358.1, rouge GitHub de d5b77f0) Un envoi en route survit à la page qu'on ferme ou qu'on recharge. « Enregistré » se dit
+  // dès que l'écran a la pièce ; l'envoi au serveur suit. Fermer l'onglet ou recharger dans cette seconde coupait la requête,
+  // et la modification se perdait sans un mot (vu en CI : un avoir rattaché, la page rechargée, la fiche le disait encore
+  // libre). `keepalive` laisse le navigateur finir la requête. Il est borné à 64 Ko pour toutes les requêtes en route : on
+  // compte ce qui part ainsi, et au-delà l'envoi part comme avant. Seul l'enregistrement en arrière-plan (`envoyer`) le
+  // demande (`survivre`) : c'est lui que l'écran a déjà dit fait. Les autres envois (une émission, la caisse, une réponse
+  // au comptable) attendent leur réponse à l'écran, et le budget de 64 Ko reste à l'enregistrement.
+  let octetsGardes = 0;
+  const OCTETS_GARDES_MAX = 60_000;
+  /** @param {string} methode @param {string} chemin @param {unknown} [corps] @param {boolean} [survivre] */
+  async function appel(methode, chemin, corps, survivre = false) {
     if (LECTURE) return appelLecture(methode, chemin);
     /** @type {Record<string, string>} */
     const entetes = { authorization: `Bearer ${jeton}` };
     if (corps !== undefined) entetes['content-type'] = 'application/json';
+    const texte = corps === undefined ? undefined : JSON.stringify(corps);
+    const taille = texte === undefined ? 0 : new TextEncoder().encode(texte).length;
+    const garder = survivre && methode !== 'GET' && taille > 0 && octetsGardes + taille <= OCTETS_GARDES_MAX;
+    if (garder) octetsGardes += taille;
     let r;
     try {
-      r = await fetch(`/v1/entreprises/${ent}${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
+      r = await fetch(`/v1/entreprises/${ent}${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(texte === undefined ? {} : { body: texte }), ...(garder ? { keepalive: true } : {}) });
     } catch (e) {
+      if (garder) octetsGardes -= taille;
       // Le réseau manque (brique 72) : le bandeau le dit, et la copie du poste prend le relais.
       poste.horsLigne();
       const x = new Error(motifReseau(methode), { cause: e });
       /** @type {any} */ (x).horsLigne = true;
       throw x;
     }
+    if (garder) octetsGardes -= taille;
     poste.enLigne();
     /** @type {any} */
     const lu = lire(r, await r.text());
@@ -357,7 +372,7 @@
       const lot = changements.slice(i, i + 500);
       let r;
       try {
-        r = await appel('POST', '/dossier-v10', { changements: lot });
+        r = await appel('POST', '/dossier-v10', { changements: lot }, true);
       } catch (e) {
         // Un objet a changé ailleurs (un autre membre de l'équipe, un autre onglet) : le serveur n'a
         // RIEN écrit de ce lot. On relit le dossier et on le rend à la v10 comme elle l'attend

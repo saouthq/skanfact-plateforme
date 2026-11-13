@@ -28693,6 +28693,58 @@ prouver 'poche 1.358.0 k : le remboursement des avances va au compte d'"'"'atten
   $' avances: { sens: -1, role: \'associes\' },' \
   $'' \
   'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l'"'"'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver $'achat en euros 1.358.1 a : un fournisseur à l\'étranger se voit proposer 19 %' modules/socle/moteur/core-1.js \
+  $'    if (fournisseurEtranger(supplier, company)) return 0;\n' \
+  $'' \
+  'le moteur : un fournisseur à l'"'"'étranger, et le taux proposé sur une ligne d'"'"'achat'
+prouver $'achat en euros 1.358.1 b : « TND » et « DT » pris pour deux devises' modules/socle/moteur/core-1.js \
+  $'    return !!c && normCurrency(c) !== normCurrency((company || {}).currency || \'TND\');\n' \
+  $'    return !!c && c !== ((company || {}).currency || \'TND\');\n' \
+  'le moteur : un fournisseur à l'"'"'étranger, et le taux proposé sur une ligne d'"'"'achat'
+prouver $'achat en euros 1.358.1 c : la ligne vide garde 19 % au choix du fournisseur à l\'étranger' modules/socle/ecrans/entreprise/app-1.js \
+  $'          p.lines.forEach(l => { if (!String(l.label || \'\').trim() && !Number(l.unitPrice) && !l.itemId && Number(l.vatRate) !== tauxSup) { l.vatRate = tauxSup; vides++; } });\n' \
+  $'' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 d : « + Ligne libre » repart à 19 %' modules/socle/ecrans/entreprise/app-1.js \
+  $'if ($(\'#add-line\')) $(\'#add-line\').onclick = () => { p.lines.push({ label: \'\', qty: 1, unit: \'\', unitPrice: 0, vatRate: C.tauxAchatPropose(company(), null, supplierById(p.supplierId)),' \
+  $'if ($(\'#add-line\')) $(\'#add-line\').onclick = () => { p.lines.push({ label: \'\', qty: 1, unit: \'\', unitPrice: 0, vatRate: 19,' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 e : « Avant d\'enregistrer » tait la TVA d\'une facture étrangère' modules/socle/ecrans/entreprise/app-1.js \
+  $'        const tvaEtrangere = supEtranger && p.kind !== \'avoir\' ? p.lines.filter(l => String(l.label || \'\').trim() && Number(l.vatRate) > 0).length : 0;\n' \
+  $'        const tvaEtrangere = 0;\n' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 f : « Passer à 0 % » ne fait rien' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (t0) t0.onclick = () => { p.lines.forEach(l => { if (String(l.label || \'\').trim() && Number(l.vatRate) > 0) l.vatRate = 0; }); touch(); drawLines(); refresh(); };\n' \
+  $'' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 g : le règlement d\'un achat en devise reprend l\'ancienne grille (montant écrasé)' modules/socle/ecrans/entreprise/app-1.js \
+  $'        ${rangeeDateCompteTaux(p, r0, \'buy.payRate\', dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'Date\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true }), accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend }))}\n' \
+  $'        <div class="pf-deux">${dateFieldHtml(lbl(rend ? \'Date du remboursement\' : \'Date\', \'buy.payDate\'), \'date\', r0 ? (r0.effet && r0.effet.recuLe) || r0.date : C.today(), { obligatoire: true })}${accountFieldHtml(r0 ? r0.accountId || \'\' : \'\', { poche: !rend })}</div>\n        ${champTauxReglement(p, r0, \'buy.payRate\')}\n' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 h : le taux garde le nom « pour 1 DT » après le choix de l\'euro' modules/socle/ecrans/entreprise/app-1.js \
+  $' const tx = $(\'[name=exchangeRate]\', rf); if (tx) tx.setAttribute(\'aria-label\', `Taux de change : combien de ${company().currency} pour 1 ${cur}`); }' \
+  $' }' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 i : l\'encadré du change ne nomme pas la pièce réglée' modules/socle/ecrans/entreprise/app-1.js \
+  $'        const laPiece = nature === \'avoir\' ? \'l\\\'avoir\' : nature === \'facture\' ? \'la facture\' : \'la pièce\';\n' \
+  $'        const laPiece = \'la pièce\';\n' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 j : l\'envoi d\'un enregistrement ne survit pas à la page qu\'on recharge (sans keepalive)' web/public/plateforme/pont.js \
+  $'...(texte === undefined ? {} : { body: texte }), ...(garder ? { keepalive: true } : {}) });' \
+  $'...(texte === undefined ? {} : { body: texte }) });' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 k : un envoi trop gros part en keepalive, et le navigateur le refuse' web/public/plateforme/pont.js \
+  $'    const garder = survivre && methode !== \'GET\' && taille > 0 && octetsGardes + taille <= OCTETS_GARDES_MAX;\n' \
+  $'    const garder = survivre && methode !== \'GET\' && taille > 0;\n' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
+prouver $'achat en euros 1.358.1 l : une émission part en keepalive, et le test qui simule le refus du serveur ne le voit plus' web/public/plateforme/pont.js \
+  $'    const garder = survivre && methode !== \'GET\' && taille > 0 && octetsGardes + taille <= OCTETS_GARDES_MAX;\n' \
+  $'    const garder = methode !== \'GET\' && taille > 0 && octetsGardes + taille <= OCTETS_GARDES_MAX;\n' \
+  'Samia, sans matricule ni RIB : la pièce n'"'"'imprime rien de vide, la fiche se complète avant d'"'"'émettre, et le reste suit'
+prouver $'achat en euros 1.358.1 m : l\'enregistrement en arrière-plan ne demande plus à survivre à la page' web/public/plateforme/pont.js \
+  $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot }, true);' \
+  $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot });' \
+  'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

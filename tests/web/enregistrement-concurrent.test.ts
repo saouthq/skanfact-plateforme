@@ -59,8 +59,10 @@ describe('deux postes sur le même dossier', () => {
     // enregistrement était encore en route quand le scénario commençait : il partait avec les données de la page, se
     // heurtait à l'autre poste, et c'est SA réponse que recevait l'enregistrement du test (vu sur GitHub, 12/10/2026).
     // Il est ralenti exprès, pour que le scénario se joue toujours derrière lui.
+    // (1.358.1) Par le CONTEXTE : l'enregistrement part avec `keepalive`, et quand le service worker contrôle la page,
+    // une interception posée sur la page ne le voit plus (le ralenti ne s'appliquait plus, sans un mot).
     let ralentir = true;
-    await p.route('**/dossier-v10', async (route) => {
+    await cx.route('**/dossier-v10', async (route) => {
       if (route.request().method() === 'POST' && ralentir) { ralentir = false; await new Promise((ok) => { setTimeout(ok, 1500); }); }
       await route.continue();
     });

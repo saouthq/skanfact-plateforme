@@ -3315,3 +3315,37 @@ relevé ne tombait plus juste, et le compte courant de la gérante (4421) ne gar
   journal de banque, aux mêmes comptes et montants que dans l'application (deux chemins, un chiffre).
 - À VÉRIFIER avec le comptable : un gérant qui n'est pas associé (salarié, gérant non associé d'une SARL) ne se range pas
   au 4421 ; le comptable choisira un autre compte de tiers. La bulle le dit.
+
+### 1.358.1 : un achat en euros chez un fournisseur à l'étranger (bout en bout 19)
+
+Joué à la souris dans l'environnement de test : la pâtisserie achète des moules en France, 420 € HT, facture au taux de
+3,35, réglée par virement BIAT au taux du jour de 3,40. Le moteur faisait juste (1 407 DT à la facture, 1 428 DT payés, perte
+de change de 21 DT au 655, les mêmes écritures des deux côtés du pont) ; trois défauts se trouvaient autour.
+- **La ligne neuve partait à 19 % « toute déductible »** chez un fournisseur à l'étranger. Sa facture ne porte pas de TVA
+  tunisienne : laissée telle quelle, elle faisait récupérer 79,80 € de TVA (267 DT) qu'aucune pièce ne montre. Une règle
+  unique dans le moteur, `tauxAchatPropose` (et `fournisseurEtranger` : ses factures dans une autre devise que la nôtre),
+  donne 0 % aux lignes neuves (la ligne vide, « + Ligne libre », un article du catalogue, une commande fournisseur), et les
+  lignes encore vides suivent le fournisseur quand on le choisit. Une ligne déjà remplie garde son taux : « Avant
+  d'enregistrer » dit « TVA sur 1 ligne : un fournisseur à l'étranger n'en facture pas », avec « Passer à 0 % ». Rien ne
+  bloque : le taux reste modifiable.
+- **La fenêtre de règlement d'un achat en devise écrasait le montant** : la phrase du taux portait la classe `span-2` dans
+  une grille à une colonne, qui en créait une seconde, invisible. La case du montant tombait à 11 px (« 4: EUR » au lieu
+  de 420,00), la date était coupée. Les deux fenêtres (paiement d'une facture, règlement d'un achat) passent par une seule
+  rangée, `rangeeDateCompteTaux` : la date et le taux côte à côte, le compte, puis l'encadré qui dit ce qui passe à la
+  banque et l'écart de change — et qui nomme la pièce réglée (« la facture », « l'avoir »).
+- **Le taux gardait le nom « combien de DT pour 1 DT »** pour un lecteur d'écran, après le choix de l'euro.
+- La bulle du taux de change dit le cas du fournisseur à l'étranger, la TVA payée à la douane (une pièce à part) et l'écart
+  de change. À VÉRIFIER avec le comptable : comment saisir la TVA d'importation payée à la douane.
+- **Rouges GitHub de d5b77f0 et de eb07c15 (1.357.9 et 1.358.0), réparés — une seule cause.** « Les achats 1.310 » et « la
+  paie confiée au cabinet » tombaient sous Node 24, une fois sur deux. Ce n'était pas les tests : un enregistrement part au
+  serveur APRÈS que l'écran a dit « Enregistré », et recharger la page dans la seconde coupait l'envoi en route — la pièce
+  (ou le paiement noté) restait à l'écran, et le serveur ne l'avait jamais reçue. Chez quelqu'un qui ferme l'onglet juste
+  après avoir enregistré, c'est une saisie perdue sans un mot. L'enregistrement en arrière-plan survit maintenant à la
+  page qu'on ferme ou qu'on recharge (`keepalive`), dans la limite que le navigateur accorde (64 Ko en route) : au-delà —
+  le premier enregistrement de tout un dossier, une pièce aux notes très longues —, l'envoi part comme avant. Les autres
+  envois (une émission, l'ouverture de la caisse, une réponse au comptable) attendent leur réponse à l'écran : ils ne le
+  demandent pas.
+- Pour les tests : quand le service worker contrôle la page, Playwright ne voit plus un envoi `keepalive` par une
+  interception posée sur la PAGE ; posée sur le CONTEXTE, si. Le test des enregistrements concurrents, qui ralentit exprès
+  le premier envoi, passe par le contexte (sans quoi son ralenti ne s'appliquait plus, sans un mot). Le test de la 1.310
+  attend désormais que les écritures en route soient arrivées avant de recharger.
