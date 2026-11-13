@@ -3434,3 +3434,23 @@ s'est passé.
   en anglais) et `tests/web/cheque-impaye-1359.test.ts` (tout le parcours : deux rejets faux refusés au serveur, la
   fenêtre, la facture, la relance, l'écriture et les frais au Cabinet, le rejet retiré, puis le chèque supprimé avec son
   rejet) ; dix preuves « chèque impayé 1.359.0 ».
+
+### 1.359.1 : la première relance d'une facture très en retard, et le client sans adresse
+
+Suite du bout en bout 21, vue en relançant l'hôtel à la souris : la facture FAC-2025-001 avait 300 jours de retard et
+n'avait jamais été relancée.
+- **La première relance inventait des rappels.** Le modèle « Dernière relance » (choisi d'office au-delà de 45 jours de
+  retard) commençait par « Malgré nos précédents rappels », alors que le client n'en avait reçu aucun. Le ton ferme
+  vient du retard et reste ; la phrase sur les rappels n'apparaît plus tant que la facture n'a jamais été relancée (un
+  appel noté compte comme un rappel). En anglais, « Despite our previous reminders » suit la même règle, et « Second
+  reminder » devient « Reminder » pour une première relance. La relance groupée faisait déjà ainsi. Un modèle réécrit
+  par la personne reste le sien, mot pour mot.
+- **Un client sans adresse : la fenêtre ne le disait pas.** Elle montrait « À » au-dessus de rien, puis « + Une autre
+  adresse » (il n'y en avait pas une première). Elle dit maintenant « Hôtel Mouradi Gammarth n'a pas d'adresse sur sa
+  fiche : tape celle où l'envoyer » et montre directement la case. Envoyer sans adresse met cette case en rouge, avec
+  « Tape l'adresse où l'envoyer : sa fiche n'en a pas. »
+- **Retirer un rejet** : la question dit maintenant que les frais de rejet pris par la banque restent en Trésorerie, à
+  retirer là-bas si la banque les rend.
+- Tests : `tests/moteur/relance-premiere-1359-1.test.ts` (première relance ou non, en français et en anglais, note
+  d'honoraires, modèle réécrit), `tests/web/relance-premiere-1359-1.test.ts` (la fenêtre de relance d'un client sans
+  adresse) et `tests/web/cheque-impaye-1359.test.ts` (les frais) ; sept preuves « relance première 1.359.1 ».

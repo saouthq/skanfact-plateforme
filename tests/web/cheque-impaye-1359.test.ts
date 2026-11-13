@@ -151,6 +151,8 @@ describe('bout en bout 21 : un chèque client revenu impayé (1.359.0)', () => {
     await p.getByRole('menuitem', { name: /Retirer ce rejet/ }).click();
     const q = p.locator('#modal-root .modal').last();
     await expect.poll(async () => net(await q.innerText().catch(() => '')), { timeout: 10_000 }).toContain('comptera de nouveau comme reçu');
+    // Les frais pris par la banque restent un mouvement à part : la question le dit.
+    expect(net(await q.innerText())).toContain('Les frais de rejet (15,000 DT) restent en Trésorerie');
     await q.getByRole('button', { name: 'Retirer le rejet', exact: true }).click();
     await expect.poll(async () => net(await p.locator('#pay-body').innerText().catch(() => '')), { timeout: 10_000 }).not.toContain('revenu impayé');
     await expect.poll(async () => (await admin.query('select count(*)::int as n from ventes.reglement where entreprise = $1 and rejet_de is not null', [ent])).rows[0].n, { timeout: 20_000 }).toBe(0);

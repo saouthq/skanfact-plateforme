@@ -8546,7 +8546,9 @@
           { icon: 'supprimer', label: 'Retirer ce rejet', hint: 'Le paiement comptera de nouveau comme reçu', danger: true, run: async () => {
             if (closedBlock(p.date, 'Ce rejet')) return;
             const apresR = C.round3(b.remaining + (Number(p.amount) || 0));
-            if (!await confirmDialog(`Retirer le rejet du ${C.fmtDate(p.date)} ? Le paiement du ${C.fmtDate(origineRj.date)} (${C.money(origineRj.amount, cur)}) comptera de nouveau comme reçu ; ${apresR > 0.0005 ? `${s.number} restera due de ${C.money(apresR, cur)}` : `${s.number} redeviendra réglée`}.`, 'Retirer le rejet', true)) return;
+            // (1.359.1) Les frais que la banque a pris restent un mouvement à part : s'ils sont rendus, ça se retire en Trésorerie.
+            const fraisR = (data.movements || []).find(m => m.date === p.date && m.label === `Frais de rejet ${origineRj.reference || s.number}`.trim());
+            if (!await confirmDialog(`Retirer le rejet du ${C.fmtDate(p.date)} ? Le paiement du ${C.fmtDate(origineRj.date)} (${C.money(origineRj.amount, cur)}) comptera de nouveau comme reçu ; ${apresR > 0.0005 ? `${s.number} restera due de ${C.money(apresR, cur)}` : `${s.number} redeviendra réglée`}.${fraisR ? ` Les frais de rejet (${C.money(fraisR.amount, company().currency)}) restent en Trésorerie : retire-les là-bas si la banque te les rend.` : ''}`, 'Retirer le rejet', true)) return;
             s.payments = s.payments.filter(x => x.id !== p.id); save(true); render();
           } },
         ];
@@ -13248,8 +13250,9 @@
       <form id="mf" class="env-charte">
         ${relanceM ? `<label class="field">${lbl('Modèle', 'mail.relanceModele')}<select id="env-modele">${Object.entries(C.REMINDER_LABELS).map(([n, l]) => `<option value="${n}"${'relance' + n === kind ? ' selected' : ''}>${h(l)}${n === '1' ? ' · courtois' : n === '3' ? ' · ferme' : ''}</option>`).join('')}</select></label>` : ''}
         <div class="field"${relanceM && adresses.length ? ' hidden' : ''}><span>À</span><div class="env-a">${adresses.map((a, i) => `<label class="env-c${i === 0 ? ' on' : ''}"><input type="checkbox" data-adresse="${h(a)}" ${i === 0 ? 'checked' : ''}><span><b>${h(i === 0 ? (client.contact || client.name) : 'Autre adresse de la fiche')}</b><small>${h(a)}</small></span></label>`).join('')}</div>
-          <button type="button" class="lien-plus" id="env-autre">${lfIc('ajout', 13, 2.4)}Une autre adresse</button>
-          <input type="email" id="env-autre-v" placeholder="email@client.tn" hidden></div>
+          ${adresses.length ? '' : `<p class="muted">${h(client.name || 'Ce client')} n'a pas d'adresse sur sa fiche : tape celle où l'envoyer.</p>`}
+          <button type="button" class="lien-plus" id="env-autre"${adresses.length ? '' : ' hidden'}>${lfIc('ajout', 13, 2.4)}Une autre adresse</button>
+          <input type="email" id="env-autre-v" placeholder="email@client.tn"${adresses.length ? ' hidden' : ''}></div>
         <input type="hidden" name="to" value="${h(adresses[0] || m.to || '')}">
         ${moi && !relanceM ? `<label class="pop-case env-moi"><input type="checkbox" id="env-copie"> M'en envoyer une copie <small>· ${h(moi)}</small></label>` : ''}
         <label class="field"${relanceM ? ' hidden' : ''}>${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(m.subject)}"></label>
@@ -13297,7 +13300,7 @@
         $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
         if (charteM && $('#env-copie', root) && $('#env-copie', root).checked) v.cc = moi;
-        if (!v.to || !String(v.to).split(',').every(x => /^[^@\s]+@[^@\s]+$/.test(x.trim()))) return refus(charteM ? ($('#env-autre-v', root).hidden ? $('#env-autre', root) : $('#env-autre-v', root)) : $('[name=to]', root), charteM ? 'Choisis au moins une adresse, ou tape-en une autre.' : 'Adresse email invalide.');
+        if (!v.to || !String(v.to).split(',').every(x => /^[^@\s]+@[^@\s]+$/.test(x.trim()))) return refus(charteM ? ($('#env-autre-v', root).hidden ? $('#env-autre', root) : $('#env-autre-v', root)) : $('[name=to]', root), charteM ? (adresses.length ? 'Choisis au moins une adresse, ou tape-en une autre.' : 'Tape l\'adresse où l\'envoyer : sa fiche n\'en a pas.') : 'Adresse email invalide.');
         const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
         try {
           // Envoyer, c'est le geste qui fait passer la pièce de brouillon à envoyée — et le PDF joint

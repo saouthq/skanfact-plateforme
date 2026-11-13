@@ -28839,6 +28839,34 @@ prouver $'chèque impayé 1.359.0 j : « Le dernière relance est prêt »' modu
   $'${pretG(echueG.level)} à partir' \
   $'Le ${echueG.label || \'relance\'} est prêt à partir' \
   'le chèque de l'"'"'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
+prouver $'relance première 1.359.1 a : « Malgré nos précédents rappels » dans la première relance' modules/socle/moteur/core-2.js \
+  $'relance && !(doc.reminders || []).length ? sansRappelsInventes(' \
+  $'false ? sansRappelsInventes(' \
+  $'ne parle pas de rappels qui n\'ont pas eu lieu ; les garde dès qu\'il y en a eu'
+prouver $'relance première 1.359.1 b : un modèle réécrit perd sa phrase' modules/socle/moteur/core-2.js \
+  $'if (!origine || tpl.body !== origine.body) return tpl;' \
+  $'if (!origine) return tpl;' \
+  $'une note d\'honoraires suit la même règle ; un modèle réécrit reste mot pour mot'
+prouver $'relance première 1.359.1 c : « Second reminder » sur une première relance' modules/socle/moteur/core-2.js \
+  $'.replace(/^Second reminder\\b/, \'Reminder\')' \
+  $'' \
+  $'en anglais aussi, et « Second reminder » ne se dit pas d\'une première relance'
+prouver $'relance première 1.359.1 d : un « À » vide, sans dire que la fiche n\'a pas d\'adresse' modules/socle/ecrans/entreprise/app-1.js \
+  $'${adresses.length ? \'\' : `<p class="muted">' \
+  $'${true ? \'\' : `<p class="muted">' \
+  $'la relance ne parle pas de rappels qui n\'ont pas eu lieu ; sans adresse, la fenêtre le dit et montre la case'
+prouver $'relance première 1.359.1 e : la case de l\'adresse cachée derrière « Une autre adresse »' modules/socle/ecrans/entreprise/app-1.js \
+  $'placeholder="email@client.tn"${adresses.length ? \' hidden\' : \'\'}>' \
+  $'placeholder="email@client.tn" hidden>' \
+  $'la relance ne parle pas de rappels qui n\'ont pas eu lieu ; sans adresse, la fenêtre le dit et montre la case'
+prouver $'relance première 1.359.1 f : « Choisis au moins une adresse » quand il n\'y en a aucune' modules/socle/ecrans/entreprise/app-1.js \
+  $'(adresses.length ? \'Choisis au moins une adresse, ou tape-en une autre.\' : \'Tape l\\\'adresse où l\\\'envoyer : sa fiche n\\\'en a pas.\')' \
+  $'\'Choisis au moins une adresse, ou tape-en une autre.\'' \
+  $'la relance ne parle pas de rappels qui n\'ont pas eu lieu ; sans adresse, la fenêtre le dit et montre la case'
+prouver $'relance première 1.359.1 g : retirer un rejet sans dire que ses frais restent en Trésorerie' modules/socle/ecrans/entreprise/app-1.js \
+  $'${fraisR ? ` Les frais de rejet (' \
+  $'${false ? ` Les frais de rejet (' \
+  $'le chèque de l\'hôtel revient impayé : la facture redevient due, « Chèque impayé » partout, la relance le dit, le rejet se retire'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

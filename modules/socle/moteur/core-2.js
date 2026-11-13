@@ -5840,10 +5840,10 @@
   // EUR » dans un mail anglais, jamais « 1 190,29 ».
   function emailFor(kind, doc, client, company, extra, data) {
     const en = (doc.lang || (client && client.lang) || company.defaultLang) === 'en';
-    const tpl = modeleMail(company, kind, en);
+    const relance = /^relance\d$/.test(kind) && doc.type === 'facture' && data;
+    const tpl = relance && !(doc.reminders || []).length ? sansRappelsInventes(modeleMail(company, kind, en), modelesParDefaut(company || {}, en)[kind]) : modeleMail(company, kind, en);
     const t = computeTotals(doc, company);
     const cur = doc.currency || company.currency || 'DT';
-    const relance = /^relance\d$/.test(kind) && doc.type === 'facture' && data;
     const du = relance ? invoiceBalance(doc, data, company).remaining : (doc.type === 'devis' ? t.totalTTC : t.netToPay);
     const vars = {
       numero: doc.number || 'brouillon', objet: doc.subject || '', client: (client || {}).name || '', societe: company.name,
@@ -5853,6 +5853,18 @@
     const modele = sansObjetVide(vars);
     const corps = fillTemplate(modele(tpl.body), vars);
     return { to: (client || {}).email || '', subject: fillTemplate(modele(tpl.subject), vars), body: relance ? avecImpaye(corps, doc, cur, en) : corps };
+  }
+  // (1.359.1) La relance d'une facture TRÈS en retard part au ton de la dernière relance, même la première fois : le ton
+  // vient du retard. Mais « Malgré nos précédents rappels » (et « Second reminder ») racontent des rappels qui n'ont pas eu
+  // lieu quand la facture n'a encore jamais été relancée : le modèle d'origine les tait alors, comme la relance groupée.
+  // Un modèle réécrit par la personne reste le sien, mot pour mot.
+  function sansRappelsInventes(tpl, origine) {
+    if (!origine || tpl.body !== origine.body) return tpl;
+    const maj = (m, c) => c.toUpperCase();
+    return {
+      subject: tpl.subject === origine.subject ? String(tpl.subject).replace(/^Second reminder\b/, 'Reminder') : tpl.subject,
+      body: String(tpl.body).replace(/Malgré nos précédents rappels, (\p{L})/u, maj).replace(/Despite our previous reminders, (\p{L})/u, maj)
+    };
   }
   // (1.359.0, bout en bout 21) Une relance après un chèque ou un effet revenu impayé le dit d'abord : c'est le fait que le
   // client doit lire (il croit peut-être avoir payé). La phrase s'ajoute en paragraphe après la salutation : le modèle, que
