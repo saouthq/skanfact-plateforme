@@ -136,7 +136,7 @@
 #page-bord .der-n b { font-size: 13px; }
 #page-bord .der-n small { font-size: 12px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #page-bord .der-m { display: grid; justify-items: end; gap: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
-#page-bord .der-m .badge { font-size: 11px; padding: 2px 7px; }
+#page-bord .der-m .badge { padding: 2px 7px; }
 #page-bord .der-g { display: flex; gap: 6px; padding-top: 8px; }
 
 @media (max-width: 1100px) {

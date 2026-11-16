@@ -216,7 +216,7 @@ describe('les immobilisations 1.314.0 : le matériel de l\'épicerie, vu de part
     expect(await c.locator('[data-creer]').count()).toBe(0);
     // Deux chemins, un chiffre : le tableau du comptable est celui du client, au millime.
     const pied = async () => net(await c.locator('.panel').filter({ has: c.locator('h2', { hasText: 'Les biens de l\'exercice' }) }).locator('tfoot').innerText());
-    expect(await pied()).toBe('3 BIENS 66 500,000 DT 12 383,611 DT 13 212,500 DT 25 032,778 DT 41 467,222 DT');
+    expect(await pied()).toBe('3 biens 66 500,000 DT 12 383,611 DT 13 212,500 DT 25 032,778 DT 41 467,222 DT');
     await c.screenshot({ path: path.join(PHOTOS, 'immos-1314-d-repris.png'), fullPage: true });
 
     // E. Le client change d'avis : la vitrine s'amortit sur 7 ans. Le Cabinet le voit, et reprend son plan d'un geste.
@@ -236,7 +236,7 @@ describe('les immobilisations 1.314.0 : le matériel de l\'épicerie, vu de part
     expect(net(await fen.locator('#im-apercu').innerText())).toContain('8 exercices — première dotation 510,714 DT');
     await ajouter();
     await expect.poll(registre('Vitrine réfrigérée 2 m')).toBe('même plan');
-    await expect.poll(pied).toBe('3 BIENS 66 500,000 DT 12 383,611 DT 13 008,214 DT 24 828,492 DT 41 671,508 DT');
+    await expect.poll(pied).toBe('3 biens 66 500,000 DT 12 383,611 DT 13 008,214 DT 24 828,492 DT 41 671,508 DT');
     t = await tableau();
     expect(t).toContain('Total 66 500,000 DT 12 383,611 DT 13 008,214 DT 24 828,492 DT 41 671,508 DT');
 

@@ -19,7 +19,7 @@
 /* ── L'état : le haut sombre de la vitrine ── */
 .abo-tete {
   display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 18px 32px; padding: 26px 28px;
-  border-radius: 20px; color: #e8f3f1;
+  border-radius: 14px; color: #e8f3f1;
   background-color: var(--abo-nuit); background-image: repeating-linear-gradient(0deg, rgba(127, 224, 211, .06) 0 1px, transparent 1px 32px);
 }
 .abo-tete-txt { flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -58,7 +58,7 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
    qu'elle comprend commence à la même hauteur. Une colonne au téléphone : chaque carte garde ses lignes. */
 .abo-offres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .abo-offre {
-  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
+  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 14px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
 .abo-offres.avec-avenir .abo-offre { grid-row: span 9; }
@@ -130,7 +130,7 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 
 /* ── Au-delà de l'offre (14c) : ce que chaque ligne compte à gauche, son prix à droite, à la même place d'une ligne à
    l'autre ── */
-.abo-plus { display: flex; flex-direction: column; gap: 10px; padding: 18px 22px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-plus { display: flex; flex-direction: column; gap: 10px; padding: 18px 22px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); }
 /* Replié par défaut (1.118.0 : ces lignes ne concernent pas tout le monde) ; ouvert quand l'entreprise dépasse son offre. */
 .abo-plus-tete { display: flex; flex-direction: column; gap: 4px; cursor: pointer; list-style: none; position: relative; padding-inline-end: 28px; }
 .abo-plus-tete::-webkit-details-marker { display: none; }
@@ -152,7 +152,7 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-plus-prix .abo-plus-avenir { margin-top: 2px; font-weight: 600; color: var(--text); white-space: normal; }
 
 /* ── T'abonner : la carte sarcelle, et l'adresse qui se clique ── */
-.abo-payer { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-radius: 20px; background: var(--primary-soft); border: 1px solid transparent; }
+.abo-payer { display: flex; align-items: flex-start; gap: 16px; padding: 20px 24px; border-radius: 14px; background: var(--primary-soft); border: 1px solid transparent; }
 .abo-payer-ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; background: var(--abo-nuit); }
 .abo-payer-ico svg { width: 22px; height: 22px; fill: none; stroke: var(--abo-menthe); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .abo-payer-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
@@ -164,7 +164,7 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-etapes { margin: 0; padding: 0; list-style: none; counter-reset: etape; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .abo-etapes li {
   counter-increment: etape; position: relative; display: flex; flex-direction: column; gap: 4px; padding: 16px 18px 16px 58px;
-  border-radius: 16px; background: var(--panel); border: 1px solid var(--border); font-size: 13.5px; line-height: 1.45; color: var(--muted);
+  border-radius: 14px; background: var(--panel); border: 1px solid var(--border); font-size: 13.5px; line-height: 1.45; color: var(--muted);
 }
 .abo-etapes li::before {
   content: counter(etape); position: absolute; inset-inline-start: 18px; top: 16px; width: 28px; height: 28px; border-radius: 50%;
@@ -175,14 +175,14 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-etapes b { font-size: 14.5px; font-weight: 650; color: var(--text); }
 
 /* ── L'histoire : le jour, ce qui est arrivé ── */
-.abo-histoire { margin: 0; padding: 4px 0; list-style: none; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-histoire { margin: 0; padding: 4px 0; list-style: none; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); }
 .abo-histoire li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 12px; padding: 11px 18px; font-size: 14px; }
 .abo-histoire li + li { border-top: 1px solid var(--border); }
 .abo-quand { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* ── Tes factures (14b, docs/abonnement.md B5) : une ligne par pièce ; la même place pour la même chose, d'une ligne à
    l'autre (la pièce et sa période, le montant et où il en est, l'état, les gestes) ── */
-.abo-factures { margin: 0; padding: 0; list-style: none; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
+.abo-factures { margin: 0; padding: 0; list-style: none; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); }
 .abo-facture {
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(9em, auto) 9.5em auto; align-items: center; gap: 8px 18px;
   padding: 14px 18px;

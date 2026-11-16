@@ -214,3 +214,15 @@ body.dark .modal-bg { background: rgba(0, 0, 0, .55); }
 :where(#view, #modal-root) table.list th { font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--sb-gris-2); background: var(--sb-papier-2); }
 /* - Le gris du texte secondaire : celui de la charte, en clair comme en sombre. */
 body, body.dark { --muted: var(--sb-gris-2); }
+/* - Un champ a les coins d'un bouton (10 px) : les deux se posent côte à côte dans chaque barre. */
+body { --radius-sm: 10px; }
+/* - Un titre de section : 15 px, demi-gras (650) quand rien ne dit autre chose. Un bloc mis en avant monte à 18 px ;
+     la page vide qui accueille garde ses 26 px. */
+:where(#view) h2 { font-weight: 650; }
+/* 1.366.0 — les gris et les teintes de l'ancienne feuille viennent de la charte : un seul nuancier pour les deux
+   générations d'écrans. Trois neutres n'avaient pas de nom (le fond de page, le creux d'un bouton discret, le vert doux
+   d'un « c'est fait ») : ils en ont un, clair et sombre. */
+body { --sb-fond: #f5f7fa; --sb-creux: #eef1f5; --sb-vert-doux: #e3f6ec; }
+body.dark { --sb-fond: #12161c; --sb-creux: #232b36; --sb-vert-doux: #1a3328; }
+body, body.dark { --bg: var(--sb-fond); --ink-soft: var(--sb-creux); --success-soft: var(--sb-vert-doux); --line: var(--sb-trait-fort); --warning-soft: var(--sb-ambre-doux); }
+body { --warning: var(--sb-ambre-texte); }

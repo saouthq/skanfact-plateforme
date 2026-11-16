@@ -469,7 +469,7 @@ tr.cp-miroir td { background: var(--info-soft); }
 .sa-grille td { padding-block: 2px; padding-inline: 6px; }
 .sa-grille input {
   width: 100%; border: 1px solid transparent; background: transparent;
-  padding-block: 6px; padding-inline: 6px; border-radius: 6px; font-size: 13px;
+  padding-block: 6px; padding-inline: 6px; border-radius: 8px; font-size: 13px;
 }
 .sa-grille input:focus { border-color: var(--primary); background: var(--panel); }
 .sa-grille input.sa-montant { font-variant-numeric: tabular-nums; }
@@ -487,7 +487,7 @@ input.sa-montant, input.montant, td > input.r { text-align: end; font-variant-nu
 #sa-lignes td { padding-block: 2px; padding-inline: 4px; }
 #sa-lignes input {
   font-size: 13px; padding-block: 6px; padding-inline: 8px; border: 1px solid transparent;
-  background: var(--ink-soft); border-radius: 6px; box-shadow: none;
+  background: var(--ink-soft); border-radius: 8px; box-shadow: none;
 }
 /* 10.12.0 (H-3 bis, vu au test humain) — la règle du survol (1,1,2) battait celle du focus et celle
    de l'erreur (1,1,1 chacune) : la case « 12a » perdait son rouge dès que la souris passait sur sa
@@ -628,7 +628,7 @@ input.touche-in:not([type="checkbox"]):not([type="radio"]):not([type="file"]):no
   padding: 12px 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm);
   background: var(--panel); cursor: pointer; transition: border-color .12s, box-shadow .12s;
 }
-.theme-op:hover { border-color: #d5dbe3; }
+.theme-op:hover { border-color: var(--line); }
 body.dark .theme-op:hover { border-color: #3c4654; }
 .theme-op.on { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15, 157, 143, .15); }
 .theme-op input { position: absolute; opacity: 0; pointer-events: none; }

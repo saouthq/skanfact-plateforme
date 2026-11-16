@@ -185,7 +185,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     // (1.285.0) L'en-tête de pièce (comme l'achat) : le statut en pastille à côté du titre, le fournisseur dessous.
     expect(net(await p.locator('#view .ed-h1').innerText())).toContain('reçue en partie');
     expect(net(await p.locator('#cf-sous').innerText())).toBe('Ciments de Bizerte');
-    expect(net(await p.locator('#receptions-panel').innerText())).toMatch(/^Réceptions i DÉSIGNATION COMMANDÉ REÇU RESTE Ciment gris 50 kg \(sac\) 100 60 40 Fer à béton 12 mm \(t\) 2,5 1,25 1,25 Transport 1 1 0 Réception : BR-\d{4}-001 \(validée, /);
+    expect(net(await p.locator('#receptions-panel').innerText())).toMatch(/^Réceptions i Désignation Commandé Reçu Reste Ciment gris 50 kg \(sac\) 100 60 40 Fer à béton 12 mm \(t\) 2,5 1,25 1,25 Transport 1 1 0 Réception : BR-\d{4}-001 \(validée, /);
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir le reste');
     // Des sacs, des tonnes et un transport ne s'additionnent pas : la frise compte les lignes reçues en entier.
     expect(net(await p.locator('#cf-frise li').nth(2).innerText())).toMatch(/^3 Reçue en partie 1 sur 3 lignes en entier/);

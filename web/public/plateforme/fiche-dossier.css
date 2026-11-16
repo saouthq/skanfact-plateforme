@@ -24,7 +24,7 @@
 .fd-col { display: grid; gap: 16px; min-width: 0; }
 .fd-p { padding: 16px 18px; display: grid; gap: 12px; position: relative; }
 .fd-ph { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
-.fd-ph h2 { margin: 0; font-size: 16px; }
+.fd-ph h2 { margin: 0; font-size: 15px; }
 .fd-ph-n { font-size: 12.5px; color: var(--sb-gris-2); }
 .fd-ph-n b { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
 .fd-afs { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -105,7 +105,7 @@
 .fd-sq-p { min-height: 180px; display: grid; align-content: center; justify-items: center; gap: 4px; color: var(--sb-gris); }
 .fd-sq-p span { font-size: 13px; color: var(--sb-gris-2); }
 .fd-sq-h { min-height: 140px; } .fd-sq-c { min-height: 520px; }
-.fd-tete { position: relative; padding: 16px 18px; margin: 0 0 14px; border-radius: 16px; background: linear-gradient(100deg, color-mix(in srgb, var(--dc, #1fb8a8) 11%, var(--sb-papier)) 0%, var(--sb-papier) 62%); border: 1px solid color-mix(in srgb, var(--dc, #1fb8a8) 22%, var(--sb-trait)); }
+.fd-tete { position: relative; padding: 16px 18px; margin: 0 0 14px; border-radius: 14px; background: linear-gradient(100deg, color-mix(in srgb, var(--dc, #1fb8a8) 11%, var(--sb-papier)) 0%, var(--sb-papier) 62%); border: 1px solid color-mix(in srgb, var(--dc, #1fb8a8) 22%, var(--sb-trait)); }
 .fd-tete .fd-id .av { box-shadow: 0 6px 16px -6px color-mix(in srgb, var(--dc, #1fb8a8) 60%, transparent), inset 0 1px 0 rgba(255, 255, 255, .25); }
 .fd-ch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 16px; }
 .fd-ch-t { display: grid; gap: 3px; padding: 12px 14px; border-radius: 12px; background: var(--sb-papier); border: 1px solid var(--sb-trait); position: relative; overflow: hidden; }
@@ -210,7 +210,7 @@
 .fd-sv-n { margin: 0; font-size: 12.5px; color: var(--sb-gris); }
 .fd-pa { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
 .fd-rj { gap: 8px; }
-.fd-rj h2 { margin: 0; font-size: 16px; }
+.fd-rj h2 { margin: 0; font-size: 15px; }
 .fd-rj > p { margin: 0; }
 .fd-rj .field { display: grid; gap: 4px; font-size: 12.5px; color: var(--sb-gris); max-width: 360px; }
 .fd-rj .field input { height: 36px; }

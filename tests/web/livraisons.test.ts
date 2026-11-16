@@ -118,7 +118,7 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     await p.evaluate(() => { location.hash = '#/doc/bc1'; });
     const panneau = p.locator('#livraisons-panel');
     await expect.poll(async () => net(await panneau.innerText()), { timeout: 10_000 })
-      .toBe(`Livraisons i DÉSIGNATION COMMANDÉ LIVRÉ RESTE Ciment gris 50 kg (sac) 100 60 40 Fer à béton 12 mm (t) 2,5 1,25 1,25 Transport (course) 1 1 0 Bon de livraison : ${bl1} (émis, ${aujourdhui.split('-').reverse().join('/')}) Livrer le reste Reste à livrer sur 2 lignes : Ciment gris 50 kg (40 sac), …`);
+      .toBe(`Livraisons i Désignation Commandé Livré Reste Ciment gris 50 kg (sac) 100 60 40 Fer à béton 12 mm (t) 2,5 1,25 1,25 Transport (course) 1 1 0 Bon de livraison : ${bl1} (émis, ${aujourdhui.split('-').reverse().join('/')}) Livrer le reste Reste à livrer sur 2 lignes : Ciment gris 50 kg (40 sac), …`);
     await plusTard(p);
     // Livrer le reste est l'étape suivante : c'est le bouton principal de la colonne de droite, et il le dit.
     const livrer = p.locator('#ed-geste [data-conv=livraison]');

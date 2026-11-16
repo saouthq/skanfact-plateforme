@@ -12516,7 +12516,7 @@ prouver "l'aperçu d'un prix qui pousse le motif en arrivant" web/console/src/co
   '.c-rg-prix-zone { min-height: 124px; }' '.c-rg-prix-zone { min-height: 0; }' \
   "$PXW"
 prouver 'les cartes des offres qui ne partagent plus leurs lignes' web/public/plateforme/abonnement.css \
-  '  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
+  '  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 14px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 14px;' \
   "$PXW"
 prouver 'un écart de moitié ou plus dit comme un écart ordinaire' web/console/src/ecrans/Reglages.tsx \
   '  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;' '  const fort = false;' \
@@ -29599,6 +29599,23 @@ prouver $'rouge 1.365.1 a : le résumé du relevé additionne la remise deux foi
   $'`<span>dont <b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>`' \
   $'`<span><b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>`' \
   $'à la souris, du loyer oublié au relevé pointé, puis au téléphone'
+
+prouver $'cohérence 1.366.0 a : un champ garde les coins de l\'ancienne feuille (9 px) à côté des boutons à 10 px' web/public/plateforme/charte.css \
+  $'body { --radius-sm: 10px; }' \
+  $'body.inconnu { --radius-sm: 10px; }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.366.0 b : le cadre des écrans de comptabilité du Cabinet garde son arrondi à lui (16 px)' web/public/plateforme/comptabilite.css \
+  $'.cp-modele .cp-corps { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px;' \
+  $'.cp-modele .cp-corps { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 16px;' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.366.0 c : les gris de l\'ancienne feuille (fond, creux, traits, ambre doux) restent hors de la charte' web/public/plateforme/charte.css \
+  $'body, body.dark { --bg: var(--sb-fond); --ink-soft: var(--sb-creux);' \
+  $'body.inconnu { --bg: var(--sb-fond); --ink-soft: var(--sb-creux);' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.366.0 d : un titre de section reste à 16 px gras 700 sur les statistiques' web/public/v10/style.css \
+  $'.section-head h2 { margin: 0; font-size: 15px; font-weight: 650; }' \
+  $'.section-head h2 { margin: 0; font-size: 16px; font-weight: 700; }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

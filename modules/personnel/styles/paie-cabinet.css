@@ -6,8 +6,8 @@
 /* ── l'en-tête : le mois, qui fait la paie, les vues ── */
 .cp-pa-tete { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 18px; margin: 0 0 14px; }
 .cp-pa-titre { display: grid; grid-template-columns: auto auto; align-items: center; gap: 4px 12px; min-width: 0; }
-.cp-pa-titre h2 { margin: 0; font-size: 20px; letter-spacing: -.02em; color: var(--sb-encre); }
-.cp-pa-titre select { height: 32px; border: 1px solid var(--sb-trait); border-radius: 9px; background: var(--sb-papier); font: 600 13px var(--sb-police, inherit); color: var(--sb-encre); padding: 0 8px; width: auto; }
+.cp-pa-titre h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; color: var(--sb-encre); }
+.cp-pa-titre select { height: 32px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-papier); font: 600 13.5px var(--sb-police, inherit); color: var(--sb-encre); padding: 0 8px; width: auto; }
 .cp-pa-titre p { grid-column: 1 / -1; margin: 0; }
 .cp-pa-vues { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .pa-so { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border: 1px solid var(--sb-trait); border-radius: 11px; background: var(--sb-papier-2, var(--sb-papier)); }

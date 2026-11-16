@@ -118,7 +118,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     // Un fournisseur dont aucune pièce n'est arrivée par El Fatoora : la carte ne le suppose pas.
     await expect.poll(async () => net(await p.locator('#ac-sup .ed-cl-puces').innerText()), { timeout: 10_000 }).toBe('1 autre facture à payer · rien en retard paie à 30 jours');
     expect(net(await regl.locator('.ac-bloc-t').innerText())).toBe('Règlements i');
-    expect((await regl.locator('thead th').allInnerTexts()).map(net)).toEqual(['DATE', 'MODE', 'COMPTE', 'RÉFÉRENCE', 'MONTANT', '']);
+    expect((await regl.locator('thead th').allInnerTexts()).map(net)).toEqual(['Date', 'Mode', 'Compte', 'Référence', 'Montant', '']);
     expect(net(await regl.locator('tbody tr').first().innerText())).toMatch(/^\d\d\/\d\d\/\d{4} Virement .+ VIR 2026-10-20 1 313,808 \+ 19,992 retenus$/);
     expect(net(await regl.locator('.ac-attest').innerText())).toBe('Attestation de retenue remise au fournisseur (19,992 DT retenus) · l\'imprimer i');
     await regl.getByRole('button', { name: 'l\'imprimer', exact: true }).click();

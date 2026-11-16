@@ -3969,3 +3969,28 @@ les pages ENTRE ELLES.
   ici. Cause probable, non prouvée : la barre de sélection d'une liste (factures, achats) redessinée à l'arrivée d'une
   écriture alors que la page venait d'être quittée. Les trois dessins ne touchent plus que ce qui est là, et le test
   range désormais la PILE de l'erreur : si elle revient, elle dira sa ligne.
+
+### 1.366.0 : la cohérence, les dettes résorbées (formes, cartes, couleurs)
+
+La 1.365.0 avait posé l'instrument et NOMMÉ 47 exceptions. Il en reste 10, toutes voulues, plus aucune dette de forme.
+
+- **Les champs** : un champ a les coins d'un bouton (10 px, contre 9), le même trait, et deux tailles de texte selon sa
+  place (14 px dans un formulaire, 13,5 px dans une barre). Les cases d'une grille de saisie (écritures du Cabinet,
+  lignes d'un achat) ont une forme à elles, la même des deux côtés (8 px, 13 px).
+- **Les titres de section** : 15 px demi-gras partout (ils étaient 14,5 / 15 / 15,5 / 16, gras 650 ou 700) ; un bloc mis
+  en avant monte à 18 px (le mois de paie, le nom d'une conversation — ils étaient à 20). La page vide qui accueille
+  garde son grand titre, c'est écrit comme voulu.
+- **Les boutons** : le bouton sans mot devient une famille (36, 32 dans une ligne de liste, 28 petit) ; le menu d'une
+  ligne écrit à 13,5 px comme les autres ; le petit bouton de la paie fait 28 px de haut comme partout.
+- **Les cartes** : un seul arrondi, 14 px (elles allaient de 8 à 20) ; quatre formes en tout — la carte (trait et ombre),
+  le cadre posé à plat, le bloc intérieur à 12 px, le bandeau teinté à 12 px.
+- **Les couleurs** : les gris et les teintes de l'ancienne feuille viennent maintenant de la charte (trois neutres ont
+  reçu un nom : le fond, le creux, le vert doux). Hors charte : l'entreprise passe de 9 à 1, le Cabinet de 24 à 16 —
+  ce qui reste, ce sont des mélanges tirés des jetons (les teintes sarcelle du dossier) et l'en-tête sombre de
+  l'abonnement. Les plafonds du test sont abaissés d'autant.
+- **L'instrument** lit mieux : l'en-tête d'un tableau est celui de son `thead` ; un champ sans trait (dessiné par son
+  conteneur) et celui qui a le curseur ne comptent pas.
+- **Le rouge GitHub de la 1.365.0** : quatre tests d'écran lisaient encore des en-têtes en capitales (« DÉSIGNATION »,
+  « DATE », « 3 BIENS »). Les en-têtes sont en casse ordinaire depuis la 1.365.0 ; les tests le disent. La faute :
+  seuls les tests de rendu avaient été rejoués, pas ceux qui LISENT un tableau.
+- Reste à faire : étendre l'instrument au thème sombre et au téléphone.

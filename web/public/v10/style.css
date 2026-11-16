@@ -394,7 +394,7 @@ main { --main-haut: 32px; --main-bas: 48px; flex: 1; overflow-y: auto; scrollbar
    Un titre de section est donc lisible de loin, et une capitale grise ne sert plus qu'à ce pour
    quoi elle est bonne. */
 .panel h2 {
-  margin: 0 0 14px; font-size: 15.5px; font-weight: 650; letter-spacing: -.15px;
+  margin: 0 0 14px; font-size: 15px; font-weight: 650; letter-spacing: -.15px;
   color: var(--text); text-transform: none;
 }
 /* Le second niveau DANS un panneau (« Les touches », « Le brouillard ») : il doit se distinguer du
@@ -462,9 +462,9 @@ main { --main-haut: 32px; --main-bas: 48px; flex: 1; overflow-y: auto; scrollbar
    la spécificité de chaque règle de champ des deux feuilles et tombe si l'une d'elles perd. */
 input:where(:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range])), select, textarea {
   font: inherit; font-size: 14px; color: var(--text); padding: 9px 11px; border: 1px solid var(--border);
-  border-radius: var(--radius-sm); background: #fbfcfd; width: 100%; transition: border-color .12s, box-shadow .12s, background .12s;
+  border-radius: var(--radius-sm); background: var(--sb-papier, #fbfcfd); width: 100%; transition: border-color .12s, box-shadow .12s, background .12s;
 }
-input:hover, select:hover, textarea:hover { border-color: #d5dbe3; }
+input:hover, select:hover, textarea:hover { border-color: var(--line); }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(15,157,143,.15); }
 textarea { resize: vertical; min-height: 68px; }
 /* Deux champs posés l'un sous l'autre dans une fenêtre, sans grille : sans écart, le libellé du second
@@ -546,7 +546,7 @@ body.dark .btn-primary:disabled, body.dark .btn-primary:disabled:hover { backgro
 /* overflow: clip (et non hidden) : les coins restent arrondis, mais la table ne devient pas
    une zone de défilement, ce qui laisse l'en-tête collant fonctionner sur les longues listes. */
 table.list { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: clip; box-shadow: var(--shadow); }
-table.list th { text-align: start; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 12px 16px; background: #fafbfc; border-bottom: 1px solid var(--border); font-weight: 700; }
+table.list th { text-align: start; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); padding: 12px 16px; background: var(--sb-papier-2, #fafbfc); border-bottom: 1px solid var(--border); font-weight: 700; }
 table.list thead th { position: sticky; top: 0; z-index: 2; }
 table.list td { padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 table.list tr:last-child td { border-bottom: none; }
@@ -596,7 +596,7 @@ td.actions { white-space: nowrap; text-align: end; }
    il vise maintenant TOUTE cellule, et nomme les deux grappes qui décident de leur propre densité
    — le menu de ligne (`gap: 4px`) et les pictogrammes de l'éditeur, juste en dessous. */
 td:not(.row-actions):not(.line-tools) .btn + .btn { margin-inline-start: 6px; }
-.empty { padding: 48px 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed #d5dbe3; border-radius: var(--radius); }
+.empty { padding: 48px 24px; text-align: center; color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: var(--radius); }
 /* Le même état vide, DANS un panneau (9.4.5/9.4.6). 48 px de haut et un cadre pointillé, c'est la
    bonne présence quand la page entière est vide — c'est le premier écran, il faut qu'il occupe la
    place. Au milieu d'une fiche déjà pleine, le même bloc consacrait 250 px à « aucune relance
@@ -975,7 +975,7 @@ table.mini th { text-align: start; font-size: 11px; color: var(--muted); text-tr
 table.mini td { padding: 3px 6px; vertical-align: middle; }
 table.mini input, table.mini select { padding: 6px 8px; font-size: 13px; }
 .section-head { display: flex; align-items: center; justify-content: space-between; margin: 26px 0 12px; }
-.section-head h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.section-head h2 { margin: 0; font-size: 15px; font-weight: 650; }
 
 /* ---------- palette de recherche (Cmd+K) ---------- */
 #palette-root { position: fixed; inset: 0; background: rgba(27,36,48,.35); backdrop-filter: blur(3px); z-index: 60; display: flex; justify-content: center; align-items: flex-start; padding-top: var(--haut-fenetre); }
@@ -1178,7 +1178,7 @@ th.sortable-h:focus-visible { outline: 2px solid var(--primary); outline-offset:
 /* Sans repère au repos, personne ne devine qu'un en-tête se clique : « ⇅ » discret, flèche pleine une fois trié. */
 th.sortable-h:not(.sorted) .sort-ar { color: var(--muted); opacity: .45; }
 th.sortable-h:hover .sort-ar { opacity: 1; }
-table.list tfoot td { padding: 11px 16px; background: #fafbfc; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); font-weight: 600; }
+table.list tfoot td { padding: 11px 16px; background: var(--sb-papier-2, #fafbfc); border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); font-weight: 600; }
 table.list tfoot td.r { color: var(--text); font-variant-numeric: tabular-nums; }
 /* Les boutons de ligne ne tiennent plus sur une seule ligne dès qu'une pièce en porte cinq (un devis
    en attente : PDF, Email, Accepté, Refusé, Dupliquer). `nowrap` les poussait alors hors de l'écran,
@@ -1213,7 +1213,7 @@ th.row-actions-h { width: 1%; }
    l'allure du bouton qu'il côtoie : gris et à 90 %, « Exporter ▾ » se lisait comme un bouton éteint
    à côté de « Réimporter… », et « Imprimer la fiche » comme un texte à côté de « Modifier la fiche ».
    Seul le menu d'une LIGNE reste discret au repos (la ligne survolée l'allume). */
-.row-menu-btn.btn { color: var(--text); opacity: 1; padding: 9px 15px; font-size: 13px; border-radius: 10px; }
+.row-menu-btn.btn { color: var(--text); opacity: 1; padding: 9px 15px; font-size: 13.5px; border-radius: 10px; }
 .row-menu-btn.btn.btn-sm { padding: 6px 11px; font-size: 12px; border-radius: 8px; }
 .row-menu-btn svg { stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 /* Le bouton visible que la ligne a le droit de garder, et le menu juste après : sans cette règle
@@ -1270,10 +1270,10 @@ body.dark th.sortable-h:hover { background: #1f2731; }
 .combo-btn {
   font: inherit; font-size: 14px; color: var(--text); text-align: start;
   padding: 9px 11px; border: 1px solid var(--border); border-radius: var(--radius-sm);
-  background: #fbfcfd; width: 100%; cursor: pointer;
+  background: var(--sb-papier, #fbfcfd); width: 100%; cursor: pointer;
   display: flex; align-items: center; gap: 8px; transition: border-color .12s, box-shadow .12s, background .12s;
 }
-.combo-btn:hover { border-color: #d5dbe3; }
+.combo-btn:hover { border-color: var(--line); }
 .combo-btn[aria-expanded="true"], .combo-btn:focus-visible { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(15,157,143,.15); }
 .combo-val { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .combo-val.ph { color: var(--muted); font-weight: 400; }
@@ -1469,7 +1469,7 @@ body.dark .cal-d.out { color: #5b6572; }
 .lic-offre > .btn { margin-block-start: auto; align-self: flex-start; }
 .lic-prix { font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .warn-box {
-  background: var(--warning-soft); border-inline-start: 3px solid var(--warning); border-radius: 8px;
+  background: var(--warning-soft); border-inline-start: 3px solid var(--warning); border-radius: 12px;
   padding: 11px 14px; font-size: 13px; line-height: 1.55;
 }
 .warn-box.grave { background: var(--danger-soft); border-inline-start-color: var(--danger); }
@@ -2795,7 +2795,7 @@ body.dark .g-ligne.faite .g-l-ico { color: #0d1418; }
 .prix-rang > .btn { flex: 0 0 auto; }
 /* L'attestation d'exonération de retenue (10.15.0, H7) : un titre qui porte son état sur sa ligne,
    puis les trois champs. L'état vit À CÔTÉ du titre : sous les champs, il pousserait le bouton. */
-.exo-rs { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; }
+.exo-rs { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
 .exo-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; font-weight: 600; }
 .exo-titre > .small { font-weight: 400; }
 .exo-rs .grid-3 { gap: 10px 14px; }

@@ -126,7 +126,7 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .lf .conv { font-weight: 400; white-space: normal; max-width: 150px; margin-inline-start: auto; }
 .lf .trop { color: var(--sb-ambre-texte); font-weight: 600; }
 .lf td.lf-act { width: 72px; padding-left: 0; padding-right: 6px; white-space: nowrap; text-align: right; }
-.lf .btn.ico { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid transparent; background: none; color: var(--sb-gris-2); border-radius: 9px; }
+.lf .btn.ico { display: inline-flex; vertical-align: middle; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 32px; padding: 0; border: 1px solid transparent; background: none; color: var(--sb-gris-2); border-radius: 8px; }
 .lf .btn.ico:hover, .lf .btn.ico[aria-expanded="true"] { background: var(--sb-survol); border-color: var(--sb-trait); }
 .lf .btn.ico.enc { opacity: 0; color: var(--sb-sarcelle-texte); }
 .lf .enc-v { display: inline-block; width: 32px; }
@@ -312,7 +312,7 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .cf-dl dd small.rouge { color: var(--sb-rouge-texte); font-weight: 600; }
 .cf-fiche .manque { color: var(--sb-ambre-texte); font-weight: 600; }
 .cf-fiche .mu { color: var(--sb-gris-2); }
-.cf-bloc textarea { width: 100%; min-height: 84px; padding: 10px 12px; border: 1px solid var(--sb-trait-fort); border-radius: 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--sb-encre); background: var(--sb-papier); resize: vertical; box-sizing: border-box; }
+.cf-bloc textarea { width: 100%; min-height: 84px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--sb-encre); background: var(--sb-papier); resize: vertical; box-sizing: border-box; }
 .cf-pied { font-size: 12px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: center; margin: 0; }
 .cf-pied.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
 .cf-onglets { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--sb-trait); overflow-x: auto; scrollbar-width: none; }

@@ -86,20 +86,22 @@ export function releve(): Releve {
   }
   // Les boutons : la hauteur, l'arrondi, la taille du texte. Le principal : son fond.
   for (const b of dansRacine('.btn')) {
-    const s = getComputedStyle(b), petit = b.classList.contains('btn-sm');
+    const s = getComputedStyle(b), petit = b.classList.contains('btn-sm') || b.classList.contains('mini');
+    // Un bouton sans un mot est une icône : une autre famille, carrée, qui ne se compare pas à un bouton de barre.
+    if (!/\p{L}{2,}/u.test(b.textContent ?? '')) { noter('bouton icône', `${px(s.minHeight)}px de haut, arrondi ${px(s.borderTopLeftRadius)}`, b); continue; }
     noter(petit ? 'petit bouton' : 'bouton', `${px(s.minHeight)}px de haut, arrondi ${px(s.borderTopLeftRadius)}, texte ${px(s.fontSize)}px gras ${s.fontWeight}`, b);
     if (b.classList.contains('btn-primary') && !(b as HTMLButtonElement).disabled) noter('bouton principal', `fond ${rgb(s.backgroundColor)}`, b);
   }
   // Les champs de saisie.
   for (const c of dansRacine('input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]):not([type=range]):not([type=color]), select, textarea')) {
     const s = getComputedStyle(c);
-    if (px(s.borderTopWidth) === 0 && !rgb(s.backgroundColor)) continue;   // un champ nu, dessiné par son conteneur
+    if (px(s.borderTopWidth) === 0 || c === document.activeElement) continue;   // un champ nu est dessiné par son conteneur ; celui qui a le curseur montre un état, pas sa forme
     noter('champ', `arrondi ${px(s.borderTopLeftRadius)}, trait ${px(s.borderTopWidth)}px ${rgb(s.borderTopColor)}, texte ${px(s.fontSize)}px`, c);
   }
   // Les pastilles d'état.
   for (const b of dansRacine('.badge')) { const s = getComputedStyle(b); noter('pastille', `arrondi ${px(s.borderTopLeftRadius) >= 20 ? 'plein' : px(s.borderTopLeftRadius)}, texte ${px(s.fontSize)}px gras ${s.fontWeight}`, b); }
   // Les en-têtes de tableau.
-  for (const th of dansRacine('table th')) {
+  for (const th of dansRacine('table thead th')) {
     if (!(th.textContent ?? '').trim()) continue;
     const s = getComputedStyle(th); noter('en-tête de tableau', `${px(s.fontSize)}px gras ${s.fontWeight} ${s.textTransform} ${rgb(s.color)}`, th);
   }

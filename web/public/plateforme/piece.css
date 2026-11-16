@@ -96,7 +96,7 @@
    (la v10 la mettait en 600, hérité de l'étiquette), le titre d'une carte 14,5 px. */
 .editor.charte .field { color: var(--sb-gris-2); }
 .editor.charte .field :is(input, select) { font-weight: 500; color: var(--sb-encre); }
-.editor.charte .panel > h2 { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+.editor.charte .panel > h2 { font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
 
 /* les lignes */
 .ed-lignes { padding: 18px 20px; }
@@ -105,7 +105,7 @@
 .ed-lignes .catalog-pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .ed-lignes #cat-pick { flex: 1 1 260px; min-width: 0; }
 .ed-lignes #tpl-pick { flex: 0 1 200px; }
-.ed-lignes table.lines-edit th { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600; color: var(--sb-gris-2); }
+.ed-lignes table.lines-edit th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); }
 .ed-lignes table.lignes-doc tbody tr + tr { border-top-color: var(--sb-trait); }
 .ed-lignes table.lignes-doc tbody tr { padding-block: 8px; }
 .ed-lignes table.lines-edit input[data-k=label] { border-color: transparent; background: transparent; font-weight: 600; font-size: 14px; padding-inline: 4px; }
@@ -1202,7 +1202,7 @@
 .ac-lec-doc { display: grid; justify-items: center; gap: 6px; padding: 30px 16px; color: var(--sb-gris); text-align: center; }
 .ac-lec-doc b { color: var(--sb-encre); overflow-wrap: anywhere; }
 .ac-lec-t { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-.ac-lec-t h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 16px; }
+.ac-lec-t h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 15px; }
 .ac-lec-etapes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .ac-lec-etapes li { display: grid; grid-template-columns: 22px 1fr; column-gap: 12px; padding: 9px 10px; border-radius: 10px; }
 .ac-lec-etapes li.fait { background: var(--sb-papier-2); }
@@ -1363,7 +1363,7 @@
 #view .der-n b { font-size: 13px; }
 #view .der-n small { font-size: 12px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #view .der-m { display: grid; justify-items: end; gap: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
-#view .der-m .badge { font-size: 11px; padding: 2px 7px; }
+#view .der-m .badge { padding: 2px 7px; }
 #view .der-g { display: flex; gap: 6px; padding-top: 8px; }
 @media (max-width: 1100px) { #view .a-deux { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 900px) { #view .stats.a-ch { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -1380,7 +1380,7 @@
    une jauge fine, une étape par ligne, la suivante dite « À faire maintenant » avec le seul bouton principal. */
 #view .premiers-pas.pp2 { padding: 0; border-radius: 14px; background: var(--sb-papier); border: 1px solid var(--sb-trait); }
 #view .premiers-pas.pp2 .pp-tete { background: none; color: var(--sb-encre); padding: 18px 18px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 4px 16px; }
-#view .premiers-pas.pp2 .pp-tete h2 { font-family: inherit; font-size: 15px; font-weight: 700; color: var(--sb-encre); letter-spacing: -.01em; }
+#view .premiers-pas.pp2 .pp-tete h2 { font-family: inherit; font-size: 15px; font-weight: 650; color: var(--sb-encre); letter-spacing: -.01em; }
 #view .premiers-pas.pp2 .pp-tete p { color: var(--sb-gris); font-size: 13px; }
 #view .premiers-pas.pp2 .pp-jauge { display: contents; }
 #view .premiers-pas.pp2 .pp-compte { grid-column: 2; grid-row: 1; font-size: 12.5px; font-weight: 500; color: var(--sb-gris-2); }
