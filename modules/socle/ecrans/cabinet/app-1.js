@@ -4316,7 +4316,10 @@
   // La saisie des achats se lit sur la fiche (« Ce qui est confié ») : la liste dit la mission comme la maquette.
   const missionCd = d => `<span class="cd-mi">${(d.manual ? ['comptabilite', 'declarations'] : (d.perimetre || ['comptabilite', 'declarations'])).filter(p => p !== 'saisie_achats').map(p => `<span${p === 'declarations' ? ' title="Déclarations"' : ''}>${MISSION_CD[p] || esc(p)}</span>`).join('')}</span>`;
   const lienCd = d => d.manual ? '<span class="cd-li tenu">tenu au cabinet</span>' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;
-  const honCd = d => (Number(d.fees) || 0);
+  // (1.372.0) Le dossier d'exemple n'est pas un client : ses honoraires inventés ne s'ajoutent à aucun total du
+  // cabinet, et il ne compte dans aucun « n clients » (il se lit sur sa ligne, marqué).
+  const honFiche = d => (Number(d.fees) || 0);
+  const honCd = d => (d && d.demo ? 0 : honFiche(d));
   // Un montant de la colonne Honoraires : le titre dit déjà les dinars (la maquette les écrit « 380,000 »).
   const dtCd = v => money(v).replace(/\s*DT$/, '');
   // Ce qui manque à un client, dit en mois, et sa dernière relance (la vue « Pièces manquantes »).
@@ -4422,11 +4425,12 @@
     st.ordre = l.map(x => x.d.id);
 
     // L'en-tête : la phrase du portefeuille, « Ajouter un client… » (la direction), le menu de la page.
-    const tenusN = actifs.filter(d => d.manual).length;
-    const hon = actifs.reduce((t, d) => t + honCd(d), 0);
+    const vrais = actifs.filter(d => !d.demo);
+    const tenusN = vrais.filter(d => d.manual).length;
+    const hon = vrais.reduce((t, d) => t + honCd(d), 0);
     const miens = L.filter(x => aMoi(x.d));
     const phrase = dir
-      ? `${pl(actifs.length, 'client')} · ${actifs.length - tenusN} sur SkanFact, ${pl(tenusN, 'tenu', 'tenus')} au cabinet${hon ? ` · <span class="cd-nw">${esc(money(hon))}</span> d'honoraires par mois` : ''}.`
+      ? `${pl(vrais.length, 'client')} · ${vrais.length - tenusN} sur SkanFact, ${pl(tenusN, 'tenu', 'tenus')} au cabinet${vrais.length < actifs.length ? ' · et le dossier d\'exemple, qui ne compte pas' : ''}${hon ? ` · <span class="cd-nw">${esc(money(hon))}</span> d'honoraires par mois` : ''}.`
       : `Tu suis ${pl(miens.length, 'dossier')}${miens.length === actifs.length ? ` que la direction t'a confié${miens.length > 1 ? 's' : ''}` : ` sur les ${actifs.length} que tu vois`}${miens.filter(x => x.mo.tard).length ? ` · ${pl(miens.filter(x => x.mo.tard).length, 'a', 'ont')} un mois en retard` : ''}.`;
     const bandeauProp = inboxBanner();
     const primAjout = !/btn-primary/.test(bandeauProp) && st.vue !== 'manque';
@@ -4452,8 +4456,8 @@
         <span class="cd-barre" aria-hidden="true">${parts.map(([c, v]) => `<i style="--c:${c ? couleurCollab(c.id)[0] : 'var(--sb-trait-fort)'};flex:${v}"></i>`).join('')}</span>
         <span class="leg">${parts.map(([c, v]) => `<span><i style="background:${c ? couleurCollab(c.id)[0] : 'var(--sb-trait-fort)'}"></i>${c ? esc(prenomDe(c)) : 'sans suivi'} · ${esc(money(v))}</span>`).join('')}</span>
         <span class="tu-s">${esc(money(hon * 12))} sur l'année, d'après les fiches</span>` : '<span class="tu-m">— <small>aucun honoraire écrit</small></span><span class="tu-s">Ils s\'écrivent sur la fiche de chaque client (« Modifier la fiche »).</span>'}</div>`;
-      const tenusL = actifs.filter(d => d.manual);
-      const t2 = `<button type="button" class="tuile" data-cd-vue="tenus"><span class="tu-t">${CD_IC.lien} Sur SkanFact</span><span class="tu-m">${actifs.length - tenusN}<small> / ${actifs.length}</small></span><span class="tu-s">Leurs pièces arrivent seules. ${pl(tenusN, 'tenu', 'tenus')} au cabinet.</span>${tenusL.length ? `<span class="cd-voir">${CD_IC.inviter} Inviter ${esc(tenusL[0].name)}…</span>` : ''}</button>`;
+      const tenusL = vrais.filter(d => d.manual);
+      const t2 = `<button type="button" class="tuile" data-cd-vue="tenus"><span class="tu-t">${CD_IC.lien} Sur SkanFact</span><span class="tu-m">${vrais.length - tenusN}<small> / ${vrais.length}</small></span><span class="tu-s">Leurs pièces arrivent seules. ${pl(tenusN, 'tenu', 'tenus')} au cabinet.</span>${tenusL.length ? `<span class="cd-voir">${CD_IC.inviter} Inviter ${esc(tenusL[0].name)}…</span>` : ''}</button>`;
       tuiles = `<div class="tuiles deux cd-tuiles">${t1}${t2}</div>`;
     }
     // Un collaborateur ne lit que les dossiers qu'on lui confie (le serveur) : « Tous » y serait « Mes dossiers » répété.
@@ -4476,7 +4480,7 @@
         <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${x.mo.aPreciser ? `<button type="button" class="btn-lien cd-debut" data-cd-debut="${esc(d.id)}"${hors ? ' disabled' : ''}>Préciser…</button>` : ''}${x.pc ? `<a class="cd-pc" href="#/pieces/${encodeURIComponent(d.id)}" title="Les ouvrir dans « Pièces reçues »">${esc(pl(x.pc, 'pièce reçue', 'pièces reçues'))}, à classer</a>` : ''}${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
         <td>${missionCd(d)}</td><td>${suivi}</td>
         <td class="cd-ct"><span class="cd-ct-i"><span><b>${esc(d.contact || '—')}</b><small>${esc(d.fonction || d.phone || d.email || '')}</small></span>${nl}</span></td>
-        ${dir ? `<td class="r"><span class="num">${honCd(d) ? esc(dtCd(honCd(d))) : '—'}</span></td>` : ''}
+        ${dir ? `<td class="r"><span class="num${d.demo && honFiche(d) ? ' muted" title="Dossier d\'exemple : hors des totaux du cabinet' : ''}">${honFiche(d) ? esc(dtCd(honFiche(d))) : '—'}</span></td>` : ''}
         <td>${lienCd(d)}</td>
         <td class="lf-act">${relancer}${vite}<span class="tb-mw"><button type="button" class="btn ico" data-cd-menu="${esc(d.id)}" aria-label="Les gestes de ${esc(d.name)}" aria-haspopup="menu" aria-expanded="${st.menu === d.id}">${CD_IC.trois}</button>${st.menu === d.id ? menuLigneCd(x) : ''}</span></td></tr>`;
     };
@@ -4486,7 +4490,7 @@
       return `<button type="button" class="cd-carte" data-cd-carte="${esc(d.id)}">${marqueD(d)}<span class="cd-c-t"><span class="cd-c-h"><b>${esc(d.name)}</b>${x.nl ? `<span class="cd-nl-t">${x.nl}</span>` : ''}</span><span class="cd-c-m"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${d.manual ? '<span class="cd-li tenu">tenu</span>' : ''}</span><span class="cd-c-s">${esc(d.contact || '—')}${x.eq.suit ? ` · ${persCd(x.eq.suit, 18)} ${esc(prenomDe(x.eq.suit))}` : ''}${dir && honCd(d) ? ` · ${esc(money(honCd(d)))}` : ''}</span>${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</span>${CD_IC.fleche}</button>`;
     };
     const teteTab = `<thead><tr><th class="cx"><input type="checkbox" id="cd-tout" aria-label="Tout choisir"${st.choix.size && st.choix.size === vis.length ? ' checked' : ''}></th><th>Client</th><th>Le mois ${info('cd.mois')}</th><th>Mission</th><th>Suivi</th><th>Contact</th>${dir ? '<th class="r">Honoraires</th>' : ''}<th>Lien ${info('cd.lien')}</th><th></th></tr></thead>`;
-    const pied = `<tfoot><tr><td></td><td class="m">${pl(l.length, 'dossier')}</td><td colspan="4"><span class="pied-t">${st.vue === 'manque' ? `${l.filter(x => x.reclame).length} sans tous leurs mois` : (() => { const t = l.filter(x => x.d.manual).length, r = l.length - t; return `${t} ${t > 1 ? 'tenus' : 'tenu'} au cabinet · ${r} ${r > 1 ? 'reliés' : 'relié'}`; })()}</span></td>${dir ? `<td class="r m">${esc(dtCd(l.reduce((t, x) => t + honCd(x.d), 0)))}<small>DT par mois, HT</small></td>` : ''}<td colspan="2"></td></tr></tfoot>`;
+    const pied = `<tfoot><tr><td></td><td class="m">${pl(l.length, 'dossier')}</td><td colspan="4"><span class="pied-t">${st.vue === 'manque' ? `${l.filter(x => x.reclame).length} sans tous leurs mois` : (() => { const t = l.filter(x => x.d.manual).length, r = l.length - t; return `${t} ${t > 1 ? 'tenus' : 'tenu'} au cabinet · ${r} ${r > 1 ? 'reliés' : 'relié'}`; })()}</span></td>${dir ? (tot => `<td class="r m">${tot ? `${esc(dtCd(tot))}<small>DT par mois, HT</small>` : '—'}</td>`)(l.reduce((t, x) => t + honCd(x.d), 0)) : ''}<td colspan="2"></td></tr></tfoot>`;
     const pager = pages > 1 ? `<div class="pager cd-pager"><span>${(st.page - 1) * PAR_PAGE + 1} à ${Math.min(l.length, st.page * PAR_PAGE)} sur ${l.length}</span><span class="cd-pg"><button type="button" class="btn btn-sm" data-cd-pg="-1"${st.page <= 1 ? ' disabled' : ''}>Précédent</button><button type="button" class="btn btn-sm" data-cd-pg="1"${st.page >= pages ? ' disabled' : ''}>Suivant</button></span>${dir ? `<span class="mu">Les honoraires de la sélection entière : ${esc(money(l.reduce((t, x) => t + honCd(x.d), 0)))} par mois</span>` : ''}</div>` : '';
     let corps;
     if (q && !l.length) corps = `<div class="panel lf-tab"><div class="vide-f">${CD_IC.loupe}<b>Aucun client ne correspond à « ${esc(st.q)} »</b><span>La recherche lit le nom, le matricule, le téléphone, l'e-mail et le contact de tous tes clients, archivés compris.</span><span class="pr-b"><button type="button" class="btn btn-sm" id="cd-effacer">Effacer la recherche</button>${dir ? `<button type="button" class="btn btn-sm" id="cd-ajouter-q">${CD_IC.plus} Ajouter un client…</button>` : ''}</span></div></div>`;
@@ -5097,7 +5101,7 @@
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
     const cote = `<aside class="fd-cote" aria-label="La fiche">
-      ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honCd(d) ? `${esc(dtCd(honCd(d)))} DT HT par mois` : 'à écrire sur la fiche') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
+      ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honFiche(d) ? `${esc(dtCd(honFiche(d)))} DT HT par mois` : 'à écrire sur la fiche') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
       ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : '<span class="muted small">Personne ne suit encore ce dossier.</span>'}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
       ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', `${esc(labelOf(K.TVA_PERIODS, d.tvaPeriod) || 'mensuelle')} · déclarée le 28 (À VÉRIFIER)`)}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
@@ -7545,8 +7549,9 @@
           ...(enCompta ? [
             { icon: 'modifier', label: 'Modifier la fiche', hint: 'L\'identité, le contact, la mission', run: () => dossierForm(dossier) },
             row.missingCount ? { icon: 'email', label: 'Relancer le client', hint: pl(row.missingCount, 'mois manquant', 'mois manquants'), run: () => writeRelance(row) } : null,
-            { icon: 'horloge', label: 'Le suivi du dossier', hint: 'Les mois reçus, les relances, l\'équipe', run: () => versOnglet('suivi') },
-            packs.length ? { icon: 'dossier', label: 'Les paquets reçus', hint: pl(packs.length, 'paquet'), run: () => versOnglet('paquets') } : null,
+            // (1.372.0) Un client tenu au cabinet n'envoie rien : ni « mois reçus », ni « paquets reçus » dans son menu.
+            { icon: 'horloge', label: 'Le suivi du dossier', hint: dossier.manual ? 'Ses mois, la révision, l\'équipe' : 'Les mois reçus, les relances, l\'équipe', run: () => versOnglet('suivi') },
+            packs.length && !dossier.manual ? { icon: 'dossier', label: 'Les paquets reçus', hint: pl(packs.length, 'paquet'), run: () => versOnglet('paquets') } : null,
             { sep: true },
             // Sur la Banque, les gestes du relevé ouvert.
             ...(livresState.onglet === 'banque' && banqueState.gestesReleve ? [...banqueState.gestesReleve(), { sep: true }] : [])] : []),

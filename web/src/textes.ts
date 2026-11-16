@@ -193,7 +193,7 @@ declarerTextes({
   'ecran.code_requis.titre': 'dernière étape : protège ton compte',
   'ecran.code_requis.aide': 'à chaque connexion, SkanFact te demandera aussi un code qui s\'affiche sur ton téléphone : sans lui, personne n\'entre à ta place, même avec ton mot de passe. Il est exigé de chaque comptable d\'un cabinet, qui voit les comptes et les salaires de ses clients. Deux minutes, une seule fois',
   'ecran.code_requis.cabinet': 'ton cabinet « {nom} » t\'attend',
-  'ecran.code_requis.etape1': 'une application d\'authentification gratuite sur ton téléphone',
+  'ecran.code_requis.etape1': 'une application d\'authentification gratuite sur ton téléphone : Google Authenticator ou Microsoft Authenticator, par exemple',
   'ecran.code_requis.etape2': 'tu y scannes un code QR',
   'ecran.code_requis.etape3': 'tu tapes le code qu\'elle affiche',
   'ecran.code_requis.bouton': 'mettre en place le code',

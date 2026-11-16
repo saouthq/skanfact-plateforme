@@ -321,7 +321,10 @@
     // Le contenu d'un volet replié (<details> fermé) garde une boîte dans Chromium, qui le rend en
     // content-visibility: hidden : sans ce test, la bulle éclairait un compte caché dans « 1 compte hors
     // cycle » et l'anneau entourait du vide (10.14.1, joué au guide). Le <summary> reste visible.
-    for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) {
+    // (1.372.0) Un volet replié est lui-même à l'écran (sa ligne de titre) : seul son CONTENU est caché.
+    // Jugé invisible, chaque compte replié du grand livre sortait de sa visite.
+    const depart = el.tagName === 'DETAILS' ? (el.parentElement && el.parentElement.closest('details')) : el.closest('details');
+    for (let d = depart; d; d = d.parentElement && d.parentElement.closest('details')) {
       if (!d.open && !el.closest('summary')) return false;
     }
     if (typeof el.checkVisibility === 'function' && !el.checkVisibility()) return false;
@@ -2187,6 +2190,15 @@
       for (const c of el.children) {
         if (!visible(c) || c.closest('#visite-bulle')) continue;
         if (exclure && c.matches(exclure)) continue;
+        // (1.372.0) L'hôte parle d'abord. Un bloc qu'il a NOMMÉ (une zone écrite pour lui) est un bloc,
+        // quelle que soit sa classe : une rangée de tuiles ou de vues est une DIV sans titre, donc elle se
+        // traversait, et la phrase écrite pour elle n'était jamais lue. Et un conteneur qu'il dit de
+        // TRAVERSER (`descendre`) se lit partie par partie : toute la comptabilité d'un dossier vit dans un
+        // seul panneau, que la visite lisait d'un bloc — les onglets récités sous le titre « Le brouillard ».
+        let nomme = null;
+        try { nomme = hote.zone ? hote.zone(c) : null; } catch (_) { nomme = null; }
+        if (nomme && nomme.descendre) { if (prof < 8 && c.children.length) walk(c, prof + 1); continue; }
+        if (nomme && nomme.texte) { out.push(c); continue; }
         if (c.matches(BLOCS)) { out.push(c); continue; }
         // Un conteneur sans titre à lui (une DIV, une SECTION d'onglet) se traverse : ses panneaux sont
         // les blocs. Les Réglages du Cabinet rangent chaque onglet dans une <section> — lue d'un bloc,
@@ -2196,7 +2208,12 @@
       }
     };
     if (racine) walk(racine, 0);
-    return out;
+    // Une série de blocs jumeaux (les vingt-sept comptes d'un grand livre) s'explique une fois, sur le
+    // premier : vingt-sept étapes identiques ne guident personne. C'est l'hôte qui dit qu'une zone est
+    // une série (`serie`) — deux panneaux de même classe ne sont pas des jumeaux pour autant.
+    const serieDe = el => { try { const z = hote.zone ? hote.zone(el) : null; return z && z.serie ? z.serie : ''; } catch (_) { return ''; } };
+    const vues = new Set();
+    return out.filter(b => { const s = serieDe(b); if (!s) return true; if (vues.has(s)) return false; vues.add(s); return true; });
   }
   // Le titre d'un bloc : son intitulé, sans la bulle « i » ni les compteurs qui l'accompagnent.
   const titreDe = el => {
@@ -2367,7 +2384,24 @@
       // 4. un bouton de calendrier, un lien vers une page
       if (el.matches('.d-btn, [aria-label="Ouvrir le calendrier"]')) return { cle: 'cal', nom: 'Calendrier', texte: "Ouvre le calendrier pour choisir la date." };
       // 26/09 — « Ouvre ce qui est nommé » ne disait rien à un débutant : le lien NOMME sa page, la bulle aussi.
-      if (el.matches('a[href^="#/"]')) return { cle: 'lien:' + (el.getAttribute('href') || '').split('/')[1], nom: lab, texte: lab ? `Emmène à la page « ${lab} ».` : 'Emmène à la page qu\'il nomme.' };
+      if (el.matches('a[href^="#/"]')) {
+        // (1.372.0) Une ligne-lien à plusieurs morceaux (titre, date, compte) : son texte entier se lisait
+        // collé — « Déclaration d'octobre 2026samedi 28/11…7 dossiers » — et passait pour le nom d'une page.
+        // Le NOM est son premier morceau ; la page d'arrivée est celle que le menu nomme.
+        const racine = (el.getAttribute('href') || '').split('/')[1] || '';
+        let court = lab;
+        if (el.children.length) {
+          const c = el.cloneNode(true);
+          c.querySelectorAll('button.i, .badge, .pp-compte, [role="img"], [aria-hidden="true"], svg').forEach(x => x.remove());
+          const w = document.createTreeWalker(c, 4);
+          let n = w.nextNode();
+          while (n && !nettoie(n.nodeValue)) n = w.nextNode();
+          if (n) court = nettoie(n.nodeValue);
+        }
+        const menu = court !== lab && [...document.querySelectorAll('nav a[href="#/' + racine + '"]')].find(a => a !== el);
+        const page = menu ? nettoie((menu.getAttribute('title') || '').split(' · ')[0]) : '';
+        return { cle: 'lien:' + racine, nom: court, texte: page ? `Emmène à la page « ${page} ».` : court ? `Emmène à la page « ${court} ».` : 'Emmène à la page qu\'il nomme.' };
+      }
       return null;
     };
   }
@@ -2379,10 +2413,11 @@
         let ok = false;
         try { ok = el.matches(z.sel); } catch (_) { ok = false; }
         if (ok) {
+          if (z.descendre) return { descendre: true };
           const titre = z.sel === '.banner' ? nettoie((el.querySelector('b') || el).textContent).slice(0, 80) : z.titre;
           let texte = z.texte;
           if (typeof texte === 'function') { try { texte = texte(el); } catch (_) { texte = ''; } }
-          return { titre: titre || z.titre, texte: texte || '' };
+          return { titre: titre || z.titre, texte: texte || '', serie: z.serie ? z.sel : '' };
         }
       }
       return null;

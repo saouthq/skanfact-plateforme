@@ -4204,3 +4204,51 @@ le nomme.
 dossier tenu propose « Les paquets reçus » ; l'inscription, le code à usage unique et chaque visite « Guide-moi »
 restent à rejouer à la souris, au téléphone aussi.
 
+
+### 1.372.0 : le guide du Cabinet explique chaque écran
+
+Demande de Skander : « Fais attention aussi au guide et à la simplicité de compréhension, sinon il va être perdu et
+abandonner. » Chaque visite « Guide-moi » a été déroulée à la souris, écran par écran, sur le cabinet d'essai.
+
+**Ce qui n'allait pas.** La visite d'une page se LIT sur l'écran, bloc par bloc ; elle ne connaissait que les blocs de
+l'ancien Cabinet. Sur les écrans en ligne :
+
+- le tableau de bord sautait « À faire maintenant » et la campagne du mois (4 étapes, dont deux utiles) ;
+- la liste des dossiers se réduisait à « Chercher », sous une introduction qui décrivait l'ancien écran ;
+- la fiche d'un dossier annonçait « deux onglets » qui n'existent plus, et n'expliquait que les relances ;
+- toute la comptabilité d'un dossier vit dans UN panneau : la visite le lisait d'un bloc, ses onglets récités sous le
+  titre « Le brouillard », et promettait « je vais te les ouvrir un par un » sans le faire ;
+- les vingt-sept comptes repliés d'un grand livre étaient jugés invisibles (un volet replié) ;
+- « Les prochaines dates » nommait une ligne par tout son texte collé — « Déclaration d'octobre 2026samedi 28/11 ·
+  dans 12 jours7 dossiers » — et l'annonçait comme le nom d'une page.
+
+**Ce qui est fait.**
+
+- Le moteur (`web/public/v10/visite.js`) écoute l'hôte d'abord : un bloc NOMMÉ par une zone est une étape quelle que
+  soit sa classe ; un conteneur que l'hôte dit de traverser (`descendre`) se lit partie par partie ; une `serie`
+  (les comptes du grand livre) s'explique une fois ; un volet replié est à l'écran ; une ligne-lien se nomme par son
+  premier morceau et dit la page où elle mène.
+- Les zones du Cabinet (`modules/socle/visites/cabvisites.js`) : une phrase pour chaque bloc du tableau de bord, des
+  dossiers, de la fiche, des quatorze écrans de comptabilité (la frise des mois, la grille, le brouillard, le relevé,
+  la preuve de banque, les bulletins, le formulaire de déclaration, les feuilles maîtresses, la liasse…), du
+  classeur, des pièces, des échéances, des messages et des relances. Chaque phrase a été vérifiée contre ce que
+  l'écran FAIT (un clic sur une case détaille le mois, une étape de la campagne filtre la grille…).
+- Mesuré : tableau de bord 4 → 6 étapes, dossiers 3 → 6, fiche 4 → 10, saisie 4 → 8, banque 4 → 9, paie 4 → 11.
+
+**Le dossier d'exemple n'est pas un client.** Il gonflait « n clients » et les honoraires du cabinet (250 DT par mois
+inventés). Il reste sur sa ligne, marqué, hors des totaux ; la phrase du portefeuille le dit.
+
+**Tests.** `tests/web/cabinet-visites-1372.test.ts` : douze écrans du dossier d'exemple, chacun avec ses étapes et leur
+phrase ; la visite du tableau de bord déroulée à la souris ; l'exemple hors des comptes. Dix preuves par
+réintroduction (« visites 1.372.0 a–l »). Deux bouts de code que la preuve a montrés inutiles ont été retirés.
+
+**L'inscription d'un comptable, jouée à la souris** (ordinateur et téléphone, base d'essai) : créer le compte, « Je suis
+un cabinet comptable », le nom du cabinet, puis le code du téléphone, exigé de chaque comptable depuis le 09/10/2026.
+C'est le seul passage où un testeur peut caler : il lui faut une application d'authentification AVANT de voir le
+Cabinet. La règle de sécurité n'est pas touchée ; l'écran nomme maintenant deux applications. **À décider par Skander**
+pour l'alpha : garder cette exigence dès la première minute, ou la demander à la première pièce d'un vrai client.
+
+**Le menu d'un dossier tenu au cabinet** ne propose plus « Les paquets reçus », et son suivi ne parle plus de « mois
+reçus » : ce client n'envoie rien.
+
+**Reste à faire, noté.** Les parcours « geste guidé » (47) n'ont pas tous été joués un à un.

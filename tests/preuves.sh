@@ -29853,6 +29853,54 @@ prouver $'reprise 1.371.0 d : une ouverture en vigueur ne barre plus la reprise'
   $'and e.date_ecriture between v_ex.du and v_ex.au and false and e.origine_type <> \'contre_passation\'' \
   $'la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste'
 
+
+# (1.372.0) Les visites guidées du Cabinet : chaque écran en ligne explique ses blocs.
+prouver $'visites 1.372.0 a : un bloc que l\'hôte a nommé se traverse encore' web/public/v10/visite.js \
+  $'        if (nomme && nomme.texte) { out.push(c); continue; }' \
+  $'        if (false && nomme && nomme.texte) { out.push(c); continue; }' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 b : la comptabilité d\'un dossier se lit d\'un bloc' web/public/v10/visite.js \
+  $'        if (nomme && nomme.descendre) { if (prof < 8 && c.children.length) walk(c, prof + 1); continue; }' \
+  $'        if (false && nomme && nomme.descendre) { if (prof < 8 && c.children.length) walk(c, prof + 1); continue; }' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 c : vingt-sept comptes font vingt-sept étapes' web/public/v10/visite.js \
+  $'if (!s) return true; if (vues.has(s)) return false; vues.add(s); return true; });' \
+  $'return true; });' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 d : un volet replié est jugé invisible' web/public/v10/visite.js \
+  $'    const depart = el.tagName === \'DETAILS\' ? (el.parentElement && el.parentElement.closest(\'details\')) : el.closest(\'details\');' \
+  $'    const depart = el.closest(\'details\');' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 e : une ligne-lien se nomme par tout son texte collé' web/public/v10/visite.js \
+  $'        if (el.children.length) {\n          const c = el.cloneNode(true);' \
+  $'        if (false && el.children.length) {\n          const c = el.cloneNode(true);' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 f : la campagne du mois n\'a plus sa phrase' modules/socle/visites/cabvisites.js \
+  $'    { sel: \'#tb-campagne\', titre:' \
+  $'    { sel: \'#tb-campagne-x\', titre:' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 g : les panneaux de la fiche restent muets' modules/socle/visites/cabvisites.js \
+  $'    { sel: \'.fd-p\', texte: el => {' \
+  $'    { sel: \'.fd-p-x\', texte: el => {' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 i : les panneaux de la déclaration et de la liasse restent muets' modules/socle/visites/cabvisites.js \
+  $'    { sel: \'.cp-corps .panel:not(.gl-compte)\', texte: el => {' \
+  $'    { sel: \'.cp-corps-x .panel:not(.gl-compte)\', texte: el => {' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+
+prouver $'visites 1.372.0 k : les honoraires de l\'exemple s\'ajoutent à ceux du cabinet' modules/socle/ecrans/cabinet/app-1.js \
+  $'  const honCd = d => (d && d.demo ? 0 : honFiche(d));' \
+  $'  const honCd = d => honFiche(d);' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 l : le dossier d\'exemple compte parmi les clients' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const vrais = actifs.filter(d => !d.demo);' \
+  $'    const vrais = actifs;' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'visites 1.372.0 m : le menu d\'un dossier tenu propose « Les paquets reçus »' modules/socle/ecrans/cabinet/app-1.js \
+  $'            packs.length && !dossier.manual ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
+  $'            packs.length ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

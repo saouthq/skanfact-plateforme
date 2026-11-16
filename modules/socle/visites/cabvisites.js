@@ -84,7 +84,7 @@
   // dossier de l'exemple qui le montre rempli (`livre` : un dossier qui a son livre).
   const PAGES = {
     dossiers: { titre: 'Les dossiers', resume: 'Ton portefeuille : chaque client, son dernier mois, ce qui manque.',
-      texte: '<p>La page où le Cabinet s\'ouvre. Chaque client sur une ligne : le dernier mois de ses livres, son chiffre d\'affaires, ce qui manque — et la dernière relance quand il y en a eu une (une colonne vide se masque).</p><p>Au-dessus, les chiffres du portefeuille et <b>« À faire »</b> : ce qui attend un geste de ta part, du plus urgent au moins urgent.</p>' },
+      texte: '<p>Tout ton portefeuille, un client par ligne : le mois où en sont ses livres, ta mission, qui le suit, tes honoraires — et s\'il est sur SkanFact ou tenu au cabinet.</p><p>Au-dessus, les chiffres du portefeuille et les vues. <b>Un clic sur une ligne ouvre le dossier</b> ; « Ajouter un client… » en crée un, ou toute une liste collée depuis un tableur.</p>' },
     relances: { titre: 'Les relances', resume: 'Les clients qui te doivent un mois, et le mail tout prêt.',
       texte: '<p>Les clients sur SkanFact dont un mois passé n\'a aucune écriture. Pour chacun, <b>le mail est prêt</b> : tu relis, tu envoies.</p><p>Une relance faite ailleurs (un appel) se note aussi : l\'historique dit qui a été relancé, et quand.</p>' },
     echeances: { titre: 'Les échéances', resume: 'Les dates fiscales du mois, et qui n\'a pas ses pièces avant.',
@@ -100,7 +100,7 @@
     guide: { titre: 'Me guider', resume: 'Toutes les visites guidées, et où tu en es.',
       texte: '<p>La découverte sur l\'exemple, les gestes guidés clic par clic, et la visite de chaque écran. Ce que tu as déjà fait est coché.</p>' },
     dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité.', dossier: 'client',
-      texte: '<p>Tout ce qui concerne un client, en deux onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note) et <b>Comptabilité</b> (ses livres).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+      texte: '<p>Tout ce qui concerne un client sur une page : ce qui attend, son année mois par mois, ses relances — et, à droite, sa fiche.</p><p>Sa <b>comptabilité</b> s\'ouvre par le menu de gauche : Saisir, Consulter, Déclarer.</p>' },
     // (1.174.7) Les pièces reçues (maquette « Pièces reçues ») : la visite de la page, comme les autres écrans.
     pieces: { titre: 'Pièces reçues', resume: 'Ce que tes clients envoient, et ce que tu déposes.',
       texte: '<p>Les pièces arrivées des clients, <b>rangées par dossier</b>, ce qui presse en tête. Une pièce s\'ouvre à droite, avec ce que le client en a dit.</p><p>Chaque pièce a <b>son geste</b> : le bouton vert dit ce qu\'elle doit devenir. <b>Saisir l\'achat</b> la met dans les achats du client, avec sa photo ; une photo qu\'il a rangée se <b>vérifie</b> ; un relevé se <b>rapproche</b>. Ce qui ne se saisit pas se classe sans saisir, avec sa raison.</p>' },
@@ -153,9 +153,94 @@
     { sel: '.premiers-pas', titre: 'Tes premiers pas', texte: 'L\'ordre des choses pour démarrer le Cabinet. Chaque étape se coche <b>toute seule</b> quand c\'est fait.' },
     // Dit tel qu'il EST : le bouton vert nommé, ou son absence (`texteDuHaut`, 10.14.1).
     { sel: '.page-head', titre: 'Le haut de l\'écran', texte: el => M.texteDuHaut(el, el.querySelector('.guide-moi') ? '« Guide-moi » liste tout ce qu\'on peut faire ici : la visite de l\'écran, chaque geste montré pas à pas, et l\'article qui l\'explique.' : '') },
+    // (1.372.0) Les blocs des écrans en ligne. Sans leur phrase, la visite du tableau de bord sautait « À faire
+    // maintenant » et la campagne du mois, et celle des dossiers se réduisait à « Chercher » : la moitié de
+    // l'écran restait sans un mot pour un comptable qui l'ouvre la première fois.
+    { sel: '#tb-afaire', titre: 'À faire maintenant', texte: 'Ce qui attend un geste de ta part, <b>le plus pressé d\'abord</b>. Chaque ligne dit quoi, pour quels clients et pour quand ; son bouton t\'y emmène. Quand il n\'y a rien, la page le dit.' },
+    { sel: '#tb-campagne', titre: 'La campagne du mois', texte: 'La déclaration qui arrive, pour tout le cabinet : à gauche, combien sont déposées et la date limite ; à droite, les dossiers rangés par étape — <b>à saisir, à réviser, prête, déposée</b>. Un clic sur une étape ne garde, dans la grille du dessous, que ses dossiers.' },
+    { sel: '#tb-dossiers', titre: 'La grille des dossiers', texte: 'Un client par ligne, un mois par colonne. Chaque case dit où en est ce mois : <b>« ! » à saisir</b>, puis à réviser, prêt, déposé. Un clic sur une case détaille ce mois : pièces, saisie, révision, déclaration, banque — et t\'y emmène. En haut, « Production », « Révision » et « Bilans » sont trois regards sur les mêmes dossiers.' },
+    { sel: '#tb-dates', titre: 'Les prochaines dates', texte: 'Les dates limites qui approchent, et combien de dossiers chacune concerne. Les dates sont celles de l\'usage : <b>à vérifier</b> pour chaque client.' },
+    { sel: '.cd-tuiles', titre: 'Les chiffres du portefeuille', texte: 'À gauche, les <b>honoraires</b> que tes fiches annoncent, par mois et sur l\'année. À droite, combien de tes clients sont sur SkanFact : leurs pièces arrivent seules ; les autres, tu les tiens toi-même ici.' },
+    { sel: '.cd-vues', titre: 'Les vues', texte: 'Le même portefeuille, regardé autrement : tous les dossiers, les tiens, ceux dont des pièces manquent, ceux que tu tiens au cabinet, les archivés. Le chiffre dit combien chaque vue en garde.' },
+    { sel: '.filtres', titre: 'Trier et retrouver', texte: 'Range la liste par nom ou par urgence, et ne garde que les dossiers suivis par une personne. Pour chercher un client, tape « / » puis quelques lettres.' },
+    { sel: '.lf-tab', titre: 'La liste des clients', texte: 'Un client par ligne : le mois où en sont ses livres, ta mission, qui le suit, son contact, tes honoraires et son lien avec SkanFact. <b>Un clic ouvre son dossier.</b> Au clavier : ↑ ↓ d\'un client à l\'autre, Entrée pour ouvrir.' },
+    // Les pages générales du cabinet.
+    { sel: '.ctx-cab:has(.portee)', titre: 'Les miens, ou tous', texte: 'Ce que la page regarde : <b>tes</b> dossiers, ou tous ceux du cabinet. Le choix vaut d\'une page à l\'autre.' },
+    { sel: '.pc-barre', titre: 'À classer, classées', texte: 'Deux onglets : les pièces qui attendent d\'être rangées dans un dossier, et celles qui le sont déjà. À côté, ne garde qu\'un client.' },
+    { sel: '.pc-vide', titre: 'Quand rien n\'arrive seul', texte: 'Les pièces d\'un client sur SkanFact arrivent ici toutes seules. Un client que tu tiens au cabinet n\'envoie rien : <b>tu déposes toi-même</b> ses papiers (un scan, une photo), ou tu les lui demandes.' },
+    { sel: '.ec-col', titre: 'Les dates limites', texte: 'Celles en retard d\'abord, puis les prochaines. « Liste » ou « Mois » change la façon de les voir ; un clic sur une date l\'ouvre à côté.' },
+    { sel: '.ec-det', titre: 'L\'échéance ouverte', texte: 'Ce que cette date demande, et pour quels clients : qui est prêt, qui ne l\'est pas. Chaque client mène à son dossier. Les dates suivent l\'usage — <b>à vérifier</b> pour chacun.' },
+    { sel: '#msg-racine', titre: 'Les conversations', texte: 'Une conversation par client sur SkanFact : ses messages, ses photos de pièces, tes réponses. Un client que tu tiens au cabinet n\'en a pas ici.' },
+    { sel: '#page-rel .info-box', titre: 'Qui relancer', texte: 'La page réclame leurs pièces aux clients <b>sur SkanFact</b> qui sont en retard. Un client que tu tiens au cabinet n\'est jamais relancé d\'ici : c\'est toi qui saisis.' },
+    { sel: '.cl-ch', titre: 'Chercher une pièce', texte: 'Tape « / » puis un fournisseur, un montant ou un numéro : la recherche lit tout le dossier, pas seulement le mois ouvert.' },
+    { sel: '.cl-arbre', titre: 'Le classeur, mois par mois', texte: 'Comme un classeur papier : le dossier permanent (statuts, contrats…), puis un intercalaire par mois de l\'exercice, avec le nombre de pièces. Un clic ouvre un mois.' },
+    { sel: '.cl-liste', titre: 'Les pièces du mois', texte: 'Tout ce que le mois ouvert contient, rangé par nature : ce qui est arrivé, la banque, la paie, les déclarations. Une pièce « à saisir » attend son écriture.' },
+    // La fiche d'un dossier : ses quatre chiffres, ses panneaux (chacun reconnu à son titre), sa colonne.
+    { sel: '.fd-g, .fd-col, #c-compta, #c-livres, .cp-corps, .bq-ecran', descendre: true },
+    { sel: '.fd-ch', titre: 'Quatre chiffres', texte: 'Le dossier en quatre chiffres, lus dans ses livres : son chiffre d\'affaires de l\'année, ce qu\'il a payé à l\'État, sa banque et jusqu\'où elle est rapprochée, et ce qui dort au compte d\'attente.' },
+    { sel: '.fd-debuter', texte: 'Le chemin d\'un dossier qui commence, dans l\'ordre : son livre, ses soldes d\'ouverture, ses salariés, ses biens, sa banque, puis la première pièce. Chaque étape se coche <b>toute seule</b> quand elle est faite.' },
+    { sel: '.fd-p', texte: el => {
+      const ti = M.nettoie((el.querySelector('h2, h3') || el).textContent || '');
+      if (/^Ce qui attend/.test(ti)) return 'Les gestes qui attendent sur ce dossier, <b>dans l\'ordre</b> : le premier est celui à faire maintenant, et son bouton t\'y emmène.';
+      if (/^La révision/.test(ti)) return 'Où en est la révision du mois, point par point : les écritures, la banque, les comptes d\'attente, la déclaration.';
+      if (/^L.année/.test(ti)) return 'Les douze mois de l\'exercice, dans le sens du temps. Chaque case dit l\'état du mois et ce qui a été payé ; <b>un clic la détaille</b> — pièces, saisie, révision, déclaration, paiement — et mène à ses écritures.';
+      if (/SkanFact/.test(ti)) return 'Ton client peut rejoindre son dossier : il y dépose ses pièces et suit ses déclarations, toi tu gardes la main sur ses livres. <b>Rien ne l\'y oblige</b> : sans lui, tu tiens tout ici.';
+      if (/^Les relances/.test(ti)) return 'Chaque fois que tu réclames quelque chose à ce client, la trace reste ici : la date, le moyen, ce qui était demandé.';
+      return '';
+    } },
+    { sel: '.fd-cote', titre: 'La fiche du client', texte: 'Tout ce qu\'on sait de lui, d\'un coup d\'œil : ta mission et tes honoraires, qui le suit dans l\'équipe, son identité fiscale, son contact, ta note et l\'historique. Pour corriger une ligne : le bouton « ⋯ » en haut de la page, puis « Modifier la fiche ».' },
+    // La comptabilité d'un dossier : la même frise de mois sur les quatorze écrans, puis l'écran lui-même.
+    { sel: '.cp-an', titre: 'L\'année, mois par mois', texte: 'Les douze mois de l\'exercice, chacun avec son état : déposé, à déposer, en cours, à venir. <b>Un clic sur un mois</b> ne montre que ce mois sur l\'écran ; « Toute l\'année » revient à l\'exercice entier.' },
+    { sel: '#sx-zone', titre: 'Les pièces à saisir', texte: 'Les pièces que ton client t\'a envoyées et qui attendent leur écriture. Pour un client que tu tiens au cabinet, il n\'y en a pas : tu saisis depuis ses papiers, dans la grille juste en dessous.' },
+    { sel: '.sx-km', titre: 'La grille de saisie', texte: 'Une pièce : son journal, sa date, son libellé, puis une ligne par compte. <b>Entrée</b> descend d\'une case à l\'autre, <b>Tab</b> solde la pièce. Enregistrée, elle part au brouillard, où elle se corrige encore.' },
+    { sel: '.sx-bl-z', titre: 'Le brouillard', texte: 'Tout ce que tu saisis arrive ici : sans numéro, modifiable, supprimable. Une pièce au brouillard <b>n\'entre dans aucun chiffre</b> ; validée, elle reçoit son numéro et ne se modifie plus.' },
+    { sel: '.bq-h', titre: 'Le relevé', texte: 'Le relevé de banque ouvert, et ceux déjà importés. « Importer un relevé… » lit le fichier de ta banque ; « Les règles » retient à quel compte va un libellé qui revient.' },
+    { sel: '.bq-f', titre: 'Où en est le relevé', texte: 'Ses lignes, rangées par état : rapprochées, proposées (à confirmer), à traiter, en attente de ton client. Un clic ne garde que cet état.' },
+    { sel: '.bq2', titre: 'Les lignes de la banque', texte: 'Chaque ligne du relevé, et en face l\'écriture qui lui répond. Ce que le Cabinet propose se <b>confirme</b> — rien n\'est rapproché sans toi. Une ligne sans écriture s\'écrit d\'ici.' },
+    { sel: '.bqp', titre: 'La preuve', texte: 'Le solde du relevé, ce qui n\'est pas encore au livre, ce qui n\'est pas encore en banque : la somme doit retomber sur le solde du compte 532. L\'écart se lit ici.' },
+    { sel: '#pa-tete', titre: 'Le mois de paie', texte: 'Choisis le mois : la page montre ses bulletins. Les salariés du client se gèrent d\'ici aussi.' },
+    { sel: '#pa-mois-carte', titre: 'Les étapes du mois', texte: 'La paie d\'un mois, dans l\'ordre : le pointage, les bulletins, l\'écriture de paie, le paiement. Chaque étape se coche quand elle est faite.' },
+    { sel: '.cp-pa-tuiles', titre: 'Les chiffres du mois', texte: 'Le brut, le net à payer et les charges du mois, comparés au mois d\'avant.' },
+    { sel: '.cp-pa-grille', titre: 'Les bulletins', texte: 'Un salarié par ligne : son brut, son net, l\'écart avec le mois d\'avant et où en est son bulletin. Un clic ouvre le bulletin, ligne par ligne.' },
+    { sel: '#pa-ecriture', titre: 'L\'écriture de paie', texte: 'Ce que la paie du mois écrit dans le livre, compte par compte. Elle se déduit des bulletins : tu ne la retapes pas.' },
+    // Les panneaux des écrans « Déclarer et clôturer », reconnus à leur titre : chacun dit à quoi il sert.
+    { sel: '.cp-corps .panel:not(.gl-compte)', texte: el => {
+      const ti = M.nettoie((el.querySelector('h2, h3, summary') || el).textContent || '');
+      const P = [
+        [/^Les étapes du mois/, 'La déclaration d\'un mois, dans l\'ordre : la préparer, écrire son écriture, la marquer déposée, puis payée. Le Cabinet <b>ne dépose rien</b> à ta place : tu recopies sur le portail, et tu le notes ici.'],
+        [/^Le formulaire du mois/, 'Les cases de la déclaration, dans l\'ordre de l\'imprimé, calculées depuis le livre. Un clic sur un montant le copie, prêt à coller sur le portail.'],
+        [/^Les feuilles maîtresses/, 'Les comptes du dossier, rangés par cycle : trésorerie, ventes, achats, personnel… Tu ouvres un cycle, tu revois ses comptes, tu les signes un à un.'],
+        [/^Notes de revue/, 'Ce que tu veux garder de ta revue : un point à surveiller, une explication donnée par le client.'],
+        [/^Questionnaire/, 'Les questions que ton cabinet se pose à chaque fin d\'exercice. Il s\'écrit une fois, pour tous tes dossiers.'],
+        [/^Les questions posées/, 'Les questions que tu as posées au client sur une ligne précise, et ses réponses.'],
+        [/^Avant de clôturer/, 'Les contrôles de l\'exercice, un par ligne : ce qui manque, et le bouton qui y mène. Ils signalent, ils ne bloquent pas.'],
+        [/^Les états financiers/, 'Le bilan et l\'état de résultat, déduits de la balance : où en est le dossier, d\'un coup d\'œil.'],
+        [/^Soldes intermédiaires/, 'La valeur ajoutée, l\'excédent brut d\'exploitation et les ratios de l\'exercice, chacun avec son calcul.'],
+        [/^Les à-nouveaux/, 'Les soldes que l\'exercice suivant reprendra à son ouverture, compte par compte.'],
+        [/^Bilan/, 'Chaque rubrique du bilan, avec son code. Un montant souligné s\'ouvre sur les comptes qui le composent.'],
+        [/^État de résultat/, 'Les produits et les charges de l\'exercice, rubrique par rubrique, jusqu\'au résultat.'],
+        [/^Résultat fiscal/, 'Du résultat comptable au résultat fiscal : tes réintégrations, tes déductions, puis l\'impôt. <b>Le taux se saisit</b> : il dépend du client, SkanFact n\'en écrit aucun.'],
+        [/^Déclaration annuelle d.employeur/, 'Les salaires versés et les retenues à la source de l\'année, tels que le livre les porte : de quoi préparer la déclaration annuelle.'],
+        [/^Les biens de l.exercice/, 'Un bien par ligne : sa valeur, ce qui était déjà amorti, la dotation de l\'année et ce qui reste à amortir.'],
+        [/^Les contrôles du mois/, 'Ce que la paie du mois a d\'inhabituel : un écart avec le mois d\'avant, un numéro CNSS qui manque. Chaque ligne mène à ce qu\'elle signale.'],
+      ];
+      const x = P.find(q => q[0].test(ti));
+      return x ? x[1] : '';
+    } },
+    { sel: '.gl-compte', serie: true, titre: 'Une ligne qui se déplie', texte: () => /\/lettrage/.test(location.hash)
+      ? 'Un client ou un fournisseur par ligne, avec ce qui reste dû. <b>Un clic le déplie</b> : ses pièces encore ouvertes, et ce qui les solde.'
+      : 'Chaque compte tient sur une ligne : ses mouvements, son débit, son crédit, son solde. <b>Un clic le déplie</b> et montre ses écritures une à une.' },
+    { sel: '.cp-corps .scroll-x, .cp-corps > table', titre: 'Le tableau', texte: () => /\/journal/.test(location.hash)
+      ? 'Chaque pièce dans l\'ordre des dates, avec son numéro et ses lignes au débit et au crédit. « Actions », au bout d\'une pièce, rassemble ce qu\'on peut en faire.'
+      : /\/balance/.test(location.hash)
+        ? 'Un compte par ligne : ses mouvements au débit et au crédit, et son solde. Les totaux du bas doivent tomber juste — c\'est ce que dit l\'encadré au-dessus.'
+        : 'Le tableau de cet écran. Quand une ligne porte « Actions », ce bouton rassemble ce qu\'on peut en faire, chaque geste avec sa phrase.' },
     { sel: '#d-tabs', titre: 'Les onglets du dossier', texte: 'Suivi et Comptabilité : l\'onglet vit dans l\'adresse, « ← » revient dessus.' },
+    { sel: '.c-nav', titre: 'Les écrans de la comptabilité', texte: 'Trois groupes, dans l\'ordre du mois : <b>Saisir</b>, <b>Consulter</b>, <b>Déclarer et clôturer</b>. Dessous, les écrans du groupe ouvert ; un chiffre dit ce qui y attend une décision. Chaque écran a sa propre visite, dans « Guide-moi ».' },
+    { sel: '.c-barre', titre: 'La période', texte: 'Ce que l\'écran montre : l\'exercice entier, un mois, ou les dates que tu choisis. À côté, le livre ouvert et ce qu\'il contient.' },
     { sel: '#c-groupes', titre: 'Les trois groupes', texte: 'Saisir, Consulter, Déclarer et clôturer : l\'ordre du mois. Le chiffre sur un groupe dit ce qui y attend une décision.' },
     { sel: '.tabs', titre: 'Les onglets', texte: 'L\'écran se range en onglets. Je vais te les ouvrir un par un ; « Passer au chapitre suivant » en saute un.' },
+    { sel: '.cp-corps .filters', titre: 'Les gestes de l\'écran', texte: 'Ce qu\'on peut faire ici : filtrer ce que l\'écran montre, ajouter, exporter. Chaque bouton est expliqué juste en dessous.' },
     { sel: '.filters', titre: 'Retrouver une ligne', texte: 'La recherche lit le nom, le matricule et le téléphone pendant que tu tapes ; « n sur N » dit combien de lignes tu gardes.' },
     { sel: '.pager', titre: 'Les pages de la liste', texte: 'La liste se découpe en pages. Les totaux portent toujours sur <b>toute</b> la sélection.' },
     { sel: '.panel.todo', titre: 'À faire', texte: 'Ce qui attend un geste, du plus urgent au moins urgent. Chaque ligne a son bouton, qui dit où il mène.' },
