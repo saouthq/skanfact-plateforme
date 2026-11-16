@@ -1815,7 +1815,7 @@
   //   3. sinon « Avant de continuer » — un « … quand même » est un avertissement, pas un geste.
   // Une question trop longue pour un titre reste dans le corps : un titre de trois lignes ne se lit
   // plus comme un titre.
-  const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|quand même/i;
+  const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|^(oui|non)\b|quand même/i;   // (1.364.2) « Oui, sans prix » est une RÉPONSE, pas un geste
   // Le bouton d'une question dit le GESTE, jamais « Confirmer » (10.14.0) : « Supprimer ce
   // mouvement ? » au-dessus de « Confirmer » fait relire la question pour savoir ce que le clic
   // fera. Quand l'appelant ne nomme pas le bouton, il prend le verbe par lequel la question

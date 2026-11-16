@@ -29583,6 +29583,10 @@ prouver $'cession 1.364.1 x : au Cabinet, l\'année de l\'entrée perd sa dotati
   $'        couverte: Number(entreeTardive(livre, f).slice(0, 4)) > y ? entreeTardive(livre, f) : \'\',' \
   $'        couverte: Number(entreeTardive(livre, f).slice(0, 4)) >= y ? entreeTardive(livre, f) : \'\',' \
   $'en 2026, l\'année de l\'entrée, la dotation s\'écrit comme d\'habitude'
+prouver $'rebut 1.364.2 a : une question prend pour titre la réponse de son bouton (« Oui, sans prix ? »)' modules/socle/moteur/core-1.js \
+  $'const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|^(oui|non)\\b|quand même/i;' \
+  $'const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|quand même/i;' \
+  $'ne recopie pas « Oui, sans prix » : il retombe sur le titre neutre'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

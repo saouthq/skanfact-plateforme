@@ -2787,7 +2787,7 @@
           // sans être vendu. Un « 0 » tapé, lui, est une réponse.
           if (String(v.amount).trim() === '') {
             const r = C.disposalResult({ ...asset, disposal: { date: v.date, amount: 0 } });
-            if (!await confirmDialog(`Aucun prix de cession : « ${asset.label} » sort sans être vendu (mis au rebut, volé)${r && r.nbv > 0 ? `, avec une moins-value de ${C.money(r.nbv, cur)}` : ''}. C'est bien ça ?`, 'Oui, sans prix', false)) { champ('amount').focus(); return; }
+            if (!await confirmDialog(`Aucun prix de cession : « ${asset.label} » sort sans être vendu (mis au rebut, volé)${r && r.nbv > 0 ? `, avec une moins-value de ${C.money(r.nbv, cur)}` : ''}. C'est bien ça ?`, 'Oui, sans prix', false, { titre: 'Une sortie sans prix de vente' })) { champ('amount').focus(); return; }
           }
           asset.disposal = { date: v.date, amount: Number(v.amount) || 0, reason: v.reason || '' };
           save(true); close(); if (done) done(asset);

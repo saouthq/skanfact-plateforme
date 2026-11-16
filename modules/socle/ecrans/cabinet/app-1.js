@@ -10791,7 +10791,7 @@
       <button class="${e.rows.length ? cls('neuf') : 'btn btn-sm'}" id="im-neuf">Ajouter un bien…</button>
       <button class="${cls('ecrire')}" id="im-ecrire" ${e.aEcrire ? '' : 'disabled'}
         title="${esc(pourquoiEcrire)}">Passer les écritures d'inventaire${
-  e.aEcrire ? ` (${e.aEcrire})` : ''}</button>
+  e.aEcrire ? ` (${(d.aEcrire || []).filter(x => x.genre !== 'subvention').length || e.aEcrire})` : ''}</button>
       <button class="btn btn-sm btn-ghost" id="im-csv" ${e.rows.length ? '' : 'disabled'}
         title="${e.rows.length ? '' : 'Rien à exporter : le tableau est vide.'}">Exporter le tableau</button>
     </div>

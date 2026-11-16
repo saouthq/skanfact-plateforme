@@ -145,3 +145,17 @@ describe('un exercice que l\'entrée du bien couvre déjà (Cabinet)', () => {
     expect(KC.etatImmobilisations(l2025([]), 2025).aEcrire).toBe(1);
   });
 });
+
+// 1.364.2 — bout en bout 32 (le vieux four mis au rebut) : la question « sort sans être vendu… C'est bien ça ? »
+// s'intitulait « Oui, sans prix ? ». Un bouton qui RÉPOND (« Oui, … », « Non, … ») n'est pas le nom d'un geste.
+describe('le titre d\'une question dont le bouton est une réponse', () => {
+  const longue = 'Aucun prix de cession : « Ancien four » sort sans être vendu (mis au rebut, volé), avec une moins-value de 4 577,778 DT. C\'est bien ça ?';
+  it('ne recopie pas « Oui, sans prix » : il retombe sur le titre neutre', () => {
+    expect(C.titreQuestion(longue, 'Oui, sans prix').titre).toBe('Avant de continuer');
+    expect(C.titreQuestion(longue, 'Non, garder le bien').titre).toBe('Avant de continuer');
+  });
+  it('un vrai geste donne toujours son titre, même s\'il commence comme « oui »', () => {
+    expect(C.titreQuestion(longue, 'Enregistrer la sortie').titre).toBe('Enregistrer la sortie ?');
+    expect(C.titreQuestion(longue, 'Ouïr le client').titre).toBe('Ouïr le client ?');
+  });
+});

@@ -3913,3 +3913,21 @@ plus-value 766,667.
   la TVA à reverser sur une revente avant cinq ans, que la fenêtre signale déjà.
 - Tests : `tests/moteur/cession-1364.test.ts` (onze cas, montants à la main) et `tests/web/cession-1364.test.ts`
   (l'écran du client, puis celui du Cabinet) ; dix-sept preuves « cession 1.364.0 ».
+
+### 1.364.2 : le vieux four mis au rebut, jusqu'au Cabinet (bout en bout 32)
+
+Joué à la souris : Nour sort son ancien four (10 000 DT, en service depuis le 01/03/2024, 5 ans) le 16/11/2026, sans
+prix. Montants refaits à la main, base 360 : amorti à la sortie = 10 000 × 976 / 1 800 = 5 422,222 ; dotation 2026 =
+5 422,222 − 3 666,667 = 1 755,555 ; valeur comptable = moins-value = 4 577,778.
+
+- **Chez Nour** : 681 / 28 = 1 755,555 ; sortie : 28 = 5 422,222, 675 = 4 577,778, 22 = 10 000. Le 22 et le 28 sont soldés.
+- **Au Cabinet** : la fiche dit « plan différent — sorti le 16/11/2026 chez le client, toujours à l'actif ici » ;
+  « Reprendre son plan… » préremplit la date ; « Passer les écritures d'inventaire » écrit la dotation et la sortie
+  au 16/11. Lu dans le livre du cabinet : les mêmes quatre montants, au millime (deux chemins, un chiffre).
+- **Corrigé** :
+  - la question « sort sans être vendu… C'est bien ça ? » s'intitulait « Oui, sans prix ? » : un bouton qui RÉPOND
+    (« Oui, … », « Non, … ») n'est plus pris pour le nom d'un geste, et cette question porte son titre
+    (« Une sortie sans prix de vente ») ;
+  - au Cabinet, le bouton annonçait « (1) » et le message « 2 écritures passées » : le bouton compte les écritures.
+- **Laissé, À VÉRIFIER** : l'avertissement « une sortie avant cinq ans peut imposer de reverser une partie de la TVA »
+  s'affiche aussi pour un bien entré sans facture d'achat ; la règle dépend de ce qui a été déduit à l'époque.
