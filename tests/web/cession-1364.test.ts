@@ -138,8 +138,11 @@ describe('la cession 1.364.0 : un bien d\'avant la clôture s\'enregistre, et le
 
     // Le mois dernier, clôturé par le client sans une écriture, n'est pas un mois qui manque (1.362.5 le dit « sans activité »).
     await c.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.corps.id)}#/dossier/${ent}/comptabilite/journal/${annee}`);
-    await c.locator('#view table.list').first().waitFor({ timeout: 15_000 });
+    // (1.374.0) On attend le JOURNAL : l'écran d'avant (les immobilisations) a lui aussi un tableau, et le lire trop tôt
+    // rendait l'assertion incapable de tomber (preuve « cession 1.364.0 p » restée verte sur GitHub le 16/11/2026).
+    await expect.poll(async () => net(await c.locator('#view').innerText()), { timeout: 15_000 }).toMatch(/Comptabilité › Consulter[\s\S]*Le livre de/);
     const journal = net(await c.locator('#view').innerText());
+    expect(journal).toMatch(/Comptabilité › Consulter/);
     expect(journal).not.toMatch(/Il manque/);
 
     expect(erreurs).toEqual([]);

@@ -10,6 +10,7 @@
 //     le code actuel, et le nouveau ne remplace l'ancien qu'à son premier code juste.
 // L'activation (le code QR relu) est jouée par le parcours : tests/web/parcours.test.ts.
 
+import { exigerLeCode } from '../socle/cabinet-tenu.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -232,6 +233,7 @@ describe('ton compte, à la souris', () => {
   it('le Cabinet : avec un relais d\'e-mails, le comptable peut revenir à l\'e-mail ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code', async () => {
     const { email, jeton } = await personne('karim');
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Salah' })).corps.id);
+    await exigerLeCode((c, x) => api('POST', c, jeton, x), admin, cabinet);
     const ancien = String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.cle);
     const secretEnBase = async () => (await admin.query('select code_secret from socle.utilisateur where email = $1', [email])).rows[0]?.code_secret as string;
     const { p, erreurs } = await page(jeton);

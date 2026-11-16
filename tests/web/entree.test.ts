@@ -6,6 +6,7 @@
 // « C'est bien toi ? » sur un appareil inconnu ; le code du téléphone, exigé du seul comptable d'un cabinet quand le serveur
 // n'envoie pas d'e-mails (avec le relais, le code par e-mail lui suffit : décision de Skander du 12/10/2026, 0081).
 
+import { exigerLeCode } from '../socle/cabinet-tenu.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -339,7 +340,7 @@ describe('l\'entrée refaite, à la souris', () => {
     // Le code du téléphone n'est exigé que du comptable d'un cabinet, qui voit les comptes et les salaires de ses clients
     // (0076), sur un serveur qui n'envoie pas d'e-mails (avec le relais, le code par e-mail lui suffit, 0081) : son
     // cabinet créé, il le met en place d'abord.
-    await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' });
+    await exigerLeCode((c, x) => api('POST', c, jeton, x), admin, String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' })).id));
     const p = await page(jeton, sansCourriel.adresse);
     // L'écran d'ouverture ne dure que le temps du chargement : un observateur note ce qu'il montre, dans l'onglet.
     await p.addInitScript(() => {
@@ -459,7 +460,7 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(await p.locator('.ent-titre-page p').innerText()).not.toMatch(/à côté/);
     await p.setViewportSize({ width: 1440, height: 900 });
     // L'écran du code, que seul le comptable d'un cabinet met en place d'abord (0076), sur un serveur sans e-mails (0081).
-    await api('POST', '/cabinets', jeton, { nom: 'Cabinet Gharbi' });
+    await exigerLeCode((c, x) => api('POST', c, jeton, x), admin, String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Gharbi' })).id));
     await p.goto(sansCourriel.adresse);
     await ecran(p, 'ecran.code_requis.titre');
     await bouton(p, 'ecran.code_requis.bouton').click();
@@ -509,6 +510,7 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.goto(`${sansCourriel.adresse}/v10/?e=${ent}`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ennour' })).id);
+    await exigerLeCode((c, x) => api('POST', c, jeton, x), admin, cabinet);
     // Avec le relais d'e-mails : le code par e-mail tient lieu de code, le cabinet s'ouvre sans rien demander.
     const avecRelais = await page(jeton);
     await avecRelais.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`);

@@ -47,13 +47,16 @@
   /** @typedef {{ appel: (methode: string, chemin: string, corps?: unknown) => Promise<any>, cabinet: string }} Outils */
 
   // La pastille du haut du Cabinet (`#lic-banner`) : elle ne parle que quand il y a quelque chose à faire.
-  /** @param {Etat | null | undefined} e @returns {{ show: boolean, ton: string, texte: string }} */
+  /** @param {Etat | null | undefined} e @returns {{ show: boolean, ton: string, texte: string, court?: string }} */
   function pastille(e) {
     if (!e) return { show: false, ton: '', texte: '' };
     // (1.122.0) Une ligne courte au pied du menu (elle tenait sur trois lignes, recette du 23/10/2026) ; le panneau dit le reste.
     if (e.etat === 'lecture_seule') return { show: true, ton: 'alerte', texte: 'Dossiers payants en lecture seule' };
     if (e.etat === 'a_payer') return { show: true, ton: 'attire', texte: `Facture à régler avant le ${jour(e.echeance)}` };
-    return { show: false, ton: '', texte: '' };
+    // (1.374.0) Un seul état, lu par les trois endroits (le panneau, le menu du compte, le téléphone) : ils disaient
+    // « Facture en préparation », « Rien à régler pour l'instant » et « À jour » au même moment (issue 12).
+    const court = e.etat === 'a_facturer' ? 'Facture en préparation' : e.etat === 'actif' ? `Payé jusqu'au ${jour(e.jusquAu)}` : e.etat === 'gratuit' ? 'Gratuit : rien à régler' : '';
+    return { show: false, ton: '', texte: '', court };
   }
 
   // La pastille du haut suit le panneau à chaque lecture : la facture qui part pendant qu'il est ouvert (il se relit
@@ -65,9 +68,10 @@
   }
   // (1.152.0, maquette « Barre v3 ») La pastille au pied de la barre : deux lignes, un dessin, son ton ; le texte court
   // est dans `.abo-t` (la cloche, le menu de la personne et le téléphone le relisent).
-  /** @param {HTMLElement} el @param {{ show: boolean, ton: string, texte: string }} p */
+  /** @param {HTMLElement} el @param {{ show: boolean, ton: string, texte: string, court?: string }} p */
   function peindre(el, p) {
     el.hidden = !p.show;
+    el.dataset.court = p.show ? '' : (p.court || '');
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
     el.classList.toggle('alerte', p.ton === 'alerte');
     el.classList.toggle('attire', p.ton === 'attire');
@@ -102,7 +106,8 @@
     }
     if (e.etat === 'a_facturer') {
       return { ton: 'calme', pastille: 'Facture en préparation', titre: 'Ta facture se prépare',
-        texte: 'Elle arrive ici, dans « Tes factures », dans un instant, et un e-mail te prévient.' };
+        // (1.374.0) Le montant attendu et sa date, pas « dans un instant » : une heure après, l'écran ne disait toujours rien.
+        texte: `${a.prochaine && a.prochaine.totalHt ? `Elle sera de ${montant(a.prochaine.totalHt)} HT pour ${pl(payants, 'dossier payant', 'dossiers payants')}${a.prochaine.echeance ? `, à régler avant le ${jour(a.prochaine.echeance)}` : ''}. ` : ''}Elle arrive ici, dans « Tes factures », et un e-mail te prévient.` };
     }
     const n = a.dossiers.length;
     return { ton: 'calme', pastille: 'Gratuit', titre: gratuits === null ? 'Rien à payer aujourd\'hui' : `${pl(n, 'dossier tenu', 'dossiers tenus')} sur ${gratuits} gratuits`,
@@ -365,5 +370,19 @@
     return `Ce sera ton ${d.rang === 1 ? '1er' : `${d.rang}e`} dossier tenu sur ${r.gratuits} gratuits : il ne coûte rien.`;
   }
 
-  w.SkanAbonnementCabinet = { dessiner, pastille, peindre, avertissement, gratuit, etatEnClair };
+  // (1.374.0) Plusieurs dossiers d'un coup (une liste collée) : la même annonce, comptée. La fenêtre d'UN dossier disait
+  // son prix, celle de onze non (issue 12). Rien ne se calcule ici : le prix d'un dossier, pas un total.
+  /** @param {number} n @param {Lu['prochainDossier'] | null | undefined} d @param {Lu['regles'] | null | undefined} r */
+  function plusieurs(n, d, r) {
+    if (!n || !d || !r) return '';
+    const libres = typeof r.gratuits === 'number' ? Math.max(0, Math.min(n, r.gratuits - (d.rang - 1))) : (d.payant ? 0 : n);
+    const payants = n - libres;
+    if (!payants) return typeof r.gratuits === 'number' ? `${n > 1 ? `Ces ${n} dossiers entrent` : 'Ce dossier entre'} dans tes ${r.gratuits} gratuits : ${n > 1 ? 'ils ne coûtent' : 'il ne coûte'} rien.` : '';
+    if (!d.prixHt) return '';
+    const plafond = r.plafondHt ? ` (jamais plus de ${montant(r.plafondHt)} HT par an en tout)` : '';
+    const un = payants === 1;
+    return `${libres ? `${pl(libres, 'gratuit', 'gratuits')}, ` : ''}${pl(payants, 'payant', 'payants')} : ${montant(d.prixHt)} HT par an${un ? '' : ' chacun'}${plafond}, au prorata ${un ? 'de ses' : 'de leurs'} jours. ${d.abonne ? (un ? 'Il s\'ajoute' : 'Ils s\'ajoutent') + ' à ta prochaine facture.' : `Ton abonnement commence le jour où tu ${un ? 'l\'ajoutes' : 'les ajoutes'} : sa facture arrive dans Réglages, « Ton abonnement ».`}`;
+  }
+
+  w.SkanAbonnementCabinet = { dessiner, pastille, peindre, avertissement, gratuit, plusieurs, etatEnClair };
 })();

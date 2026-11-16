@@ -4283,3 +4283,28 @@ Joué à la souris : compte neuf → porte → refus puis frappe continue → d�
 Reste des issues 3 à 12 : voir la liste tenue dans la session (bloquants du portefeuille, de la saisie et de la banque
 d'abord).
 
+
+## 1.374.0 — Le portefeuille : les bloquants de l'issue 12 (revue du 16/11/2026)
+
+- **« Rechercher… » s'ouvre au clic** (constat 3) : seul Ctrl K l'ouvrait ; le bouton de la barre, et « Rechercher »
+  du menu « Plus » au téléphone, n'étaient branchés à rien.
+- **Un mot tapé hors d'un champ ne crée plus rien** (constat 4) : une lettre qui suit le N dans la demi-seconde, ou qui
+  ne choisit rien, referme « Créer », et les raccourcis à une lettre se taisent tant que la frappe continue (une seconde
+  de silence les rend).
+- **Les régimes** (constat 2) : une échéance annuelle mal écrite, ou une date qui n'existe pas (31-02), est refusée en la
+  nommant, et la saisie reste. Le remplacement de `nom@JJ-MM` par deux champs reste à faire.
+- **Le prix d'une liste collée** (constat 1) : « Ce que ça coûte » se lit au-dessus de l'aperçu, compté sur ce qui
+  entrera (n gratuits, m payants, le prix d'un dossier). Rien ne se calcule à l'écran : le prix vient du serveur.
+- **Un seul état d'abonnement** (constat 1) : le panneau, le menu du compte et le téléphone disent le même mot
+  (« Gratuit : rien à régler », « Facture en préparation », « Payé jusqu'au … ») ; la facture en préparation annonce
+  son montant et sa date quand le serveur les donne.
+- **Les visites guidées** (constat 24) : « Tenir la fiche d'un client » suit la fiche d'aujourd'hui (elle ouvrait
+  l'ancien écran « …/suivi ») ; « Démarrer mon cabinet » et « Suivre la production » ne montrent plus une étape dont le
+  bloc n'est pas à l'écran ; le bouton s'appelle « Ajouter un client… » partout ; « Saisir une pièce » est possible dès
+  qu'un dossier tenu existe.
+
+Joué à la souris sur le cabinet d'essai. Tests : `tests/web/barre-cabinet.test.ts`, `cabinet-visites-1372`,
+`cabinet-production`. Neuf preuves par réintroduction (« revue 1.374.0 a…i »).
+
+Reste de l'issue 12 : constats 5 à 23 et 25 à 33 (un seul mot par état de mois, le retard en tête de « À faire »,
+archiver en une petite fenêtre, la recherche sans accents…). Puis les issues 11, 10, 9, 6, 4, 5, 7, 8.

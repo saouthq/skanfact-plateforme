@@ -209,6 +209,7 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await expect.poll(() => creer.isVisible(), { timeout: 5_000 }).toBe(true);
     expect(await creer.locator('b').allInnerTexts()).toEqual(['Facture', 'Devis', 'Dépense', 'Client']);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-creer.png') });
+    await p.waitForTimeout(600); // une lettre dans la demi-seconde après N est une frappe, pas un choix (1.374.0)
     await p.keyboard.press('f');
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/doc/new/facture');
     expect(await creer.count()).toBe(0);

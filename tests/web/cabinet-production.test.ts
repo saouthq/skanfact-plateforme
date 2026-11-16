@@ -146,7 +146,9 @@ describe('la production du cabinet, à la souris', () => {
     await expect.poll(() => bulle.innerText()).toMatch(/La campagne du mois/);
     expect(await bulle.innerText()).not.toMatch(/paquet|reçu/);
     // (1.198.0) La visite parle de la page entière : la case qui s'ouvre, les onglets, l'arrivée des pièces, Exporter.
-    for (const titre of [/Un dossier par ligne/, /Une case s'ouvre/, /Production, Révision, Bilans/, /Quand les pièces arrivent/, /Exporter/, /Resserrer/, /Ouvre un dossier/]) {
+    expect(await p.locator('#tb-arrivee, #tb-charge').count()).toBe(0);
+    for (const titre of [/Un dossier par ligne/, /Une case s'ouvre/, /Production, Révision, Bilans/, /Exporter/, /Resserrer/, /Ouvre un dossier/]) {
+      // (1.374.0) « Quand les pièces arrivent » ne se montre que si son bloc est à l'écran : aucun client ne dépose ici.
       await bulle.getByRole('button', { name: 'Suivant' }).click();
       await expect.poll(() => bulle.innerText()).toMatch(titre);
     }

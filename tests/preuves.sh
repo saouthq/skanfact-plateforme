@@ -20122,7 +20122,7 @@ prouver 'barre 6 : N ouvre « Créer » dans un champ' web/public/plateforme/bar
   'e.ctrlKey || e.metaKey || e.altKey || dansUnChamp(e.target) ||' 'e.ctrlKey || e.metaKey || e.altKey ||' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 7 : la lettre d'"'"'une ligne de « Créer » ne choisit rien' web/public/plateforme/barre.js \
-  '        if (l) { e.preventDefault(); e.stopPropagation(); l.click(); }' '' \
+  '        else if (l) { e.preventDefault(); e.stopPropagation(); l.click(); }' '' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 8 : « SF » pour toutes les entreprises' web/public/plateforme/barre.js \
   '      if (pastille.textContent !== voulu) pastille.textContent = voulu;' '' \
@@ -29943,6 +29943,42 @@ prouver $'entrée 1.373.0 l : le cabinet créé s\'ouvre sans laisser choisir so
   $'    setCabinetNeuf(r.corps.id); setEtape(\'depart\');' \
   $'    cabinetCree(r.corps.id);' \
   $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'revue 1.374.0 a : « Rechercher… » sourd au clic' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (ns) ns.addEventListener(\'click\', e => { e.stopPropagation(); openPalette(); });' \
+  $'if (ns) ns.addEventListener(\'click\', e => { e.stopPropagation(); });' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 b : un mot tapé hors d\'un champ choisit dans « Créer »' web/public/plateforme/barre.js \
+  $'if (l && Date.now() - creerAuClavier < 500) {' \
+  $'if (l && false) {' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 c : une échéance mal écrite jetée en silence' modules/socle/ecrans/cabinet/app-2.js \
+  $'    if (!m || !m[1].trim()) return true;\n' \
+  $'    if (!m || !m[1].trim()) return false;\n' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 d : le 31 février accepté comme échéance' modules/socle/ecrans/cabinet/app-2.js \
+  $'    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= JOURS_DU_MOIS[mo - 1]);' \
+  $'    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= 31);' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 e : une liste collée qui tait son prix' modules/socle/ecrans/cabinet/app-2.js \
+  $'const prix = n && peut && typeof peut.plusieurs === \'function\' ? peut.plusieurs(n) : \'\';' \
+  $'const prix = \'\';' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 f : le prix sous le tableau, hors de vue' modules/socle/ecrans/cabinet/app-2.js \
+  $'if (prix && zone.firstElementChild) zone.firstElementChild.insertAdjacentHTML(\'afterend\',' \
+  $'if (prix && zone.firstElementChild) zone.insertAdjacentHTML(\'beforeend\',' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 g : l\'abonnement dit autre chose au menu qu\'au panneau' web/public/plateforme/abonnement-cabinet.js \
+  $'e.etat === \'gratuit\' ? \'Gratuit : rien à régler\' : \'\';' \
+  $'e.etat === \'gratuit\' ? \'\' : \'\';' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'revue 1.374.0 h : la visite de la fiche ouvre l\'ancien écran' modules/socle/visites/cabvisites.js \
+  $'return id ? \'#/dossier/\' + encodeURIComponent(id) : null; }, { sorte: \'client\' });\n    // Le dossier ouvert' \
+  $'return id ? \'#/dossier/\' + encodeURIComponent(id) + \'/suivi\' : null; }, { sorte: \'client\' });\n    // Le dossier ouvert' \
+  $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+prouver $'revue 1.374.0 i : une étape de visite sur un bloc absent de l\'écran' modules/socle/visites/cabvisites.js \
+  $'          si: () => !!document.querySelector(\'#tb-arrivee, #tb-charge\'),' \
+  $'          si: () => true,' \
+  $'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

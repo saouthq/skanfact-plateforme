@@ -694,17 +694,19 @@
     // La fonction PORTE sa sorte : « Guide-moi » s'en sert pour ne proposer, sur un dossier, que les
     // gestes qui s'y feront (10.14.1, S-03).
     const dans = (sorte, suite) => Object.assign(() => { const id = ctx.dossier(sorte); return id ? '#/dossier/' + encodeURIComponent(id) + '/' + suite : null; }, { sorte });
+    // La fiche d'un dossier (son adresse n'a pas de suite : « #/dossier/<id> »).
+    const laFiche = Object.assign(() => { const id = ctx.dossier('client'); return id ? '#/dossier/' + encodeURIComponent(id) : null; }, { sorte: 'client' });
     // Le dossier ouvert à l'écran, ou null.
     const dossierOuvert = () => { const m = /^#\/dossier\/([^/]+)/.exec((typeof location !== 'undefined' && location.hash) || ''); return m ? decodeURIComponent(m[1]) : null; };
     // Les écrans qui vivent DANS un dossier : la fiche, ses paquets, et chaque écran de comptabilité.
     const ecranDeDossier = cle => cle === 'dossier' || cle === 'dossier-paquets' || cle === 'dossier-classeur' || /^compta/.test(cle);
     const DOSSIER_MANQUE = {
       skanfact: { texte: 'Il faut un client sur SkanFact qui t\'a confié son dossier : donne-lui le code de ton cabinet (Réglages → Mon cabinet), puis accepte son dossier sur la page Dossiers.' },
-      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Nouveau client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
+      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Ajouter un client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
       // La visite proposée se calcule : commencer un livre s'il y a un client à tenir, sinon en ajouter un
       // — jamais un bouton éteint qui renvoie à un autre bouton éteint (26/09).
-      saisie: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
-      livre: { texte: 'Il faut un dossier dont tu as ouvert la comptabilité : ouvre la fiche d\'un client, onglet Comptabilité.', visite: 'ajouter-client' },
+      saisie: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le, sa Saisie s\'ouvre aussitôt.', visite: 'ajouter-client' },
+      livre: { texte: 'Il faut un dossier qui a déjà une écriture : ouvre un client, puis « Saisie » dans la barre de gauche, et enregistre sa première pièce.', visite: 'saisir-piece' },
       client: { texte: 'Il faut au moins un client dans ton portefeuille.', visite: 'ajouter-client' }
     };
 
@@ -891,9 +893,14 @@
       conclusion: 'Chaque étape de « Tes premiers pas » a son bouton, et sa visite guidée dans « Me guider ». Elles se cochent toutes seules quand c\'est fait.',
       etapes: [
         { page: '#/dossiers', titre: 'Ton cabinet', texte: '<p>Ici, c\'est <b>ton</b> cabinet : tout ce que tu fais compte.</p><p>Je te montre l\'ordre des choses. Pour chaque étape, une visite te guide <b>clic par clic</b>.</p>' },
-        { page: '#/dossiers', cible: '.premiers-pas', cote: 'dessous', titre: 'Tes premiers pas',
+        // (1.374.0) Le panneau n'occupe la page que tant qu'elle est vide : avec des dossiers, les bulles ne montraient
+        // rien (« clique ce qui est éclairé », et rien d'éclairé, issue 12). Chaque étape ne paraît que si son repère est là.
+        { page: '#/production', cible: ['#tb-avoir', '#tb-afaire'], cote: 'dessous', titre: 'Tes premiers pas, dans « À faire »',
+          si: () => !document.querySelector('.premiers-pas'),
+          texte: 'Dès que tu as un dossier, tes premiers pas deviennent <b>une ligne</b> de « À faire maintenant », ici : son bouton lance la visite de l\'étape suivante. Elle disparaît quand tout est fait.' },
+        { page: '#/dossiers', cible: '.premiers-pas', cote: 'dessous', titre: 'Tes premiers pas', si: () => !!document.querySelector('.premiers-pas'),
           texte: 'L\'ordre à suivre : ton cabinet, tes clients, puis leur premier livre. <b>Chaque étape se coche toute seule</b> quand c\'est fait.' },
-        { page: '#/dossiers', cible: '.premiers-pas .encours [data-pas]', cote: 'gauche', facultatif: true, faire: 'clic', titre: 'Le bouton de chaque étape',
+        { page: '#/dossiers', cible: '.premiers-pas .encours [data-pas]', cote: 'gauche', facultatif: true, si: () => !!document.querySelector('.premiers-pas .encours [data-pas]'), faire: 'clic', titre: 'Le bouton de chaque étape',
           texte: 'Il t\'emmène au bon endroit. <b>« Me guider »</b>, juste à côté, t\'y emmène en te montrant où cliquer.',
           action: 'Clique sur le bouton de l\'étape en cours.', essai: { clic: true } }
       ]
@@ -933,7 +940,7 @@
       conclusion: 'Rien ne lui est réclamé : tu tiens ses livres ici. S\'il utilise SkanFact, il te confie lui-même son dossier avec le code de ton cabinet.',
       etapes: [
         { page: '#/dossiers', cible: '#new-d', cote: 'dessous', faire: 'clic', avant: () => { clientsAvant = reels().length; },
-          titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur <b>« Nouveau client… »</b>.', essai: { clic: true } },
+          titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur <b>« Ajouter un client… »</b>.', essai: { clic: true } },
         { page: '#/dossiers', cible: '#f-name', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'Son nom', texte: 'Tel qu\'il s\'écrit sur ses papiers, forme juridique comprise.', action: 'Tape le nom du client.', essai: { taper: 'Client Essai SARL' } },
         { page: '#/dossiers', cible: '#f-mat', cote: 'droite', titre: 'Son matricule', facultatif: true,
@@ -1666,22 +1673,26 @@
     // fenêtre qu'on peut refermer sont facultatifs : la visite ne prétend pas qu'ils ont eu lieu.
     visite({
       id: 'fiche-client', theme: 'portefeuille', type: 'faire', duree: '1 min',
-      page: dans('client', 'suivi'),
+      page: laFiche,
       titre: 'Tenir la fiche d\'un client',
-      resume: 'Ses coordonnées, sa note, ses mois, et les relances faites par téléphone.',
+      resume: 'Ce qui attend, son année mois par mois, sa mission, et le menu de ses gestes.',
       mots: ['fiche', 'client', 'modifier', 'note', 'coordonnees', 'telephone', 'relance'],
       si: () => !!ctx.dossier('client'), manque: DOSSIER_MANQUE.client,
       suite: ['relancer', 'page-dossier'],
       bravo: 'Tu connais la fiche',
-      conclusion: 'Ce qui est noté sur la fiche — un email, un téléphone, une relance faite ailleurs — sert aux relances suivantes : le mail se prépare avec, et l\'historique ne ment pas.',
+      conclusion: 'La fiche répond à trois questions : que faire maintenant, où en est l\'année, et qui est ce client. Le menu « … » porte tout le reste.',
+      // (1.374.0) La visite ouvrait l'ancien écran (« …/suivi », ses onglets, « Les mois de ce client ») : elle suit la
+      // fiche d'aujourd'hui, repère par repère (issue 12).
       etapes: [
-        { page: dans('client', 'suivi'), cible: '#edit', cote: 'gauche', titre: 'Modifier la fiche',
-          texte: 'Email, téléphone, régime, honoraires, ta note. Le nom et le matricule sont ceux de son entreprise : ils ne se changent pas ici.' },
-        { page: dans('client', 'suivi'), cible: ['#view .mois-annee', '#view .panel'], cote: 'dessous', titre: 'Ses douze mois',
-          texte: 'Validé, à valider, manquant, hors mission. Un mois écrit s\'ouvre dans ses livres ; un mois manquant porte son geste : la relance part sur ce mois-là.' },
-        { page: dans('client', 'suivi'), cible: '#note-rel', cote: 'dessus', faire: 'clic', facultatif: true,
-          titre: 'Une relance faite ailleurs', texte: 'Un appel, un message : noté ici, il compte dans l\'historique comme une relance par mail.',
-          action: 'Clique sur <b>« Noter une relance faite ailleurs… »</b>.', essai: { clic: true } }
+        { page: laFiche, cible: ['#fd-at', '#view .fd-ch'], cote: 'dessous', titre: 'Ce qui attend',
+          texte: 'Le prochain geste de ce dossier, dans l\'ordre : saisir, réviser, préparer la déclaration. Son bouton t\'y emmène.' },
+        { page: laFiche, cible: ['#fd-an', '#view .fd-ms'], cote: 'dessus', titre: 'Son année, mois par mois',
+          texte: 'Chaque case dit où en est le mois : déposé, révisé, en cours, à saisir, en retard. <b>Clique un mois</b> pour lire son détail et sa date limite.' },
+        { page: laFiche, cible: ['#view .fd-cote'], cote: 'gauche', titre: 'La mission, l\'équipe, le client',
+          texte: 'Ses honoraires, qui le suit au cabinet, son matricule, son régime de TVA, et la personne à joindre. Tout se change par <b>« Modifier la fiche »</b>, dans le menu « … ».' },
+        { page: laFiche, cible: '#fd-menu', cote: 'gauche', faire: 'clic', facultatif: true,
+          titre: 'Le menu de ses gestes', texte: 'Modifier la fiche, confier le dossier, noter une relance faite au téléphone, exporter, archiver.',
+          action: 'Clique sur <b>« … »</b> pour voir ses gestes.', essai: { clic: true } }
       ]
     });
 
@@ -1897,10 +1908,11 @@
         { page: '#/production', cible: ['.tb-vues', '#tb-dossiers'], cote: 'dessous', titre: 'Production, Révision, Bilans',
           texte: 'Trois onglets, chacun avec son chiffre : la grille des mois ; ce que la révision lit dans chaque livre (banque rapprochée, compte d\'attente, crédit de TVA, brouillard) ; l\'exercice de l\'an dernier, étape par étape.' },
         { page: '#/production', cible: ['#tb-arrivee', '#tb-charge'], cote: 'dessus', titre: 'Quand les pièces arrivent',
+          si: () => !!document.querySelector('#tb-arrivee, #tb-charge'),
           texte: 'Le jour du mois suivant où chaque client a envoyé tout son mois, face à ton seuil (Le cabinet › Réglages). Ceux qui envoient tard, ou rien, passent en tête.' },
         { page: '#/production', cible: ['#tb-exporter', '#page-bord h1'], cote: 'dessous', titre: 'Exporter',
           texte: 'La grille en tableur, ou en PDF pour une réunion, avec la période et les filtres que tu as posés.' },
-        { page: '#/production', cible: ['#tb-dossiers .filtres', '#tb-dossiers'], cote: 'dessous', titre: 'Resserrer',
+        { page: '#/production', cible: ['#tb-retard', '#tb-dossiers'], cote: 'dessous', titre: 'Resserrer',
           texte: 'Six mois, l\'année ou douze mois ; les puces gardent les dossiers en retard, à saisir ou à réviser ; en haut de la page, le choix d\'une personne.' },
         { page: '#/production', cible: '#view tr[data-tb-id]', cote: 'dessous', faire: 'clic',
           titre: 'Ouvre un dossier', texte: 'La ligne mène à sa comptabilité ; son menu ⋯, à ses échéances, sa conversation et sa fiche.',

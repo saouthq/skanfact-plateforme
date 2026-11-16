@@ -126,7 +126,7 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await menu.locator('.code-cab b').innerText()).toBe(cab.code);
     expect(await menu.getByRole('menuitem').allInnerTexts()).toEqual([
       'Tous les dossiers\n3 dossiers', 'Tableau de bord\nOù en est le cabinet, dossier par dossier', 'Équipe et dossiers confiés\n1 personne',
-      'Modèles de messages\nLes demandes de pièces prêtes', 'Abonnement du cabinet\nRien à régler pour l\'instant', 'Réglages du cabinet']);
+      'Modèles de messages\nLes demandes de pièces prêtes', 'Abonnement du cabinet\nGratuit : rien à régler', 'Réglages du cabinet']);
     await p.keyboard.press('Escape');
     expect(await menu.count()).toBe(0);
 
@@ -181,10 +181,48 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => p.url()).toContain(`#/dossier/${tenu}/comptabilite/banque`);
     await expect.poll(() => carte.innerText()).toMatch(/Tenu\nMenuiserie du Sahel/);
     // Un dossier tenu ne reçoit pas de pièce demandée : « Créer » ne la propose pas.
+    // (1.374.0) Un mot tapé hors d'un champ (« Nord ») ne crée rien : le N ouvre le menu, la lettre qui suit aussitôt le
+    // referme, et les raccourcis se taisent tant que la frappe continue.
+    const avantFrappe = await p.evaluate(() => location.hash);
+    await p.keyboard.type('nord nouvelle', { delay: 40 });
+    await p.waitForTimeout(300);
+    expect(await p.locator('.sb-creer').count()).toBe(0);
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    expect(await p.evaluate(() => location.hash)).toBe(avantFrappe);
+    // (1.374.0) « Rechercher… » s'ouvre au clic, comme Ctrl K.
+    await p.locator('#nav-search').click();
+    await expect.poll(() => p.locator('#palette-root #pal-q').count(), { timeout: 5_000 }).toBe(1);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#palette-root').count(), { timeout: 5_000 }).toBe(0);
+    await p.waitForTimeout(1100);
     await p.keyboard.press('n');
     expect(await p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche))).toEqual(['E', 'R', 'O', 'X']);
     expect(await p.locator('.sb-creer .menu-titre').innerText()).toBe('Créer · Menuiserie du Sahel');
     await p.keyboard.press('Escape');
+    // (1.374.0) « Coller une liste de clients » dit son prix AVANT de valider, compté sur ce qui entrera (issue 12).
+    const iciAvant = await p.evaluate(() => location.hash);
+    await p.locator('#b-creer').click();
+    await p.locator('.sb-creer [data-touche="O"]').click();
+    await p.locator('#nd-coller').click();
+    await p.locator('#cl-liste').fill('Garage Ben Salah\nLibrairie Carthage\nSalon Yasmine\nOptique Marsa');
+    await expect.poll(() => p.locator('#cl-prix').innerText().catch(() => ''), { timeout: 8_000 }).toMatch(/^Ce que ça coûte\. (\d+\u00a0gratuits?, )?(\d+\u00a0payants? : .* HT par an|Ces 4 dossiers entrent dans tes \d+ gratuits)/);
+    expect(await p.evaluate(() => { const x = document.querySelector('#cl-prix'), t = document.querySelector('#cl-apercu table'); return !!x && !!t && x.getBoundingClientRect().top < t.getBoundingClientRect().top; })).toBe(true);
+    await p.locator('#modal-root #no').click();
+    // (1.374.0) Une échéance mal écrite se refuse en la nommant, la saisie reste ; le 31 février aussi (issue 12).
+    await p.evaluate(() => { location.hash = '#/reglages'; });
+    await p.locator('#set-tabs button[data-tab="cabinet"]').click();
+    await p.locator('#sr-reg-base').click();
+    const annuelles = p.locator('#sr-regimes tr[data-rg] [data-k=annuelles]').first();
+    await annuelles.fill('Déclaration annuelle le 25 avril ; Acompte@25-06');
+    await p.locator('#sr-reg-save').click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('« Déclaration annuelle le 25 avril » n\'est pas une échéance');
+    expect(await annuelles.inputValue()).toBe('Déclaration annuelle le 25 avril ; Acompte@25-06');
+    await annuelles.fill('Acompte@31-02');
+    await p.locator('#sr-reg-save').click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('« Acompte@31-02 » n\'est pas une échéance');
+    expect(await annuelles.inputValue()).toBe('Acompte@31-02');
+    await p.evaluate((h) => { location.hash = h; }, iciAvant);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     // L'étoile garde un dossier en haut : il devient Ctrl 1.
     await carte.click();
     await choix.locator('.ligne-d').filter({ hasText: 'Café Dar Zitouna' }).locator('[data-etoile]').click();
@@ -211,6 +249,7 @@ describe('la barre du Cabinet, à la souris', () => {
       if (!(await demande.count())) {
         if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
         await p.locator('.sb-creer [data-touche="D"]').waitFor({ timeout: 3_000 }).catch(() => {});
+        await p.waitForTimeout(600);
         await p.keyboard.press('d');
       }
       return demande.count();

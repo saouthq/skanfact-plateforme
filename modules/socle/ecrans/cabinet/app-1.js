@@ -1162,6 +1162,8 @@
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
     });
     $('#upd-pill').onclick = () => versReglages('pan-maj');
+    // « Rechercher… » s'ouvre au clic comme au clavier : sans ce branchement, seul Ctrl K l'ouvrait (issue 12).
+    { const ns = $('#nav-search'); if (ns) ns.addEventListener('click', e => { e.stopPropagation(); openPalette(); }); }
     document.addEventListener('click', e => { if (e.target instanceof Element && e.target.closest('[data-rappel-code]')) { e.preventDefault(); versReglages('pan-compte'); } });
     // La licence, dès l'ouverture : un bandeau qui n'apparaît qu'une fois les Réglages ouverts
     // n'avertit personne (règle 8.0.1 — « une échéance qui verrouille se voit depuis le premier
@@ -2605,7 +2607,7 @@
     if (!window.SkanBarre) return;
     const code = api.codeCabinet ? api.codeCabinet() : '';
     const btn = (action, ic, titre, sousT) => `<button type="button" role="menuitem" data-cab-action="${action}"><span class="ic">${icB(ic, 18)}</span><span class="lib">${esc(titre)}${sousT ? `<small>${esc(sousT)}</small>` : ''}</span></button>`;
-    const abo = $('#lic-banner') && !$('#lic-banner').hidden ? ($('#lic-banner .abo-t') || $('#lic-banner')).textContent.trim() : 'Rien à régler pour l\'instant';
+    const abo = $('#lic-banner') && !$('#lic-banner').hidden ? ($('#lic-banner .abo-t') || $('#lic-banner')).textContent.trim() : (($('#lic-banner') && $('#lic-banner').dataset.court) || 'Rien à régler pour l\'instant');
     const el = window.SkanBarre.ouvrirPop('sb-cabinet', `<span class="menu-titre">${esc(S.cabinet.name || 'Cabinet')}</span>`
       + (code ? `<div class="code-cab"><span><small>Ton code cabinet, à donner à tes clients</small><b>${esc(code)}</b></span><button type="button" class="sb-geste" data-cab-action="copier">${icB('copier', 14, 2)} Copier</button></div>` : '')
       + btn('dossiers', 'dossiers', 'Tous les dossiers', pl(dossiersActifs().length, 'dossier'))

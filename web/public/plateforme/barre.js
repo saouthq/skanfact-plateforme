@@ -294,7 +294,7 @@
     const html = `<span class="menu-titre">${esc([p.email, p.role].filter(Boolean).join(' · ') || 'Mon compte')}</span>`
       + (typeof w.__allerParametres === 'function' ? `<button type="button" role="menuitem" data-moi="compte"><span class="ic">${ic('profil', 18)}</span><span class="lib">Mon profil et ma sécurité</span></button>` : '')
       + (i.responsable ? `<button type="button" role="menuitem" data-moi="equipe"><span class="ic">${ic('equipe', 18)}</span><span class="lib">Mon équipe<small>${auCabinet() ? 'Inviter, les rôles, les dossiers confiés' : 'Inviter, les rôles, le support'}</small></span></button>`
-        + `<button type="button" role="menuitem" data-moi="abonnement"><span class="ic">${ic('carte', 18)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}<small>${esc(abo && abo.show ? abo.texte : 'Rien à régler pour l\'instant')}</small></span></button>` : '')
+        + `<button type="button" role="menuitem" data-moi="abonnement"><span class="ic">${ic('carte', 18)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}<small>${esc(abo && abo.show ? abo.texte : aboCalme())}</small></span></button>` : '')
       + `<button type="button" role="menuitem" data-moi="raccourcis"><span class="ic">${ic('clavier', 18)}</span><span class="lib">Raccourcis clavier</span><kbd>?</kbd></button>`
       + `<button type="button" role="menuitem" data-moi="visite"><span class="ic">${ic('boussole', 18)}</span><span class="lib">Découvrir la barre<small>Trois étapes, une minute</small></span></button>`
       + `<button type="button" role="menuitemcheckbox" aria-checked="${compact() ? 'true' : 'false'}" data-moi="compact"><span class="ic">${ic('onglets', 18)}</span><span class="lib">Affichage compact<small>${compact() ? 'Activé : plus de contenu à l\'écran' : 'Plus de contenu à l\'écran, rien ne change de place'}</small></span></button>`
@@ -698,7 +698,7 @@
       + `<div class="plus-section"><span class="plus-titre">Mon compte</span><div class="liste-tel">`
       + (fc ? `<a href="#/comptable">${ligne(`<span class="ic">${ic('comptable', 19)}</span><span class="lib">Mon comptable</span>`, compteDuLien(fc))}</a>` : '')
       + (inviter ? `<button type="button" data-plus="inviter">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">${esc((inviter.querySelector('.lib-inv') || inviter).textContent || 'Inviter mon comptable')}</span>`, null)}</button>` : '')
-      + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}</span><span class="d">${esc(abo && abo.show ? abo.texte : 'À jour')}</span>`, null)}</button>`
+      + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}</span><span class="d">${esc(abo && abo.show ? abo.texte : aboCalme())}</span>`, null)}</button>`
         + `<button type="button" data-plus="equipe">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Mon équipe</span>`, null)}</button>` : '')
       + (role() === 'caissier' && typeof w.__caissePoste === 'function' && w.__caissePoste() ? `<button type="button" data-plus="caissier">${ligne(`<span class="ic">${ic('changer', 19)}</span><span class="lib">Changer de caissier</span><span class="d">code à 4 chiffres</span>`, null)}</button>` : '')
       + `<button type="button" data-plus="onglets">${ligne(`<span class="ic">${ic('onglets', 19)}</span><span class="lib">Mes onglets</span>`, null)}</button>`
@@ -842,7 +842,12 @@
       // Dans « Créer », la lettre d'une ligne la choisit (F : une facture).
       if (ouverte.classList.contains('sb-creer') && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
         const l = /** @type {HTMLElement | null} */ (ouverte.querySelector(`[data-touche="${CSS.escape(e.key.toUpperCase())}"]`));
-        if (l) { e.preventDefault(); e.stopPropagation(); l.click(); }
+        // Une lettre dans la demi-seconde qui suit le N : c'est un mot qu'on tape, pas un choix. Rien ne se crée.
+        if (l && Date.now() - creerAuClavier < 500) { e.preventDefault(); frappe = Date.now(); fermer(); }
+        else if (l) { e.preventDefault(); e.stopPropagation(); l.click(); }
+        // Une lettre qui ne choisit rien : on tapait un mot (« Nabeul ») en croyant être dans un champ. Le menu se
+        // referme et les raccourcis se taisent tant que la frappe continue (issue 12).
+        else if (/^[\p{L}\p{N}]$/u.test(e.key)) { frappe = Date.now(); fermer(); }
       }
       return;
     }
@@ -850,6 +855,9 @@
     // des lettres), ni avec une touche de commande.
     if (e.ctrlKey || e.metaKey || e.altKey || dansUnChamp(e.target) || fenetreOuverte() || enCaisse() || !$('barre')) { suite = ''; return; }
     const k = e.key;
+    // Une frappe en cours (un mot tapé hors d'un champ) ne déclenche aucun raccourci : il faut une seconde de silence.
+    if (k.length === 1 && Date.now() - frappe < 1000) { frappe = Date.now(); suite = ''; return; }
+    if (k.length === 1 && /^[\p{L}\p{N}]$/u.test(k) && !RACCOURCIS_LETTRES.includes(k.toLowerCase()) && suite !== 'g') { frappe = Date.now(); return; }
     if (suite === 'g') {
       suite = '';
       if (k === 'a' || k === 'A') { e.preventDefault(); aller(`#/${accueil()}`); return; }
@@ -866,9 +874,14 @@
     if (k === '[' && !telephone() && !tablette()) { e.preventDefault(); replier(); return; }
     const b = $('b-creer');
     const caissier = role() === 'caissier';
-    if (b && !b.hidden && ((!caissier && (k === 'n' || k === 'N')) || (caissier && (k === 'v' || k === 'V')))) { e.preventDefault(); e.stopPropagation(); ouvrirCreer(b); }
+    if (b && !b.hidden && ((!caissier && (k === 'n' || k === 'N')) || (caissier && (k === 'v' || k === 'V')))) { e.preventDefault(); e.stopPropagation(); creerAuClavier = Date.now(); ouvrirCreer(b); }
   }, true);
   let suite = '';
+  // L'abonnement quand rien ne presse : le mot que le panneau des Réglages emploie, le même au menu et au téléphone.
+  const aboCalme = () => { const b = $('lic-banner'); return (b && b.dataset.court) || 'Rien à régler pour l\'instant'; };
+  let frappe = 0;
+  let creerAuClavier = 0;
+  const RACCOURCIS_LETTRES = ['g', 'n', 'v'];
   window.addEventListener('hashchange', () => { fermer(); fermerPlus(); fermerTiroir(); lancerVisite(0); requestAnimationFrame(() => { noterRecent(); apresCompte(); }); });
   window.addEventListener('resize', () => { fermer(); if (!telephone()) fermerPlus(); if (!tablette()) fermerTiroir(); lancerVisite(0); hautTel(); poserCloche(); });
   // La bulle de la barre repliée : le nom de l'entrée (et ce qui y attend), au survol et au clavier.

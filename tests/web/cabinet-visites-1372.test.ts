@@ -158,6 +158,25 @@ describe('les visites guidées du Cabinet expliquent chaque écran (1.372.0)', (
     // Le nom de la ligne est son premier morceau : ni la date ni le compte ne s'y collent.
     expect(dates).not.toMatch(/\d{4}(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/);
     expect(dates).not.toMatch(/Emmène à la page « [^»]*\d+ dossiers?/);
+    // (1.374.0) « Tenir la fiche d'un client » suit la fiche d'aujourd'hui : elle ouvrait l'ancien écran « …/suivi » (issue 12).
+    await p.keyboard.press('Escape');
+    await p.evaluate(() => { location.hash = '#/guide'; });
+    const fiche = p.locator('[data-visite="fiche-client"]').first();
+    await fiche.waitFor({ timeout: 10_000 });
+    await fiche.click();
+    await expect.poll(async () => net(await bulle.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/Ce qui attend/);
+    expect(await p.evaluate(() => location.hash)).toMatch(/^#\/dossier\/[^/]+$/);
+    const titresFiche: string[] = [];
+    for (let i = 0; i < 6; i++) {
+      titresFiche.push(net(await bulle.innerText()));
+      const suite = bulle.locator('.vb-suiv');
+      if (!await suite.count() || !/Suivant/.test(net(await suite.innerText()))) break;
+      await suite.click();
+      await p.waitForTimeout(350);
+    }
+    const toutFiche = titresFiche.join(' ‖ ');
+    for (const t of ['Ce qui attend', 'Son année, mois par mois', 'La mission, l\'équipe, le client', 'Le menu de ses gestes']) expect(toutFiche).toContain(t);
+    expect(toutFiche).not.toMatch(/ne se changent pas ici|Les mois de ce client/);
     expect(erreurs).toEqual([]);
   }, 420_000);
 });

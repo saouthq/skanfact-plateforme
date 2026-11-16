@@ -5468,7 +5468,7 @@
       (layer, close) => {
         change = suivreSaisie(layer);
         $('#no', layer).onclick = close;
-        $('#nd-coller', layer).onclick = () => { close(); collerDossiersForm(); };
+        $('#nd-coller', layer).onclick = () => { close(); collerDossiersForm(peut); };
         $('#ok', layer).onclick = async () => {
           const f = readDossierFields(layer);
           // Un refus MONTRE la case (7.0.0, 10.12.0) : le curseur y va, elle se marque.
@@ -5539,7 +5539,7 @@
     + 'elles se reconnaissent à leur titre (nom, matricule, email, téléphone), dans n\'importe quel ordre, et une colonne '
     + 'qu\'on ne sait pas lire (adresse, ville…) est laissée de côté. Tapées à la main, sépare-les par un point-virgule. '
     + 'Seul le nom est obligatoire ; tu vois ce qui entrera avant de valider.';
-  function brancherApercuListe(champ, zone, bouton) {
+  function brancherApercuListe(champ, zone, bouton, peut) {
     if (!champ || !zone) return;
     const dessiner = () => {
       const txt = champ.value.trim();
@@ -5556,6 +5556,9 @@
         r.colonnesIgnorees && r.colonnesIgnorees.length ? ` · ${pl(r.colonnesIgnorees.length, 'colonne laissée de côté', 'colonnes laissées de côté')} : ${esc(r.colonnesIgnorees.join(', '))}` : ''}</div>
         ${n ? `<div class="scroll-x" style="max-height:170px"><table class="list compact"><thead><tr><th>Nom</th><th>Matricule</th><th>Email</th><th>Téléphone</th></tr></thead>
           <tbody>${r.dossiers.slice(0, 50).map(d => `<tr><td>${esc(d.name)}</td>${mfFaux(d) ? `<td class="douteux">${esc(d.matricule)} <span class="small">(incomplet)</span></td>` : cellule(d.matricule)}${cellule(d.email, d.email && K.emailDouteux(d.email))}${cellule(d.phone)}</tr>`).join('')}</tbody></table></div>` : ''}`;
+      // (1.374.0) Le prix se lit AVANT de valider, compté sur ce qui entrera : la fenêtre d'un dossier le disait, pas celle-ci.
+      const prix = n && peut && typeof peut.plusieurs === 'function' ? peut.plusieurs(n) : '';
+      if (prix && zone.firstElementChild) zone.firstElementChild.insertAdjacentHTML('afterend', `<p class="info-box small mb" id="cl-prix"><b>Ce que ça coûte.</b> ${esc(prix)}</p>`);
       if (bouton) bouton.textContent = n ? `Ajouter ${pl(n, 'client')}` : 'Ajouter ces clients';
       if (bouton) bouton.disabled = faux.length > 0;
     };
@@ -5652,7 +5655,7 @@
   // La fiche d'un bien collé : ses comptes sont ceux que le formulaire aurait proposés (la famille, sinon 22 / 28 / 681).
   const ficheDuBienColle = x => ({ libelle: x.libelle, famille: x.famille, dateMiseEnService: x.dateMiseEnService, dateAcquisition: x.dateAcquisition, valeur: x.valeur, residuelle: 0,
     duree: x.duree, methode: 'lineaire', compte: x.compte || KC.compteDeFamille(x.famille) || '22', compteAmort: '28', compteDotation: '681' });
-  function collerDossiersForm() {
+  function collerDossiersForm(peut) {
     let change = () => false;
     modal(
       `<h2>Coller une liste de clients</h2>
@@ -5663,7 +5666,7 @@
        <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Ajouter ces clients</button></div>`,
       (layer, close) => {
         change = suivreSaisie(layer);
-        brancherApercuListe($('#cl-liste', layer), $('#cl-apercu', layer), $('#ok', layer));
+        brancherApercuListe($('#cl-liste', layer), $('#cl-apercu', layer), $('#ok', layer), peut);
         $('#no', layer).onclick = close;
         $('#ok', layer).onclick = async () => {
           const txt = $('#cl-liste', layer).value.trim();
@@ -7238,6 +7241,11 @@
     if (rs2) rs2.onclick = async () => {
       const table = lireRegimes(view).filter(r => r.id || r.label);
       if (table.some(r => !r.id || !r.label)) return toast('Chaque régime a besoin d\'un identifiant et d\'un nom.', 'error');
+      for (const tr of $$('#sr-regimes tr[data-rg]', view)) {
+        const champ = $('[data-k=annuelles]', tr);
+        const faux = annuellesRefusees(champ && champ.value);
+        if (faux.length) return refus(champ, '« ' + faux[0] + ' » n\'est pas une échéance : écris nom@JJ-MM avec un jour qui existe (par exemple Bilan@30-04). Rien n\'est enregistré, ta saisie reste là.');
+      }
       try {
         S = await api.saveCabinet({ settings: { regimes: table } });
         regBrouillon = null; dessinerRegimes(view); flash($('#sr-reg-saved', view));
@@ -7447,6 +7455,15 @@
   }
 
   let regBrouillon = null;
+  // Ce qui est mal écrit dans « nom@JJ-MM » se REFUSE en le nommant : jeté en silence, l'échéance disparaissait à
+  // l'enregistrement sans un mot, et « 31-02 » passait (issue 12). Rend les morceaux fautifs, tels que tapés.
+  const JOURS_DU_MOIS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const annuellesRefusees = texte => String(texte || '').split(';').map(x => x.trim()).filter(Boolean).filter(x => {
+    const m = /^([^@]+)@\s*(\d{1,2})\s*[-/]\s*(\d{1,2})$/.exec(x);
+    if (!m || !m[1].trim()) return true;
+    const j = Number(m[2]), mo = Number(m[3]);
+    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= JOURS_DU_MOIS[mo - 1]);
+  });
   const lireRegimes = view => $$('#sr-regimes tr[data-rg]', view).map(tr => ({
     id: ($('[data-k=id]', tr) || {}).value || '', label: ($('[data-k=label]', tr) || {}).value || '',
     tva: ($('[data-k=tva]', tr) || {}).value || '',
@@ -8726,6 +8743,9 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const livres = avecLivre();
     const convient = d => !!d && !d.archived && (sorte === 'client'
       || ((sorte === 'livre' || sorte === 'saisie') && livres.has(d.id))
+      // (1.374.0) Un dossier tenu se saisit dès qu'il existe (son livre s'ouvre à la première pièce) : onze clients
+      // tenus, et « Saisir une pièce » répondait « D'abord : ajouter un client » (issue 12).
+      || (sorte === 'saisie' && !!d.manual)
       || (sorte === 'skanfact' && livres.has(d.id) && (d.packs || []).length > 0)
       || (sorte === 'hors' && livres.has(d.id) && !!d.manual));
     const ouvert = (/^#\/dossier\/([^/]+)/.exec(location.hash) || [])[1];
@@ -9760,7 +9780,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       }
       if (d) return `<button class="btn btn-primary" data-ecran="${esc(g.ecran)}" data-dossier="${esc(d.id)}">${esc(g.label)} ${esc(K.de(d.name))}</button>${pourquoi}`;
       return `<button class="btn btn-primary" data-geste="#/">Choisir le dossier</button>
-        <span class="small muted">${esc(ONGLETS_COMPTA[g.ecran] || '')} vit dans chaque dossier, onglet Comptabilité.</span>`;
+        <span class="small muted">${esc(ONGLETS_COMPTA[g.ecran] || '')} vit dans chaque dossier : ouvre un client, puis la barre de gauche.</span>`;
     }
     return `<button class="btn btn-primary" data-geste="${esc(g.hash)}"${g.panneau ? ` data-panneau="${esc(g.panneau)}"` : ''}>${esc(g.label)}</button>${pourquoi}`;
   }

@@ -12,6 +12,7 @@
 // Un instrument qui n'atteint pas l'écran dirait « tout va bien » : chaque écran prouve d'abord qu'il
 // est bien celui qu'on croit (son titre), et le compte des écrans vérifiés est exigé.
 
+import { exigerLeCode } from '../socle/cabinet-tenu.ts';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -75,7 +76,14 @@ describe('l\'instrument de rendu des écrans', () => {
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).jeton);
     if (etape === 'vide') return { jeton, ent: '' };
     // Le code du téléphone n'est exigé que d'un comptable de cabinet (0076, décision du 09/10/2026).
-    if (etape === 'code_requis') { await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Youssef-Trabelsi' }); return { jeton, ent: '' }; }
+    // (0216, 1.373.0) … et seulement sept jours après le premier vrai dossier de son cabinet : il en tient un depuis huit.
+    if (etape === 'code_requis') {
+      const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Youssef-Trabelsi' })).id);
+      const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+      await admin.connect();
+      try { await exigerLeCode((c, x) => api('POST', c, jeton, x), admin, cabinet); } finally { await admin.end(); }
+      return { jeton, ent: '' };
+    }
     const ent = String((await api('POST', '/entreprises-essai', jeton)).id);
     return { jeton, ent };
   }

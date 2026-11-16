@@ -12,3 +12,11 @@ export async function cabinetQuiExigeLeCode(pool: Pool, admin: pg.Client, utilis
   await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where entreprise = $1`, [dossier]);
   return cabinet;
 }
+
+// La même chose pour les tests d'écran, qui créent leur cabinet par l'API : `poster` crée le dossier tenu (la route du
+// serveur, sous la session du comptable), puis ses dates reculent de huit jours.
+export async function exigerLeCode(poster: (chemin: string, corps: unknown) => Promise<unknown>, admin: pg.Client, cabinet: string): Promise<void> {
+  await poster(`/cabinets/${cabinet}/dossiers`, { raisonSociale: 'Dossier tenu depuis huit jours' });
+  await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where tenue_par = $1`, [cabinet]);
+  await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where cabinet = $1`, [cabinet]);
+}
