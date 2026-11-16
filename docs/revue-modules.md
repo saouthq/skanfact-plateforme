@@ -3958,3 +3958,14 @@ les pages ENTRE ELLES.
 - **La règle pour la suite** : un écran neuf ne passe que s'il parle la langue de la maison ; résorber une dette, c'est
   retirer sa ligne du fichier et baisser le plafond des couleurs. Le thème sombre et le téléphone ne sont pas encore
   relevés par cet instrument.
+
+### 1.365.1 : le rouge GitHub de la 1.364.0 (deux tests d'écran)
+
+- **Le résumé d'un relevé importé** (`tresorerie-1298`) : depuis la 1.363.0, « retrouvées » compte aussi les remises,
+  et le détail suivait sans le dire — « 2 retrouvées · 1 remise en plusieurs mouvements · 1 absente » pour trois
+  lignes se lisait comme quatre. Le détail dit « dont » (« 2 retrouvées, dont 1 remise en plusieurs mouvements »), et
+  « déjà pointée » passe après lui. Le test de la 1.298.0 n'avait pas été rejoué avec la 1.363.0 : c'est la faute.
+- **Une erreur de page vue une seule fois, sur GitHub** (`groupe-1324`, « reading 'classList' » de null), pas reproduite
+  ici. Cause probable, non prouvée : la barre de sélection d'une liste (factures, achats) redessinée à l'arrivée d'une
+  écriture alors que la page venait d'être quittée. Les trois dessins ne touchent plus que ce qui est là, et le test
+  range désormais la PILE de l'erreur : si elle revient, elle dira sa ligne.

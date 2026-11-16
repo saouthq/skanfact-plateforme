@@ -136,7 +136,8 @@ describe('le groupe 1.324.0 : trois sociétés sœurs, sans compter deux fois, e
     const cx = await contexte(hedi);
     await cx.addInitScript(sansVisite);
     const p = await cx.newPage();
-    p.on('pageerror', (e) => erreurs.push(e.message));
+    // (1.365.1) Avec la pile : une erreur vue une fois sur GitHub (« reading 'classList' ») ne disait pas d'où elle venait.
+    p.on('pageerror', (e) => erreurs.push(`${e.message} — ${(e.stack ?? '').split('\n').slice(1, 4).map((x) => x.trim()).join(' | ')}`));
     await p.goto(`${serveur.adresse}/v10/?e=${h}#/dashboard`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);

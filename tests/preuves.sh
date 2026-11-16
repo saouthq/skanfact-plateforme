@@ -29595,6 +29595,10 @@ prouver $'cohérence 1.365.0 b : le texte secondaire garde deux gris selon la pa
   $'body, body.dark { --muted: var(--sb-gris-2); }' \
   $'body.inconnu { --muted: var(--sb-gris-2); }' \
   $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'rouge 1.365.1 a : le résumé du relevé additionne la remise deux fois à la lecture (« 2 retrouvées, 1 remise, 1 absente » pour trois lignes)' modules/socle/ecrans/entreprise/app-2.js \
+  $'`<span>dont <b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>`' \
+  $'`<span><b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>`' \
+  $'à la souris, du loyer oublié au relevé pointé, puis au téléphone'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

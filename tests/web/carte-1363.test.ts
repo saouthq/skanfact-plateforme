@@ -109,7 +109,7 @@ describe('la remise de cartes 1.363.0 : la banque verse le net, la commission se
     expect(ligne).toContain('REMISE TPE 0042');
     expect(ligne).toContain('2 ventes par carte : 160,650 DT');
     expect(ligne).toMatch(/− 2,380 DT \+ 158,270 DT$/);
-    expect(net(await revue.locator('.tr-imp-res').innerText())).toMatch(/^1 retrouvée dans SkanFact 1 remise de cartes 0 absente de SkanFact/);
+    expect(net(await revue.locator('.tr-imp-res').innerText())).toMatch(/^1 retrouvée dans SkanFact dont 1 remise de cartes 0 absente de SkanFact/);
     expect(net(await revue.locator('#imp-cartes-dit').innerText())).toBe('La commission de la banque s\'enregistre en frais bancaires, déjà pointée : la ligne tombe juste, et l\'argent des ventes n\'est compté qu\'une fois.');
     expect(await revue.locator('#ok').innerText()).toBe('Pointer 2 mouvements et noter la commission');
     // Décochée, la remise ne pointe rien et ne note rien : il ne reste que le solde à recopier.

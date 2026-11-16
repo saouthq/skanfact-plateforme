@@ -129,7 +129,7 @@ describe('la trésorerie 1.298.0 : loyer pas noté, remise de chèques, frais, s
     await choix.setFiles(csv);
     const revue = p.locator('#modal-root .modal', { hasText: 'Le relevé de' });
     await revue.waitFor({ timeout: 10_000 });
-    expect(net(await revue.locator('.tr-imp-res').first().innerText())).toBe('1 retrouvée dans SkanFact 1 remise en plusieurs mouvements 1 absente de SkanFact 1 mouvement de SkanFact pas sur ce relevé');
+    expect(net(await revue.locator('.tr-imp-res').first().innerText())).toBe('2 retrouvées dans SkanFact dont 1 remise en plusieurs mouvements 1 absente de SkanFact 1 mouvement de SkanFact pas sur ce relevé');   // (1.363.0) la remise est retrouvée elle aussi ; (1.365.1) son détail dit « dont »
     const remise = revue.locator('#imp-remises tbody tr');
     expect(await remise.count()).toBe(1);
     expect(await remise.locator('.tr-imp-m').evaluateAll((l) => l.map((x) => (x as HTMLElement).innerText.replace(/\s+/g, ' ').trim().replace(/^.*?(\+ [\d\s,]+DT)$/, '$1')))).toEqual(['+ 1 011,500 DT', '+ 1 755,845 DT', '+ 728,637 DT']);

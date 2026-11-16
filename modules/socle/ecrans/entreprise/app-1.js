@@ -5393,8 +5393,9 @@
       draw();
     };
     const dessinerChoix = () => {
-      $('#lf-choix').innerHTML = barreChoix();
-      $('#lf').classList.toggle('avec-choix', s.sel.size > 0);
+      const choix = $('#lf-choix'), cadre = $('#lf'); if (!choix || !cadre) return;   // (1.365.1) la liste a pu être quittée avant ce dessin
+      choix.innerHTML = barreChoix();
+      cadre.classList.toggle('avec-choix', s.sel.size > 0);
       if (!s.sel.size) return;
       const choisies = () => [...s.sel].map(docById).filter(Boolean);
       $('#bc-rien').onclick = () => { s.sel.clear(); draw(); };
@@ -5766,8 +5767,9 @@
       draw();
     };
     const dessinerChoix = () => {
-      $('#lf-choix').innerHTML = barreChoix();
-      $('#lf').classList.toggle('avec-choix', s.sel.size > 0);
+      const choix = $('#lf-choix'), cadre = $('#lf'); if (!choix || !cadre) return;   // (1.365.1) la liste a pu être quittée avant ce dessin
+      choix.innerHTML = barreChoix();
+      cadre.classList.toggle('avec-choix', s.sel.size > 0);
       if (!s.sel.size) return;
       const choisies = () => [...s.sel].map(docById).filter(Boolean);
       $('#bc-rien').onclick = () => { s.sel.clear(); draw(); };
@@ -17239,9 +17241,10 @@
     });
     // ── la barre des pièces choisies (maquette : « Régler ensemble », « Exporter », « Ne plus rien choisir ») ──
     function dessinerChoix() {
-      const boite = $('#la-choix'); if (!boite) return;
+      // (1.365.1) La liste a pu être quittée entre l'arrivée d'une écriture et ce dessin : on ne touche que ce qui est là.
+      const boite = $('#la-choix'), cadre = $('#la'); if (!boite || !cadre) return;
       const l = [...s.sel].map(purchaseById).filter(Boolean);
-      $('#la').classList.toggle('avec-choix', l.length > 0);
+      cadre.classList.toggle('avec-choix', l.length > 0);
       if (!l.length) { boite.innerHTML = ''; return; }
       const r = l.reduce((a, p) => a + Math.max(0, restOf(p)), 0);
       const aRegler = l.filter(p => C.purchaseBalance(p, company(), data).remaining > 0.0005 && !C.PURCHASE_LIES.includes(p.kind));
