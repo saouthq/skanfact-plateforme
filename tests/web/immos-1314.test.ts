@@ -164,8 +164,10 @@ describe('les immobilisations 1.314.0 : le matériel de l\'épicerie, vu de part
 
     // D. Le Cabinet : les biens que le client tient dans son SkanFact, avec le plan qu'il voit. Ce qui sort vers lui est
     // compté : le plan et la sortie de chaque bien, la pièce de l'achat d'où il est né ; ni ses notes ni son fournisseur.
+    // (1.364.0) Un champ de plus, décidé : `entree`, le jour où le bien est entré dans les livres du client quand ce
+    // n'est pas sa mise en service (enregistré après une clôture) — le Cabinet y date la même écriture d'entrée.
     const lus = (await api('GET', `/entreprises/${ent}/compta/immobilisations`, sonia)).corps.duClient as Obj[];
-    expect(lus.map((b) => Object.keys(b).sort().join(','))).toEqual(Array(3).fill('achat,date,duree,famille,id,libelle,residuelle,sortie,valeur'));
+    expect(lus.map((b) => Object.keys(b).sort().join(','))).toEqual(Array(3).fill('achat,date,duree,entree,famille,id,libelle,residuelle,sortie,valeur'));
     expect(lus.find((b) => b.id === 'bal')).toMatchObject({ valeur: '650', duree: '5', sortie: { date: `${Y}-09-30`, prix: '120', motif: 'Revendue à l\'épicerie Ben Salah' } });
     expect(String(lus.find((b) => b.libelle === 'Vitrine réfrigérée 2 m')?.achat)).toMatch(/^[0-9a-f-]{36}$/);
     const cxC = await contexte(sonia);

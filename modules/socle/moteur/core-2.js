@@ -330,6 +330,10 @@
   }
 
   // L'état des immobilisations pour un exercice : une ligne par bien, avec la dotation de l'année.
+  // (1.364.0) Le jour où un bien entre dans les livres : sa mise en service, sauf s'il a été enregistré alors que ce jour
+  // était déjà clôturé — alors le premier jour ouvert d'alors, figé sur la fiche (`entreeLe`).
+  function entreeDuBien(a) { return a && a.entreeLe && a.entreeLe > (a.date || '') ? a.entreeLe : (a && a.date) || ''; }
+
   function assetsList(data, year) {
     const y = Number(year) || Number(today().slice(0, 4));
     return (data.assets || []).map(a => {
@@ -3043,15 +3047,24 @@
       (data.assets || []).forEach(a => {
         const brut = round3(Number(a.amount) || 0);
         if (!brut || !a.date) return;
-        if (!a.purchaseId && inPeriod(a.date, period && period.from, period && period.to)) {
-          const e = entrySet({ date: a.date, journal: 'OD', piece: 'IMMO', tiers: '', tiersId: '', source: 'immobilisation', docId: a.id, currency: cur });
-          e.debit(acc.immobilisations, `Entrée — ${a.label || 'immobilisation'} (saisie à la main)`, brut);
-          e.credit(acc.reportANouveau, `Entrée — ${a.label || 'immobilisation'} (saisie à la main)`, brut);
+        // (1.364.0, bout en bout 31) Un bien en service depuis une période déjà clôturée s'enregistre quand même : son
+        // entrée dans les livres se date au premier jour ouvert (`entreeLe`, figé sur la fiche), et les dotations des
+        // exercices finis avant ce jour entrent avec lui, contre le report à nouveau. Rien ne bouge dans un mois clôturé.
+        const entree = entreeDuBien(a);
+        const dis = a.disposal && a.disposal.date ? a.disposal.date : '';
+        const anterieurs = entree > a.date ? round3(assetSchedule(a).filter(r => `${r.year}-12-31` < entree && !(dis && Number(dis.slice(0, 4)) <= r.year)).reduce((t, r) => t + r.annuity, 0)) : 0;
+        if ((!a.purchaseId || anterieurs) && inPeriod(entree, period && period.from, period && period.to)) {
+          const e = entrySet({ date: entree, journal: 'OD', piece: 'IMMO', tiers: '', tiersId: '', source: 'immobilisation', docId: a.id, currency: cur });
+          if (!a.purchaseId) e.debit(acc.immobilisations, `Entrée — ${a.label || 'immobilisation'} (saisie à la main)`, brut);
+          if (anterieurs) e.credit(acc.amortissements, `Amortissements antérieurs — ${a.label || 'immobilisation'}`, anterieurs);
+          const rn = round3((a.purchaseId ? 0 : brut) - anterieurs);
+          if (rn > 0) e.credit(acc.reportANouveau, `Entrée — ${a.label || 'immobilisation'} (saisie à la main)`, rn);
+          else if (rn < 0) e.debit(acc.reportANouveau, `Amortissements antérieurs — ${a.label || 'immobilisation'}`, -rn);
           out.push(...e.done());
         }
-        const dis = a.disposal && a.disposal.date ? a.disposal.date : '';
         assetSchedule(a).forEach(r => {
           if (dis && Number(dis.slice(0, 4)) < r.year) return;
+          if (anterieurs && `${r.year}-12-31` < entree && !(dis && Number(dis.slice(0, 4)) === r.year)) return;
           const d = dis && Number(dis.slice(0, 4)) === r.year ? dis : `${r.year}-12-31`;
           const annuity = dis && Number(dis.slice(0, 4)) === r.year ? assetYear(a, r.year).annuity : r.annuity;
           if (!annuity || d >= t || !inPeriod(d, period && period.from, period && period.to)) return;
@@ -7866,7 +7879,7 @@
     lineCost, documentMargin, MODES_PRIX, ARRONDIS_PRIX, calculPrix, marginBy, PROJECT_STATUSES, projectMargin, projectList, avancementAffaire, etatDesChantiers, suiviAffaire, quantitesSortiesPourAffaire, achatDansAffaire, affaireDeLigne, affairesDeLAchat, partageEntreAffaires, coutAchatPourAffaire, coutHoraire, heuresDeLAffaire, margeMoisParMois, affaireHtml, recurringProfitability, piecesDuContrat, contratSuivi,
     DEFAULT_FIXED_CATEGORIES, isFixedCategory, breakEven,
     DEFAULT_ASSET_CLASSES, assetClassLabel, assetClassYears, days360, assetSchedule, assetYear,
-    assetCumulated, assetNBV, disposalResult, assetsList, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
+    assetCumulated, assetNBV, disposalResult, assetsList, entreeDuBien, assetTotals, assetsToCreate, immosEnAttente, immosHorsTableau, ligneDeFiche, biensADiminuer, depreciationFor,
     cappedCumulated,
     moisDePaie, anneesDePaie, paieDuMois, paieATraiter, controlesDuMois, montantSocial, initialesDe, couleurDe, premierePieceApres, MOVE_SOURCES, SOURCES_SORTIE, qteMouvement, moveSourceLabel, trackedItems, itemOfLine, stockParLot, lotConseille, lotsAPerimer, lotsDeLaPiece, stockMovements, runningStock, stockOf, estKit, composantsDe, lignesDeStock, kitsPossibles, coutDuKit,
     stockList, stockTotals, etatDuStock, receptionsSansFactureAu, stockJournal, inventoryDiff, stockAlerts, quantiteACommander, fournisseurDeLArticle, ventesDeLArticle, commandesEnCoursDeLArticle, stockImpact, sortieAuBon, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,

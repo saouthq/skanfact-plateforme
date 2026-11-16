@@ -2055,7 +2055,7 @@
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
       const biens = biensClient.get(o.dossierId) || [];
-      return { etat: KC.etatImmobilisations(livre, o.annee), aCreer: KC.immobilisationsACreer(livre, o.annee), aEcrire: KC.ecrituresImmobilisations(livre, o.annee), fiches: livre.immobilisations, biens, duClient: KC.biensDuClient(livre, biens, o.annee) };
+      return { etat: KC.etatImmobilisations(livre, o.annee), aCreer: KC.immobilisationsACreer(livre, o.annee), aEcrire: KC.ecrituresImmobilisations(livre, o.annee), fiches: livre.immobilisations, biens, duClient: KC.biensDuClient(livre, biens, o.annee), entrees: KC.entreesManquantes(livre, o.annee, biens) };
     },
     saveImmobilisation: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;

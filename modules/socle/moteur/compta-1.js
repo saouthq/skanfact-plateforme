@@ -4284,9 +4284,13 @@
     });
     const y = Number(annee) || 0;
     const out = [];
+    // (1.364.0) L'ENTRÉE d'un bien saisi à la main (`entreesManquantes`) est née de sa fiche : la proposer en « ligne sans
+    // fiche » ferait créer une seconde fiche du même bien, donc l'amortir deux fois.
+    const entrees = new Set((livre.immobilisations || []).map(f => 'ENT-' + txt(f.id).slice(-4)));
     (livre.ecritures || []).forEach(e => {
       if (e.statut === 'contrepassee') return;
       if (y && Number(String(e.date).slice(0, 4)) !== y) return;
+      if (entrees.has(txt(e.piece))) return;
       (e.lignes || []).forEach((l, i) => {
         if (!txt(l.compte).startsWith(prefixe)) return;
         if (!num(l.debit)) return;                       // une acquisition DÉBITE le compte
@@ -4422,6 +4426,36 @@
           libelle: `${r.cession.motif === 'rebut' ? 'Mise au rebut' : 'Sortie'} — ${f.libelle}`, source: 'inventaire', lignes
         });
       }
+    });
+    return out;
+  }
+
+  // (1.364.0, bout en bout 31) Un bien du registre qu'AUCUNE ligne du livre n'a fait entrer : saisi à la main ici, ou
+  // repris d'une fiche que le client a saisie à la main (sans facture d'achat). Sa dotation crédite le 28 et sa sortie
+  // crédite le 22 d'une valeur que le compte n'a jamais reçue : 30 000 DT créditeurs au bilan, sur une camionnette
+  // revendue. On propose son entrée, au brouillard : la valeur au compte du bien, les amortissements des exercices
+  // finis avant ce jour, le reste au report à nouveau — ce que l'application du client écrit de son côté. Rien ne se
+  // propose si une ligne débite déjà ce compte de cette valeur, ou si l'entrée est déjà passée.
+  function entreesManquantes(livre, annee, biens) {
+    const y = Number(annee) || 0, debut = `${y}-01-01`, fin = `${y}-12-31`;
+    const ecritures = (livre.ecritures || []).filter(e => e && e.statut !== 'contrepassee');
+    const parId = new Set(ecritures.map(e => e.id));
+    const out = [];
+    (livre.immobilisations || []).forEach(f => {
+      const mes = txt(f.dateMiseEnService) || txt(f.dateAcquisition), valeur = round3(num(f.valeur));
+      if (!f || f.reporteDe || !valeur || !mes || mes > fin) return;
+      if (f.origine && parId.has(txt(f.origine.docId).split('#')[0])) return;
+      const compte = txt(f.compte) || compteImmo(livre, 'immobilisations'), piece = 'ENT-' + txt(f.id).slice(-4);
+      if (ecritures.some(e => txt(e.piece) === piece || (e.lignes || []).some(l => txt(l.compte) === compte && Math.abs(num(l.debit) - valeur) < 0.0005))) return;
+      const b = f.origine && f.origine.source === 'client' ? (biens || []).find(x => txt(x.id) === txt(f.origine.docId)) : null;
+      if (b && txt(b.achat)) return;
+      const date = [mes, txt(b && b.entree), debut].sort().pop();
+      const anterieurs = date.slice(0, 4) > mes.slice(0, 4) ? round3(cumulDuBien(f, `${Number(date.slice(0, 4)) - 1}-12-31`)) : 0;
+      const ran = txt(((livre.plan || []).find(c => c.role === 'reportANouveau') || {}).compte) || '12';   // le compte du client (DEFAULT_ACCOUNTS.reportANouveau) : deux chemins, un chiffre
+      const lignes = [{ compte, libelle: `Entrée — ${f.libelle}`, debit: valeur, credit: 0 }];
+      if (anterieurs) lignes.push({ compte: txt(f.compteAmort) || compteImmo(livre, 'amortissements'), libelle: 'Amortissements antérieurs', debit: 0, credit: anterieurs });
+      if (round3(valeur - anterieurs)) lignes.push({ compte: ran, libelle: 'Bien entré sans facture d\'achat', debit: 0, credit: round3(valeur - anterieurs) });
+      out.push({ immoId: f.id, bien: txt(f.libelle), compte, valeur, journal: 'OD', date, piece, libelle: `Entrée — ${f.libelle} (saisie à la main)`, source: 'inventaire', lignes });
     });
     return out;
   }

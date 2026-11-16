@@ -2672,7 +2672,7 @@
         // (1.314.0) Une date se valide en quittant son champ (« change » sur le champ caché) : l'aperçu la suit, sinon il
         // montrait le plan de l'ancienne date (vitrine posée le 15/03, plan calculé au 10/03).
         $('#imf', root).oninput = hint; $('#imf', root).onchange = hint; hint();
-        $('#ok', root).onclick = () => {
+        $('#ok', root).onclick = async () => {
           const v = formValues($('#imf', root));
           // Un refus MONTRE le champ (7.20.0) : sept champs, et un bandeau de 2,6 secondes.
           const champ = n => $(`[name=${n}]`, root);
@@ -2682,15 +2682,27 @@
           if (!(Number(v.years) > 0)) return refus(champ('years'), 'La durée d\'amortissement doit être d\'au moins un an.');
           if (Number(v.residual) >= Number(v.amount)) return refus(champ('residual'), 'La valeur résiduelle doit rester inférieure à la valeur d\'acquisition.');
           if (!v.date) return refus(champ('date'), 'Date de mise en service invalide.');
-          if (closedBlock([a.date, v.date], 'Ce bien')) return;
+          // (1.364.0, bout en bout 31) Un bien en service depuis un mois clôturé s'enregistre : sa mise en service est un
+          // fait, pas une date qu'on refait « à aujourd'hui » (le plan serait faux). Seule son entrée dans les livres se
+          // date au premier jour ouvert, et c'est dit avant d'enregistrer. Ce qui est déjà entré dans un mois clôturé,
+          // lui, ne bouge plus.
+          if (asset && closedBlock(C.entreeDuBien(a), 'Ce bien')) return;
           if (!asset && licenceBlock('Créer la fiche du bien', 'immos')) return;
+          let entreeLe = '';
+          if (C.isClosedDate(data, v.date)) {
+            entreeLe = asset && a.entreeLe && !C.isClosedDate(data, a.entreeLe) ? a.entreeLe : C.addDays(C.closedUntil(data), 1);
+            if (!(asset && a.entreeLe === entreeLe && a.date === v.date) && !await confirmDialog(
+              `Ce bien est en service depuis le ${C.fmtDate(v.date)}, dans une période clôturée jusqu'au ${C.fmtDate(C.closedUntil(data))}.\n\nSon amortissement part bien du ${C.fmtDate(v.date)}. Son entrée dans tes livres, elle, se date au ${C.fmtDate(entreeLe)}, le premier jour ouvert : rien de ce que ton comptable a déjà reçu ne change.`,
+              'Enregistrer le bien', false, { titre: 'Un bien d\'avant la clôture' })) return;
+          }
           Object.assign(a, v, { amount: Number(v.amount), residual: Number(v.residual) || 0, years: Number(v.years) });
+          if (entreeLe) a.entreeLe = entreeLe; else delete a.entreeLe;
           if (!asset) data.assets.push(a);
           save(true); close(); if (done) done(a);
         };
         if ($('#del-imm', root)) $('#del-imm', root).onclick = async () => {
           if (!await confirmDialog(`Supprimer « ${a.label} » ?${a.purchaseId ? ' La ligne d\'achat correspondante repassera dans « À immobiliser ».' : ''} L\'achat lui-même n\'est pas touché.`)) return;
-          if (closedBlock([a.date, a.disposal && a.disposal.date], 'Ce bien')) return;
+          if (closedBlock([C.entreeDuBien(a), a.disposal && a.disposal.date], 'Ce bien')) return;
           forget('assets', a.id, a.label);
           data.assets = data.assets.filter(x => x.id !== a.id);
           save(true); close(); navigate('#/immos');
@@ -3042,7 +3054,7 @@
     const etatImmo = dis ? 'sorti' : fini ? 'amorti' : 'en service';
     const ligneAn = rows.find(r => r.year === thisYear);
     const friseImmo = `<div class="panel ed-frise trois" id="im-frise"><ol>
-        <li class="fait"><span class="rond" aria-hidden="true">${lfIc('coche', 13, 3)}</span><span class="ed-fr-txt"><b>Mis en service</b><span>${h(C.fmtDate(a.date))}${buy ? ` · <a href="#/achat/${h(buy.id)}">${h(C.referenceAchat(buy, data))}</a>` : ''}</span></span><span class="vh"> : fait</span></li>
+        <li class="fait"><span class="rond" aria-hidden="true">${lfIc('coche', 13, 3)}</span><span class="ed-fr-txt"><b>Mis en service</b><span>${h(C.fmtDate(a.date))}${C.entreeDuBien(a) > a.date ? ` · entré dans tes livres le ${h(C.fmtDate(a.entreeLe))}` : ''}${buy ? ` · <a href="#/achat/${h(buy.id)}">${h(C.referenceAchat(buy, data))}</a>` : ''}</span></span><span class="vh"> : fait</span></li>
         <li class="${dis || fini ? 'fait' : 'partiel'}"><span class="rond" aria-hidden="true">${dis || fini ? lfIc('coche', 13, 3) : 2}</span><span class="ed-fr-txt"><b>Amortissement</b><span>${pct(partAmortie)} % de sa valeur${dis ? ' à la sortie' : ''}</span></span><span class="vh">${dis || fini ? ' : fait' : ' : en cours'}</span></li>
         <li class="${dis || fini ? 'fait' : ''}"><span class="rond" aria-hidden="true">${dis || fini ? lfIc('coche', 13, 3) : 3}</span><span class="ed-fr-txt"><b>${dis ? 'Sorti' : 'Fin du plan'}</b><span>${dis ? h(C.fmtDate(dis.date)) + (dis.reason ? ' · ' + h(dis.reason) : '') : fin ? (fini ? 'amorti le ' : 'le ') + h(C.fmtDate(fin)) : '—'}</span></span><span class="vh">${dis || fini ? ' : fait' : ' : pas encore'}</span></li>
       </ol></div>`;

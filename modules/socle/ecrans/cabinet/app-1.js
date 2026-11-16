@@ -8416,7 +8416,10 @@
     }
 
     const periode = lignesDeLaPeriode(dossier);
-    const { lignes, illisibles, anciens, manquants, source } = periode;
+    const { lignes, illisibles, anciens, source } = periode;
+    // (1.364.0) Un mois que le client a clôturé chez lui sans une écriture (« sans activité », 1.362.5) n'est pas un mois
+    // qui manque : « il manque 8 mois… relancer le client » se lisait sous huit cases « sans activité ».
+    const manquants = periode.manquants.filter(m => !(dossier.packs || []).some(p => p.month === m && p.vide));
     // Les vues et l'export lisent la MÊME période (lignes, ouverture, bornes) : recalculée dans
     // chacune, elle finirait par diverger (7.29.0).
     s.periode = periode;
@@ -10823,6 +10826,8 @@
       : `<span class="badge b-part">plan différent</span><div class="small muted im-ecarts">${b.ecarts.map(esc).join(' · ')}</div>${b.ecrite
     ? '<div class="small ambre im-ecrite">Une dotation de ce bien est déjà passée : retire-la d\'abord de la Saisie pour reprendre son plan.</div>' : ''}
         <button class="btn btn-sm btn-ghost mt" data-aligner="${esc(b.id)}">Reprendre son plan…</button>`}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
+    ${/* (1.364.0) Un bien que rien n'a fait entrer au livre : on le dit, avec le geste qui le répare. */''}${(d.entrees || []).length ? `<div class="warn-box mt" id="im-entrees">${d.entrees.map(x => `<div class="ctrl-geste"><span><b>${esc(x.bien)}</b> n'est entré dans aucune écriture : le compte ${esc(x.compte)} n'a pas reçu ses ${esc(money(x.valeur))}, et une sortie le rendrait créditeur.</span>
+      <button class="btn btn-sm" data-entree="${esc(x.immoId)}">Passer son entrée au ${esc(fmtJour(x.date))}</button></div>`).join('')}</div>` : ''}
     <div class="panel mt"><h2>Les biens de l'exercice ${info('im.tableau')}</h2>
       ${!e.rows.length
     ? `<div class="empty mini">Aucun bien sur cet exercice. <button class="${cls('neuf')}" id="im-neuf2">Ajouter un bien…</button></div>`
@@ -10989,6 +10994,19 @@
             } catch (err) { toast(plainError(err), 'error'); }
           } }
       ];
+    });
+    $$('[data-entree]', el).forEach(bt => {
+      bt.onclick = async () => {
+        const x = (s.immo.entrees || []).find(v => v.immoId === bt.dataset.entree);
+        if (!x) return;
+        bt.disabled = true;
+        try {
+          const r = await api.saisir(dossier.id, s.annee, x);
+          s.livre = r.livre;
+          toast(`Entrée de « ${x.bien} » passée en brouillard, au ${fmtJour(x.date)}.`);
+          await chargerImmobilisations(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); bt.disabled = false; }
+      };
     });
     const ec = $('#im-ecrire', el);
     if (ec) ec.onclick = async () => {

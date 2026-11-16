@@ -3865,3 +3865,37 @@ Joué à la souris par Leïla, la comptable de Nour : elle importe le même rele
   septembre « sans activité, en retard ». Ce n'est pas une contradiction : les livres de ce client commencent en janvier
   (deux écritures), et « en retard » ne se dit que des échéances que le calendrier du Cabinet regarde encore, les plus
   récentes. À VÉRIFIER avec un comptable : faut-il réclamer aussi les déclarations à zéro plus anciennes ?
+
+### 1.364.0 : un bien d'avant la clôture, sa revente, et son entrée au Cabinet (bout en bout 31)
+
+Joué à la souris par Nour, qui a clôturé jusqu'au 31/10/2026 : elle enregistre sa camionnette, en service depuis le
+01/07/2026 (30 000 DT, 5 ans), puis la revend 28 500 DT le 16/11 au garage Triki. Leïla, sa comptable, reprend la fiche.
+À la main, en base 360 : dotation jusqu'au 16/11 = 6 000 × 136 / 360 = 2 266,667 ; valeur comptable 27 733,333 ;
+plus-value 766,667.
+
+- **Le bien était refusé : « Période clôturée ».** Et le refus conseillait de « refaire la pièce à la date
+  d'aujourd'hui » : une mise en service est un fait, la changer fausse le plan d'amortissement. Toute entreprise qui
+  découvre les Immobilisations après avoir clôturé des mois était bloquée pour tous ses biens. Le bien s'enregistre
+  maintenant avec sa vraie date ; une question le dit avant (« Un bien d'avant la clôture ») : son amortissement part de
+  la mise en service, son entrée dans les livres se date au premier jour ouvert (`entreeLe`, figé sur la fiche). Rien ne
+  s'écrit dans un mois clôturé. Les dotations des exercices déjà finis entrent avec lui, contre le report à nouveau.
+  Ce qui est déjà entré dans un mois clôturé depuis, lui, reste protégé.
+- **La fiche le redit** : « Mis en service 01/07/2026 · entré dans tes livres le 01/11/2026 ».
+- **La revente** : la sortie, la plus-value annoncée avant d'enregistrer, « Facturer la cession » (411 / 775 / TVA /
+  timbre) : rien à corriger, vérifié à la souris.
+- **Au Cabinet, le compte du bien finissait créditeur de 30 000 DT.** La fiche reprise d'un bien que le client a saisi
+  à la main (sans facture d'achat) n'a aucune ligne d'entrée dans le livre du Cabinet ; sa sortie créditait quand même
+  le 224. L'écran des Immobilisations le dit maintenant (« n'est entré dans aucune écriture : le compte 224 n'a pas
+  reçu ses 30 000,000 DT ») et un bouton passe l'entrée au brouillard, au jour où le client l'a fait entrer : la valeur
+  au compte du bien, les amortissements des exercices finis, le reste au report à nouveau (le même compte que chez le
+  client, 12). Elle ne se propose pas deux fois, pas pour un bien né d'un achat, et elle n'est pas prise pour une
+  « ligne sans fiche » (le bien se serait amorti deux fois). Vaut aussi pour une fiche saisie à la main au Cabinet.
+  Après : 224 et 28 soldés, 681 = 2 266,667, 675 = 27 733,333, 775 = 28 500 des deux côtés.
+- **« Il manque 8 mois… relancer le client »** s'affichait au-dessus de huit mois dits « sans activité » (1.362.5) :
+  un mois que le client a clôturé sans une écriture n'est plus compté manquant.
+- Le serveur rend au Cabinet le jour d'entrée du bien (`entree`), lu sur la fiche du client. Rien de plus ne part.
+- Vu en passant, laissé : la fenêtre de sortie grandit de 15 px quand on saisit le prix (l'avertissement gagne une
+  ligne). À VÉRIFIER avec un comptable : la contrepartie d'un bien entré sans facture (report à nouveau, compte 12) et
+  la TVA à reverser sur une revente avant cinq ans, que la fenêtre signale déjà.
+- Tests : `tests/moteur/cession-1364.test.ts` (onze cas, montants à la main) et `tests/web/cession-1364.test.ts`
+  (l'écran du client, puis celui du Cabinet) ; dix-sept preuves « cession 1.364.0 ».

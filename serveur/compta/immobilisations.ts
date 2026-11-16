@@ -94,6 +94,8 @@ function bienDuClient(cle: string, b: Record<string, unknown>, achats: Map<strin
     id: cle, libelle: texteDe(b.label).slice(0, 200), famille: texteDe(b.category).slice(0, 40), date: texteDe(b.date).slice(0, 10),
     valeur: nombreV10(b.amount), residuelle: nombreV10(b.residual), duree: nombreV10(b.years),
     achat: achats.get(texteDe(b.purchaseId)) ?? '',
+    // (1.364.0) Le jour où le bien est entré dans les livres du client, quand ce n'est pas sa mise en service (enregistré après une clôture).
+    entree: texteDe(b.entreeLe).slice(0, 10),
     sortie: sortie ? { date: texteDe(sortie.date).slice(0, 10), prix: nombreV10(sortie.amount), motif: texteDe(sortie.reason).slice(0, 200) } : null,
   };
 }

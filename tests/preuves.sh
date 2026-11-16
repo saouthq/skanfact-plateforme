@@ -29486,6 +29486,75 @@ prouver $'carte 1.363.0 t : au Cabinet, la proposition ne dit pas que c\'est une
   $'${rem.commission ? \'les ventes par carte, moins la commission de la banque : \' : \'\'}' \
   $'' \
   $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+# 1.364.0 : le bien d'avant la clôture, sa cession, et son entrée au Cabinet (bout en bout 31).
+prouver $'cession 1.364.0 a : l\'entrée d\'un bien d\'avant la clôture s\'écrit dans le mois clôturé' modules/socle/moteur/core-2.js \
+  $'        const entree = entreeDuBien(a);' \
+  $'        const entree = a.date;' \
+  $'son entrée se date au premier jour ouvert : rien ne s\'écrit dans le mois clôturé'
+prouver $'cession 1.364.0 b : les amortissements des exercices finis n\'entrent pas avec le bien' modules/socle/moteur/core-2.js \
+  $'          if (anterieurs) e.credit(acc.amortissements,' \
+  $'          if (false) e.credit(acc.amortissements,' \
+  $'un bien de 2024 : les dotations des exercices finis entrent avec lui, contre le report à nouveau'
+prouver $'cession 1.364.0 c : les dotations des exercices clôturés s\'écrivent quand même à leur 31 décembre' modules/socle/moteur/core-2.js \
+  $'          if (anterieurs && `${r.year}-12-31` < entree' \
+  $'          if (false && `${r.year}-12-31` < entree' \
+  $'un bien de 2024 : les dotations des exercices finis entrent avec lui, contre le report à nouveau'
+prouver $'cession 1.364.0 d : un bien né d\'un achat entre une seconde fois à sa valeur' modules/socle/moteur/core-2.js \
+  $'          if (!a.purchaseId) e.debit(acc.immobilisations, `Entrée' \
+  $'          if (a) e.debit(acc.immobilisations, `Entrée' \
+  $'un bien né d\'un achat : seules ses dotations passées entrent, la valeur vient de l\'achat'
+prouver $'cession 1.364.0 e : la mise en service dans un mois clôturé ne pose ni question ni jour d\'entrée' modules/socle/ecrans/entreprise/app-2.js \
+  $'          if (C.isClosedDate(data, v.date)) {' \
+  $'          if (C.isClosedDate(data, \'\')) {' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.0 f : un bien d\'avant la clôture est refusé (« Période clôturée »)' modules/socle/ecrans/entreprise/app-2.js \
+  $'          if (asset && closedBlock(C.entreeDuBien(a), \'Ce bien\')) return;' \
+  $'          if (closedBlock([a.date, v.date], \'Ce bien\')) return;' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.0 g : la fiche du bien ne dit pas quand il est entré dans les livres' modules/socle/ecrans/entreprise/app-2.js \
+  $'${C.entreeDuBien(a) > a.date ? ` · entré dans tes livres le' \
+  $'${a.date > a.date ? ` · entré dans tes livres le' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.0 h : au Cabinet, un bien né d\'un achat du client se propose en entrée' modules/socle/moteur/compta-1.js \
+  $'      if (b && txt(b.achat)) return;\n' \
+  $'' \
+  $'un bien né d\'un achat chez le client ne se propose pas : sa facture le fait entrer'
+prouver $'cession 1.364.0 i : au Cabinet, l\'entrée déjà passée se repropose' modules/socle/moteur/compta-1.js \
+  $'ecritures.some(e => txt(e.piece) === piece || ' \
+  $'ecritures.some(e => ' \
+  $'rien ne se propose deux fois : l\'entrée passée, ou une ligne qui débite déjà le compte de cette valeur'
+prouver $'cession 1.364.0 j : au Cabinet, une entrée contre-passée empêche de la repasser' modules/socle/moteur/compta-1.js \
+  $'    const ecritures = (livre.ecritures || []).filter(e => e && e.statut !== \'contrepassee\');\n    const parId = new Set(ecritures.map(e => e.id));' \
+  $'    const ecritures = (livre.ecritures || []).filter(e => e);\n    const parId = new Set(ecritures.map(e => e.id));' \
+  $'rien ne se propose deux fois : l\'entrée passée, ou une ligne qui débite déjà le compte de cette valeur'
+prouver $'cession 1.364.0 k : au Cabinet, l\'entrée passée devient une « ligne sans fiche »' modules/socle/moteur/compta-1.js \
+  $'      if (entrees.has(txt(e.piece))) return;\n' \
+  $'' \
+  $'l\'entrée passée n\'est pas une « ligne sans fiche » : le bien ne s\'amortirait pas deux fois'
+prouver $'cession 1.364.0 l : au Cabinet, l\'entrée se date de la mise en service, dans le mois clôturé du client' modules/socle/moteur/compta-1.js \
+  $'      const date = [mes, txt(b && b.entree), debut].sort().pop();' \
+  $'      const date = mes;' \
+  $'son entrée se propose au jour où le client l\'a fait entrer : la valeur au 224, le report à nouveau en face'
+prouver $'cession 1.364.0 m : au Cabinet, les amortissements passés n\'entrent pas avec le bien' modules/socle/moteur/compta-1.js \
+  $'      const anterieurs = date.slice(0, 4) > mes.slice(0, 4) ? ' \
+  $'      const anterieurs = date.slice(0, 4) > date.slice(0, 4) ? ' \
+  $'une fiche saisie au Cabinet pour un bien de 2024 : l\'entrée au 1er janvier, avec ses amortissements passés'
+prouver $'cession 1.364.0 n : au Cabinet, l\'entrée ne va pas au compte que le client utilise' modules/socle/moteur/compta-1.js \
+  $'|| {}).compte) || \'12\';' \
+  $'|| {}).compte) || \'11\';' \
+  $'son entrée se propose au jour où le client l\'a fait entrer : la valeur au 224, le report à nouveau en face'
+prouver $'cession 1.364.0 o : au Cabinet, le bouton « Passer son entrée » ne fait rien' modules/socle/ecrans/cabinet/app-1.js \
+  $'        const x = (s.immo.entrees || []).find(v => v.immoId === bt.dataset.entree);' \
+  $'        const x = ([]).find(v => v.immoId === bt.dataset.entree);' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.0 p : au Cabinet, un mois clôturé sans activité est dit manquant' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const manquants = periode.manquants.filter(m => !(dossier.packs || []).some(p => p.month === m && p.vide));' \
+  $'    const manquants = periode.manquants.filter(m => m);' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.0 q : au Cabinet, le bien que rien n\'a fait entrer ne se dit pas' modules/socle/ecrans/cabinet/app-1.js \
+  $'${(d.entrees || []).length ? `<div class="warn-box mt" id="im-entrees">' \
+  $'${(d.entrees || []).length > 99 ? `<div class="warn-box mt" id="im-entrees">' \
+  $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
