@@ -5538,13 +5538,18 @@
       if (!txt) { zone.innerHTML = ''; return; }
       const r = K.parseDossierLines(txt, S.dossiers || []);
       const n = r.dossiers.length;
+      // (1.368.1) Un matricule que l'ajout refuserait se montre ICI, sur sa ligne : il n'était nommé qu'après « Ajouter »,
+      // sous un aperçu qui venait d'annoncer que tout entrerait.
+      const mfFaux = d => !!d.matricule && typeof api.matriculeLisible === 'function' && !api.matriculeLisible(d.matricule);
+      const faux = r.dossiers.filter(mfFaux);
       const cellule = (v, douteux) => v ? `<td class="${douteux ? 'douteux' : ''}">${esc(v)}${douteux ? ' <span class="small">(à vérifier)</span>' : ''}</td>` : '<td class="muted">—</td>';
-      zone.innerHTML = `<div class="${n ? 'ok-box' : 'warn-box'} mb">${n ? `${pl(n, 'client entrera', 'clients entreront')} dans ton portefeuille` : 'Aucun nom de client reconnu.'}${
+      zone.innerHTML = `<div class="${n && !faux.length ? 'ok-box' : 'warn-box'} mb">${faux.length ? `<b>${pl(faux.length, 'matricule fiscal ne se lit pas', 'matricules fiscaux ne se lisent pas')}</b> (${esc(faux.slice(0, 3).map(d => d.name).join(', '))}${faux.length > 3 ? '…' : ''}) : écris-${faux.length > 1 ? 'les' : 'le'} en entier, comme « 1234567A/A/M/000 », ou efface-${faux.length > 1 ? 'les' : 'le'} — tu ${faux.length > 1 ? 'les' : 'le'} compléteras sur la fiche. Rien n'entre tant qu'${faux.length > 1 ? 'ils restent' : 'il reste'}.` : n ? `${pl(n, 'client entrera', 'clients entreront')} dans ton portefeuille` : 'Aucun nom de client reconnu.'}${
         r.ignorés.length ? ` · ${pl(r.ignorés.length, 'déjà là, ignoré', 'déjà là, ignorés')} : ${esc(r.ignorés.slice(0, 3).join(', '))}${r.ignorés.length > 3 ? '…' : ''}` : ''}${
         r.colonnesIgnorees && r.colonnesIgnorees.length ? ` · ${pl(r.colonnesIgnorees.length, 'colonne laissée de côté', 'colonnes laissées de côté')} : ${esc(r.colonnesIgnorees.join(', '))}` : ''}</div>
         ${n ? `<div class="scroll-x" style="max-height:170px"><table class="list compact"><thead><tr><th>Nom</th><th>Matricule</th><th>Email</th><th>Téléphone</th></tr></thead>
-          <tbody>${r.dossiers.slice(0, 50).map(d => `<tr><td>${esc(d.name)}</td>${cellule(d.matricule)}${cellule(d.email, d.email && K.emailDouteux(d.email))}${cellule(d.phone)}</tr>`).join('')}</tbody></table></div>` : ''}`;
+          <tbody>${r.dossiers.slice(0, 50).map(d => `<tr><td>${esc(d.name)}</td>${mfFaux(d) ? `<td class="douteux">${esc(d.matricule)} <span class="small">(incomplet)</span></td>` : cellule(d.matricule)}${cellule(d.email, d.email && K.emailDouteux(d.email))}${cellule(d.phone)}</tr>`).join('')}</tbody></table></div>` : ''}`;
       if (bouton) bouton.textContent = n ? `Ajouter ${pl(n, 'client')}` : 'Ajouter ces clients';
+      if (bouton) bouton.disabled = faux.length > 0;
     };
     champ.addEventListener('input', dessiner);
     dessiner();
@@ -5706,7 +5711,7 @@
       const vus = new Set(mesDossiers().map(d => d.id));
       const tous = K.dossierList(S).filter(r => vus.has(r.id));
       const envoient = tous.filter(r => r.level !== 'hors').length;
-      if (!envoient) return `<div class="info-box">Personne à relancer : aucun de tes ${esc(pl(tous.length, 'client'))} n'est sur SkanFact. Tu tiens leurs livres au cabinet, et rien ne leur est réclamé.</div>`;
+      if (!envoient) return `<div class="info-box">Personne à relancer : ${tous.length === 1 ? 'ton client n\'est pas sur SkanFact. Tu tiens ses livres au cabinet, et rien ne lui est réclamé' : `aucun de tes ${esc(pl(tous.length, 'client'))} n'est sur SkanFact. Tu tiens leurs livres au cabinet, et rien ne leur est réclamé`}.</div>`;
       return `<div class="todo-ok">Personne à relancer : ${envoient === 1 ? 'ton client sur SkanFact est à jour' : `tes ${esc(pl(envoient, 'client'))} sur SkanFact sont à jour`}${envoient < tous.length ? ` — les ${esc(String(tous.length - envoient))} autres sont tenus au cabinet : rien ne leur est réclamé` : ''}.</div>`;
     };
     // Trois cents clients en retard faisaient trois cents lignes d'un bloc : on pagine ce qu'on NOMME.

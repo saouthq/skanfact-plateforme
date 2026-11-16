@@ -4044,3 +4044,36 @@ Maquette validée le 16/11/2026, puis appliquée :
   1.366.0 sur GitHub (vente en euros) venait du test, qui tapait parfois le taux pendant que la fenêtre posait le
   curseur dans « Montant » — il attend maintenant le curseur.
 - Quatre preuves « cohérence 1.368.0 a–d ».
+
+### 1.368.1 : le Cabinet d'un comptable dont aucun client n'est sur SkanFact
+
+Un comptable veut essayer le Cabinet, et la plupart des cabinets n'auront aucun client sur SkanFact. Un cabinet neuf
+(« Cabinet Gharbi », cinq dossiers tenus, aucun relié) a été joué à la souris : premier écran, création d'un dossier
+tenu, liste collée, livre démarré avec sa balance d'ouverture, saisie au clavier, journal et balance, relevé de
+banque importé et rapproché, salarié déclaré, puis les vingt-sept écrans d'un dossier — aucun ne tombe, aucune
+erreur de console ni de serveur.
+
+Ce qui parlait encore d'un cabinet qui reçoit des paquets, corrigé :
+
+- la balance disait « ce livre part de zéro » sous une balance d'ouverture qu'on venait de saisir ;
+- sans livre, le titre et le fil de la comptabilité restaient ceux de l'écran précédent ;
+- « aucun de tes 1 client », « 1 tenus au cabinet » ;
+- les Pièces reçues et les Pièces du dossier promettaient des envois d'un client qui n'est pas sur SkanFact ;
+- chaque ligne de la balance d'ouverture proposait « Clients » comme libellé : elle propose le nom du compte tapé ;
+- une liste collée avec un matricule illisible n'était refusée qu'après « Ajouter » : l'aperçu le dit avant, et le
+  bouton reste éteint.
+
+Sept preuves « cabinet sans client 1.368.1 a–g » ; les preuves « menu 1.269 f / i », que la 1.368.0 avait rendues
+muettes, visent ses règles.
+
+**À décider par Skander avant l'essai :**
+
+- l'abonnement du Cabinet est en service : au quatrième dossier tenu, une facture part (60 DT HT par dossier et par
+  an), et les dossiers payants passent en lecture seule si elle reste impayée. Aucun geste ne permet d'offrir un
+  abonnement à un cabinet, et la fenêtre « coller une liste » ne dit pas que des dossiers seront payants ;
+- un dossier dont le livre commence en janvier affiche dès le premier jour des mois « en retard » et des échéances
+  échues ; la CNSS du trimestre est comptée « par prudence » sans salarié (règle 1.175.0, voulue).
+
+**Pas rejoué ce jour-là :** l'inscription à la souris (compte créé par l'interface du serveur), le double facteur,
+les courriels, le téléphone ; et les quarante-huit appels propres à l'application de bureau, dont on n'a pas vérifié
+qu'aucun bouton ne reste à l'écran.

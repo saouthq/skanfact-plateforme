@@ -24012,13 +24012,13 @@ prouver 'menu 1.269 e : la page s'\''appelle encore « Proforma, bons et contrat
   '<span>Autres pièces</span></div><h1>Autres pièces</h1>' '<span>Autres pièces</span></div><h1>Proforma, bons et contrats</h1>' \
   "$WM1"
 prouver 'menu 1.269 f : la bande des vues sur deux lignes' web/public/plateforme/charte.css \
-  '.vues-page { display: flex; flex-wrap: wrap;' '.vues-page { display: grid; flex-wrap: wrap;' \
+  'display: inline-flex; flex-wrap: nowrap; gap: 2px; width: auto;' 'display: grid; flex-wrap: nowrap; gap: 2px; width: auto;' \
   "$WM1"
 prouver 'menu 1.269 h : l'\''aperçu de l'\''assistant garde les vues d'\''une page' web/public/plateforme/assistant.js \
   "o.menu(modulesChoisis()).filter((/** @type {any} */ p) => !p.vueDe).forEach(" "o.menu(modulesChoisis()).forEach(" \
   "la porte, puis l'assistant : chaque écran s'écrit et se reprend, la facture de l'aperçu est la vraie, et le métier retenu à la fin décide du catalogue"
 prouver 'menu 1.269 i : au doigt, une vue se touche mal' web/public/plateforme/charte.css \
-  '#view .vues-page a { min-height: 44px; padding: 8px 14px; }' '#view .vues-page a { padding: 8px 14px; }' \
+  '.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 44px; min-height: 44px; }' '.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 38px; min-height: 38px; }' \
   "les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'écran, et au doigt tout se touche"
 prouver 'menu 1.269 g : le menu range le Catalogue ailleurs que sa fiche' modules/socle/moteur/core-1.js \
   "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Articles et stock'," "{ id: 'catalogue', titre: 'Catalogue', module: 'fichiers', famille: 'Vendre'," \
@@ -29647,6 +29647,35 @@ prouver $'cohérence 1.368.0 d : au téléphone, une vue repasse sous la hauteur
   $'.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 44px; min-height: 44px; }' \
   $'.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 38px; min-height: 38px; }' \
   $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+
+prouver $'cabinet sans client 1.368.1 a : la balance dit « ce livre part de zéro » sous une balance d\'ouverture tapée' modules/socle/ecrans/cabinet/app-1.js \
+  $'const reprise = ((s.livre.ouverture || {}).lignes || []).length || (ouv ? (ouv.lignes || []).length : 0);' \
+  $'const reprise = ((s.livre.ouverture || {}).lignes || []).length;' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 b : sans livre, le titre de la comptabilité reste celui de l\'écran d\'avant' modules/socle/ecrans/cabinet/app-1.js \
+  $'const t0 = $(\'#cp-titre\'); if (t0) t0.textContent' \
+  $'const t0 = $(\'#cp-titre\'); if (false && t0) t0.textContent' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 c : « aucun de tes 1 client » aux Relances' modules/socle/ecrans/cabinet/app-2.js \
+  $'${tous.length === 1 ? \'ton client n\\\'est pas sur SkanFact' \
+  $'${tous.length === 0 ? \'ton client n\\\'est pas sur SkanFact' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 d : les Pièces reçues promettent ce que « tes clients envoient » à un cabinet dont aucun n\'est sur SkanFact' modules/socle/ecrans/cabinet/app-1.js \
+  $'const sansClientRelie = () => (S.dossiers || []).length > 0 &&' \
+  $'const sansClientRelie = () => (S.dossiers || []).length > 99 &&' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 e : « 1 tenus au cabinet » au pied du portefeuille' modules/socle/ecrans/cabinet/app-1.js \
+  $'${t > 1 ? \'tenus\' : \'tenu\'} au cabinet' \
+  $'${t > 0 ? \'tenus\' : \'tenu\'} au cabinet' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 f : l\'invite du libellé dit « Clients » sous le compte 532' modules/socle/ecrans/cabinet/app-1.js \
+  $'(KC.libelleDuPlan(String(l.compte)) || \'Libellé\')' \
+  $'\'Clients\'' \
+  $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+prouver $'cabinet sans client 1.368.1 g : un matricule illisible laisse « Ajouter » allumé sous l\'aperçu' modules/socle/ecrans/cabinet/app-2.js \
+  $'if (bouton) bouton.disabled = faux.length > 0;' \
+  $'if (bouton) bouton.disabled = false;' \
+  $'une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

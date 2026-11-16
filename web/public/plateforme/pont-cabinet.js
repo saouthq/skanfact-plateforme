@@ -2594,6 +2594,8 @@
     // Une liste de clients collée (brique 52 ; docs/cabinet.md, C42) : lue par la v10 (parseDossierLines,
     // les doublons écartés et nommés), chaque ligne contrôlée AVANT d'écrire (un matricule que le serveur
     // refuserait arrête tout, rien n'est ajouté), puis chaque client créé comme par « Nouveau client ».
+    // (1.368.1) L'aperçu de la liste collée pose la même question que l'ajout, AVANT de valider.
+    matriculeLisible: (/** @type {unknown} */ v) => mfLisible(v) !== null,
     importDossiers: async (/** @type {string} */ texte) => {
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
       const etat = await construireEtat();

@@ -75,13 +75,19 @@ describe('une liste de clients collée, à la souris', () => {
     await p.locator('#cl-liste').waitFor();
     // ── Une ligne fausse arrête tout ──────────────────────────────────────────────────────────────
     await p.locator('#cl-liste').fill('Menuiserie Trabelsi SUARL ; 1122334A/M/P/000 ; contact@trabelsi.tn ; 71 222 333\nPharmacie El Menzah ; 1234567A\nCafé des Jasmins');
-    await p.locator('#modal-root .modal').last().locator('#ok').click();
-    await expect.poll(toast).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567A » est incomplet ou ne se lit pas.*rien n'a été ajouté\./);
+    // (1.368.1) L'aperçu le dit AVANT de valider, sur la ligne, et le bouton attend : le refus n'arrivait qu'après
+    // « Ajouter », sous un aperçu qui venait d'annoncer « 2 clients entreront ».
+    await expect.poll(() => p.locator('#cl-apercu').innerText()).toMatch(/1 matricule fiscal ne se lit pas \(Pharmacie El Menzah\)[\s\S]*Rien n'entre tant qu'il reste[\s\S]*1234567A \(incomplet\)/);
+    expect(await p.locator('#modal-root .modal').last().locator('#ok').isDisabled()).toBe(true);
+    // Le point de contact garde la porte, pour qui passerait outre : le même refus, rien n'est ajouté.
+    const forcer = (texte: string) => p.evaluate((t) => (window as unknown as { cabinet: { importDossiers: (x: string) => Promise<unknown> } }).cabinet.importDossiers(t).then(() => 'entré', (e: Error) => e.message), texte);
+    expect(await forcer('Menuiserie Trabelsi SUARL ; 1122334A/M/P/000\nPharmacie El Menzah ; 1234567A')).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567A » est incomplet ou ne se lit pas.*rien n'a été ajouté\./);
     expect((await portefeuille()).map((d) => d.raisonSociale)).toEqual(['Café des Jasmins']);
     // La lettre-clé n'est jamais I, O ni U : la même règle que le serveur, avant d'écrire quoi que ce soit (E4).
     await p.locator('#cl-liste').fill('Pharmacie El Menzah ; 1234567O.B.C.099');
-    await p.locator('#modal-root .modal').last().locator('#ok').click();
-    await expect.poll(toast).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567O\.B\.C\.099 » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U.*rien n'a été ajouté\./);
+    await expect.poll(() => p.locator('#cl-apercu').innerText()).toMatch(/1 matricule fiscal ne se lit pas \(Pharmacie El Menzah\)/);
+    expect(await p.locator('#modal-root .modal').last().locator('#ok').isDisabled()).toBe(true);
+    expect(await forcer('Pharmacie El Menzah ; 1234567O.B.C.099')).toMatch(/« Pharmacie El Menzah » : le matricule fiscal « 1234567O\.B\.C\.099 » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U.*rien n'a été ajouté\./);
     expect((await portefeuille()).map((d) => d.raisonSociale)).toEqual(['Café des Jasmins']);
     // ── Corrigée : chaque client entre, le doublon est ignoré et nommé ──────────────────────────────
     await p.locator('#cl-liste').fill('Menuiserie Trabelsi SUARL ; 1122334A/M/P/000 ; contact@trabelsi.tn ; 71 222 333\nPharmacie El Menzah ; 1234567A.B.C.099\nCafé des Jasmins');
