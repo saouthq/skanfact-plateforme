@@ -115,6 +115,8 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-cabinet-1-avertissement.png') });
     await fenetre.locator('#f-name').fill('Librairie Le Savoir');
     await cliquer(fenetre.locator('#ok'));
+    // (1.371.0) Le dossier créé demande son début de mission : « Plus tard » ici, la question reste sur sa fiche.
+    await p.locator('#modal-root .modal').filter({ hasText: 'À partir de quand tiens-tu Librairie Le Savoir ?' }).locator('#dm-non').click({ timeout: 15_000 });
     await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 15_000 }).toBe(0);
 
     // ── Sa facture arrive d'elle-même ; la pastille du haut la dit ───────────────────────────────────────────────────────

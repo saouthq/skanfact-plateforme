@@ -4152,3 +4152,55 @@ banque, l'équilibre de chaque écriture, le bandeau, l'abonnement, le retrait).
 d'immobilisations ; les alarmes « en retard » d'un dossier dont le livre vient d'être créé ; le nom des fichiers
 exportés (le matricule plutôt que le nom du client) ; rejouer l'inscription, chaque visite « Me guider » et le
 téléphone à la souris ; dire, avant le quatrième dossier tenu, que l'abonnement commence.
+
+### 1.371.0 : le premier jour d'un client tenu au cabinet
+
+*Skander, le 16/11/2026 : « fais attention au guide et à la simplicité, sinon il va être perdu et abandonner ;
+vérifie qu'on peut bien tout importer le premier jour ». Joué à la souris sur un cabinet dont aucun client n'est
+sur SkanFact : un client ajouté, son livre, ses salariés, ses biens, ses soldes, ses exports.*
+
+**Ce qui perdait un comptable le premier jour.**
+
+- **Dix mois « à saisir » en rouge pour un client créé il y a une minute.** Un client tenu au cabinet sans date de
+  début de mission se voyait compter toute l'année. À la création, SkanFact demande maintenant « à partir de quand
+  tiens-tu ce dossier ? » (ce mois-ci, depuis janvier, un autre mois : la fenêtre des clients sur SkanFact, la
+  même). « Plus tard » reste possible : la fiche et « À voir » portent alors la question, et disent ce que le
+  silence coûte. Une liste de clients collée pose la question **une fois pour tous** ; au-delà de trois dossiers
+  sans réponse, « À voir » n'en fait qu'une ligne.
+- **Une fiche vide qui ne disait pas par où commencer.** « Par où commencer avec… » : le livre d'abord (le seul
+  bouton tant qu'il n'existe pas, puisque tout le reste en dépend), puis les soldes d'avant, les salariés, les
+  biens, la banque, les pièces du mois. Chaque reprise faite se coche avec ce qu'elle a posé ; le panneau s'efface
+  à la première pièce saisie.
+- **Un livre créé « pour voir » ne pouvait plus recevoir sa balance.** L'exercice était « déjà ouvert » et la
+  balance de l'ancien logiciel devait se retaper au journal AN. Le serveur (migration 0215) accepte la reprise
+  tant que l'exercice n'a **aucune ouverture en vigueur** (ni balance, ni écriture au journal AN) et n'est pas
+  clos ; une ouverture contre-passée ne compte plus, la bonne se reprend d'un geste. L'écran Exercice l'offre en
+  tête (« Reprendre les soldes d'ouverture… »), et la fenêtre dit « Reprendre ces soldes », plus « Ouvrir
+  l'exercice ».
+- « La prochaine déclaration » d'une mission qui commence ce mois-ci annonçait celle du mois dernier, celle du
+  prédécesseur. « Commencer le livre de Atelier… » s'élide.
+
+**Ce qui se ressaisissait un par un.**
+
+- **Une liste de salariés** se colle depuis un tableur (« Déclarer un salarié… », « Coller une liste de
+  salariés… ») : nom, CIN, n° CNSS, poste, contrat, salaire brut, date d'embauche, enfants, dans n'importe quel
+  ordre. Sans date d'embauche, le 1er janvier de l'exercice est posé et marqué « à préciser » ; un n° CNSS mal
+  écrit n'arrête pas le salarié (il entre sans numéro, la ligne le dit).
+- **Le tableau des immobilisations** se colle de même (« Ajouter un bien… », « Coller le tableau… ») : la durée se
+  lit ou se déduit du taux (20 % : cinq ans) ; sans l'une ni l'autre, une famille reconnue par **tous** ses mots
+  propose la sienne (dite « proposée »), sinon la ligne est refusée : une durée ne se devine pas. Linéaire, à
+  vérifier avec le tableau d'origine.
+- Dans les deux cas on voit ce qui entrera avant de valider ; une ligne illisible est refusée **avec son numéro
+  et sa raison**, les autres entrent ; un doublon est ignoré et nommé ; une colonne inconnue est laissée de côté
+  et nommée. La lecture vit dans le moteur du Cabinet (`parseSalariesLines`, `parseBiensLines`), l'écran
+  enregistre par les gestes ordinaires.
+
+**Les exports, rejoués** sur le dossier d'exemple : tableau des immobilisations, grand livre, balance, livre-journal,
+FEC, liasse, écritures de tous les clients. Un défaut : **« Exporter le lettrage » sortait le grand livre entier**
+(capital et TVA compris) sous le nom « lettrage ». Il exporte le compte montré (411 par défaut), et son fichier
+le nomme.
+
+**Reste à faire, noté.** L'exemple compte dans « Honoraires du cabinet » de la liste des dossiers ; le menu d'un
+dossier tenu propose « Les paquets reçus » ; l'inscription, le code à usage unique et chaque visite « Guide-moi »
+restent à rejouer à la souris, au téléphone aussi.
+

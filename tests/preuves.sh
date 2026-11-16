@@ -2137,6 +2137,7 @@ prouver "une liste « jamais montré » qui nomme un disparu" modules/socle/aide
 
 # ── Brique 39 : l'exercice et sa balance d'ouverture ; la reprise d'un client (docs/cabinet.md, C16, C17) ──
 M22=base/migrations/0022_compta_exercice.sql
+M215=base/migrations/0215_reprise_apres_coup.sql
 EXS=serveur/compta/exercice.ts
 EX1="la balance d'ouverture : une écriture AN au premier jour, validée d'un geste avec l'exercice, ou rien ; l'exercice s'ouvre une fois ; fausse, elle se contre-passe"
 EX2="un premier exercice qui commence en cours d'année, sans balance ; une balance datée d'un jour à venir, ou dans la période validée, ne s'ouvre pas ; deux ouvertures au même instant, une seule passe"
@@ -2144,35 +2145,33 @@ RP1="un client tenu commence son livre avec la balance d'un CSV ; un client sur 
 prouver "l'exercice ouvert par l'assistant de saisie, à la porte" $EXS \
   "geste: 'compta.ecritures.valider', corps: OUVRIR," "geste: 'compta.ecritures.saisir', corps: OUVRIR," \
   "$EX1"
-prouver "l'exercice ouvert par qui ne valide pas, dans la base" $M22 \
-  "  perform compta.exiger(p_entreprise, 'compta.ecritures.valider');" "  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');" \
-  "$EX1"
 prouver "l'exercice lu par la voisine" $M22 \
   "create policy visible on compta.exercice using (entreprise in (select compta.mes_entreprises()));" "create policy visible on compta.exercice using (true);" \
   "$EX1"
-prouver "un exercice qui commence avant le 1er janvier" $M22 \
+prouver "l'exercice ouvert par qui ne valide pas, dans la base" $M215 \
+  "  perform compta.exiger(p_entreprise, 'compta.ecritures.valider');" "  perform compta.exiger(p_entreprise, 'compta.ecritures.saisir');" \
+  "$EX1"
+prouver "un exercice qui commence avant le 1er janvier" $M215 \
   "  if p_du is null or p_du < make_date(p_annee, 1, 1) then" "  if p_du is null then" \
   "$EX1"
-prouver "un exercice qui commence après sa fin" $M22 \
+prouver "un exercice qui commence après sa fin" $M215 \
   "  if p_du > v_au then perform socle.refus(" "  if false then perform socle.refus(" \
   "$EX1"
-prouver "un exercice ouvert deux fois" $M22 \
-  "  if not found then
-    perform socle.refus(format('l''exercice %s est déjà ouvert" "  if false then
-    perform socle.refus(format('l''exercice %s est déjà ouvert" \
+prouver "un exercice ouvert deux fois" $M215 \
+  "      perform socle.refus(format('l''exercice %s est déjà ouvert" "      perform pg_sleep(0); -- format('l''exercice %s est déjà ouvert" \
   "$EX1"
-prouver "une balance d'ouverture laissée au brouillard" $M22 \
+prouver "une balance d'ouverture laissée au brouillard" $M215 \
   "    select * into v from compta.valider_ecritures(p_entreprise, array[v_id]);" "    select null::text as r_motif, null::text as r_numero into v;" \
   "$EX1"
-prouver "une balance d'ouverture qui ne se valide pas, ouverte quand même" $M22 \
+prouver "une balance d'ouverture qui ne se valide pas, ouverte quand même" $M215 \
   "    if v.r_motif is not null then perform socle.refus(format('la balance d''ouverture ne se valide pas : %s', v.r_motif)); end if;" "" \
   "$EX2"
-prouver "une balance d'ouverture ailleurs qu'au premier jour" $M22 \
-  "jsonb_build_object('date', p_du, 'journal', 'AN'" "jsonb_build_object('date', p_du + 1, 'journal', 'AN'" \
+prouver "une balance d'ouverture ailleurs qu'au premier jour" $M215 \
+  "jsonb_build_object('date', v_du, 'journal', 'AN'" "jsonb_build_object('date', v_du + 1, 'journal', 'AN'" \
   "$EX1"
-prouver "une ouverture sans sa trace" $M22 \
+prouver "une ouverture sans sa trace" $M215 \
   "  perform socle.tracer(p_entreprise, 'compta.exercice.ouvrir', 'exercice', v_id, null,
-    jsonb_build_object('annee', p_annee, 'du', p_du, 'au', v_au, 'ouverture', v_id));" "" \
+    jsonb_build_object('annee', p_annee, 'du', v_du, 'au', v_au, 'ouverture', v_id));" "" \
   "$EX1"
 prouver "une rangée laissée blanche refusée" $EXS \
   "    const pleines = corps.ouverture.filter((l) => l.compte.trim() || (l.debit ?? '').trim() || (l.credit ?? '').trim());" "    const pleines = corps.ouverture;" \
@@ -2191,13 +2190,13 @@ prouver "le bouton de reprise qui reste une fois l'exercice ouvert" $PC \
   "    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee)," "    exerciceOuvert: () => false," \
   "$RP1"
 prouver "« Commencer le livre » d'un livre qui a des écritures" modules/socle/ecrans/cabinet/app-1.js \
-  "\${livreTenu ? 'Reprendre les soldes d\\'ouverture de' : 'Commencer le livre de'}" "Commencer le livre de" \
+  "\${livreTenu ? 'Reprendre les soldes d\\'ouverture' : 'Commencer le livre'}" "Commencer le livre" \
   "$RP1"
 prouver "« Créer le livre » pour ouvrir un exercice" modules/socle/ecrans/cabinet/app-1.js \
-  "\${livreTenu ? 'Ouvrir l\\'exercice' : 'Créer le livre'}" "Créer le livre" \
+  "livreTenu ? 'Ouvrir l\\'exercice' : 'Créer le livre'}" "'Créer le livre'}" \
   "$RP1"
 prouver "« Livre créé » pour un exercice ouvert" modules/socle/ecrans/cabinet/app-1.js \
-  "toast(livreTenu ? \`Exercice \${v.annee} ouvert\` : \`Livre de \${v.annee} créé\`);" "toast(\`Livre de \${v.annee} créé\`);" \
+  "livreTenu ? \`Exercice \${v.annee} ouvert\` : \`Livre de \${v.annee} créé\`);" "\`Livre de \${v.annee} créé\`);" \
   "$RP1"
 # Le lecteur des classeurs est partagé par l'entreprise et le Cabinet depuis la brique 85 (tableur.js).
 prouver "une balance Excel refusée" web/public/plateforme/tableur.js \
@@ -20982,7 +20981,7 @@ prouver 'dossiers 14 : accepter un client ne demande pas son début de mission' 
   "try { sessionStorage.setItem('skanfact.debutMission', String(accepte.entreprise)); }" "try { void accepte; }" \
   '(1.185.0) le début de mission'
 prouver 'dossiers 15 : les Priorités ne rappellent pas un début à préciser' modules/socle/ecrans/cabinet/app-1.js \
-  "if (debutAPreciser(d)) avoir.push({ cle: \`dm-\${d.id}\`" "if (false) avoir.push({ cle: \`dm-\${d.id}\`" \
+  "if (debutAPreciser(d) || aTenir.includes(d)) avoir.push({ cle: \`dm-\${d.id}\`" "if (aTenir.includes(d)) avoir.push({ cle: \`dm-\${d.id}\`" \
   '(1.185.0) le début de mission'
 prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' modules/socle/ecrans/cabinet/app-1.js \
   'if (sansRien.length) {' 'if (false) {' \
@@ -29750,6 +29749,109 @@ prouver $'exemple 1.370.0 k : les bulletins de l\'exemple ne s\'écrivent pas' w
   $'          bulletins.push(String(r.bulletin.id));' \
   $'          bulletins.push(String(r.bulletin.id)); await api.supprimerBulletin({ dossierId: id, annee: A, id: bulletins.pop() });' \
   $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+
+# (1.371.0) Le premier jour d'un client tenu au cabinet : le début de mission demandé, « Par où commencer », les
+# listes collées (salariés, biens), la balance reprise après coup, l'export du lettrage.
+prouver $'jour1 1.371.0 a : la création d\'un client ne demande plus son début de mission' modules/socle/ecrans/cabinet/app-2.js \
+  $'            if (cree && !cree.from) fenDebutMission(cree);' \
+  $'            if (false && cree && !cree.from) fenDebutMission(cree);' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 b : une liste de clients collée ne pose plus la question' modules/socle/ecrans/cabinet/app-2.js \
+  $'            if (neufs.length) fenDebutMission(neufs.length === 1 ? neufs[0] : neufs);' \
+  $'            if (false && neufs.length) fenDebutMission(neufs.length === 1 ? neufs[0] : neufs);' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 c : « Plus tard » ne redessine plus la fiche' modules/socle/ecrans/cabinet/app-2.js \
+  $'      $(\'#dm-non\', layer).onclick = () => { close(); render(); };' \
+  $'      $(\'#dm-non\', layer).onclick = close;' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 d : la fiche d\'un client tenu ne porte plus la question' modules/socle/ecrans/cabinet/app-1.js \
+  $'${debutAPreciser(d) || tenirFd ? `<div class="bandeau a-band fd-band fd-debut">' \
+  $'${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut">' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 e : « Par où commencer » ne se pose plus sur un client tenu' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const debutTenu = L && d.manual && !d.demo && !d.archived && !Object.values(L.parMois).some(v => v.ecr || v.br)' \
+  $'    const debutTenu = L && !d.manual && !d.demo && !d.archived && !Object.values(L.parMois).some(v => v.ecr || v.br)' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 f : sans livre, toutes les portes s\'offrent' modules/socle/ecrans/cabinet/app-1.js \
+  $'${fait || !(dbt.existe || vert) ? \'\' : `<a class="btn btn-sm' \
+  $'${fait ? \'\' : `<a class="btn btn-sm' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 g : le titre du livre ne s\'élide plus' modules/socle/ecrans/cabinet/app-1.js \
+  $'const deNomLv = /^[aeiouyéèêàâîôûh]/i.test(' \
+  $'const deNomLv = /^[_]/i.test(' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 h : la prochaine déclaration est celle d\'avant la mission' modules/socle/ecrans/cabinet/app-1.js \
+  $'mois[i] >= mp && ![\'fait\', \'hors\'].includes(e[0])' \
+  $'mois[i] >= mp && e[0] !== \'fait\'' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 i : l\'écran Exercice n\'offre plus la reprise en tête' modules/socle/ecrans/cabinet/app-1.js \
+  $'      ${!ex.clos && sansOuverture ? \'<button class="btn btn-sm" id="cl-reprise-haut">Reprendre les soldes d\\\'ouverture…</button>\' : \'\'}' \
+  $'      ${false && !ex.clos && sansOuverture ? \'<button class="btn btn-sm" id="cl-reprise-haut">Reprendre les soldes d\\\'ouverture…</button>\' : \'\'}' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 j : la fenêtre dit « Ouvrir l\'exercice » d\'un exercice déjà ouvert' modules/socle/ecrans/cabinet/app-1.js \
+  $'${dejaOuvert ? \'Reprendre ces soldes\' : livreTenu ?' \
+  $'${false ? \'Reprendre ces soldes\' : livreTenu ?' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 k : les soldes repris ne se cochent pas' modules/socle/ecrans/cabinet/app-1.js \
+  $'soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ' \
+  $'soldes: false && (((livre && livre.ouverture) || {}).lignes || []).length > 0 || false && ' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 l : un n° CNSS mal écrit entre tel quel' modules/socle/ecrans/cabinet/app-2.js \
+  $'        r.salaries.forEach(x => { if (x.cnss && !KC.lireMatriculeCnss(x.cnss).ok) { x.cnssIllisible = x.cnss; x.cnss = \'\'; } });' \
+  $'        r.salaries.forEach(x => { if (false && x.cnss) { x.cnssIllisible = x.cnss; x.cnss = \'\'; } });' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 m : « Exporter le lettrage » sort le grand livre' modules/socle/ecrans/cabinet/app-2.js \
+  $'        .filter(e => s.onglet !== \'lettrage\' || String(e.account || \'\').startsWith(s.compte || \'411\'));' \
+  $'        ;' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'jour1 1.371.0 n : « À voir » ne groupe plus les débuts de mission' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (aTenir.length > 3) avoir.push({ cle: \'dm-tenus\', dossier: null, quoi: `${aTenir.length} dossiers : début de mission à préciser`, sous: \'à partir de quand tu les tiens ; sans réponse, toute l\\\'année est comptée à saisir\', ton: \'attire\',' \
+  $'    if (aTenir.length > 99) avoir.push({ cle: \'dm-tenus\', dossier: null, quoi: `${aTenir.length} dossiers : début de mission à préciser`, sous: \'à partir de quand tu les tiens ; sans réponse, toute l\\\'année est comptée à saisir\', ton: \'attire\',' \
+  $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
+prouver $'colle 1.371.0 a : un salaire illisible entre à zéro' web/public/v10/cabinet/cabcore.js \
+  $'      if (!Number.isFinite(brut) || !(brut > 0)) return refus.push({ ligne: n, nom, motif: `le salaire brut « ${f.brut} » ne se lit pas` });' \
+  $'      if (!Number.isFinite(brut)) return salaries.push({ nom, brut: 0 });' \
+  $'une ligne illisible est refusée avec son numéro et sa raison ; les autres entrent'
+prouver $'colle 1.371.0 b : l\'embauche supposée ne se marque pas' web/public/v10/cabinet/cabcore.js \
+  $'embauche = `${o.annee}-01-01`; embaucheSupposee = true;' \
+  $'embauche = `${o.annee}-01-01`; embaucheSupposee = false;' \
+  $'sans date d\'embauche, le 1er janvier de l\'exercice est posé et marqué ; sans exercice connu, la ligne est refusée'
+prouver $'colle 1.371.0 c : un salarié collé deux fois entre deux fois' web/public/v10/cabinet/cabcore.js \
+  $'      if (vus.has(normNom(nom))) return ignores.push(nom);' \
+  $'      if (false && vus.has(normNom(nom))) return ignores.push(nom);' \
+  $'un salarié déjà au dossier, ou collé deux fois, est ignoré et nommé'
+prouver $'colle 1.371.0 d : la durée ne se déduit plus du taux' web/public/v10/cabinet/cabcore.js \
+  $'if (!duree && taux > 0) duree = Math.round(100 / taux * 100) / 100;' \
+  $'if (!duree && taux > 0) duree = 0;' \
+  $'la durée se lit, ou se déduit du taux ; le compte se garde ; une colonne inconnue est nommée'
+prouver $'colle 1.371.0 e : un seul mot suffit à reconnaître la famille' web/public/v10/cabinet/cabcore.js \
+  $'mots.length > 0 && mots.every(m =>' \
+  $'mots.length > 0 && mots.some(m =>' \
+  $'sans durée ni taux, la famille reconnue propose la sienne (tous ses mots, pas « matériel » seul) ; sinon la ligne est refusée'
+prouver $'colle 1.371.0 f : un bien sans date entre quand même' web/public/v10/cabinet/cabcore.js \
+  $'      if (!String(f.mise || \'\').trim()) return refus.push({ ligne: n, nom: libelle, motif: \'la date de mise en service manque : c\\\'est elle qui fait partir l\\\'amortissement\' });' \
+  $'      if (false) return refus.push({ ligne: n, nom: libelle, motif: \'la date de mise en service manque : c\\\'est elle qui fait partir l\\\'amortissement\' });' \
+  $'une valeur ou une date manquante ou illisible refuse la ligne en la nommant ; un bien déjà au tableau est ignoré'
+prouver $'colle 1.371.0 g : les titres ne décident plus des colonnes des salariés' web/public/v10/cabinet/cabcore.js \
+  $'    [\'poste\', /^(postes?( occup[ée]s?)?|fonctions?|emplois?|qualifications?)$/i],' \
+  $'    [\'poste\', /^(postes?( occup[ée]s?)?|emplois?|qualifications?)$/i],' \
+  $'les titres décident des colonnes, dans le désordre ; prénom et nom se réunissent ; une colonne inconnue est nommée'
+prouver $'reprise 1.371.0 a : un exercice ouvert ne reprend plus sa balance' base/migrations/0215_reprise_apres_coup.sql \
+  $'    if coalesce(jsonb_array_length(p_lignes), 0) = 0 or v_ex.clos_le is not null' \
+  $'    if true or coalesce(jsonb_array_length(p_lignes), 0) = 0 or v_ex.clos_le is not null' \
+  $'la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste'
+prouver $'reprise 1.371.0 b : une ouverture contre-passée compte encore' base/migrations/0215_reprise_apres_coup.sql \
+  $'and c.origine_type = \'contre_passation\' and c.origine = e.id and c.statut = \'validee\')) then' \
+  $'and false)) then' \
+  $'la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste'
+prouver $'reprise 1.371.0 c : la reprise après coup se date du 1er janvier' base/migrations/0215_reprise_apres_coup.sql \
+  $'    v_du := v_ex.du;' \
+  $'    v_du := make_date(p_annee, 1, 1);' \
+  $'la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste'
+prouver $'reprise 1.371.0 d : une ouverture en vigueur ne barre plus la reprise' base/migrations/0215_reprise_apres_coup.sql \
+  $'and e.date_ecriture between v_ex.du and v_ex.au and e.origine_type <> \'contre_passation\'' \
+  $'and e.date_ecriture between v_ex.du and v_ex.au and false and e.origine_type <> \'contre_passation\'' \
+  $'la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

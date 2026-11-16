@@ -2374,6 +2374,7 @@
     const s = livresState;
     const e = x || { contrat: 'cdi', actif: true, enfants: 0 };
     modal(`<h2>${x ? 'Modifier ' + esc(x.nom) : 'Déclarer un salarié'}</h2>
+      ${x || (opts && opts.apres) ? '' : '<p class="small nd-plusieurs">Plusieurs salariés d\'un coup ? <button type="button" class="btn btn-sm" id="sf-coller">Coller une liste de salariés…</button></p>'}
       <form id="sf" class="grid-2">
         <label class="field obligatoire span-2">${lbl('Nom et prénom', 'pa.nom')}<input name="nom" value="${esc(e.nom || '')}"></label>
         <label class="field">${lbl('N° CIN', 'pa.cin')}<input name="cin" value="${esc(e.cin || '')}"></label>
@@ -2403,6 +2404,7 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
         <button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (rootModal, close) => {
+      const sc = $('#sf-coller', rootModal); if (sc) sc.onclick = () => { close(); collerSalariesForm(root, dossier); };
       // (plateforme) 1.68.0 — les primes de chaque mois de la fiche. Le tableau ne se redessine qu'à l'ajout ou au retrait
       // d'une ligne : pendant la frappe, seule la donnée change (le curseur reste dans sa case, 7.17.0).
       const primesFiche = (e.primes || []).map(p => ({ ...p }));

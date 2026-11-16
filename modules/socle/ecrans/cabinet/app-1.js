@@ -2352,8 +2352,13 @@
     const pas = lignePremiersPas();
     if (pas) avoir.push({ cle: 'premiers-pas', dossier: null, quoi: pas.label, sous: pas.detail, ton: 'attire', geste: 'Me guider pas à pas', faire: () => lancerPasSuivant() });
     // Ce qui attend sans être en retard : les clients qui ont écrit, les pièces reçues à classer.
+    // (1.371.0) Les clients tenus au cabinet dont le début de mission n'est pas dit : un par un jusqu'à trois, d'un seul
+    // geste au-delà (une liste de trente clients collée le premier jour ne fait pas trente lignes).
+    const aTenir = mesDossiers().filter(d => debutATenir(d, !sansEcritureTb(d)));
+    if (aTenir.length > 3) avoir.push({ cle: 'dm-tenus', dossier: null, quoi: `${aTenir.length} dossiers : début de mission à préciser`, sous: 'à partir de quand tu les tiens ; sans réponse, toute l\'année est comptée à saisir', ton: 'attire',
+      geste: 'Préciser…', faire: () => fenDebutMission(aTenir) });
     for (const d of mesDossiers()) {
-      if (debutAPreciser(d)) avoir.push({ cle: `dm-${d.id}`, dossier: d, quoi: 'Début de mission à préciser', sous: 'à partir de quand tu tiens ce dossier ; rien ne lui est réclamé avant', ton: 'attire',
+      if (!aTenir.includes(d) || aTenir.length <= 3) if (debutAPreciser(d) || aTenir.includes(d)) avoir.push({ cle: `dm-${d.id}`, dossier: d, quoi: 'Début de mission à préciser', sous: 'à partir de quand tu tiens ce dossier ; rien n\'est compté avant', ton: 'attire',
         geste: 'Préciser…', faire: () => fenDebutMission(d) });
       const m = etatsMessages.get(d.id);
       if (m && m.etat === 'a_traiter') avoir.push({ cle: `msg-${d.id}`, dossier: d, quoi: m.nonLus ? pl(m.nonLus, 'message du client', 'messages du client') : 'Le client t\'a répondu',
@@ -4283,6 +4288,11 @@
   // livres. On ne devine pas (Skander, 30/10/2026 : un client repris en cours d'année doit son année entière, une entreprise
   // neuve ne doit rien d'avant) : on le demande, et rien n'est réclamé avant.
   function debutAPreciser(d) { return !!d && !d.manual && !d.archived && !d.from && !(d.packs || []).length; }
+  // (1.371.0) Le jumeau pour un client TENU AU CABINET, qu'on vient d'ajouter : ni date sur la fiche, ni écriture dans ses
+  // livres. Sans réponse, SkanFact compte toute l'année « à saisir » : le premier jour, dix mois en rouge pour un client
+  // créé il y a une minute. On pose la question (la même fenêtre), et tant qu'elle attend la fiche et « À voir » la portent.
+  function debutATenir(d, ecrit) { return !!d && !!d.manual && !d.archived && !d.demo && !d.from && !ecrit; }
+  const sansEcritureTb = d => { const l = (prodState.lignes || []).find(x => x.id === d.id); return !!l && !(l.mois || []).some(c => c.saisi); };
   function moisDuDossier(d, retard) {
     const tard = retard.get(d.name) || [];
     if (tard.length) return { cl: 'tard', mot: `${tard.map(moisCourt).join(', ')} en retard`, tard: true, manqueTxt: d.manual ? '' : `${tard.map(moisCourt).join(', ')} sans déclaration` };
@@ -4877,7 +4887,10 @@
     const releves = ((livre && livre.releves) || []).slice().sort((a, b) => String(a.au).localeCompare(String(b.au)));
     const rapproche = releves.filter(r => (r.lignes || []).every(l => l.rapprochement && l.rapprochement.niveau !== 'aucun')).map(r => r.au).pop() || '';
     const nomBanque = (releves[releves.length - 1] || {}).banque || '';
-    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque };
+    // (1.371.0) Ce que « Par où commencer » coche : le livre existe-t-il, ses soldes repris, ses salariés, ses biens.
+    const debut = { existe: !!livre, soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ((livre && livre.ecritures) || []).some(e => e.journal === 'AN' && e.statut !== 'contrepassee'),
+      salaries: ((livre && livre.salaries) || []).length, biens: ((livre && livre.immobilisations) || []).length };
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut };
   }
   async function chargerLivreFd(d, annee) {
     const cle = `${d.id}:${annee}`;
@@ -5013,7 +5026,26 @@
       return `<li class="fd-af ${ton}"><span class="fd-af-i">${FD_IC[ic] || (ic === 'msg' ? CD_IC.msg : FD_IC.attente)}</span><span class="fd-af-t"><b>${t}</b><small>${s}</small></span><span class="fd-af-g">${geste}</span></li>`;
     }).join('');
     const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;
-    const prochaine = (() => { const m = etats.findIndex((e, i) => mois[i] >= mp && e[0] !== 'fait'); return m >= 0 ? mois[m] : moisSuivant(mc); })();
+    // (1.371.0) Un mois d'avant la mission n'est pas « la prochaine » : une mission qui commence ce mois-ci annonçait la
+    // déclaration du mois dernier, celle du prédécesseur.
+    const prochaine = (() => { const m = etats.findIndex((e, i) => mois[i] >= mp && !['fait', 'hors'].includes(e[0])); return m >= 0 ? mois[m] : moisSuivant(mc); })();
+    // (1.371.0) Un client tenu au cabinet qu'on vient d'ajouter : ses livres sont vides, et rien ne disait par où les
+    // remplir. Les cinq reprises du premier jour, chacune avec sa porte ; aucune n'est obligatoire.
+    const cpt = o => `#/dossier/${encodeURIComponent(d.id)}/comptabilite${o ? '/' + o : ''}`;
+    const dbt = (L && L.debut) || {};
+    // Sans livre, toutes les portes mènent au même écran (« Commencer le livre ») : une seule s'offre, les autres disent
+    // qu'elles suivent. Une reprise déjà faite se coche, avec ce qu'elle a posé.
+    const pasDb = (fait, titre, sous, lib, vers, vert) => `<li class="${fait ? 'ok' : dbt.existe || vert ? 'af' : 'att'}"><span class="fd-rv-i">${fait ? CD_IC.ok : dbt.existe || vert ? '<i class="fd-pt"></i>' : FD_IC.attente}</span><span><b>${titre}</b><small>${sous}</small></span><span class="fd-af-g">${fait || !(dbt.existe || vert) ? '' : `<a class="btn btn-sm${vert ? ' btn-primary' : ''}" href="${cpt(vers)}">${lib}</a>`}</span></li>`;
+    const debutTenu = L && d.manual && !d.demo && !d.archived && !Object.values(L.parMois).some(v => v.ecr || v.br)
+      ? `<section class="panel fd-p fd-bv fd-debuter" aria-labelledby="fd-db"><div class="fd-bv-t"><span class="fd-bv-ic">${CD_IC.dossiers}</span><div><h2 id="fd-db">Par où commencer avec ${esc(d.name)}</h2><p>${dbt.soldes || dbt.salaries || dbt.biens || L.releves ? 'Ses livres attendent leur première pièce.' : 'Ses livres sont vides.'} Reprends ce qui existe déjà, dans l'ordre qui te va : après le livre, rien n'est obligatoire, et tout se fait aussi plus tard.</p></div></div>
+        <ul class="fd-rv fd-bv-l">
+          ${dbt.existe ? pasDb(dbt.soldes, dbt.soldes ? 'Ses soldes d\'ouverture sont repris' : 'Ce qui vient d\'avant', dbt.soldes ? `le livre de ${annee} s'ouvre sur eux` : 'ses soldes d\'ouverture : une balance Excel ou un fichier FEC de l\'ancien logiciel, lus tels quels', 'Reprendre ses soldes', 'exercice', !dbt.soldes)
+    : pasDb(false, `Commencer son livre de ${annee}`, 'son exercice et, s\'il en a une, sa balance d\'ouverture (une balance Excel ou un fichier FEC de l\'ancien logiciel) ; vide pour un client qui démarre', 'Commencer son livre…', 'exercice', true)}
+          ${pasDb(dbt.salaries > 0, dbt.salaries ? `${pl(dbt.salaries, 'salarié')} au dossier` : 'Ses salariés', dbt.salaries ? 'la paie du mois se calcule dans « Paie »' : 's\'il en a : leur liste se colle depuis un tableur, la paie du mois se calcule ensuite', 'Ouvrir la paie', 'paie')}
+          ${pasDb(dbt.biens > 0, dbt.biens ? `${pl(dbt.biens, 'bien')} au tableau` : 'Ses biens', dbt.biens ? 'les dotations se calculent dans « Immobilisations »' : 'véhicules, matériel, agencements : le tableau des immobilisations se colle aussi, les dotations se calculent', 'Ouvrir les immobilisations', 'immobilisations')}
+          ${pasDb(L.releves > 0, L.releves ? `${pl(L.releves, 'relevé')} de banque importé${L.releves > 1 ? 's' : ''}` : 'Sa banque', L.releves ? 'chaque ligne propose son écriture dans « Banque »' : 'un relevé de sa banque (Excel ou CSV) : chaque ligne propose son écriture', 'Importer un relevé', 'banque')}
+          ${pasDb(false, 'Puis ses pièces du mois', 'à la main, par un journal importé de l\'ancien logiciel, ou depuis les pièces rangées dans son classeur', 'Ouvrir la saisie', 'saisie')}</ul></section>`
+      : '';
     const blocAttend = nouveau
       ? `<section class="panel fd-p fd-bv" aria-labelledby="fd-bv"><div class="fd-bv-t"><span class="fd-bv-ic">${CD_IC.dossiers}</span><div><h2 id="fd-bv">Bienvenue au cabinet, ${esc(d.name)}</h2><p>${esc(prenom || 'Le client')} t'a confié son dossier. Voici ses premiers pas, dans l'ordre.</p></div></div>
         <ul class="fd-rv fd-bv-l">
@@ -5090,6 +5122,7 @@
         <p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</span>${lien}${d.from ? `<small>mission depuis ${esc(moisLong(d.from))} ${d.from.slice(0, 4)}</small>` : ''}${eq.suit ? `<span class="fd-eqs">${persCd(eq.suit, 20)} suivi par ${esc(prenomDe(eq.suit))}${eq.val ? ` · validé par ${esc(prenomDe(eq.val))}` : ''}</span>` : ''}</p>
         <p class="fd-phrase">${phrase}</p></div></div>
       <div class="actions">${tel ? '' : ecrire}<span class="fd-mw"><button type="button" class="btn btn-icone" id="fd-menu" aria-label="Les autres gestes du dossier" aria-haspopup="menu" aria-expanded="${ficheFd.menu}">${CD_IC.trois}</button>${ficheFd.menu ? menuFicheFd(d, dir, prenom) : ''}</span></div></div>`;
+    const tenirFd = debutATenir(d, !L || Object.values(L.parMois).some(v => v.ecr || v.br));
     const bandHors = hors ? '<div class="bandeau gris a-band fd-band"><span class="txt"><b>Pas de réseau : ce poste montre le dossier tel qu\'il le connaît.</b><span>La fiche et les mois se lisent ; relancer, répondre et réviser attendent le retour du réseau.</span></span></div>' : '';
     // (1.183.0) D'un dossier à l'autre sans revenir à la liste : la liste telle qu'elle était vue (sa vue, sa recherche, son
     // tri) ; ouvert d'ailleurs (Priorités, un lien), les dossiers suivis par nom.
@@ -5108,7 +5141,7 @@
         <div class="actions"><button type="button" class="btn" id="fd-export">${CD_IC.exporter} Exporter le dossier</button>${estAssocie() ? '<button type="button" class="btn btn-primary" data-cd-geste="archiver" data-cd-d="' + esc(d.id) + '">Désarchiver…</button>' : ''}</div></div>
         <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans le Tableau de bord ni les Échéances. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
         <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
-    } else corps = `${tete}${bandHors}${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? Rien ne lui est réclamé tant que ce n'est pas dit : une entreprise neuve ne doit rien d'avant, un client repris en cours d'année doit son année entière.</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}${suiviP}</div>${cote}</div>`;
+    } else corps = `${tete}${bandHors}${debutAPreciser(d) || tenirFd ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? ${tenirFd ? 'Tant que ce n\'est pas dit, toute l\'année est comptée à saisir : une entreprise neuve ne doit rien d\'avant, et les mois déjà déclarés par ton prédécesseur ne sont pas les tiens.' : 'Rien ne lui est réclamé tant que ce n\'est pas dit : une entreprise neuve ne doit rien d\'avant, un client repris en cours d\'année doit son année entière.'}</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${debutTenu}${debutTenu && attend.length ? '' : blocAttend}${nouveau ? '' : debutTenu ? anneeP : attend.length ? revision + anneeP : anneeP + revision}${suiviP}</div>${cote}</div>`;
     view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`;
 
     // ---------- les gestes ----------
@@ -7942,7 +7975,11 @@
     // visite disent de laisser la balance vide. Elle dit les deux, et ses trois champs tiennent sur
     // une ligne avec leur bulle (vu à la souris).
     const livreTenu = !!s.livre;
-    modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture de' : 'Commencer le livre de'} ${esc(dossier.name)}</h2>
+    // (1.371.0) L'exercice affiché existe déjà (un livre commencé sans balance) : on reprend ses soldes, on ne l'ouvre pas.
+    const dejaOuvert = livreTenu && api.exerciceOuvert(dossier.id, annee) === true;
+    // (1.371.0) L'élision : « le livre de Atelier Zitouna » se lisait sur le premier geste du premier jour.
+    const deNomLv = /^[aeiouyéèêàâîôûh]/i.test(String(dossier.name || '').normalize('NFC')) ? `d'${esc(dossier.name)}` : `de ${esc(dossier.name)}`;
+    modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture' : 'Commencer le livre'} ${deNomLv}</h2>
       <p class="small muted"><b>Un client qui démarre</b> : pose son exercice et laisse la balance d'ouverture vide.
       <b>Un client qui tenait sa comptabilité ailleurs</b> : reprends ce que ses comptes portaient au premier jour
       — à la main, ou « Importer une balance ou un FEC… » : la balance de son ancien logiciel (Excel ou CSV), ou le FEC de son
@@ -7964,7 +8001,7 @@
       </div>
       <div class="modal-actions">
         <button class="btn" data-close>Annuler</button>
-        <button class="btn btn-primary" id="ok">${livreTenu ? 'Ouvrir l\'exercice' : 'Créer le livre'}</button></div>`,
+        <button class="btn btn-primary" id="ok">${dejaOuvert ? 'Reprendre ces soldes' : livreTenu ? 'Ouvrir l\'exercice' : 'Créer le livre'}</button></div>`,
       (rootModal, close) => {
         const corps = $('#rf-lignes', rootModal);
         const lire = () => {
@@ -8072,7 +8109,7 @@
             // écriture sur cette période », sans un geste — la première impasse d'un comptable qui
             // commence un client hors SkanFact.
             allerSousOnglet(root, dossier, 'saisie');
-            toast(livreTenu ? `Exercice ${v.annee} ouvert` : `Livre de ${v.annee} créé`);
+            toast(dejaOuvert && String(v.annee) === String(annee) ? `Soldes d'ouverture de ${v.annee} repris` : livreTenu ? `Exercice ${v.annee} ouvert` : `Livre de ${v.annee} créé`);
           } catch (e) { await infoDialog('Reprise impossible', plainError(e)); }
         };
       });
@@ -9638,6 +9675,9 @@
       <button class="btn btn-sm${suivantPrincipal(su, ex.clos) ? ' btn-primary' : ''}" id="cl-suivant" data-etat="${esc(su.etat)}"${su.etat === 'refus' ? ' disabled aria-describedby="cl-suivant-motif"' : ''}>${esc(libelleSuivant(su))}</button>
       ${/* (1.349.0) Le fichier de clôture n'existe pas encore en ligne : la fenêtre demandait un mot de passe, puis
             répondait « rien n'a été fait ». Un geste qui n'existe pas ne se propose pas. */''}
+      ${/* (1.371.0) Un livre commencé sans balance : la reprise s'offre en tête, pas seulement au fond des états financiers.
+            Le serveur l'accepte tant que l'exercice n'a aucune ouverture (0215). */''}
+      ${!ex.clos && sansOuverture ? '<button class="btn btn-sm" id="cl-reprise-haut">Reprendre les soldes d\'ouverture…</button>' : ''}
       ${'ecrireCloture' in api ? '<button class="btn btn-sm" id="cl-fichier">Le dossier pour le client…</button>' : ''}
       ${/* Réunir deux postes (9.9.0). Ici, et pas dans la Saisie : c'est un geste d'exercice, rare,
             et qui touche le livre entier. Quand les deux postes voient le même fichier, il ne sert
@@ -9813,8 +9853,7 @@
       dt.open = true; plis[b.dataset.clSec] = true;
       pageFocus = dt.id; focaliser(el);
     }; });
-    const rep = $('#cl-reprise', el);
-    if (rep) rep.onclick = () => repriseForm(root, dossier);
+    [$('#cl-reprise', el), $('#cl-reprise-haut', el)].forEach(rep => { if (rep) rep.onclick = () => repriseForm(root, dossier); });
     // Le geste amène à l'écran, et au PANNEAU quand il en nomme un (7.18.0) : le brouillard vit sous
     // la grille de saisie, hors de l'écran à l'arrivée.
     $$('[data-ctrl]', el).forEach(b => { b.onclick = () => {
@@ -11128,6 +11167,7 @@
       .filter(x => String(x.account).startsWith('28')).reduce((t, x) => t + (Number(x.credit) || 0) - (Number(x.debit) || 0), 0)
       + Object.entries(KC.soldesDepuisOuverture(s.livre)).filter(([c]) => c.startsWith('28')).reduce((t, [, v]) => t - v, 0)) : 0;
     modal(`<h2>${neuf ? 'Ajouter un bien' : 'Modifier ' + esc(f.libelle)}</h2>
+      ${neuf && !f.reprise && !f.libelle ? '<p class="small nd-plusieurs">Tout un tableau d\'un coup ? <button type="button" class="btn btn-sm" id="im-coller">Coller le tableau des immobilisations…</button></p>' : ''}
       <form id="im" class="grid-2">
         <label class="field obligatoire span-2">${lbl('Désignation', 'im.designation')}
           <input name="libelle" value="${esc(f.libelle || '')}" placeholder="Le bien, tel que tu l'appelles"></label>
@@ -11182,6 +11222,7 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
         <button class="btn btn-primary" id="ok">${neuf ? 'Ajouter' : 'Enregistrer'}</button></div>`,
     (rootModal, close) => {
+      const ic = $('#im-coller', rootModal); if (ic) ic.onclick = () => { close(); collerBiensForm(root, dossier); };
       const v = n => (($(`[name=${n}]`, rootModal) || {}).value || '').trim();
       // Une date se TAPE comme partout ailleurs (« 01/03/2021 ») et se range en ISO (C-04) : le champ
       // montrait « 2026-01-01 » et n'acceptait que ça, à côté d'écrans qui écrivent 01/01/2026.

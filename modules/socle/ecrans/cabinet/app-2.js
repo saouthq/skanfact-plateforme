@@ -5120,7 +5120,10 @@
     const rows = s.onglet === 'balance'
       ? (s.aux ? balanceAux(lignes, s.auxRole === 'fournisseurs' ? 'fournisseurs' : 'clients')
         : KC.balanceDepuisLignes(lignes, (s.periode || {}).ouverture || null, nomDeCompte())).rows
-      : KC.journalDepuisLignes(lignes).pieces.flatMap(p => p.lignes.map(e => ({ ...e, numero: p.numero })));
+      // (1.371.0) Le lettrage exporte le compte qu'il montre (411 par défaut), pas tout le grand livre : son fichier était
+      // celui du grand livre, capital et TVA compris, sous le nom « lettrage ».
+      : KC.journalDepuisLignes(lignes).pieces.flatMap(p => p.lignes.map(e => ({ ...e, numero: p.numero })))
+        .filter(e => s.onglet !== 'lettrage' || String(e.account || '').startsWith(s.compte || '411'));
     // `K.toCsvLine` échappe comme le reste du Cabinet : un libellé de facture contient un
     // point-virgule un jour sur dix, et un montant s'écrit à la virgule décimale.
     // Un montant et une date au format de l'app entreprise (C2) : les colonnes se reconnaissent à leur
@@ -5131,7 +5134,7 @@
       .concat(rows.map(r => K.toCsvLine(cols.map(c => cell(r[c[0]], c[0])))))
       .join('\r\n') + '\r\n';
     const nom = s.onglet === 'balance' ? 'balance' : s.onglet === 'grand-livre' ? 'grand-livre'
-      : s.onglet === 'lettrage' ? 'lettrage' : 'livre-journal';
+      : s.onglet === 'lettrage' ? `lettrage-${s.compte || '411'}` : 'livre-journal';
     try {
       // Le même chemin d'export que le reste de l'application : `cab:exportCsv` pose le BOM et la
       // fenêtre d'enregistrement. En écrire un second aurait fini par diverger sur l'un des deux.
@@ -5485,6 +5488,9 @@
             const r = await api.newDossier(f);
             S = r.state; close(); render(); toast('Dossier créé.');
             location.hash = '#/dossier/' + encodeURIComponent(r.id);
+            // (1.371.0) Sans début de mission, toute l'année se compte « à saisir » : la question, tout de suite.
+            const cree = (S.dossiers || []).find(x => x.id === r.id);
+            if (cree && !cree.from) fenDebutMission(cree);
           } catch (e) {
             // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case, comme un
             // matricule mal écrit (il ne se disait qu'en bas de l'écran).
@@ -5555,6 +5561,96 @@
     champ.addEventListener('input', dessiner);
     dessiner();
   }
+  // (1.371.0) La même fenêtre pour les deux autres listes du premier jour : les salariés d'un client et le tableau de ses
+  // immobilisations. `o.lire(texte)` rend { items, refus, ignores, colonnesIgnorees } (le moteur, `K.parseSalariesLines`
+  // et `K.parseBiensLines`) ; `o.motif(item)` ajoute un refus que seul l'écran sait dire ; `o.enregistrer(item)` est le
+  // geste ordinaire, un par un. On voit ce qui entrera avant de valider ; une ligne refusée est nommée, les autres entrent.
+  function collerTableauForm(o) {
+    let change = () => false;
+    modal(
+      `<h2>${esc(o.titre)}</h2>
+       <p class="small">${o.consigne}</p>
+       <label class="field mt">${lbl(o.etiquette, o.bulle)}
+         <textarea id="ct-liste" rows="9" placeholder="${esc(o.exemple)}"></textarea></label>
+       <div id="ct-apercu" class="apercu-liste" aria-live="polite"></div>
+       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok" disabled>${esc(o.bouton)}</button></div>`,
+      (layer, close) => {
+        change = suivreSaisie(layer);
+        const champ = $('#ct-liste', layer), zone = $('#ct-apercu', layer), ok = $('#ok', layer);
+        let bons = [];
+        const dessiner = () => {
+          const txt = champ.value.trim();
+          if (!txt) { zone.innerHTML = ''; bons = []; ok.disabled = true; ok.textContent = o.bouton; return; }
+          const r = o.lire(txt);
+          const refus = r.refus.slice();
+          bons = r.items.filter(x => { const m = o.motif ? o.motif(x) : ''; if (m) refus.push({ ligne: 0, nom: o.nom(x), motif: m }); return !m; });
+          const n = bons.length;
+          zone.innerHTML = `<div class="${n && !refus.length ? 'ok-box' : 'warn-box'} mb" id="ct-bilan"><b>${n ? `${pl(n, o.un)} ${n > 1 ? 'entreront' : 'entrera'}` : `Aucun ${o.un} à ajouter`}</b>${
+            refus.length ? ` · ${pl(refus.length, 'ligne refusée', 'lignes refusées')} : ${esc(refus.slice(0, 4).map(x => `${x.ligne ? `ligne ${x.ligne}` : ''}${x.nom ? `${x.ligne ? ' (' : ''}${x.nom}${x.ligne ? ')' : ''}` : ''}, ${x.motif}`).join(' ; '))}${refus.length > 4 ? '…' : ''}` : ''}${
+            r.ignores.length ? ` · ${pl(r.ignores.length, 'déjà là, ignoré', 'déjà là, ignorés')} : ${esc(r.ignores.slice(0, 3).join(', '))}${r.ignores.length > 3 ? '…' : ''}` : ''}${
+            r.colonnesIgnorees.length ? ` · ${pl(r.colonnesIgnorees.length, 'colonne laissée de côté', 'colonnes laissées de côté')} : ${esc(r.colonnesIgnorees.join(', '))}` : ''}</div>
+            ${n ? `<div class="scroll-x" style="max-height:190px"><table class="list compact"><thead><tr>${o.colonnes.map(c => `<th${c[2] ? ' class="num"' : ''}>${esc(c[0])}</th>`).join('')}</tr></thead>
+              <tbody>${bons.slice(0, 50).map(x => `<tr>${o.colonnes.map(c => `<td${c[2] ? ' class="num"' : ''}>${c[1](x) || '<span class="muted">—</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table></div>${
+              n > 50 ? `<p class="small muted">Les 50 premiers sur ${n} ; tous entreront.</p>` : ''}` : ''}`;
+          ok.disabled = !n; ok.textContent = n ? `Ajouter ${pl(n, o.un)}` : o.bouton;
+        };
+        champ.addEventListener('input', dessiner);
+        $('#no', layer).onclick = close;
+        ok.onclick = async () => {
+          if (!bons.length) return refus(champ, `Colle au moins un ${o.un}, un par ligne.`);
+          ok.disabled = true; champ.disabled = true;
+          const liste = bons.slice(), rates = [];
+          let faits = 0;
+          for (const x of liste) {
+            ok.textContent = `${faits + rates.length + 1} sur ${liste.length}…`;
+            try { await o.enregistrer(x); faits++; } catch (e) { rates.push(`${o.nom(x)} (${plainError(e)})`); }
+          }
+          change = () => false; close();
+          toast(`${faits ? `${pl(faits, o.un)} ajouté${faits > 1 ? 's' : ''}` : `Aucun ${o.un} ajouté`}${rates.length ? ` · ${pl(rates.length, 'refusé', 'refusés')} : ${rates.slice(0, 2).join(' ; ')}${rates.length > 2 ? '…' : ''}` : ''}.`, rates.length ? 'error' : undefined);
+          if (o.apres) await o.apres();
+        };
+      },
+      null,
+      { garde: () => change() }
+    );
+  }
+  function collerSalariesForm(root, dossier) {
+    const s = livresState;
+    collerTableauForm({
+      titre: 'Coller une liste de salariés', bulle: 'pa.liste', etiquette: 'Un salarié par ligne', un: 'salarié', bouton: 'Ajouter ces salariés',
+      consigne: 'Depuis Excel, copie tes colonnes <strong>avec leur ligne de titres</strong> : nom, CIN, n° CNSS, poste, contrat, salaire brut, date d\'embauche, enfants. Elles se reconnaissent à leur titre, dans n\'importe quel ordre. Le nom et le salaire brut sont obligatoires ; tu vois ce qui entrera avant de valider.',
+      exemple: 'Nom ; Poste ; Salaire brut ; Date d\'embauche\nAmine Ben Salah ; Boulanger ; 1 250,500 ; 01/03/2022\nSonia Khelifi ; Vendeuse ; 900 ; 15/09/2024',
+      // Un n° CNSS mal écrit ne retient pas le salarié à la porte : il entre sans numéro, et la ligne le dit (la paie le
+      // réclamera avant la déclaration du trimestre).
+      lire: txt => { const r = K.parseSalariesLines(txt, { nombre: KC.nombreStrict, annee: s.annee, existants: (s.livre && s.livre.salaries) || [] });
+        r.salaries.forEach(x => { if (x.cnss && !KC.lireMatriculeCnss(x.cnss).ok) { x.cnssIllisible = x.cnss; x.cnss = ''; } });
+        return { items: r.salaries, refus: r.refus, ignores: r.ignores, colonnesIgnorees: r.colonnesIgnorees }; },
+      nom: x => x.nom,
+      motif: x => (KC.salarieValide(x).ok ? '' : KC.salarieValide(x).motif),
+      colonnes: [['Nom', x => esc(x.nom)], ['Poste', x => esc(x.poste)], ['Contrat', x => esc(x.contrat.toUpperCase())], ['N° CNSS', x => (x.cnssIllisible ? `<span class="small douteux">« ${esc(x.cnssIllisible)} » illisible : laissé vide</span>` : esc(x.cnss))],
+        ['Embauche', x => `${esc(fmtJour(x.embauche))}${x.embaucheSupposee ? ' <span class="small douteux">(à préciser)</span>' : ''}`], ['Brut', x => esc(montant(x.brut)), 1]],
+      enregistrer: async x => { const { embaucheSupposee: _e, cnssIllisible: _c, ...v } = x; const r = await api.saveSalarie({ dossierId: dossier.id, annee: s.annee, salarie: { ...v, id: '' } }); s.livre = r.livre; },
+      apres: () => drawLivres(root, dossier)
+    });
+  }
+  function collerBiensForm(root, dossier) {
+    const s = livresState;
+    collerTableauForm({
+      titre: 'Coller le tableau des immobilisations', bulle: 'im.liste', etiquette: 'Un bien par ligne', un: 'bien', bouton: 'Ajouter ces biens',
+      consigne: 'Depuis Excel, copie le tableau <strong>avec sa ligne de titres</strong> : désignation, date de mise en service, valeur d\'acquisition HT, durée (années) ou taux d\'amortissement, compte. La durée se déduit du taux. Amortissement linéaire, à vérifier avec le tableau d\'origine ; tu vois ce qui entrera avant de valider.',
+      exemple: 'Désignation ; Date de mise en service ; Valeur HT ; Taux\nFour rotatif ; 15/03/2023 ; 45 000,000 ; 10 %\nCamionnette ; 01/06/2024 ; 62 000,000 ; 20 %',
+      lire: txt => { const r = K.parseBiensLines(txt, { nombre: KC.nombreStrict, annee: s.annee, familles: KC.DEFAULT_ASSET_CLASSES, existants: (s.livre && s.livre.immobilisations) || [] }); return { items: r.biens, refus: r.refus, ignores: r.ignores, colonnesIgnorees: r.colonnesIgnorees }; },
+      nom: x => x.libelle,
+      motif: x => { const v = KC.immoValide(ficheDuBienColle(x)); return v.ok ? '' : v.motifs[0]; },
+      colonnes: [['Désignation', x => esc(x.libelle)], ['Mise en service', x => esc(fmtJour(x.dateMiseEnService))], ['Durée', x => `${esc(String(x.duree).replace('.', ','))} ans${x.dureeProposee ? ' <span class="small douteux">(proposée)</span>' : ''}`],
+        ['Compte', x => esc(ficheDuBienColle(x).compte)], ['Valeur HT', x => esc(montant(x.valeur)), 1]],
+      enregistrer: async x => { const r = await api.saveImmobilisation({ dossierId: dossier.id, annee: s.annee, fiche: ficheDuBienColle(x) }); s.livre = r.livre; },
+      apres: () => chargerImmobilisations(root, dossier)
+    });
+  }
+  // La fiche d'un bien collé : ses comptes sont ceux que le formulaire aurait proposés (la famille, sinon 22 / 28 / 681).
+  const ficheDuBienColle = x => ({ libelle: x.libelle, famille: x.famille, dateMiseEnService: x.dateMiseEnService, dateAcquisition: x.dateAcquisition, valeur: x.valeur, residuelle: 0,
+    duree: x.duree, methode: 'lineaire', compte: x.compte || KC.compteDeFamille(x.famille) || '22', compteAmort: '28', compteDotation: '681' });
   function collerDossiersForm() {
     let change = () => false;
     modal(
@@ -5577,9 +5673,12 @@
             if (!r.added) return refus($('#cl-liste', layer), ignores.length
               ? `Aucun client ajouté : ${pl(ignores.length, 'client')} déjà dans ton portefeuille (${ignores.slice(0, 3).join(', ')}${ignores.length > 3 ? '…' : ''}).`
               : 'Aucun nom de client n\'a été reconnu dans cette liste.');
+            const avant = new Set((S.dossiers || []).map(x => x.id));
             S = r.state; close(); render();
             toast(`${pl(r.added, 'client')} ajouté${r.added > 1 ? 's' : ''} à ton portefeuille`
               + (ignores.length ? ` — ${pl(ignores.length, 'doublon')} ignoré${ignores.length > 1 ? 's' : ''} : ${ignores.slice(0, 3).join(', ')}` : '') + '.');
+            const neufs = (S.dossiers || []).filter(x => !avant.has(x.id) && x.manual && !x.from);
+            if (neufs.length) fenDebutMission(neufs.length === 1 ? neufs[0] : neufs);
           } catch (e) { toast(plainError(e), 'error'); }
         };
       },
@@ -6470,7 +6569,9 @@
   // le bilan la demande), une reprise en cours d'année (un autre mois). Les déclarations déjà déposées par le comptable
   // d'avant ne se refont pas ; la lettre de mission fait foi (À VÉRIFIER). La date est le `from` de la fiche, celle que
   // « Modifier la fiche » change ensuite : SkanFact ne réclame rien avant elle.
-  function fenDebutMission(D) {
+  function fenDebutMission(D0) {
+    // (1.371.0) Un dossier, ou plusieurs d'un coup (une liste de clients collée) : la même question, une seule fois.
+    const Ds = (Array.isArray(D0) ? D0 : [D0]).filter(Boolean), D = Ds[0], n = Ds.length;
     if (!D) return;
     const mc = K.today().slice(0, 7), janv = `${mc.slice(0, 4)}-01`;
     const mois = []; for (let m = `${Number(mc.slice(0, 4)) - 1}-01`; m <= mc; m = K.addMonth(m, 1)) mois.push(m);
@@ -6478,7 +6579,7 @@
       .concat(janv < mc ? [[janv, `Depuis ${K.monthLabel(janv)}`, 'tu reprends l\'année entière : le bilan la demande']] : [])
       .concat([['autre', 'Un autre mois…', 'une reprise en cours d\'année']]);
     let choix = '';
-    modal(`<h2>À partir de quand tiens-tu ${esc(D.name)} ?</h2><p class="muted pc-m-sous">Le début de ta mission : SkanFact ne lui réclame rien avant, et chaque mois à partir de lui.</p>
+    modal(`<h2>À partir de quand tiens-tu ${n > 1 ? `ces ${n} dossiers` : esc(D.name)} ?</h2><p class="muted pc-m-sous">${n > 1 ? 'Le début de ta mission, le même pour tous : rien n\'est compté avant. Un dossier qui commence à une autre date se corrige sur sa fiche.' : D.manual ? 'Le début de ta mission : rien n\'est compté avant, et chaque mois se saisit à partir de lui.' : 'Le début de ta mission : SkanFact ne lui réclame rien avant, et chaque mois à partir de lui.'}</p>
       <div class="field"><span class="ec-lab">Le début de mission</span><div class="pc-chips ec-par dm-choix" role="radiogroup" aria-label="Le début de mission">${CHOIX.map(([k, t, s2]) => `<button type="button" role="radio" aria-checked="false" aria-pressed="false" data-dm="${k}"><b>${esc(t)}</b><small>${esc(s2)}</small></button>`).join('')}</div></div>
       <label class="field" id="dm-autre-l" hidden><span>Le premier mois de ta mission</span><select id="dm-autre">${mois.slice().reverse().map(m => `<option value="${m}"${m === K.addMonth(mc, -1) ? ' selected' : ''}>${esc(K.monthLabel(m))}</option>`).join('')}</select></label>
       <p class="pc-note">Les déclarations déjà déposées par le comptable d'avant ne se refont pas. Ta lettre de mission fait foi (À VÉRIFIER avec elle). La date se change ensuite sur la fiche du dossier.</p>
@@ -6494,15 +6595,17 @@
         maj();
       }; });
       $('#dm-autre', layer).onchange = maj;
-      $('#dm-non', layer).onclick = close;
+      // « Plus tard » redessine : la fiche lue pendant que la fenêtre était ouverte attendait pour s'afficher.
+      $('#dm-non', layer).onclick = () => { close(); render(); };
       ok.onclick = async () => {
         const m = premier();
         if (!m) return;
         ok.disabled = true;
         try {
-          S = (await api.saveDossier(D.id, { from: m })).state;
+          for (const x of Ds) S = (await api.saveDossier(x.id, { from: m })).state;
+          prodState.lignes = null;
           close(); render();
-          toast(`${D.name} : ta mission commence en ${K.monthLabel(m)}. Rien ne lui est réclamé avant.`);
+          toast(n > 1 ? `${n} dossiers : ta mission commence en ${K.monthLabel(m)}. Rien n'est compté avant.` : `${D.name} : ta mission commence en ${K.monthLabel(m)}. ${D.manual ? 'Rien n\'est compté avant.' : 'Rien ne lui est réclamé avant.'}`);
         } catch (x) { ok.disabled = false; toast(plainError(x), 'error'); }
       };
     });

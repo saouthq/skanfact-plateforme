@@ -1531,6 +1531,7 @@ export interface BaseDeDonnees {
     essai: Generated<boolean>;
     tenue_par: string | null;
     ville: string | null;
+    exemple: Generated<boolean>;
   };
   'socle.etablissement': {
     id: Generated<string>;

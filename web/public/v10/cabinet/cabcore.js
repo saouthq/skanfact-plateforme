@@ -1073,6 +1073,152 @@
     return { dossiers: out, ignorés, colonnesIgnorees };
   }
 
+  // (1.371.0) Deux listes de plus se collent depuis un tableur le premier jour : les salariés d'un client et le tableau de
+  // ses immobilisations (jusque-là, un par un dans un formulaire). Même règle que la liste de clients : la ligne de
+  // titres décide des colonnes, dans n'importe quel ordre ; une colonne qu'on ne sait pas lire est laissée de côté et
+  // nommée ; une ligne qu'on ne peut pas lire est REFUSÉE avec son numéro et sa raison, les autres entrent. Rien ne
+  // s'écrit ici : l'écran montre ce qui entrera, puis enregistre par les gestes ordinaires. `nombre` est le lecteur
+  // strict du moteur (`nombreStrict`) : une cellule vide rend null, une cellule illisible NaN.
+  const TITRES_SALARIE = [
+    ['nom', /^(noms?( et pr[ée]noms?)?|pr[ée]noms? et noms?|nom complet|salari[ée]e?s?|employ[ée]e?s?)$/i],
+    ['prenom', /^pr[ée]noms?$/i],
+    ['cin', /^((n[°o]\.?|num[ée]ro) ?)?(de )?(la )?c\.?i\.?n\.?$/i],
+    ['cnss', /^((n[°o]\.?|num[ée]ro|matricule|immatriculation) ?)?(de )?(la )?c\.?n\.?s\.?s\.?$/i],
+    ['poste', /^(postes?( occup[ée]s?)?|fonctions?|emplois?|qualifications?)$/i],
+    ['contrat', /^((type|nature) (de|du) )?contrats?$/i],
+    ['brut', /^(salaires?( bruts?| de base)?( mensuels?)?|bruts?( mensuels?)?)( \(?(dt|tnd)\)?)?$/i],
+    ['embauche', /^((date )?(d['’]embauche|d['’]entr[ée]e|de recrutement)|embauche|entr[ée]e)$/i],
+    ['enfants', /^((nombre|nb\.?) d['’])?enfants?( [àa] charge)?$/i],
+    ['chef', /^chef de famille$/i],
+    ['genre', /^(civilit[ée]|sexe|genre)$/i]
+  ];
+  const TITRES_BIEN = [
+    ['libelle', /^(d[ée]signations?|libell[ée]s?|biens?|immobilisations?|nature|description)$/i],
+    ['famille', /^(familles?|cat[ée]gories?|types?)$/i],
+    ['mise', /^((date )?(de )?mise en service|date|date d['’]entr[ée]e)$/i],
+    ['acquisition', /^(date )?(d['’]acquisition|d['’]achat)$/i],
+    ['valeur', /^(valeurs?( d['’]acquisition| d['’]origine| brutes?)?|prix( d['’]achat| d['’]acquisition)?|co[uû]ts?( d['’]acquisition)?|montants?)( h\.?t\.?)?( \(?(dt|tnd)\)?)?$/i],
+    ['duree', /^dur[ée]es?( d['’]amortissement| de vie)?( \(?(ans?|ann[ée]es?)\)?)?$/i],
+    ['taux', /^taux( d['’]amortissement)?( \(?%\)?)?$/i],
+    ['compte', /^(n[°o]\.? ?(de )?)?comptes?( du bien)?$/i]
+  ];
+  const cellulesCollees = ligne => (ligne.includes('\t') ? ligne.split('\t') : ligne.split(';')).map(c => String(c || '').trim());
+  // Les lignes d'un tableau collé : `carte` (titre → colonne) quand la première ligne est une ligne de titres.
+  function tableauColle(text, titres) {
+    const lignes = [], colonnesIgnorees = [];
+    let carte = null, premiere = true;
+    String(text || '').split(/\r?\n/).forEach((brut, k) => {
+      if (!brut.trim()) return;
+      const cols = cellulesCollees(brut);
+      if (premiere) {
+        premiere = false;
+        if (cols.some(c => titres.some(([, re]) => re.test(c)))) {
+          carte = {};
+          cols.forEach((c, i) => { const t = titres.find(([, re]) => re.test(c)); if (t && carte[t[0]] === undefined) carte[t[0]] = i; else if (c) colonnesIgnorees.push(c); });
+          return;
+        }
+      }
+      lignes.push({ n: k + 1, cols });
+    });
+    return { lignes, carte, colonnesIgnorees };
+  }
+  const CONTRATS_LUS = [[/ind[ée]termin|c\.?d\.?i/i, 'cdi'], [/d[ée]termin|c\.?d\.?d/i, 'cdd'], [/saison/i, 'saisonnier'], [/civp/i, 'civp'], [/sivp/i, 'sivp'], [/karama/i, 'karama'], [/stag/i, 'stage']];
+  function parseSalariesLines(text, opts) {
+    const o = opts || {}, nombre = o.nombre || (v => { const t = String(v || '').trim(); return t ? Number(t.replace(/\s/g, '').replace(',', '.')) : null; });
+    const { lignes, carte, colonnesIgnorees } = tableauColle(text, TITRES_SALARIE);
+    const vus = new Set((o.existants || []).map(x => normNom(x.nom)));
+    const salaries = [], refus = [], ignores = [];
+    lignes.forEach(({ n, cols }) => {
+      let f;
+      if (carte) {
+        const lu = k => (carte[k] === undefined ? '' : (cols[carte[k]] || ''));
+        f = { nom: [lu('prenom'), lu('nom')].filter(Boolean).join(' '), cin: lu('cin'), cnss: lu('cnss'), poste: lu('poste'), contrat: lu('contrat'),
+          brut: lu('brut'), embauche: lu('embauche'), enfants: lu('enfants'), chef: lu('chef'), genre: lu('genre') };
+      } else {
+        // Sans titres : le nom d'abord, puis chaque cellule est reconnue à sa forme (une date, un matricule CNSS, une
+        // CIN de huit chiffres, un montant) ; le premier texte qui reste est le poste.
+        f = { nom: cols[0] || '', cin: '', cnss: '', poste: '', contrat: '', brut: '', embauche: '', enfants: '', chef: '', genre: '' };
+        cols.slice(1).forEach(c => {
+          if (!c) return;
+          if (!f.embauche && dateTapee(c, o.annee)) f.embauche = c;
+          else if (!f.cnss && /^\d{1,8}\s?-\s?\d{2}$/.test(c)) f.cnss = c;
+          else if (!f.cin && /^\d{8}$/.test(c)) f.cin = c;
+          else if (!f.brut && Number.isFinite(nombre(c)) && nombre(c) > 0) f.brut = c;
+          else if (!f.contrat && CONTRATS_LUS.some(([re]) => re.test(c)) && c.length < 30) f.contrat = c;
+          else if (!f.poste && !/^[\d\s.,-]+$/.test(c)) f.poste = c;
+        });
+      }
+      const nom = String(f.nom || '').replace(/\s+/g, ' ').trim();
+      if (!nom) { if (cols.some(Boolean)) refus.push({ ligne: n, motif: 'le nom manque' }); return; }
+      const brut = nombre(f.brut);
+      if (brut === null) return refus.push({ ligne: n, nom, motif: 'le salaire brut manque' });
+      if (!Number.isFinite(brut) || !(brut > 0)) return refus.push({ ligne: n, nom, motif: `le salaire brut « ${f.brut} » ne se lit pas` });
+      let embauche = '', embaucheSupposee = false;
+      if (String(f.embauche || '').trim()) {
+        embauche = dateTapee(f.embauche, o.annee);
+        if (!embauche) return refus.push({ ligne: n, nom, motif: `la date d'embauche « ${f.embauche} » ne se lit pas (JJ/MM/AAAA)` });
+      } else if (o.annee) { embauche = `${o.annee}-01-01`; embaucheSupposee = true; }   // dite à l'écran avant d'entrer : à corriger sur la fiche
+      else return refus.push({ ligne: n, nom, motif: 'la date d\'embauche manque' });
+      if (vus.has(normNom(nom))) return ignores.push(nom);
+      vus.add(normNom(nom));
+      const contrat = (CONTRATS_LUS.find(([re]) => re.test(f.contrat)) || [, String(f.contrat || '').trim() ? 'autre' : 'cdi'])[1];
+      const enfants = Number(String(f.enfants || '').replace(/\D/g, '')) || 0;
+      const genre = /^(m|mr|m\.|monsieur|h|homme|masculin)$/i.test(String(f.genre).trim()) ? 'm' : /^(mme|mlle|madame|mademoiselle|f|femme|f[ée]minin)$/i.test(String(f.genre).trim()) ? 'f' : '';
+      salaries.push({ nom, cin: String(f.cin || '').trim(), cnss: String(f.cnss || '').replace(/\s/g, ''), poste: String(f.poste || '').trim(), contrat, brut, embauche, embaucheSupposee,
+        enfants, chefDeFamille: /^(oui|o|x|1|vrai|true)$/i.test(String(f.chef).trim()) || enfants > 0 && !String(f.chef).trim(), genre, actif: true, primes: [] });
+    });
+    return { salaries, refus, ignores, colonnesIgnorees, avecTitres: !!carte };
+  }
+  // Le tableau des immobilisations. La durée se lit en années, ou se déduit d'un taux (20 % : cinq ans) ; sans l'une ni
+  // l'autre, la famille reconnue propose la sienne (dite à l'écran), sinon la ligne est refusée : une durée ne se devine pas.
+  function parseBiensLines(text, opts) {
+    const o = opts || {}, nombre = o.nombre || (v => { const t = String(v || '').trim(); return t ? Number(t.replace(/\s/g, '').replace(',', '.')) : null; });
+    const familles = o.familles || [];
+    const { lignes, carte, colonnesIgnorees } = tableauColle(text, TITRES_BIEN);
+    const vus = new Set((o.existants || []).map(x => `${normNom(x.libelle)}|${x.dateMiseEnService || ''}|${Number(x.valeur) || 0}`));
+    const biens = [], refus = [], ignores = [];
+    lignes.forEach(({ n, cols }) => {
+      let f;
+      if (carte) {
+        const lu = k => (carte[k] === undefined ? '' : (cols[carte[k]] || ''));
+        f = { libelle: lu('libelle'), famille: lu('famille'), mise: lu('mise') || lu('acquisition'), acquisition: lu('acquisition'), valeur: lu('valeur'), duree: lu('duree'), taux: lu('taux'), compte: lu('compte') };
+      } else {
+        f = { libelle: cols[0] || '', famille: '', mise: '', acquisition: '', valeur: '', duree: '', taux: '', compte: '' };
+        cols.slice(1).forEach(c => {
+          if (!c) return;
+          if (!f.mise && dateTapee(c, o.annee)) f.mise = c;
+          else if (!f.taux && /%$/.test(c)) f.taux = c;
+          else if (!f.valeur && Number.isFinite(nombre(c)) && nombre(c) > 0) f.valeur = c;
+          else if (!f.duree && /^\d{1,2}( ?ans?)?$/i.test(c)) f.duree = c;
+        });
+      }
+      const libelle = String(f.libelle || '').replace(/\s+/g, ' ').trim();
+      if (!libelle) { if (cols.some(Boolean)) refus.push({ ligne: n, motif: 'la désignation manque' }); return; }
+      const valeur = nombre(f.valeur);
+      if (valeur === null) return refus.push({ ligne: n, nom: libelle, motif: 'la valeur d\'acquisition manque' });
+      if (!Number.isFinite(valeur) || !(valeur > 0)) return refus.push({ ligne: n, nom: libelle, motif: `la valeur « ${f.valeur} » ne se lit pas` });
+      if (!String(f.mise || '').trim()) return refus.push({ ligne: n, nom: libelle, motif: 'la date de mise en service manque : c\'est elle qui fait partir l\'amortissement' });
+      const mise = dateTapee(f.mise, o.annee);
+      if (!mise) return refus.push({ ligne: n, nom: libelle, motif: `la date « ${f.mise} » ne se lit pas (JJ/MM/AAAA)` });
+      const acquisition = String(f.acquisition || '').trim() ? dateTapee(f.acquisition, o.annee) : '';
+      const cle = normNom(f.famille || libelle);
+      const fam = familles.find(c => normNom(c[1]) === normNom(f.famille) || normNom(c[0]) === normNom(f.famille))
+        // Tous les mots de la famille doivent y être : « matériel » seul rangeait le matériel de bureau en informatique.
+        || familles.find(c => { const mots = normNom(c[1]).split(' ').filter(m => m.length > 3 && m !== 'AUTRE'); return c[0] !== 'autre' && mots.length > 0 && mots.every(m => (' ' + cle + ' ').includes(' ' + m + ' ')); }) || null;
+      let duree = Number(String(f.duree || '').replace(',', '.').replace(/[^\d.]/g, '')) || 0, dureeProposee = false;
+      const taux = Number(String(f.taux || '').replace(',', '.').replace(/[^\d.]/g, '')) || 0;
+      if (!duree && taux > 0) duree = Math.round(100 / taux * 100) / 100;
+      if (!duree && fam) { duree = fam[2]; dureeProposee = true; }
+      if (!(duree > 0)) return refus.push({ ligne: n, nom: libelle, motif: 'ni durée ni taux d\'amortissement : la durée ne se devine pas' });
+      const k = `${normNom(libelle)}|${mise}|${valeur}`;
+      if (vus.has(k)) return ignores.push(libelle);
+      vus.add(k);
+      biens.push({ libelle, famille: fam ? fam[0] : '', dateMiseEnService: mise, dateAcquisition: acquisition || mise, valeur, duree, dureeProposee,
+        compte: String(f.compte || '').replace(/\s/g, ''), methode: 'lineaire' });
+    });
+    return { biens, refus, ignores, colonnesIgnorees, avecTitres: !!carte };
+  }
+
   // Enregistrer qu'on a relancé. Le geste existait, la trace non : on cliquait « Écrire », le mail
   // partait, et le lundi suivant plus personne ne savait qui avait été relancé.
   function noteRelance(dossier, months, via, at, note) {
@@ -2435,7 +2581,7 @@
     migrate, migrateDossier, dossierKey, packSummary, filePack, demoDossiers, rebaserPaquet, checkIntegrity, HORS_MANIFESTE,
     justificatifsDuPaquet, justificatifsDeLigne,
     exemplePerime, verdictMotDePasse,
-    newDossier, parseDossierLines, emailDouteux, noteRelance, portfolio, caDuPortefeuille, relanceDue, relanceRows, accuseMail,
+    newDossier, parseDossierLines, parseSalariesLines, parseBiensLines, emailDouteux, noteRelance, portfolio, caDuPortefeuille, relanceDue, relanceRows, accuseMail,
     parseCsv, verdictOrigine, csvDangereux, toCsvLine, csvMontant, csvDate, mergeEcritures, ecrituresPlan,
     DEFAULT_DEADLINES, deadlineSettings, echeances, enRetard, dayOf,
     TVA_PERIODES, migrateRegime, regimes, regimeDe, choixRegimes, regimeEnPhrase, periodeTva, deposeCnss, personnePhysique, jourTva,

@@ -165,4 +165,33 @@ describe('l\'exercice et sa balance d\'ouverture', () => {
     expect((a.statut === 403 ? a : b).corps.motif).toMatch(/^L'exercice 2026 est déjà ouvert/);
     expect((await livres(autre.ent, autre.collaborateur)).filter((e) => e.journal === 'AN')).toHaveLength(1);
   });
+
+  // (1.371.0) Un livre commencé « pour voir », sans balance : la balance de l'ancien logiciel se reprend le lendemain.
+  it('la balance d\'ouverture se reprend après coup tant que l\'exercice n\'en a aucune ; une fois reprise, plus ; contre-passée, la bonne se reprend d\'un geste', async () => {
+    const d = await dossier();
+    const vide = await ouvrir(d.ent, d.collaborateur, { annee: 2025, du: '2025-06-01' });
+    expect(vide.corps).toMatchObject({ annee: 2025, du: '2025-06-01', ouverture: null });
+    // La reprise après coup : au premier jour de l'exercice tel qu'il a été ouvert (le 1er juin), pas au 1er janvier.
+    const r = await ouvrir(d.ent, d.collaborateur, { annee: 2025, ouverture: BALANCE });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    expect(r.corps).toMatchObject({ annee: 2025, du: '2025-06-01', numero: 'AN-2025-000001' });
+    const an = (await livres(d.ent, d.collaborateur)).filter((e) => e.journal === 'AN');
+    expect(an.map((e) => [e.date, e.statut])).toEqual([['2025-06-01', 'validee']]);
+    expect(((await exercices(d.ent, d.collaborateur)) as { ouverture: string }[])[0]?.ouverture).toBe(r.corps.ouverture);
+    // Une ouverture existe : la règle d'avant vaut, avec ou sans lignes.
+    for (const corps of [{ annee: 2025, ouverture: BALANCE }, { annee: 2025 }]) {
+      expect((await ouvrir(d.ent, d.collaborateur, corps)).corps.motif)
+        .toBe('L\'exercice 2025 est déjà ouvert : une balance d\'ouverture fausse se contre-passe, puis la bonne se saisit au journal AN.');
+    }
+    // Contre-passée, elle ne compte plus : la bonne balance se reprend d'un geste.
+    const cp2 = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures/${String(r.corps.ouverture)}/contrepasser`, d.collaborateur.jeton, { date: '2026-01-01' });
+    expect(cp2.statut, JSON.stringify(cp2.corps)).toBe(201);
+    const bonne = await ouvrir(d.ent, d.collaborateur, { annee: 2025, ouverture: BALANCE });
+    expect(bonne.statut, JSON.stringify(bonne.corps)).toBe(201);
+    expect((await livres(d.ent, d.collaborateur)).filter((e) => e.journal === 'AN')).toHaveLength(3);
+    // Un exercice clos ne reprend plus rien ; un exercice sans lignes non plus.
+    const autre = await dossier();
+    await ouvrir(autre.ent, autre.collaborateur, { annee: 2025 });
+    expect((await ouvrir(autre.ent, autre.collaborateur, { annee: 2025, ouverture: [] })).corps.motif).toMatch(/^L'exercice 2025 est déjà ouvert/);
+  });
 });
