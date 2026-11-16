@@ -29626,6 +29626,11 @@ prouver $'cohérence 1.367.0 b : au téléphone, les boutons n\'ont plus la haut
   $'@media (max-width: 760px), (pointer: coarse) { .btn, .btn-sm { min-height: 40px; } }' \
   $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
 
+prouver $'cohérence 1.367.1 a : au téléphone, une zone de texte ou un sélecteur reste à 13,5 px (l\'écran zoome à la saisie)' web/public/plateforme/charte.css \
+  $'@media (max-width: 760px) { #view textarea, #view select { font-size: 16px; } }' \
+  $'@media (max-width: 760px) { #inconnu textarea, #inconnu select { font-size: 16px; } }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

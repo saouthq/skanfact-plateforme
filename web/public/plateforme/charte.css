@@ -226,3 +226,6 @@ body { --sb-fond: #f5f7fa; --sb-creux: #eef1f5; --sb-vert-doux: #e3f6ec; }
 body.dark { --sb-fond: #12161c; --sb-creux: #232b36; --sb-vert-doux: #1a3328; }
 body, body.dark { --bg: var(--sb-fond); --ink-soft: var(--sb-creux); --success-soft: var(--sb-vert-doux); --line: var(--sb-trait-fort); --warning-soft: var(--sb-ambre-doux); }
 body { --warning: var(--sb-ambre-texte); }
+/* 1.367.1 — au téléphone, une zone de texte et un sélecteur s'écrivent à 16 px comme les autres champs : en dessous,
+   l'écran d'un téléphone zoome à la saisie et la page se retrouve décalée. */
+@media (max-width: 760px) { #view textarea, #view select { font-size: 16px; } }

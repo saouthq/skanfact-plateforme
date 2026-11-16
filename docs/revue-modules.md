@@ -4012,3 +4012,9 @@ sombre, et à la largeur d'un téléphone (390 px) — 111 lectures.
   troisième, sur les teintes sombres, a été écrite puis retirée : en sombre, l'ancienne feuille avait déjà les teintes
   de la charte, la preuve ne prouvait rien.
 
+### 1.367.1 : au téléphone, tous les champs s'écrivent à 16 px
+
+La dette nommée par la 1.367.0 est résorbée : les zones de texte (notes d'une facture, d'un client, d'un fournisseur)
+et les sélecteurs restés à 13,5 px (statistiques, comptabilité, mois de la paie du Cabinet) passent à 16 px sous
+760 px de large, comme les autres champs. Les écrans ne débordent pas (tests de rendu à 390 px rejoués). Il ne reste
+plus aucune dette de forme, ni à l'ordinateur ni au téléphone. Une preuve « cohérence 1.367.1 a ».

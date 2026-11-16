@@ -256,9 +256,7 @@
       "regle": [
         "arrondi 10, trait 1px rgb(230, 234, 240), texte 16px"
       ],
-      "toleres": {
-        "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px": "dette — une zone de texte ou un sélecteur resté à 13,5 px : au téléphone un champ s'écrit à 16 px (sinon l'écran zoome à la saisie) — À VÉRIFIER sur un vrai téléphone"
-      }
+      "toleres": {}
     },
     "couleurs hors charte": {
       "regle": [
@@ -341,9 +339,7 @@
         "arrondi 10, trait 1px rgb(230, 234, 240), texte 16px",
         "arrondi 8, trait 1px , texte 13px"
       ],
-      "toleres": {
-        "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px": "dette — une zone de texte ou un sélecteur resté à 13,5 px : au téléphone un champ s'écrit à 16 px (sinon l'écran zoome à la saisie) — À VÉRIFIER sur un vrai téléphone"
-      }
+      "toleres": {}
     },
     "pastille": {
       "regle": [
