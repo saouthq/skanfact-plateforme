@@ -648,7 +648,9 @@
       const rend = Number(p.amount) < 0;
       out.push({
         id: p.id, kind: rend ? 'decaissement' : 'encaissement', date: p.date, accountId: compteDe(p.accountId, p.method),
-        label: `${estRejet(p) ? libelleImpaye(p.method) : rend ? 'Remboursement' : 'Encaissement'} ${d.number || ''}`.trim(), party: clientName(d.clientId),
+        label: `${estRejet(p) ? libelleImpaye(p.method) : rend ? 'Remboursement' : 'Encaissement'} ${d.number || ''}`.trim(),
+          // (1.363.0) Un ticket de caisse sans client : « Vente au comptoir », pas un tiret sous chaque ligne du pointage.
+          party: !d.clientId && d.caisse ? 'Vente au comptoir' : clientName(d.clientId),
         amount: montantRegle(d, p, company), method: p.method || '',
         reference: p.reference || '', docId: d.id, reconciled: !!p.reconciled, source: 'vente'
       });
@@ -896,7 +898,40 @@
       remises.push({ ligne: l, mouvements: trouvees[0].map(c => c.x.m).sort((a, b) => (a.date || '').localeCompare(b.date || '')) });
       return false;
     });
-    return { paires, dejaPointees, remises, absentes: seules, restants: libres.filter(x => !x.pris).map(x => x.m) };
+    // (1.363.0, bout en bout 30) Une remise de CARTES : la banque verse en une ligne les ventes par carte d'un jour (ou de jours
+    // d'affilée, un week-end), MOINS sa commission (« REMISE TPE … »). SkanFact porte chaque ticket ou facture payé par carte,
+    // un par un, au jour de la vente : la somme ne fait jamais la ligne, et la ligne passait pour absente — « Créer le
+    // mouvement » proposait alors une « Autre entrée », c'est-à-dire les ventes comptées deux fois (vu chez Nour, 16/11/2026).
+    // Une ligne positive restée seule cherche, parmi les ventes par carte pas encore pointées des sept jours qui la précèdent
+    // (son jour compris), une suite de jours d'affilée dont la somme l'égale ou la dépasse d'au plus 5 % : la différence est
+    // la commission (le taux se lit sur le contrat du terminal, À VÉRIFIER). Seule une suite UNIQUE se propose : à deux
+    // réponses, la somme ne prouve plus rien (9.5.0).
+    const remisesCarte = [];
+    const restantes = seules.filter(l => {
+      const cible = Math.round((Number(l.montant) || 0) * 1000);
+      if (cible <= 0 || !l.date) return true;
+      const cartes = libres.filter(x => !x.pris && x.m.method === 'carte' && Number(x.m.amount) > 0 && x.m.date
+        && x.m.date >= addDays(l.date, -7) && x.m.date <= l.date);
+      const jours = [...new Set(cartes.map(x => x.m.date))].sort();
+      const parJour = jours.map(j => cartes.filter(x => x.m.date === j).reduce((t, x) => t + Math.round(Number(x.m.amount) * 1000), 0));
+      const suites = [];
+      for (let i = 0; i < jours.length && suites.length < 2; i++) {
+        let somme = 0;
+        for (let k = i; k < jours.length; k++) {
+          somme += parJour[k];
+          if (somme >= cible && (somme - cible) * 100 <= somme * 5) suites.push({ du: jours[i], au: jours[k], somme });
+          if (somme * 95 > cible * 100) break;
+        }
+      }
+      if (suites.length !== 1) return true;
+      const t = suites[0];
+      const pris = cartes.filter(x => x.m.date >= t.du && x.m.date <= t.au);
+      pris.forEach(x => { x.pris = true; });
+      remisesCarte.push({ ligne: l, mouvements: pris.map(x => x.m).sort((a, b) => (a.date || '').localeCompare(b.date || '')),
+        ventes: t.somme / 1000, commission: (t.somme - cible) / 1000 });
+      return false;
+    });
+    return { paires, dejaPointees, remises, remisesCarte, absentes: restantes, restants: libres.filter(x => !x.pris).map(x => x.m) };
   }
 
   // (1.266.0) La prévision semaine par semaine : ce qui rentre, ce qui sort, le solde au soir du dernier jour. Les semaines

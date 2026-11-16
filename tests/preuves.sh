@@ -29404,6 +29404,64 @@ prouver $'clôture 1.362.5 k : la grille dit « rien reçu » avant le premier m
   $'const debut = d.from;' \
   $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
 
+# 1.363.0 (bout en bout 30) : la remise de cartes, moins la commission de la banque.
+prouver $'carte 1.363.0 a : un virement du bon montant passe pour une vente par carte' modules/socle/moteur/core-2.js \
+  $'x.m.method === \'carte\' && Number(x.m.amount) > 0' \
+  $'Number(x.m.amount) > 0' \
+  $'un paiement qui n\'est pas par carte ne se propose jamais, même au bon montant'
+prouver $'carte 1.363.0 b : un écart de moitié passe pour une commission' modules/socle/moteur/core-2.js \
+  $'(somme - cible) * 100 <= somme * 5)' \
+  $'(somme - cible) * 100 <= somme * 50)' \
+  $'au-delà de 5 % d\'écart, ce n\'est plus une commission ; et la banque ne verse jamais plus que les ventes'
+prouver $'carte 1.363.0 c : la banque verserait plus que les ventes' modules/socle/moteur/core-2.js \
+  $'if (somme >= cible && (somme - cible) * 100' \
+  $'if ((somme - cible) * 100' \
+  $'au-delà de 5 % d\'écart, ce n\'est plus une commission ; et la banque ne verse jamais plus que les ventes'
+prouver $'carte 1.363.0 d : deux suites de jours, et la première est prise' modules/socle/moteur/core-2.js \
+  $'      if (suites.length !== 1) return true;\n      const t = suites[0];' \
+  $'      if (!suites.length) return true;\n      const t = suites[0];' \
+  $'deux suites de jours qui conviennent : rien ne se propose ; ni une vente d\'après la ligne, ni de plus de sept jours'
+prouver $'carte 1.363.0 e : une vente de trois semaines se propose' modules/socle/moteur/core-2.js \
+  $'x.m.date >= addDays(l.date, -7) && x.m.date <= l.date);' \
+  $'x.m.date >= addDays(l.date, -70) && x.m.date <= l.date);' \
+  $'deux suites de jours qui conviennent : rien ne se propose ; ni une vente d\'après la ligne, ni de plus de sept jours'
+prouver $'carte 1.363.0 f : une vente du lendemain de la ligne se propose' modules/socle/moteur/core-2.js \
+  $'x.m.date >= addDays(l.date, -7) && x.m.date <= l.date);' \
+  $'x.m.date >= addDays(l.date, -7));' \
+  $'deux suites de jours qui conviennent : rien ne se propose ; ni une vente d\'après la ligne, ni de plus de sept jours'
+prouver $'carte 1.363.0 g : deux remises se partagent les mêmes tickets' modules/socle/moteur/core-2.js \
+  $'      pris.forEach(x => { x.pris = true; });\n' \
+  $'' \
+  $'deux remises du même relevé prennent chacune leur jour, sans se voler les tickets'
+prouver $'carte 1.363.0 h : la ligne reste « absente », à créer une seconde fois' modules/socle/moteur/core-2.js \
+  $'remisesCarte, absentes: restantes,' \
+  $'remisesCarte, absentes: seules,' \
+  $'la ligne nette retrouve les ventes par carte du jour, et la différence est la commission'
+prouver $'carte 1.363.0 i : le ticket sans client porte un tiret' modules/socle/moteur/core-2.js \
+  $'party: !d.clientId && d.caisse ? \'Vente au comptoir\' : clientName(d.clientId),' \
+  $'party: clientName(d.clientId),' \
+  $'un ticket sans client se dit « Vente au comptoir », et porte son mode'
+prouver $'carte 1.363.0 j : la commission ne s\'enregistre pas' modules/socle/ecrans/entreprise/app-2.js \
+  $'            data.movements.push(...nes);\n' \
+  $'' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+prouver $'carte 1.363.0 k : « Annuler » laisse la commission' modules/socle/ecrans/entreprise/app-2.js \
+  $'              data.movements = data.movements.filter(m => !ids.has(m.id));\n' \
+  $'' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+prouver $'carte 1.363.0 l : la commission naît à pointer' modules/socle/ecrans/entreprise/app-2.js \
+  $'reference: x.ligne.reference || \'\', method: \'autre\', reconciled: true }));' \
+  $'reference: x.ligne.reference || \'\', method: \'autre\', reconciled: false }));' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+prouver $'carte 1.363.0 m : le bouton tait la commission' modules/socle/ecrans/entreprise/app-2.js \
+  $'${f ? (f > 1 ? \' et noter les commissions\' : \' et noter la commission\') : \'\'}' \
+  $'' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+prouver $'carte 1.363.0 n : le compteur dit « 0 retrouvée » d\'une remise retrouvée' modules/socle/ecrans/entreprise/app-2.js \
+  $'<span><b>${ap.paires.length + ap.remises.length + (ap.remisesCarte || []).length}</b>' \
+  $'<span><b>${ap.paires.length}</b>' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

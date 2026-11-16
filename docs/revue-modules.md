@@ -3809,3 +3809,36 @@ Jlassi Conseil le même jour.
   réclamé ; la grille d'une année ouverte avec l'horloge de la page posée en décembre, pour que janvier existe avant les
   livres quel que soit le jour), et un test de `tests/cabinet/mandats.test.ts` (ce qui sort, à qui, et jamais un jour
   impossible) ; onze preuves « clôture 1.362.5 ».
+
+### 1.363.0 : les ventes par carte, et la banque qui verse le net (bout en bout 30)
+
+Joué à la souris par la pâtisserie de Nour : elle crée sa caisse, vend trois coffrets (deux tickets par carte, 107,100 et
+53,550 DT, un en espèces), puis importe le relevé de la BIAT, où la banque verse les cartes en une ligne, moins sa
+commission : « REMISE TPE 0042 · 158,270 DT ».
+
+- **La remise de cartes passait pour « pas dans SkanFact ».** SkanFact porte chaque ticket payé par carte, un par un ; la
+  banque verse le jour entier, moins sa commission : la somme ne fait jamais la ligne. Le seul geste proposé était « Créer
+  le mouvement », en « Autre entrée » de 158,270 DT — les ventes comptées deux fois. `apparierReleve` rend maintenant
+  `remisesCarte` : une ligne positive restée seule cherche, parmi les paiements par **carte** pas encore pointés des sept
+  jours qui la précèdent (son jour compris), une suite de jours d'affilée dont la somme l'égale ou la dépasse d'au plus
+  5 % (À VÉRIFIER : le taux se lit sur le contrat du terminal). Une seule suite possible, sinon rien ne se propose : une
+  ambiguïté n'est jamais sûre. Un week-end versé en une fois, ou cinq tickets versés entiers (commission nulle), se
+  retrouvent aussi.
+- **La commission se note du même geste.** La fenêtre du relevé montre la ligne, ses ventes, la commission (− 2,380 DT) et
+  le dit avant le clic ; « Pointer 2 mouvements et noter la commission » pointe les ventes et enregistre la commission en
+  frais bancaires, déjà pointée, derrière les mêmes portes qu'un mouvement saisi à la main (offre, période clôturée).
+  « Annuler » défait tout, la commission comprise. Les mouvements pointés font alors exactement la ligne de la banque.
+  La commission part entière en frais bancaires (627) : sa TVA n'est pas distinguée — À VÉRIFIER avec le comptable.
+- **Le pont.** Le Cabinet reçoit l'écriture « Commission carte — REMISE TPE 0042 » au brouillard (627 au débit, la banque
+  au crédit) ; la banque de son livre fait 107,100 + 53,550 − 2,380 = 158,270, la ligne du relevé. **Ce qui reste à
+  faire** : si le comptable importe lui-même ce relevé au Cabinet, sa Banque ne sait pas encore proposer la remise de
+  cartes — ses écritures ne portent pas le mode de paiement. La commission notée par le client lui arrive déjà.
+- **« — » sous chaque ticket du pointage.** Un ticket de caisse sans client se dit « Vente au comptoir ».
+- **« Carte · versé par ta banque »**, au bilan du jour de la caisse, dit maintenant « moins sa commission ».
+- Vérifié à la souris : la caisse créée et ouverte, les trois tickets, le bilan du jour, l'import du relevé avant (la
+  ligne « absente », l'« Autre entrée ») et après (la remise, le bouton, « + 158,270 DT · 3 mouvements »), l'écriture
+  au livre.
+- Tests : `tests/moteur/tresorerie-1363.test.ts` (montants calculés à la main, la borne des 5 % au millime, le virement
+  du bon montant qui ne se propose pas, l'ambiguïté, les sept jours, deux remises qui ne se volent pas leurs tickets) et
+  `tests/web/carte-1363.test.ts` (à l'écran, puis « Annuler », puis le livre du Cabinet) ; quatorze preuves « carte
+  1.363.0 ».

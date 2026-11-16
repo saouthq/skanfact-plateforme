@@ -1296,7 +1296,7 @@
             ? `${C.money(b.total, cur)} vendus en ${pl(b.nombre, 'ticket')} − ${C.money(b.retoursTtc, cur)} en ${pl(b.retours, 'retour')} (${h(b.avoirs.join(', '))})`
             : `${pl(b.nombre, 'ticket')}${b.nombre ? ' · dont TVA ' + C.money(b.tva, cur) : ''}${b.rembourse ? ' · rendu aux clients : ' + C.money(b.rembourse, cur) : ''}`)}
           ${chiffreT('', 'Espèces du jour', C.money(b.parMode.especes, cur), `<span id="cs-tiroir">${sousTiroir(b, cur)}</span>`)}
-          ${chiffreT('', 'Carte', C.money(b.parMode.carte, cur), b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque')}
+          ${chiffreT('', 'Carte', C.money(b.parMode.carte, cur), b.parMode.carte < 0 ? 'rendu aux clients par carte' : 'versé par ta banque, moins sa commission')}
           ${chiffreT('', 'Chèques', C.money(b.parMode.cheque, cur), b.parMode.cheque < 0 ? 'rendu aux clients par chèque' : 'à remettre en banque')}
         </div>
         <div class="cf-carte"><div class="cf-onglet">
@@ -4111,7 +4111,7 @@
         const crees = new Set();
         modal(`<h2>Le relevé de « ${h(acc.name)} »</h2>
           <p class="small muted">${h(nom)} · ${pl(rel.lignes.length, 'ligne lue', 'lignes lues')}${rel.ignorees.length ? ` · ${pl(rel.ignorees.length, 'ligne ignorée', 'lignes ignorées')} (date ou montant illisible)` : ''}</p>
-          <div class="tr-imp-res"><span><b>${ap.paires.length}</b> retrouvée${sPl(ap.paires.length)} dans SkanFact</span>${ap.dejaPointees.length ? `<span><b>${ap.dejaPointees.length}</b> déjà pointée${sPl(ap.dejaPointees.length)}</span>` : ''}${ap.remises.length ? `<span><b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>` : ''}<span><b>${ap.absentes.length}</b> absente${sPl(ap.absentes.length)} de SkanFact</span><span><b>${ap.restants.length}</b> mouvement${sPl(ap.restants.length)} de SkanFact pas sur ce relevé</span></div>
+          <div class="tr-imp-res"><span><b>${ap.paires.length + ap.remises.length + (ap.remisesCarte || []).length}</b> retrouvée${sPl(ap.paires.length + ap.remises.length + (ap.remisesCarte || []).length)} dans SkanFact</span>${ap.dejaPointees.length ? `<span><b>${ap.dejaPointees.length}</b> déjà pointée${sPl(ap.dejaPointees.length)}</span>` : ''}${ap.remises.length ? `<span><b>${ap.remises.length}</b> remise${sPl(ap.remises.length)} en plusieurs mouvements</span>` : ''}${(ap.remisesCarte || []).length ? `<span><b>${ap.remisesCarte.length}</b> remise${sPl(ap.remisesCarte.length)} de cartes</span>` : ''}<span><b>${ap.absentes.length}</b> absente${sPl(ap.absentes.length)} de SkanFact</span><span><b>${ap.restants.length}</b> mouvement${sPl(ap.restants.length)} de SkanFact pas sur ce relevé</span></div>
           ${ap.paires.length ? `<h3 class="tr-h">Retrouvées : même montant, à cinq jours près ${info('tre.import')}</h3>
             <div class="scroll-x"><table class="list compact" id="imp-paires"><thead><tr><th style="width:40px"></th><th>Sur le relevé</th><th>Dans SkanFact</th><th class="r">Montant</th></tr></thead><tbody>
             ${ap.paires.map((x, i) => `<tr><td><input type="checkbox" data-paire="${i}" checked aria-label="Pointer ce mouvement"></td>
@@ -4124,6 +4124,15 @@
               <td><span class="nw">${C.fmtDate(x.ligne.date)}</span><div class="small muted">${h(x.ligne.libelle)}</div></td>
               <td>${x.mouvements.map(m => `<div class="tr-imp-m"><span class="nw">${C.fmtDate(m.date)}</span> <span class="small muted">${h(m.label)}${m.party ? ' — ' + h(m.party) : ''}</span> <span class="nw m">${moneySigne(m.amount, cur)}</span></div>`).join('')}</td>
               <td class="r nw m ${x.ligne.montant > 0 ? 'ok-text' : ''}">${moneySigne(x.ligne.montant, cur)}</td></tr>`).join('')}</tbody></table></div>` : ''}
+          ${(ap.remisesCarte || []).length ? `<h3 class="tr-h">Une ligne du relevé, les ventes par carte moins la commission ${info('tre.remiseCarte')}</h3>
+            <div class="scroll-x"><table class="list compact" id="imp-cartes"><thead><tr><th style="width:40px"></th><th>Sur le relevé</th><th>Dans SkanFact</th><th class="r">Commission</th><th class="r">Montant</th></tr></thead><tbody>
+            ${ap.remisesCarte.map((x, i) => `<tr><td><input type="checkbox" data-carte="${i}" checked aria-label="Pointer ces ${x.mouvements.length} ventes par carte"></td>
+              <td><span class="nw">${C.fmtDate(x.ligne.date)}</span><div class="small muted">${h(x.ligne.libelle)}</div></td>
+              <td>${x.mouvements.map(m => `<div class="tr-imp-m"><span class="nw">${C.fmtDate(m.date)}</span> <span class="small muted">${h(m.label)}${m.party ? ' — ' + h(m.party) : ''}</span> <span class="nw m">${moneySigne(m.amount, cur)}</span></div>`).join('')}
+                <div class="small muted">${pl(x.mouvements.length, 'vente par carte', 'ventes par carte')} : ${C.money(x.ventes, cur)}</div></td>
+              <td class="r nw m">${x.commission ? moneySigne(-x.commission, cur) : '—'}</td>
+              <td class="r nw m ok-text">${moneySigne(x.ligne.montant, cur)}</td></tr>`).join('')}</tbody></table></div>
+            <p class="small muted" id="imp-cartes-dit">${ap.remisesCarte.some(x => x.commission) ? 'La commission de la banque s\'enregistre en frais bancaires, déjà pointée : la ligne tombe juste, et l\'argent des ventes n\'est compté qu\'une fois.' : 'La banque a versé les ventes entières : sa commission arrivera sur une autre ligne.'}</p>` : ''}
           ${ap.absentes.length ? `<h3 class="tr-h">Sur le relevé, pas dans SkanFact</h3>
             <p class="small muted">Des frais, un prélèvement, un virement reçu sans facture : crée le mouvement, il naît pointé. Un paiement de client se note plutôt sur sa facture.${paieCachee() ? ' <b id="imp-sans-paie">Un salaire, une avance ou une déclaration sociale payés n\'apparaissent pas pour ton rôle : ne les crée pas ici, la paie les porte déjà.</b>' : ''}</p>
             <div class="scroll-x"><table class="list compact" id="imp-absentes"><tbody>
@@ -4133,10 +4142,15 @@
         (root, close) => {
           const ok = $('#ok', root);
           // Ce qui se pointe : le mouvement de chaque paire cochée, et TOUS ceux d'une remise cochée (1.298.0).
-          const coches = () => [...$$('[data-paire]', root).filter(c => c.checked).map(c => ap.paires[Number(c.dataset.paire)].mouvement),
+          // (1.363.0) Les remises de cartes cochées : leurs ventes se pointent avec le reste, et la commission de chacune devient
+          // un mouvement de frais bancaires qui naît pointé.
+          const cartes = () => $$('[data-carte]', root).filter(c => c.checked).map(c => ap.remisesCarte[Number(c.dataset.carte)]);
+          const horsCartes = () => [...$$('[data-paire]', root).filter(c => c.checked).map(c => ap.paires[Number(c.dataset.paire)].mouvement),
             ...$$('[data-remise]', root).filter(c => c.checked).flatMap(c => ap.remises[Number(c.dataset.remise)].mouvements)];
-          const dire = () => { const n = coches().length; ok.textContent = n ? `Pointer ${pl(n, 'mouvement')}` : rel.soldes.fin != null ? 'Recopier le solde' : 'Rien à pointer'; ok.disabled = !n && rel.soldes.fin == null; };
-          $$('[data-paire], [data-remise]', root).forEach(c => c.onchange = dire); dire();
+          const coches = () => horsCartes().concat(cartes().flatMap(x => x.mouvements));
+          const commissions = () => cartes().filter(x => x.commission > 0);
+          const dire = () => { const n = coches().length, f = commissions().length; ok.textContent = n ? `Pointer ${pl(n, 'mouvement')}${f ? (f > 1 ? ' et noter les commissions' : ' et noter la commission') : ''}` : rel.soldes.fin != null ? 'Recopier le solde' : 'Rien à pointer'; ok.disabled = !n && rel.soldes.fin == null; };
+          $$('[data-paire], [data-remise], [data-carte]', root).forEach(c => c.onchange = dire); dire();
           $$('[data-absente]', root).forEach(b => b.onclick = () => {
             const l = ap.absentes[Number(b.dataset.absente)];
             movementForm(null, () => { crees.add(b.dataset.absente); b.disabled = true; b.textContent = 'Créé, pointé'; }, {
@@ -4145,13 +4159,23 @@
           });
           ok.onclick = () => {
             const l = coches();
+            const frais = commissions();
+            // La commission est un mouvement neuf : les mêmes portes qu'un mouvement saisi à la main, AVANT de pointer quoi que ce soit.
+            if (frais.length && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
+            if (frais.length && closedBlock(frais.map(x => x.ligne.date), 'La commission de la banque')) return;
             const avant = l.map(m => { const hit = porteur(m.id); return hit ? { id: m.id, v: !!hit.reconciled } : null; }).filter(Boolean);
             const soldeAvant = acc.statementBalance;
             avant.forEach(x => { const hit = porteur(x.id); if (hit) hit.reconciled = true; });
+            const nes = frais.map(x => ({ id: C.uid(), date: x.ligne.date, kind: 'banque', amount: C.round3(x.commission), accountId: accId,
+              label: `Commission carte — ${x.ligne.libelle || C.fmtDate(x.ligne.date)}`.slice(0, 200), reference: x.ligne.reference || '', method: 'autre', reconciled: true }));
+            data.movements.push(...nes);
             if (rel.soldes.fin != null) acc.statementBalance = rel.soldes.fin;
             save(true); close(); render(true);   // les compteurs de l'en-tête (« à pointer ») bougent aussi
-            toastUndo(avant.length ? `${pl(avant.length, 'mouvement pointé', 'mouvements pointés')} depuis le relevé` : 'Solde du relevé recopié', () => {
+            const dit = avant.length ? `${pl(avant.length, 'mouvement pointé', 'mouvements pointés')} depuis le relevé` : 'Solde du relevé recopié';
+            toastUndo(nes.length ? `${dit}, ${pl(nes.length, 'commission enregistrée', 'commissions enregistrées')} en frais bancaires` : dit, () => {
               avant.forEach(x => { const hit = porteur(x.id); if (hit) hit.reconciled = x.v; });
+              const ids = new Set(nes.map(m => m.id));
+              data.movements = data.movements.filter(m => !ids.has(m.id));
               acc.statementBalance = soldeAvant; save(true); render(true);
             });
           };
