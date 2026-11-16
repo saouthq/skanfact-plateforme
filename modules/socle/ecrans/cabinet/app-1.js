@@ -25,13 +25,27 @@
   // dossiers » depuis la 9.4.2 ; le dossier hors SkanFact (10.0.0) en a fait six, et la phrase n'a
   // pas suivi — une phrase qu'on écrit en dur se périme au premier dossier ajouté (7.3.0).
   function phraseExemple() {
+    if (api.exempleEnLigne) return 'Ton dossier d\'exemple est prêt : ouvre, saisis, déclare — rien n\'y compte.';
     const n = (S.dossiers || []).filter(d => d.demo).length;
     return n === 1 ? 'Exemple chargé : ce dossier est fictif.' : `Exemple chargé : ces ${n} dossiers sont fictifs.`;
   }
 
+  // (1.370.0) En ligne, l'exemple est UN dossier tenu que le pont remplit par ses propres gestes : une demi-minute, qui
+  // se dit (une fenêtre sans bouton, l'étape en cours) plutôt qu'un bouton qui ne répond pas.
+  const exempleEnLigne = () => (S && (S.dossiers || []).find(d => d.demo)) || null;
   async function chargerOuRetirerExemple(on) {
     exempleRefait = null;
-    const etat = await api.demo(on);
+    let voile = null;
+    if (on && api.exempleEnLigne) {
+      voile = document.createElement('div'); voile.className = 'modal-bg'; voile.id = 'ex-charge';
+      voile.innerHTML = `<div class="modal" role="status" aria-live="polite"><h2>Je prépare ton dossier d'exemple</h2>
+        <p>Une pâtisserie inventée, tenue de A à Z : deux exercices, la paie, la banque, les déclarations. Compte une demi-minute.</p>
+        <p class="muted small" id="ex-etape">Création du dossier…</p></div>`;
+      document.body.appendChild(voile);
+    }
+    let etat;
+    try { etat = await api.demo(on, t => { const e = document.getElementById('ex-etape'); if (e) e.textContent = t; }); }
+    finally { if (voile) voile.remove(); }
     // 10.14.0 (vu à la souris) — l'exemple écrit et efface des LIVRES : le résumé des index (dossiers
     // tenus au cabinet, exercices clos, questions) se relit ici. Lu au démarrage, avant l'exemple, il
     // disait « aucun exercice » du garage, et la découverte sautait son chapitre « D'un exercice à
@@ -657,7 +671,7 @@
   // (« Cinq dossiers » était écrit à la main avant que l'exemple gagne son client hors SkanFact en
   // 10.0.0 : deux écrans comptaient six, le troisième en annonçait cinq.)
   const nbExemple = () => (S && (S.dossiers || []).filter(d => d.demo).length)
-    || K.demoDossiers(K.today()).length;
+    || (api.exempleEnLigne ? 1 : K.demoDossiers(K.today()).length);
 
   // 10.12.0 — un montant ne se COUPE jamais en fin de ligne : l'espace des milliers est l'espace
   // insécable fine du moteur (`fmtMontant`, U+202F), et la devise tient au nombre par une insécable.
@@ -3340,17 +3354,23 @@
     if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(api.codeCabinet()); cp.textContent = 'Copié'; } catch { /* le code reste lisible */ } };
     const nd = $('#pri-nouveau', view); if (nd) nd.onclick = () => newDossierForm();
     const eq = $('#pri-equipe', view); if (eq) eq.onclick = () => versReglages('pan-equipe');
+    $$('[data-pas="decouverte"]', view).forEach(b => { b.onclick = () => { b.disabled = true; ouvrirExemple(); }; });
     $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); tbState.qui = ''; render(); }; });
     poserGuideMoi();
   }
   // Le cabinet neuf (maquette « Barre v3 ») : comment son portefeuille se remplit, dans l'ordre où l'on s'y prend.
   function etapesCabinetNeuf() {
     const code = api.codeCabinet ? api.codeCabinet() : '';
+    // (1.370.0) D'abord essayer : un cabinet neuf n'a rien à ouvrir, et la plupart de ses clients ne sont pas sur SkanFact.
+    // Le dossier d'exemple porte le seul bouton vert de l'écran ; créer un vrai dossier vient ensuite.
+    const exemple = api.exempleEnLigne && estAssocie();
     const etapes = [
+      ...(exemple ? [['Essaie d\'abord sur un dossier d\'exemple', 'Une pâtisserie inventée, tenue de A à Z : deux exercices, la paie, la banque, les déclarations. Rien n\'y compte, il n\'entre pas dans ton abonnement, et tu le retires quand tu veux.',
+        '<button type="button" class="btn btn-primary btn-sm" data-pas="decouverte">Charger le dossier d\'exemple</button>']] : []),
       ...(code ? [['Donne ton code cabinet à tes clients', 'Ils le tapent dans « Mon comptable » : leur dossier arrive ici, avec leurs pièces en direct.',
         `<span class="code-inline">${esc(code)}</span><button type="button" class="btn btn-sm" data-copier-code-cab>Copier</button>`]] : []),
       ...(estAssocie() ? [['Crée un dossier que tu tiens', 'Pour un client qui n\'est pas sur SkanFact : tu fais sa comptabilité, tu pourras l\'inviter plus tard.',
-        '<button type="button" class="btn btn-primary btn-sm" id="pri-nouveau">Créer un dossier</button>']] : []),
+        `<button type="button" class="btn ${exemple ? '' : 'btn-primary '}btn-sm" id="pri-nouveau">Créer un dossier</button>`]] : []),
       ['Reprends un dossier existant', 'Dans la comptabilité d\'un dossier, « Importer une balance ou un FEC » reprend les écritures et les tiers de ton ancien logiciel.', ''],
       ...(estAssocie() ? [['Invite ton équipe', 'Chacun avec son rôle : collaborateur, assistant de saisie, paie.', '<button type="button" class="btn btn-sm" id="pri-equipe">Inviter</button>']] : []),
     ];
@@ -3956,6 +3976,15 @@
   function htmlBandeauDemo() {
     const demoCount = (S.dossiers || []).filter(d => d.demo).length;
     if (!demoCount) return '';
+    // (1.370.0) En ligne, l'exemple vit À CÔTÉ des vrais dossiers : le bandeau ne se pose que sur ses pages à lui, sinon
+    // il dirait « rien ne compte » au-dessus du tableau de bord d'un vrai cabinet.
+    if (api.exempleEnLigne) {
+      const ici = /^#\/dossier\/([^/]+)/.exec(location.hash), ex = exempleEnLigne();
+      if (!ici || !ex || decodeURIComponent(ici[1]) !== ex.id) return '';
+      return `<div class="banner demo-banner court" id="demo-banner"><span class="db-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6.2L4.8 18a2 2 0 0 0 1.7 3h11a2 2 0 0 0 1.7-3L14 9.2V3"/><path d="M7.5 15h9"/></svg></span>
+        <span class="db-txt" title="Une pâtisserie inventée, tenue de A à Z. Rien de ce que tu fais dans ce dossier ne compte ; il n'entre pas dans ton abonnement, et tu le retires quand tu veux."><b>Dossier d'exemple</b> : saisis, valide, déclare, clôture — rien ne compte ici, et tes vrais dossiers ne bougent pas.</span>
+        <span class="db-actions"><button class="btn btn-sm" id="demo-off" title="Le dossier d'exemple part avec ses livres ; tes vrais dossiers ne bougent pas">Retirer l'exemple</button></span></div>`;
+    }
     const refait = exempleRefait ? ` <b>${demoCount > 1 ? 'Ils viennent' : 'Il vient'} d'être refait${demoCount > 1 ? 's' : ''}</b>
       ${exempleRefait.raison === 'version' ? `pour la version ${esc(exempleRefait.version)}` : 'sur le mois en cours'} : un exemple qui date
       montre des retards qui n'existent pas.${exempleRefait.livres
@@ -3993,7 +4022,7 @@
       const ici = /^#\/dossier\/([^/]+)/.exec(location.hash);
       if (ici && !(S.dossiers || []).some(d => d.id === decodeURIComponent(ici[1]))) location.hash = '#/dossiers';
       else render();
-      toast('Exemple effacé.');
+      toast(api.exempleEnLigne ? 'Dossier d\'exemple retiré.' : 'Exemple effacé.');
       // Après la découverte, l'assistant reprend là où la porte l'a laissé : posé à quelqu'un qui sait
       // maintenant à quoi servent les questions (10.14.0).
       if (!String((S.cabinet || {}).name || '').trim()) { await runSetup({ sansPorte: true }); render(); }

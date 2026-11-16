@@ -1905,10 +1905,10 @@ prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/A
   "    const siennes = moi.entreprises.filter((x) => !x.parCabinet);" "    const siennes = moi.entreprises;" \
   "$W1"
 prouver "« Tes premiers pas » qui réclame encore l'appairage et la clé de secours" $PC \
-  "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = [];" \
+  "const ETAPES_ABSENTES = ['appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = [];" \
   "$W2"
 prouver "les réglages de la boîte de réception et des sauvegardes sur l'ordinateur" $PC \
-  "const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-maj'];" \
+  "const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-maj'];" \
   "$W2"
 prouver "« Verrouiller » qui laisse la session ouverte" $PC \
   "      try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: \`Bearer \${jeton}\` } }); } catch { /* la session se ferme de toute façon ici */ }" "" \
@@ -2108,7 +2108,7 @@ prouver "une relance qui porte un champ de plus" serveur/cabinet/routes.ts \
 });" \
   "$E3"
 prouver "« Tenir un premier livre » caché des premiers pas" $PC \
-  "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie', 'travail'];" \
+  "const ETAPES_ABSENTES = ['appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = ['appairage', 'cle', 'copie', 'travail'];" \
   "$W2"
 # Retirée le 31/10/2026 : « un mot de paquet revenu sur le portefeuille » visait portfolioPanel, le panneau du
 # portefeuille d'avant la liste de la maquette (1.169.0), que plus rien n'appelait : il est parti avec le code mort.
@@ -19567,7 +19567,7 @@ T120L="sans paiement après l'échéance et la grâce : les payants en lecture s
 T120J="un dossier que son client rejoint ne compte plus ; seul un associé lit l'abonnement"
 T120C="la console : les règles des cabinets se préparent et se retirent, la fiche dit l'abonnement, « À décider » la facture qui ne s'est pas faite"
 W120="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
-prouver 'abo 120 : le troisième dossier déjà payant' $AM120 \
+prouver 'abo 120 : le troisième dossier déjà payant' base/migrations/0214_dossier_exemple.sql \
   "d.rang > coalesce(plateforme.regle_cabinet_du_jour('gratuits'" "d.rang >= coalesce(plateforme.regle_cabinet_du_jour('gratuits'" \
   "$T120A"
 prouver 'abo 120 : l'\''abonnement qui ne commence pas au premier dossier payant' $AM120 \
@@ -29705,6 +29705,52 @@ prouver $'import 1.369.0 g : une année importée ne se valide que journal par j
   $'lotsBl.length > 2 && !lotsBl.some(l => l.n >= n)' \
   $'lotsBl.length > 99 && !lotsBl.some(l => l.n >= n)' \
   $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+# (1.370.0) Le dossier d'exemple du cabinet : le serveur (0214), le remplissage par les gestes du Cabinet, l'écran.
+prouver $'exemple 1.370.0 a : le dossier d\'exemple compte dans l\'abonnement du cabinet' base/migrations/0214_dossier_exemple.sql \
+  $'where e.tenue_par = p_cabinet and e.active and not e.exemple' \
+  $'where e.tenue_par = p_cabinet and e.active' \
+  $'un associé le charge : un dossier tenu marqué « exemple », un seul à la fois, hors abonnement ; il se retire avec ses livres et se recharge'
+prouver $'exemple 1.370.0 b : un second dossier d\'exemple se charge à côté du premier' base/migrations/0214_dossier_exemple.sql \
+  $'  if exists (select 1 from socle.entreprise e where e.tenue_par = p_cabinet and e.exemple and e.active) then' \
+  $'  if false then' \
+  $'un associé le charge : un dossier tenu marqué « exemple », un seul à la fois, hors abonnement ; il se retire avec ses livres et se recharge'
+prouver $'exemple 1.370.0 c : un collaborateur charge le dossier d\'exemple' base/migrations/0214_dossier_exemple.sql \
+  $'  if not socle.suis_associe(p_cabinet) then perform socle.refus(\'seul un associé du cabinet charge le dossier d\'\'exemple\'); end if;' \
+  $'' \
+  $'seul un associé de CE cabinet le charge et le retire ; un dossier tenu ordinaire n\'est jamais un exemple'
+prouver $'exemple 1.370.0 d : retiré, le dossier d\'exemple reste ouvert avec ses livres' base/migrations/0214_dossier_exemple.sql \
+  $'  update socle.entreprise e set active = false where e.tenue_par = p_cabinet and e.exemple and e.active;' \
+  $'  update socle.entreprise e set active = active where e.tenue_par = p_cabinet and e.exemple and e.active;' \
+  $'un associé le charge : un dossier tenu marqué « exemple », un seul à la fois, hors abonnement ; il se retire avec ses livres et se recharge'
+prouver $'exemple 1.370.0 e : le corps de la demande nomme ou marque le dossier d\'exemple' serveur/cabinet/routes.ts \
+  $'chemin: \'/cabinets/:cabinet/exemple\', geste: \'compte.cabinet.gerer\', corps: z.object({}).strict(),' \
+  $'chemin: \'/cabinets/:cabinet/exemple\', geste: \'compte.cabinet.gerer\', corps: z.object({}).passthrough(),' \
+  $'seul un associé de CE cabinet le charge et le retire ; un dossier tenu ordinaire n\'est jamais un exemple'
+prouver $'exemple 1.370.0 f : le premier écran d\'un cabinet neuf n\'offre pas l\'exemple' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const exemple = api.exempleEnLigne && estAssocie();' \
+  $'    const exemple = false;' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'exemple 1.370.0 g : l\'exercice d\'avant de l\'exemple n\'est pas clôturé' web/public/plateforme/exemple-cabinet.js \
+  $'      await api.cloturer({ dossierId: id, annee: Y1 });' \
+  $'' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'exemple 1.370.0 h : le mois dernier de l\'exemple est déjà déclaré, rien ne reste à faire' web/public/plateforme/exemple-cabinet.js \
+  $'        if (m < M - 1) { const t = await declarer(A, m); if (t) aPayer.push(t); } else await valider(dernier);' \
+  $'        { const t = await declarer(A, m); if (t) aPayer.push(t); }' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'exemple 1.370.0 i : le relevé du mois dernier arrive déjà rapproché' web/public/plateforme/exemple-cabinet.js \
+  $'          if (rapproche && r.releve) await api.rapprocherAuto(' \
+  $'          if (r.releve) await api.rapprocherAuto(' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'exemple 1.370.0 j : le bandeau de l\'exemple se pose sur le tableau de bord du cabinet' modules/socle/ecrans/cabinet/app-1.js \
+  $'      if (!ici || !ex || decodeURIComponent(ici[1]) !== ex.id) return \'\';' \
+  $'      if (!ex) return \'\';' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'exemple 1.370.0 k : les bulletins de l\'exemple ne s\'écrivent pas' web/public/plateforme/exemple-cabinet.js \
+  $'          bulletins.push(String(r.bulletin.id));' \
+  $'          bulletins.push(String(r.bulletin.id)); await api.supprimerBulletin({ dossierId: id, annee: A, id: bulletins.pop() });' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

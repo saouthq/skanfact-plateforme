@@ -7816,7 +7816,15 @@
       </div>
 
       ${panneauReg('pan-exemple')}
-        ${(S.dossiers || []).some(d => d.demo)
+        ${api.exempleEnLigne ? ((S.dossiers || []).some(d => d.demo)
+          ? `<p>Ton <strong>dossier d'exemple</strong> est chargé : une pâtisserie inventée, tenue de A à Z. Rien de ce que tu y fais ne compte, et il n'entre pas dans ton abonnement.</p>
+             <div class="modal-actions"><button class="btn" id="r-demo-voir">Ouvrir le dossier d'exemple</button><button class="btn btn-danger" id="r-demo-off">Retirer l'exemple</button></div>`
+          : `<p>Charge un <strong>dossier d'exemple</strong> pour essayer le Cabinet sans toucher à un vrai client : une pâtisserie inventée, avec un exercice clôturé,
+             un exercice en cours, la paie de trois salariés, deux relevés de banque et ses déclarations. Il te reste ce qu'on fait un vrai matin : déclarer le mois dernier,
+             valider le brouillard, rapprocher un relevé.</p>
+             <p class="small muted">Il n'entre pas dans ton abonnement, il se retire d'un geste, et tes vrais dossiers ne bougent pas.</p>
+             <div class="modal-actions"><button class="btn" id="r-demo-on">Charger le dossier d'exemple</button></div>`)
+        : (S.dossiers || []).some(d => d.demo)
           ? `<p>${nbExemple()} dossiers <strong>fictifs</strong> sont chargés : ils montrent les situations que tu rencontreras, dont un client hors SkanFact.
              Ils disparaîtront d'eux-mêmes au premier vrai paquet importé.</p>
              <div class="modal-actions"><button class="btn btn-danger" id="r-demo-off">Effacer l'exemple</button></div>`
@@ -7910,10 +7918,14 @@
       if (aRefuser && location.hash.startsWith('#/reglages')) refus(aRefuser.sel, aRefuser.message);
     });
     bindRecoveryBanner(view);
-    if ($('#r-demo-on')) $('#r-demo-on').onclick = async () => {
+    if ($('#r-demo-on')) $('#r-demo-on').onclick = () => (api.exempleEnLigne ? ouvrirExemple() : (async () => {
       S = await chargerOuRetirerExemple(true); toast(phraseExemple()); location.hash = '#/dossiers';
+    })());
+    if ($('#r-demo-voir')) $('#r-demo-voir').onclick = () => ouvrirExemple();
+    if ($('#r-demo-off')) $('#r-demo-off').onclick = async () => {
+      if (api.exempleEnLigne && !await confirmDialog('Retirer le dossier d\'exemple ?', 'Il part avec ses livres, sa paie et ses relevés. Tes vrais dossiers ne bougent pas, et tu pourras le recharger à neuf.', 'Retirer l\'exemple')) return;
+      try { S = await chargerOuRetirerExemple(false); render(); toast(api.exempleEnLigne ? 'Dossier d\'exemple retiré.' : 'Exemple effacé.'); } catch (e) { toast(plainError(e), 'error'); }
     };
-    if ($('#r-demo-off')) $('#r-demo-off').onclick = async () => { S = await chargerOuRetirerExemple(false); render(); toast('Exemple effacé.'); };
     $('#c-save').onclick = async () => {
       // Les trois jours sont bornés côté processus principal, qui écarte SILENCIEUSEMENT ce qui
       // sort des bornes et remet l'ancienne valeur. L'écran, lui, affichait « ✓ enregistré » en
@@ -8720,10 +8732,21 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   const lesPas = () => K.premiersPas(S, {
     cleSecours: recoveryAt === undefined ? null : recoveryAt !== null,
     copieExterne: !!(backupInfo && backupInfo.external && backupInfo.external.dir),
-    tenus: tenusConnus(), decouverte: !!visitesEtat().faites.decouvrir
+    tenus: tenusConnus(), decouverte: !!visitesEtat().faites.decouvrir,
+    exempleEnLigne: !!api.exempleEnLigne, exempleCharge: (S.dossiers || []).some(d => d.demo)
   });
+  // (1.370.0) Le dossier d'exemple en ligne : chargé s'il ne l'est pas (une demi-minute, qui se dit), puis ouvert sur sa
+  // comptabilité — c'est là qu'il montre ce que le Cabinet fait.
+  async function ouvrirExemple() {
+    try {
+      if (!(S.dossiers || []).some(d => d.demo)) { S = await chargerOuRetirerExemple(true); VISITES = null; toast(phraseExemple()); }
+      const ex = (S.dossiers || []).find(d => d.demo);
+      if (ex) vers(`#/dossier/${encodeURIComponent(ex.id)}`); else render();
+    } catch (e) { toast(plainError(e), 'error'); render(); }
+  }
   const PAS_ACTIONS = {
-    decouverte: ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
+    decouverte: api.exempleEnLigne ? ['Charger le dossier d\'exemple', () => ouvrirExemple()]
+      : ['Faire la découverte', () => { const r = decouverteEnPause(); lancerVisite(visiteParId('decouvrir'), r ? r.i : 0); }],
     cabinet: ['Nommer mon cabinet', () => versReglages('pan-cabinet')],
     equipe: ['Inviter mon équipe', () => versReglages('pan-equipe')],
     clients: ['Ajouter un client…', () => newDossierForm()],
@@ -8762,8 +8785,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       <ol class="pp-list">${p.etapes.map(e => {
         const a = PAS_ACTIONS[e.action];
         const encours = e === suivante;
-        const guide = !e.fait && PAS_VISITES[e.action];
-        const libelle = a && e.action === 'decouverte' && decouverteEnPause() ? 'Reprendre la découverte' : a && a[0];
+        const guide = !e.fait && PAS_VISITES[e.action] && visiteParId(PAS_VISITES[e.action]) ? PAS_VISITES[e.action] : '';
+        const libelle = a && e.action === 'decouverte' && !api.exempleEnLigne && decouverteEnPause() ? 'Reprendre la découverte' : a && a[0];
         return `<li class="${e.fait ? 'fait' : ''}${encours ? ' encours' : ''}">
           <span class="pp-marque">${e.fait ? '✓' : ''}</span>
           <span class="pp-txt"><strong>${esc(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${esc(e.quoi)}</span></span>

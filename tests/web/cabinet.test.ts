@@ -178,7 +178,9 @@ describe('le Cabinet, à la souris', () => {
     // Sans paquets (C4) : « Tes premiers pas » ne réclame ni fichier d'appairage, ni clé de secours, ni
     // copie sur un disque.
     const vue = await p.locator('#view').innerText();
-    for (const absent of ['appairage', 'clé de secours', 'Mettre ton cabinet à l\'abri', 'paquet', 'exemple']) expect(vue).not.toContain(absent);
+    for (const absent of ['appairage', 'clé de secours', 'Mettre ton cabinet à l\'abri', 'paquet', 'six dossiers']) expect(vue).not.toContain(absent);
+    // (1.370.0) L'exemple revient, sous sa forme en ligne : UN dossier tenu, chargé dans son propre cabinet.
+    expect(vue).toContain('Essayer sur un dossier d\'exemple');
     expect(vue).toContain('Ajouter tes clients');
     // Le premier livre revient avec la saisie (38 bis) : sans paquet à recevoir.
     expect(vue).toContain('Tenir un premier livre');

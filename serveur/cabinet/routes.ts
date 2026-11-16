@@ -13,7 +13,7 @@ import { versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import { enTantQue, requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
-import { motif, t } from '../../textes/index.ts';
+import { motif, rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, lienDossier, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
@@ -21,6 +21,8 @@ import { PERIODE_REVISION, REVISION } from './revision.ts';
 import { facturerCabinetBientot } from '../abonnement/cabinet.ts';
 
 const uuid = z.string().uuid();
+// (1.370.0) Le nom du dossier d'exemple : un texte, rangé avec les autres.
+const nomExemple = () => rendre(t('cabinet.exemple.nom'), 'fr');
 const champInvalide = (champ: string, raison: ReturnType<typeof t>) => ({ statut: 400 as const, corps: { motif: motif('commun.champ_invalide', { champ, raison }), champ } });
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
 const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' });
@@ -209,6 +211,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
       const r = await tx.query('select * from socle.portefeuille($1)', [params.cabinet]);
+      // (1.370.0) Le dossier d'exemple se dit : l'écran le marque, et rien ne lui est réclamé.
+      const exemples = new Set((await tx.query('select socle.dossiers_exemple($1) id', [params.cabinet])).rows.map((x) => x.id as string));
       // Où joindre un client sur SkanFact (1.76.0) : l'adresse e-mail et le téléphone de SA fiche société, que le mandat
       // actif laisse lire (ces deux champs seuls : socle.coordonnees_de_mes_clients, la fiche entière reste fermée) ; le
       // Cabinet les montrait « à renseigner » et les faisait retaper (recette du 20/10/2026). Rien pour un dossier tenu (sa
@@ -235,6 +239,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           dossiers: r.rows.map((d) => ({
             mandat: d.mandat, entreprise: d.entreprise, raisonSociale: d.raison_sociale, matriculeFiscal: d.matricule_fiscal,
             statut: d.statut, perimetre: d.perimetre, debut: d.debut, tenu: d.tenu, role: d.role,
+            ...(exemples.has(d.entreprise) ? { exemple: true } : {}),
             ...(coordonnees.has(d.entreprise) ? { coordonnees: coordonnees.get(d.entreprise) } : {}),
             ...(clotures.has(d.entreprise) ? { clotureClient: clotures.get(d.entreprise) } : {}),
           })),
@@ -477,6 +482,27 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           pieces: pieces.rows as { entreprise: string; mois: string | null; le: string }[],
         },
       };
+    },
+  });
+
+  // Le dossier d'exemple du cabinet (1.370.0 ; 0214) : un dossier tenu que le serveur seul marque « exemple », hors
+  // abonnement, un à la fois. Le serveur le crée ; le Cabinet le remplit par ses gestes ordinaires (modules/socle/
+  // ecrans/cabinet/exemple.js) ; le retirer arrête son mandat et ferme l'entreprise, livres compris.
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/exemple', geste: 'compte.cabinet.gerer', corps: z.object({}).strict(),
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const id = (await tx.query('select socle.creer_dossier_exemple($1, $2) id', [params.cabinet, nomExemple()])).rows[0].id as string;
+      await tracer(tx, id, 'cabinet.exemple.charger', id, null, { cabinet: params.cabinet });
+      return { statut: 201, corps: { entreprise: id, raisonSociale: nomExemple() } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/exemple', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const n = Number((await tx.query('select socle.retirer_dossier_exemple($1) n', [params.cabinet])).rows[0].n);
+      return { corps: { retires: n } };
     },
   });
 

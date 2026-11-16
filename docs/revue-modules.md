@@ -4106,3 +4106,49 @@ neuf, avec de vrais fichiers : une balance Excel de fin d'année, un journal CSV
 
 **Ce qui manque encore à l'import** : une liste de salariés et un tableau d'immobilisations à coller (aujourd'hui,
 un par un).
+
+### 1.370.0 : un dossier d'exemple complet, dans son propre cabinet
+
+*Demandé par Skander le 16/11/2026, pour le premier comptable qui essaie le Cabinet : « la démo, il faut qu'elle
+remplisse tout afin de tester complètement ».*
+
+Un comptable qui ouvre SkanFact Cabinet le premier jour n'a aucun client à ouvrir, et la plupart de ses clients ne
+seront pas sur SkanFact : un écran vide ne montre rien de ce que l'outil sait faire. L'exemple de l'ancienne
+application (six clients fictifs et leurs paquets) n'avait plus de sens en ligne ; il revient sous une autre forme.
+
+**Ce que c'est.** UN dossier tenu, « Exemple · Pâtisserie El Amal », chargé d'un clic dans le cabinet du comptable :
+
+- le serveur le crée et lui seul le marque « exemple » (migration 0214) : il **ne compte jamais dans l'abonnement**
+  (ni parmi les trois gratuits, ni parmi les payants), il n'y en a qu'un à la fois, seul un associé le charge ou le
+  retire, et il se retire **avec ses livres** (un dossier tenu ordinaire qui a une écriture ne se retire pas) ;
+- le Cabinet le **remplit par ses propres gestes** (`web/public/plateforme/exemple-cabinet.js`, chargé à la demande) :
+  la reprise des soldes, la saisie par lot, la validation, la paie, la banque, les déclarations, l'inventaire, les
+  dotations, la clôture. Ce que l'exemple montre est donc ce que l'outil fait ; une règle du moteur qui change le
+  change avec elle. Une demi-minute, qui se dit dans une fenêtre (l'étape en cours) ;
+- ses dates suivent le jour où on le charge : un exemple daté montrerait des retards qui n'existent pas.
+
+**Ce qu'il contient.** L'exercice d'avant : repris sur ses soldes, tenu douze mois (ventes au comptoir, deux clients
+à crédit, achats, loyer, électricité, emprunt, salaires), déclaré douze fois (préparé, écrit, déposé, payé), un bien
+amorti, un inventaire et sa variation de stock, **clôturé**, ses à-nouveaux ouverts. L'exercice en cours : tenu
+jusqu'au mois dernier, trois salariés et leurs bulletins (validés, payés ; une prime en juin, une absence en mars),
+les retenues, la TFP et la CNSS payées à l'État, les déclarations déposées jusqu'à l'avant-dernier mois, un relevé de
+banque entièrement rapproché. **Ce qui reste à faire**, comme un vrai matin : préparer la déclaration du mois
+dernier, remettre ses bulletins, valider le brouillard du mois en cours, rapprocher le relevé du mois dernier (qui
+porte des agios que le livre n'a pas : l'écriture se crée depuis la ligne), relancer le client qui paie en retard.
+Les taux sont ceux d'un exemple (19 % partout) : ils montrent une TVA à payer chaque mois, pas une règle fiscale.
+
+**Où il s'offre.** Sur le premier écran d'un cabinet sans dossier (la première ligne, le seul bouton vert), dans
+« Tes premiers pas » (l'étape « Essayer sur un dossier d'exemple », facultative), et dans les Réglages
+(« L'application », « Exemple ») où il se retire. Son bandeau (« Dossier d'exemple : rien ne compte ici ») ne se
+pose **que sur ses pages à lui**, jamais sur le tableau de bord du cabinet. Il ne réclame aucun retard inventé (sa
+CNSS des trimestres passés est payée dans ses livres : seule celle à venir se compte).
+
+**Tests.** `tests/cabinet/exemple.test.ts` (le serveur : un seul, un associé de ce cabinet, hors abonnement, retiré
+avec ses livres, jamais un dossier tenu ordinaire) et `tests/web/cabinet-exemple-1370.test.ts` (à la souris, depuis
+le premier écran : la fenêtre d'attente, les deux exercices lus dans les livres, les déclarations, la paie, la
+banque, l'équilibre de chaque écriture, le bandeau, l'abonnement, le retrait). Preuves « exemple 1.370.0 ».
+
+**Ce qui reste pour l'essai d'un comptable** (suite de cette revue) : coller une liste de salariés et un tableau
+d'immobilisations ; les alarmes « en retard » d'un dossier dont le livre vient d'être créé ; le nom des fichiers
+exportés (le matricule plutôt que le nom du client) ; rejouer l'inscription, chaque visite « Me guider » et le
+téléphone à la souris ; dire, avant le quatrième dossier tenu, que l'abonnement commence.

@@ -3,6 +3,8 @@
 import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
+  // (1.370.0) Le dossier d'exemple d'un cabinet.
+  'cabinet.exemple.nom': 'Exemple · Pâtisserie El Amal',
   // (1.178.0) La promesse d'un client et le rappel d'une conversation.
   'cabinet.promesse.passee': 'le jour promis est déjà passé : choisis aujourd\'hui ou un jour à venir',
   'cabinet.rappel.passe': 'un rappel se pose pour un jour à venir : demain au plus tôt',

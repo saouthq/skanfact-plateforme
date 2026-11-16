@@ -1350,6 +1350,11 @@
     const etapes = [
       // La découverte : facultative, comme dans l'application entreprise. Faite, elle compte ; pas
       // faite, elle attend sans jamais passer devant une étape du métier.
+      // (plateforme, 1.370.0) En ligne, l'exemple est UN dossier tenu, dans son propre cabinet : l'étape se coche quand il est chargé.
+      c.exempleEnLigne ? { id: 'decouverte', titre: 'Essayer sur un dossier d\'exemple', fait: !!c.exempleCharge, facultatif: true,
+        quoi: c.exempleCharge ? 'Le dossier d\'exemple est dans ton cabinet : saisis, valide, déclare, clôture — rien n\'y compte. Tu le retires quand tu veux (Réglages, « Exemple »).'
+          : 'Une pâtisserie inventée, tenue de A à Z : un exercice clôturé, un exercice en cours, la paie, la banque, les déclarations. Rien de ce que tu y fais ne compte, et il n\'entre pas dans ton abonnement.',
+        action: 'decouverte' } :
       { id: 'decouverte', titre: 'Découvrir le Cabinet avec l\'exemple', fait: !!c.decouverte, facultatif: true,
         quoi: c.decouverte ? 'Tu as fait le tour sur les six dossiers de l\'exemple : tu sais où est chaque chose.'
           : 'Le grand tour sur six dossiers fictifs : un client à jour, un en retard, un que tu tiens de bout en bout. Rien de ce que tu y fais ne compte.',
@@ -1954,7 +1959,10 @@
           const vus = moisTrim.map(x => m[x]).filter(x => typeof x === 'boolean');
           return vus.some(Boolean) ? true : vus.length === moisTrim.length ? false : null;
         };
-        const employeurs = actifs.filter(d => deposeCnss(state, d) && concerne(d, moisTrim) && employeurDe(d) !== false);
+        // (plateforme, 1.370.0) Le dossier d'exemple a payé ses trimestres passés (ses livres le portent) et la CNSS se
+        // pointe pour tout le cabinet : il ne réclame donc que le trimestre à venir, jamais un retard inventé.
+        const exemplePasse = d => !!d.demo && dayOf(depot, cfg.cnssDay) < t;
+        const employeurs = actifs.filter(d => deposeCnss(state, d) && concerne(d, moisTrim) && employeurDe(d) !== false && !exemplePasse(d));
         const inconnus = employeurs.filter(d => employeurDe(d) === null).length;
         // La phrase suit ce qui est SU : « leur Paie le dit » ne s'écrit pas au-dessus de clients
         // qui sont tous comptés faute de savoir (trouvé en testant comme un humain).

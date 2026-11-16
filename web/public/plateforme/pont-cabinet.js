@@ -314,7 +314,7 @@
       if (!String(lue.email || '').trim() && c.email) lue.email = c.email;
       if (!String(lue.phone || '').trim() && c.telephone) lue.phone = c.telephone;
       // (1.168.0) Ce que le client a confié au cabinet : les Pièces reçues ne proposent pas de saisir un achat qu'il saisit lui-même.
-      return Object.assign(K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
+      return Object.assign(K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, demo: !!d.exemple,
         packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise), d.tenu ? undefined : d.clotureClient) }), { perimetre: d.tenu ? null : (d.perimetre || null), relieDepuis: d.tenu ? '' : String(d.debut || '').slice(0, 7) });
     });
     // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
@@ -1099,15 +1099,14 @@
 
   // C4 (docs/cabinet.md) : ce qui n'a plus d'objet sans paquets ni fichier sur l'ordinateur. Les
   // panneaux des Réglages se cachent, leur pastille et leur résultat de recherche aussi ; la
-  // palette ne les propose plus (adaptation). Du panneau Sécurité ne reste que « Verrouiller ».
-  // L'exemple à six clients fictifs n'est pas en ligne ; la correspondance des comptes traduisait
-  // les comptes d'un paquet importé : il n'y a plus d'import, et le client et son cabinet tiennent
-  // les mêmes livres.
+  // palette ne les propose plus (adaptation). Du panneau Sécurité ne reste que « Verrouiller ». La correspondance des
+  // comptes traduisait ceux d'un paquet importé : le client et son cabinet tiennent les mêmes livres. (1.370.0) L'exemple
+  // revient : UN dossier tenu, marqué par le serveur (0214), rempli par les gestes du pont (plateforme/exemple-cabinet.js).
   // Le panneau « Licence » revient sous le nom « Ton abonnement » (lot 3 de l'abonnement, 23/10/2026 ; abonnement-cabinet.js).
-  const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
-  // Les étapes de « Tes premiers pas » sans objet : la découverte sur l'exemple, l'appairage, la clé
-  // de secours, la copie sur un disque. « Tenir un premier livre » revient avec la saisie (38 bis).
-  const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];
+  const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-comptes'];
+  // Les étapes de « Tes premiers pas » sans objet : l'appairage, la clé de secours, la copie sur un disque
+  // (1.370.0 : la découverte revient, sur le dossier d'exemple). « Tenir un premier livre » revient avec la saisie (38 bis).
+  const ETAPES_ABSENTES = ['appairage', 'cle', 'copie'];
   // Les visites guidées que « Me guider » ne propose pas (adaptation de `visites`) : celles dont le sujet a disparu avec les
   // paquets (C4), et celles d'un geste pas encore en ligne, qui reviennent avec leur brique.
   const VISITES_SANS_OBJET = ['decouvrir', 'appairage', 'cle-secours', 'copie-externe', 'recevoir-paquet', 'lire-paquet',
@@ -1325,12 +1324,13 @@
     fichiersLus.set(cle, p);
     return p;
   };
-  /** @type {Record<string, any>} */
-  const pont = {
+  const exempleCabinet = () => /** @type {Promise<any>} */ (new Promise((ok, ko) => { const w = /** @type {any} */ (window); if (w.SkanExempleCabinet) { ok(w.SkanExempleCabinet); return; } const s = document.createElement('script'); s.src = '../../plateforme/exemple-cabinet.js'; s.onload = () => ok(w.SkanExempleCabinet); s.onerror = () => ko(new Error('L\'exemple ne s\'est pas chargé : vérifie ta connexion, puis réessaie.')); document.head.appendChild(s); }));
+  /** @type {Record<string, any>} */ const pont = {
     commentUnClientArrive,
     dessinerRejoindre,
     bandeauMandats,
-    panneauxAbsents: PANNEAUX_ABSENTS,
+    panneauxAbsents: PANNEAUX_ABSENTS, exempleEnLigne: true, // (1.370.0) l'exemple : le serveur le crée et le marque, exemple-cabinet.js le remplit
+    demo: async (/** @type {boolean} */ on, /** @type {any} */ suivi) => { if (on) await (await exempleCabinet()).charger({ api: pont, appel, cabinet: cabinetId, suivi }); else await appel('DELETE', `/cabinets/${cabinetId}/exemple`); return construireEtat(); },
     etapesAbsentes: ETAPES_ABSENTES,
     visitesAbsentes: [...VISITES_SANS_OBJET, ...VISITES_PAS_ENCORE],
     articlesAbsents: ARTICLES_ABSENTS,
