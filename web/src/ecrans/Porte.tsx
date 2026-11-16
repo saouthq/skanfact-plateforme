@@ -18,7 +18,9 @@ import { dire, phrase, titre } from '../langue.ts';
 // la phrase dit le client qui l'attend.
 export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null }) {
   const g = useGeste(deconnecte);
-  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet'>(pourUnClient ? 'cabinet' : 'porte');
+  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet' | 'depart'>(pourUnClient ? 'cabinet' : 'porte');
+  // (1.373.0) Le cabinet créé, on choisit par où commencer (son dossier d'exemple, ou ses clients) avant de l'ouvrir.
+  const [cabinetNeuf, setCabinetNeuf] = useState<string | null>(null);
   const [raison, setRaison] = useState('');
   const [nomCabinet, setNomCabinet] = useState('');
   const [matricule, setMatricule] = useState('');
@@ -40,13 +42,52 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
   const creerCabinet = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/cabinets', { nom: nomCabinet.trim() });
     if (!r) return;
-    if (r.statut === 201) cabinetCree(r.corps.id); else g.refuser(refusDe(r));
+    if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
+    // Invité par un client, son dossier l'attend : le cabinet s'ouvre dessus, sans détour.
+    if (pourUnClient) { cabinetCree(r.corps.id); return; }
+    setCabinetNeuf(r.corps.id); setEtape('depart');
   });
+  // Le Cabinet lit ce mot à son ouverture, charge le dossier d'exemple en disant où il en est, et l'ouvre (app-2.js).
+  const ouvrirCabinet = (avecExemple: boolean) => {
+    if (!cabinetNeuf) return;
+    try { if (avecExemple) sessionStorage.setItem('skanfact.cabinet.exemple', cabinetNeuf); } catch { /* sans stockage : l'exemple reste à un clic, dans « Par où commencer » */ }
+    cabinetCree(cabinetNeuf);
+  };
   const sortir = <button type="button" className="ent-lien gris" onClick={deconnecte}>{titre('ecran.deconnexion')}</button>;
 
+  if (etape === 'depart') {
+    return (
+      <PageEtapes etape={3} cabinet droite={sortir}>
+        <div className="ent-titre-page centre"><h1>{titre('ecran.porte.depart_titre', { nom: nomCabinet.trim() })}</h1><p>{phrase('ecran.porte.depart_sous')}</p></div>
+        <div className="ent-choix">
+          <article className="reco">
+            <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="boussole" /></span><span className="ent-choix-badge">{dire('ecran.porte.recommande')}</span></div>
+            <h2>{titre('ecran.porte.depart_exemple_titre')}</h2>
+            <p className="ent-choix-texte">{phrase('ecran.porte.depart_exemple_texte')}</p>
+            <ul>
+              <li><Dessin id="coche" />{titre('ecran.porte.depart_exemple_puce1')}</li>
+              <li><Dessin id="coche" />{titre('ecran.porte.depart_exemple_puce2')}</li>
+              <li><Dessin id="coche" />{titre('ecran.porte.depart_exemple_puce3')}</li>
+            </ul>
+            <Bouton principal onClick={() => ouvrirCabinet(true)}>{titre('ecran.porte.depart_exemple_bouton')}</Bouton>
+          </article>
+          <article className="autre">
+            <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="cabinet" /></span></div>
+            <h2>{titre('ecran.porte.depart_clients_titre')}</h2>
+            <p className="ent-choix-texte">{phrase('ecran.porte.depart_clients_texte')}</p>
+            <ul>
+              <li><Dessin id="coche" />{titre('ecran.porte.depart_clients_puce1')}</li>
+              <li><Dessin id="coche" />{titre('ecran.porte.depart_clients_puce2')}</li>
+            </ul>
+            <Bouton onClick={() => ouvrirCabinet(false)}>{titre('ecran.porte.depart_clients_bouton')}</Bouton>
+          </article>
+        </div>
+      </PageEtapes>
+    );
+  }
   if (etape === 'cabinet') {
     return (
-      <Carte icone="cabinet" droite={sortir} titre={titre('ecran.porte.cabinet_titre')} sous={pourUnClient ? phrase('ecran.porte.cabinet_pour_client', { ou: pourUnClient }) : phrase('ecran.porte.cabinet_sous')} onSubmit={() => { void creerCabinet(); }}
+      <Carte icone="cabinet" etape={2} cabinet droite={sortir} titre={titre('ecran.porte.cabinet_titre')} sous={pourUnClient ? phrase('ecran.porte.cabinet_pour_client', { ou: pourUnClient }) : phrase('ecran.porte.cabinet_sous')} onSubmit={() => { void creerCabinet(); }}
         pied={<>
           <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.cabinet_creer')}</Bouton>
           <Bouton discret onClick={() => setEtape('porte')}>{titre('ecran.porte.retour')}</Bouton>
@@ -76,8 +117,8 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
   }
   return (
     <PageEtapes etape={2} droite={sortir}>
-      <div className="ent-titre-page centre"><h1>{titre('ecran.porte.titre')}</h1><p>{phrase('ecran.porte.deux_facons')}</p></div>
-      <div className="ent-choix">
+      <div className="ent-titre-page centre"><h1>{titre('ecran.porte.titre')}</h1><p>{phrase('ecran.porte.trois_facons')}</p></div>
+      <div className="ent-choix trois">
         <article className="reco">
           <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="boussole" /></span><span className="ent-choix-badge">{dire('ecran.porte.recommande')}</span></div>
           <h2>{titre('ecran.porte.essai_titre')}</h2>
@@ -99,9 +140,18 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
           </ul>
           <Bouton onClick={() => setEtape('entreprise')}>{titre('ecran.porte.demarrer_bouton')}</Bouton>
         </article>
-      </div>
-      <div className="ent-choix-pied">
-        <button type="button" className="ent-pilule" onClick={() => setEtape('cabinet')}><Dessin id="cabinet" />{titre('ecran.porte.cabinet_lien')}<Dessin id="chevron" /></button>
+        {/* (1.373.0) Le comptable a sa carte, du même poids que les deux autres : une pilule grise sous deux grandes
+            cartes d'entreprise ne lui disait pas que l'outil est aussi pour lui (revue du 16/11/2026). */}
+        <article className="autre">
+          <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="cabinet" /></span><span className="ent-choix-meta">{titre('ecran.porte.cabinet_meta')}</span></div>
+          <h2>{titre('ecran.porte.cabinet_carte_titre')}</h2>
+          <p className="ent-choix-texte">{phrase('ecran.porte.cabinet_carte_texte')}</p>
+          <ul>
+            <li><Dessin id="coche" />{titre('ecran.porte.cabinet_puce1')}</li>
+            <li><Dessin id="coche" />{titre('ecran.porte.cabinet_puce2')}</li>
+          </ul>
+          <Bouton onClick={() => setEtape('cabinet')}>{titre('ecran.porte.cabinet_lien')}</Bouton>
+        </article>
       </div>
     </PageEtapes>
   );

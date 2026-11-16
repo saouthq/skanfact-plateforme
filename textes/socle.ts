@@ -21,7 +21,8 @@ declarerTextes({
   // ── Ce qu'un champ a de travers (les vérifications des données reçues) ──────────────────────
   'champ.manquant': 'il manque',
   'champ.type': 'ce n\'est pas le bon genre de valeur',
-  'champ.trop_court': 'il faut au moins {min} caractère(s)',
+  'champ.trop_court': 'il faut au moins {min} caractères',
+  'champ.vide': 'ce champ ne peut pas rester vide',
   'champ.trop_long': 'pas plus de {max} caractères',
   'champ.trop_petit': 'la valeur doit être au moins {min}',
   'champ.trop_grand': 'la valeur doit être au plus {max}',

@@ -182,7 +182,7 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => carte.innerText()).toMatch(/Tenu\nMenuiserie du Sahel/);
     // Un dossier tenu ne reçoit pas de pièce demandée : « Créer » ne la propose pas.
     await p.keyboard.press('n');
-    expect(await p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche))).toEqual(['E', 'R', 'O']);
+    expect(await p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche))).toEqual(['E', 'R', 'O', 'X']);
     expect(await p.locator('.sb-creer .menu-titre').innerText()).toBe('Créer · Menuiserie du Sahel');
     await p.keyboard.press('Escape');
     // L'étoile garde un dossier en haut : il devient Ctrl 1.
@@ -202,7 +202,7 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(async () => {
       if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
       return p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche));
-    }, { timeout: 15_000 }).toEqual(['E', 'R', 'D', 'O']);
+    }, { timeout: 15_000 }).toEqual(['E', 'R', 'D', 'O', 'X']);
     // Sur une machine lente, la page de la banque finit de se dessiner après l'ouverture du volet et le referme : D
     // n'arrive alors à rien (GitHub, 1.152.1 et 1.153.0). On rouvre le volet s'il s'est refermé, puis D.
     // (1.188.0) « Demander une pièce » s'ouvre sur place, la fenêtre commune ; « Écrire plutôt dans la conversation » y mène.

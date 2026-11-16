@@ -22,7 +22,8 @@ export function raison(p: Probleme, corps: unknown): Texte {
   switch (p.code) {
     case 'invalid_type': return t(valeurA(corps, p.path) === undefined ? 'champ.manquant' : 'champ.type');
     case 'too_small':
-      if (p.origin === 'string') return t('champ.trop_court', { min: String(p.minimum) });
+      // (1.373.0) « Il faut au moins 1 caractère(s) » : un champ vide se dit vide.
+      if (p.origin === 'string') return Number(p.minimum) <= 1 ? t('champ.vide') : t('champ.trop_court', { min: String(p.minimum) });
       if (p.origin === 'array' || p.origin === 'set') return t('champ.pas_assez', { min: String(p.minimum) });
       return t('champ.trop_petit', { min: String(p.minimum) });
     case 'too_big':

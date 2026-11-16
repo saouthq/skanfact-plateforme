@@ -356,3 +356,7 @@
 .fd-tel .fd-haut .fd-nav { margin-left: 0; width: 100%; justify-content: space-between; }
 .fd-tel .fd-haut .fd-nav-l { min-height: 44px; }
 .fd-tel .fd-haut .fd-nav-p .btn { min-width: 44px; min-height: 44px; }
+
+/* (1.373.0) Le dossier d'exemple se prépare : son avancement se voit. */
+.ex-barre { height: 8px; border-radius: 999px; background: var(--line, #e3e8ee); overflow: hidden; margin-block: 14px 8px; }
+.ex-barre > span { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--accent, #0f9d8f); transition: width .4s ease; }

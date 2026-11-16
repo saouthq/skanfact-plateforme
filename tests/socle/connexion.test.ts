@@ -118,7 +118,23 @@ describe('le code sur le téléphone', () => {
 
   it('un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place', async () => {
     const p = await personne({ telephone: '+216 20 000 001' });
-    await enTantQue(pool, p.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`));
+    const cab = (await enTantQue(pool, p.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`))).rows[0].cabinet as string;
+    // (0216) Tant que le cabinet n'a aucun vrai dossier, le code n'est pas exigé : rien, puis son seul dossier d'exemple.
+    const manque = async () => (await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m, (select code_exige_le from socle.mon_compte()) le'))).rows[0] as { m: boolean; le: Date | null };
+    expect(await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
+    expect(await manque()).toEqual({ m: false, le: null });
+    await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_exemple($1, $2)', [cab, 'Exemple · Pâtisserie']));
+    expect(await manque()).toEqual({ m: false, le: null });
+    // Le premier vrai dossier : sept jours pour installer le code, et le jour se lit dans « Ton compte ».
+    const dossier = (await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_tenu($1, $2, null) d', [cab, `Garage ${n}`]))).rows[0].d as string;
+    const apres = await manque();
+    expect(apres.m).toBe(false);
+    expect(Math.round((new Date(apres.le as Date).getTime() - Date.now()) / 86_400_000)).toBe(7);
+    expect(await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
+    // Sept jours plus tard, il est exigé : la session ne sert plus qu'à le mettre en place.
+    await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where id = $1`, [dossier]);
+    await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where entreprise = $1`, [dossier]);
+    expect((await manque()).m).toBe(true);
     const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
     expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
     if (r.etat !== 'connecte') return;

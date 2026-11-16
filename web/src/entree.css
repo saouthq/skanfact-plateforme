@@ -276,6 +276,8 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-choix > article { flex: 1 1 360px; min-width: 0; padding: 28px; border-radius: 22px; display: flex; flex-direction: column; gap: 18px; }
 .ent-choix .reco { background: var(--e-nuit); color: var(--e-nuit-texte); box-shadow: 0 18px 44px rgba(11, 39, 36, .18); }
 body.dark .ent-choix .reco { background: var(--e-nuit-2); }
+/* (1.373.0) Trois cartes de même poids (l'essai, mon entreprise, mon cabinet) : elles tiennent sur un rang à l'ordinateur. */
+.ent-choix.trois > article { flex-basis: 270px; padding: 24px; }
 .ent-choix .autre { background: var(--e-papier); border: 1.5px solid var(--e-trait); }
 .ent-choix-haut { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .ent-choix-ico { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--e-doux); color: var(--e-lien); }

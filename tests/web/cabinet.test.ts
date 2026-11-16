@@ -17,7 +17,6 @@ import { build } from 'vite';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
-import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -143,7 +142,7 @@ describe('le Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 120_000);
 
-  it('« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s\'ouvre ; « Verrouiller » ferme la session', async () => {
+  it('« je suis un cabinet comptable » sur la porte : le cabinet se crée, on choisit son départ, le Cabinet s\'ouvre ; « Verrouiller » ferme la session', async () => {
     const email = `cabinet-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia Ferchichi', motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
@@ -155,16 +154,10 @@ describe('le Cabinet, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-5-porte.png') });
     await p.locator('label.field').filter({ hasText: 'Nom du cabinet' }).locator('input').fill('Cabinet Ferchichi & Associés');
     await p.getByRole('button', { name: 'Créer mon cabinet', exact: true }).click();
-    // L'associé supervise des livres : le code du téléphone d'abord.
-    await p.getByRole('button', { name: 'Mettre en place le code', exact: true }).click();
-    // Le téléphone de Nadia donne le code de la clé affichée (brique 145 : le premier code se vérifie avant de partir).
-    const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
-    // Les codes de secours gardés, la phrase dit ce qui reste ; les six chiffres tapés, elle dit que tout est prêt (1.76.0).
-    await p.getByText('Je les ai mis de côté', { exact: true }).click();
-    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/il reste à taper le code/);
-    await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
-    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/^Tout est prêt : « vérifier et continuer » contrôle le code tapé/i);
-    await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
+    // (1.373.0) Le cabinet créé, on choisit par où commencer ; le code du téléphone n'est plus exigé avant le premier
+    // vrai dossier (0216 ; tests/web/cabinet-entree-1373.test.ts le joue jusqu'au bout).
+    await p.getByRole('heading', { level: 1, name: 'Ton cabinet « Cabinet Ferchichi & Associés » est créé' }).waitFor({ timeout: 10_000 });
+    await p.getByRole('button', { name: 'Ouvrir mon cabinet', exact: true }).click();
     await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     const cabinet = new URL(p.url()).searchParams.get('c');
     // (1.152.0, 1.194.0) Le Tableau de bord d'un cabinet neuf disent comment remplir le portefeuille ; « Tes premiers pas » sont sur Dossiers.

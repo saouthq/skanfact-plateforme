@@ -74,7 +74,7 @@ export function CodeRequis({ pose, deconnecte, cabinet }: { pose: () => void; de
 
   if (codes) {
     return (
-      <PageEtapes etape={3} cabinet droite={seDeconnecter(deconnecte)}>
+      <PageEtapes droite={seDeconnecter(deconnecte)}>
         <div className="ent-titre-page"><h1>{titre('ecran.code_pose.titre')}</h1><p>{phrase('ecran.code_pose.application')}</p></div>
         <form noValidate className="ent-pose" onSubmit={(e) => { e.preventDefault(); void verifier(); }}>
           <ol>
@@ -124,7 +124,7 @@ export function CodeRequis({ pose, deconnecte, cabinet }: { pose: () => void; de
     );
   }
   return (
-    <Carte large etape={3} cabinet droite={seDeconnecter(deconnecte)} icone="bouclier" titre={titre('ecran.code_requis.titre')}
+    <Carte large droite={seDeconnecter(deconnecte)} icone="bouclier" titre={titre('ecran.code_requis.titre')}
       bandeau={cabinet ? titre('ecran.code_requis.cabinet', { nom: cabinet }) : undefined} sous={phrase('ecran.code_requis.aide')}
       pied={<Bouton principal occupe={g.occupe} onClick={() => { void poser(); }}>{titre('ecran.code_requis.bouton')}<Dessin id="fleche" /></Bouton>}>
       <ol className="ent-etapes-courtes">

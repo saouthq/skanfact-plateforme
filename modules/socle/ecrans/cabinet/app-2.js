@@ -5461,6 +5461,7 @@
        et rien ne lui est réclamé tant qu'il n'a pas commencé.</p>
        ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
        ${peut && peut.gratuit ? `<p class="small muted" id="nd-gratuit">${esc(peut.gratuit)}</p>` : ''}
+       ${S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code"><b>Sept jours après ton premier vrai dossier, SkanFact te demandera de protéger ton compte</b> par un code sur ton téléphone : deux minutes, une seule fois. Tu peux le mettre en place dès maintenant, dans Réglages › Ton compte.</p>` : ''}
        <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
        ${dossierFields(empty)}
        <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>`,
@@ -9052,7 +9053,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   }
   function appelGuide(reprise) {
     const cle = CV.cleDePage(location.hash);
-    if (!S || Visite.enCours() || cle === 'guide' || cle === 'aide') return;
+    if (!S || Visite.enCours() || cle === 'guide' || cle === 'aide' || document.getElementById('ex-charge')) return;
     const p = visitePage(cle);
     const et = visitesEtat();
     if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;

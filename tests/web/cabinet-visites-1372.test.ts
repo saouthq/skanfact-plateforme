@@ -98,7 +98,7 @@ describe('les visites guidées du Cabinet expliquent chaque écran (1.372.0)', (
       [`${D}/comptabilite/declaration`, '#dc-formulaire', ['Les étapes du mois', 'Le formulaire du mois']],
       [`${D}/comptabilite/liasse`, '#li-employeur', ['Bilan — Actif', 'État de résultat', 'Résultat fiscal et impôt']],
       [`${D}/classeur`, '.cl-liste', ['Chercher une pièce', 'Le classeur, mois par mois', 'Les pièces du mois']],
-      ['#/echeances', '.ec-col', ['Les miens, ou tous', 'Les dates limites']],
+      ['#/echeances', '.ec-col', ['Les dates limites']],
       ['#/pieces', '.pc-barre', ['À classer, classées']],
     ];
     for (const [hash, attendre, titres] of ECRANS) {

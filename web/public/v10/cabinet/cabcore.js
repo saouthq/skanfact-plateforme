@@ -1513,8 +1513,10 @@
       // telle quelle. Chacun se coche sur un GESTE du comptable, jamais sur une valeur posée par le
       // logiciel (10.12.0) : `migrate` remplit les réglages de saisie d'office, donc leur présence ne
       // prouve rien — c'est l'enregistrement du panneau qui laisse `regleLe`.
-      { id: 'equipe', titre: 'Déclarer ton équipe', fait: collaborateurs(state).length > 0, facultatif: true,
-        quoi: collaborateurs(state).length ? 'Ton équipe est déclarée : la piste d\'audit porte le nom de chacun, et chacun ne fait que ce que son rôle permet.'
+      // (1.373.0) En ligne, le fondateur est déjà dans l'équipe : seul, il n'a rien « déclaré », et l'étape se cochait
+      // sans qu'il ait rien fait (revue du 16/11/2026). Elle se coche au premier collaborateur invité.
+      { id: 'equipe', titre: c.exempleEnLigne ? 'Inviter ton équipe' : 'Déclarer ton équipe', fait: collaborateurs(state).length > (c.exempleEnLigne ? 1 : 0), facultatif: true,
+        quoi: collaborateurs(state).length > (c.exempleEnLigne ? 1 : 0) ? 'Ton équipe est déclarée : la piste d\'audit porte le nom de chacun, et chacun ne fait que ce que son rôle permet.'
           : 'Si tu n\'es pas seul : chaque collaborateur, son rôle (saisie, validation, supervision) et les dossiers qu\'on lui confie. Seul, il n\'y a rien à faire : rien n\'est restreint tant que personne n\'est déclaré.',
         action: 'equipe' },
       { id: 'clients', titre: 'Ajouter tes clients', fait: reels.length > 0,

@@ -12,6 +12,7 @@ import { creerPool, enTantQue } from '../../serveur/base.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
+import { cabinetQuiExigeLeCode } from './cabinet-tenu.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -131,7 +132,7 @@ describe('le code sur le téléphone se juge à chaque requête', () => {
   // Depuis le 09/10/2026 (décision de Skander, 03 § 6), seul un comptable de cabinet doit avoir le code.
   it('une session ouverte avant de devenir comptable d\'un cabinet doit mettre le code en place avant tout', async () => {
     const alice = await personne('alice');
-    await enTantQue(pool, alice.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet sans code')`));
+    await cabinetQuiExigeLeCode(pool, admin, alice.id, 'Cabinet sans code');
     const bloque = await appeler('POST', '/entreprises', alice.jeton, { raisonSociale: 'Société du cabinet' });
     expect(bloque.statut).toBe(403);
     expect(bloque.corps.bouton).toBe('compte.code.configurer');

@@ -4252,3 +4252,34 @@ pour l'alpha : garder cette exigence dès la première minute, ou la demander à
 reçus » : ce client n'envoie rien.
 
 **Reste à faire, noté.** Les parcours « geste guidé » (47) n'ont pas tous été joués un à un.
+
+## 1.373.0 — L'entrée d'un comptable qui vient essayer (issue 3 de la revue du 16/11/2026)
+
+Un comptable neuf s'arrêtait avant d'avoir vu le Cabinet : une porte qui ne parlait qu'aux entreprises, puis une
+application d'authentification à installer avant le premier écran.
+
+- **Le code du téléphone ne barre plus l'essai** (migration 0216). Il n'est exigé d'un comptable que lorsque son cabinet
+  tient un vrai dossier, et **sept jours après le premier** : rien tant que le cabinet est vide ou n'a que son dossier
+  d'exemple. La fenêtre « Nouveau dossier » l'annonce, un rappel en haut des pages du cabinet dit le jour et mène à
+  « Ton compte », et passé le délai l'écran du code revient (règle de 0076, déplacée au moment où elle protège quelque
+  chose). Le délai de sept jours est une décision de produit, à confirmer.
+- **La porte** : trois cartes de même poids (l'essai, mon entreprise, **mon cabinet**). Le cabinet nommé, on choisit son
+  départ : **découvrir avec un dossier d'exemple** (recommandé) ou **commencer avec mes clients**. L'exemple se charge en
+  montrant son avancement (une barre, « une à deux minutes »), s'ouvre, et la visite de sa fiche part toute seule.
+- **Un refus ne fait plus perdre le curseur** : après « Créer mon cabinet » à vide, la première lettre tapée rebâtissait
+  le champ, et la suite partait dans le vide (un cabinet créé sous le nom « C »). Un nom de cabinet fait deux
+  caractères au moins ; un champ vide se dit vide (plus de « au moins 1 caractère(s) »).
+- **L'exemple vit à côté des vrais dossiers** : dès qu'un vrai dossier existe, il sort des comptes de la barre, du
+  tableau de bord, de la campagne et des échéances ; seul, il y reste (c'est lui qui montre ces écrans). Il reste à un
+  clic dans « Créer ».
+- **Seul dans son cabinet**, « Les miens / Tous » n'apparaît plus (le fondateur n'a aucun dossier « confié »).
+- « Inviter ton équipe » ne se coche plus toute seule ; la fiche dit la TVA telle qu'elle est réglée (« mensuelle par
+  défaut, à préciser » quand elle ne l'est pas) et ne porte plus qu'une mention « À VÉRIFIER », adressée au comptable ;
+  l'invitation « Première fois sur cet écran ? » ne se pose plus par-dessus le chargement de l'exemple.
+
+Joué à la souris : compte neuf → porte → refus puis frappe continue → départ → exemple (31 s ici) → visite ; puis
+« mes clients » → premier vrai dossier → rappel « d'ici 7 jours » → « Ton compte ». Test : `tests/web/cabinet-entree-1373.test.ts`.
+
+Reste des issues 3 à 12 : voir la liste tenue dans la session (bloquants du portefeuille, de la saisie et de la banque
+d'abord).
+

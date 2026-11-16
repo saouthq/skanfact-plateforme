@@ -212,7 +212,7 @@
         }
       }
       // ── La fiche du dossier : qui c'est, comment le joindre, ce que le cabinet fait pour lui ──
-      await api.saveDossier(id, { contact: 'Nadia El Amal', gerant: 'Nadia El Amal', fonction: 'Gérante', email: 'nadia@patisserie-elamal.example', phone: '71 000 000', forme: 'SARL',
+      await api.saveDossier(id, { contact: 'Nadia El Amal', gerant: 'Nadia El Amal', fonction: 'Gérante', email: 'nadia@patisserie-elamal.example', phone: '71 000 000', forme: 'SARL', tvaPeriod: 'mensuelle',
         activite: 'Pâtisserie', adresse: '12 rue du Pain', ville: 'Tunis', fees: 250, banque: { compte: '532', banque: 'BIAT' },
         note: 'Dossier d\'exemple : une pâtisserie inventée, pour essayer le Cabinet. Rien de ce que tu fais ici ne compte.' });
       dire('Le dossier d\'exemple est prêt.');

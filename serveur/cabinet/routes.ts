@@ -184,7 +184,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
   // ── Le cabinet ─────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'POST', chemin: '/cabinets', geste: 'compte.cabinet.creer',
-    corps: z.object({ nom: z.string().trim().min(1).max(200) }),
+    // (1.373.0) Deux caractères au moins : un cabinet nommé « C » (une frappe perdue) se lisait ensuite chez ses clients.
+    corps: z.object({ nom: z.string().trim().min(2).max(200) }),
     traiter: async ({ corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const r = (await tx.query('select * from socle.creer_cabinet($1)', [corps.nom])).rows[0] as { cabinet: string; code: string };

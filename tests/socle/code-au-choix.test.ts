@@ -18,6 +18,7 @@ import { routesSocle } from '../../serveur/routes/socle.ts';
 import { numeroMasque, numeroTunisien, reponseEnErreur, smsWinsms } from '../../serveur/sms.ts';
 import { smsAucun } from '../../serveur/principal.ts';
 import { winsmsSimule } from '../winsms-simule.ts';
+import { cabinetQuiExigeLeCode } from './cabinet-tenu.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -174,7 +175,7 @@ describe('le code par e-mail tient lieu de code pour un comptable (0081)', () =>
     const email = `comptable${++n}@exemple.tn`;
     const r = await inscrire(base, email, 'Comptable', MDP);
     if (!r.ok) throw new Error('inscription attendue');
-    await enTantQue(pool, r.utilisateur, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`));
+    await cabinetQuiExigeLeCode(pool, admin, r.utilisateur, `Cabinet ${n}`);
     const c = await entrer(email, avecRelais);
     expect(c).toMatchObject({ etat: 'code', methode: 'courriel' });
     if (c.etat !== 'code') return;

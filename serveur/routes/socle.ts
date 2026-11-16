@@ -168,8 +168,10 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // Ton compte (0076) : le code est-il exigé de moi (un comptable de cabinet), mon adresse est-elle vérifiée, combien
       // de codes de secours me restent ; et ce serveur sait-il envoyer un e-mail, un SMS (0081). Avec l'e-mail, le code
       // par e-mail tient lieu du code exigé : `codeExige` ne vaut plus que sans relais. Le numéro, masqué.
-      const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number };
-      const compte = { codeExige: c.code_exige && !ctx.courriel, comptable: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
+      const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number; code_exige_le: Date | null };
+      // (0216) `codeExigeLe` : le jour où le code deviendra exigé d'un comptable (sept jours après le premier vrai dossier
+      // de son cabinet) ; rien avec l'e-mail, qui en tient lieu.
+      const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
         courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
       return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
     },

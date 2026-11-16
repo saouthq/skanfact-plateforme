@@ -159,22 +159,14 @@ prouver "un blocage définitif" $C \
   "après 5 erreurs, 1 minute"
 # Depuis le 09/10/2026 (décision de Skander, 0076) : le code du téléphone n'est exigé que d'un comptable de cabinet.
 C76=base/migrations/0076_code_facultatif.sql
-prouver "un comptable de cabinet dispensé du code" $C76 \
-  "and m.roles && array['supervision', 'revision', 'saisie']::text[])
-    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" "and m.roles && array['revision', 'saisie']::text[])
-    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" \
+prouver "un comptable de cabinet dispensé du code" base/migrations/0216_code_apres_l_essai.sql \
+  "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['revision', 'saisie']::text[]" \
   "un comptable de cabinet sans code : une session qui ne sert qu"
-prouver "le propriétaire forcé au code à la connexion" $C76 \
-  "and m.roles && array['supervision', 'revision', 'saisie']::text[])
-    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" "and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[])
-    from socle.utilisateur u where lower(u.email) = lower(trim(p_email))" \
+prouver "le propriétaire forcé au code à la connexion" base/migrations/0216_code_apres_l_essai.sql \
+  "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[]" \
   "un propriétaire entre sans code du téléphone : recommandé, jamais imposé"
-prouver "le propriétaire forcé au code à chaque requête" $C76 \
-  "and exists (select 1 from socle.membre m where m.utilisateur = socle.moi() and m.actif
-                  and m.roles && array['supervision', 'revision', 'saisie']::text[])
-\$\$;" "and exists (select 1 from socle.membre m where m.utilisateur = socle.moi() and m.actif
-                  and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[])
-\$\$;" \
+prouver "le propriétaire forcé au code à chaque requête" base/migrations/0216_code_apres_l_essai.sql \
+  "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[]" \
   "un propriétaire continue sans code du téléphone"
 prouver "un appareil reconnu pour un an" $C \
   "reconnu_jusqu_au = p_maintenant + interval '30 days'" "reconnu_jusqu_au = p_maintenant + interval '365 days'" \
@@ -421,7 +413,7 @@ prouver "une porte dérobée ouverte au public" $E \
   "revoke execute on function socle.code_manquant() from public;" "" \
   "chaque porte dérobée (security definer) fixe son chemin"
 # Depuis 0076, code_manquant vit dans sa nouvelle définition.
-prouver "une porte dérobée sans chemin fixé" base/migrations/0076_code_facultatif.sql \
+prouver "une porte dérobée sans chemin fixé" base/migrations/0216_code_apres_l_essai.sql \
   "create or replace function socle.code_manquant() returns boolean
 language sql stable security definer set search_path = pg_catalog, socle as \$\$" "create or replace function socle.code_manquant() returns boolean
 language sql stable security definer as \$\$" \
@@ -1874,7 +1866,7 @@ E1="« Ton cabinet comptable » : le client lit le nom et le code de son cabinet
 E2="l'entrée sait ce qui est à la personne et ce qu'elle voit par son cabinet"
 E3="la fiche d'un dossier : au cabinet seul, champs comptés, jamais écrasée par un poste qui ne l'a pas relue"
 W1="la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'un client est celui du serveur"
-W2="« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s'ouvre ; « Verrouiller » ferme la session"
+W2="« je suis un cabinet comptable » sur la porte : le cabinet se crée, on choisit son départ, le Cabinet s'ouvre ; « Verrouiller » ferme la session"
 W3="le client confie son dossier par le code que le Cabinet affiche ; l'associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation"
 prouver "le compte qui confond ses entreprises et celles de son cabinet" serveur/routes/socle.ts \
   'socle.perimetre_cabinet(e.id) is not null "parCabinet"' 'false "parCabinet"' \
@@ -8637,15 +8629,15 @@ prouver "le code retiré sans e-mail qui le confirme" $CO \
       a, objet: rendre(t('compte.code_retire_objet')" "    void Promise.resolve({
       a, objet: rendre(t('compte.code_retire_objet')" \
   "$RT1"
-prouver "les codes de secours gardés après le retrait" $C81 \
+prouver "les codes de secours gardés après le retrait" base/migrations/0216_code_apres_l_essai.sql \
   "  delete from socle.code_secours where utilisateur = socle.moi();
   perform socle.tracer(null, 'compte.code.retirer'" "  perform socle.tracer(null, 'compte.code.retirer'" \
   "$RT1"
-prouver "un comptable de cabinet qui retire son code" $C81 \
+prouver "un comptable de cabinet qui retire son code" base/migrations/0216_code_apres_l_essai.sql \
   "    perform socle.refus('le code du téléphone est exigé de chaque comptable d''un cabinet : il ne se retire pas');" "" \
   "sans relais, son code ne se retire pas (0081)"
-prouver "un comptable de cabinet qui ne revient jamais à l'e-mail" $C81 \
-  "  if not p_courriel and exists (select 1 from socle.membre m" "  if true and exists (select 1 from socle.membre m" \
+prouver "un comptable de cabinet qui ne revient jamais à l'e-mail" base/migrations/0216_code_apres_l_essai.sql \
+  "  if not p_courriel and socle.code_exige_de(socle.moi()) then" "  if true and socle.code_exige_de(socle.moi()) then" \
   "un comptable de cabinet revient au code par e-mail quand le serveur en envoie"
 prouver "le bon code accepté pendant l'attente" $CO \
   "  if (bloque) return bloque;
@@ -17764,7 +17756,7 @@ prouver '« aucune en septembre » pour une entreprise née en octobre' 'web/con
 prouver '« il reste à taper le code » une fois le code tapé' 'web/src/ecrans/CodeRequis.tsx' \
   '/^\d{6}$/.test(essai.replace(/\s/g, '"'"''"'"')) ? '"'"'ecran.code_pose.pret'"'"' : '"'"'ecran.code_pose.garde_ok'"'"'' \
   ''"'"'ecran.code_pose.garde_ok'"'"'' \
-  '« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s'"'"'ouvre ; « Verrouiller » ferme la session'
+  'la porte, le refus sans perdre le curseur, l'"'"'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
 
 # 1.77.0 : inviter son comptable par e-mail (base 0154, routes, entrée, Ton cabinet comptable, Dossiers).
 prouver 'n'"'"'importe quel membre qui invite le comptable' 'base/migrations/0154_inviter_son_comptable.sql' \
@@ -17822,8 +17814,8 @@ prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/sr
     comptable.oublier();' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'le comptable invité qui arrive sur la porte de l'"'"'entreprise' 'web/src/ecrans/Porte.tsx' \
-  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"'>(pourUnClient ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
-  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"'>('"'"'porte'"'"')' \
+  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>(pourUnClient ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
+  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>('"'"'porte'"'"')' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'la vitrine de la première facture pour le comptable invité' 'web/src/ecrans/Inscription.tsx' \
   ': comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> :' \
@@ -29900,6 +29892,57 @@ prouver $'visites 1.372.0 m : le menu d\'un dossier tenu propose « Les paquets 
   $'            packs.length && !dossier.manual ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
   $'            packs.length ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
   $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
+
+
+# (1.373.0) L'entrée d'un comptable : le code après l'essai (0216), la porte à trois cartes, l'exemple ou ses clients.
+prouver $'entrée 1.373.0 a : après un refus, le champ rebâti perd le curseur' web/src/composants/Champ.tsx \
+  $'  if (!revelable && !sous && !enveloppe.current) return champ;' \
+  $'  if (!revelable && !sous) return champ;' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 b : le code exigé dès la création du cabinet' base/migrations/0216_code_apres_l_essai.sql \
+  $'  select coalesce(socle.code_exige_le_de(p_utilisateur) <= now(), false)' \
+  $'  select exists (select 1 from socle.membre m where m.utilisateur = p_utilisateur and m.actif and m.organisation is not null)' \
+  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
+prouver $'entrée 1.373.0 c : aucun délai après le premier vrai dossier' base/migrations/0216_code_apres_l_essai.sql \
+  $'socle.premier_vrai_dossier(m.organisation) + interval \'7 days\' end)' \
+  $'socle.premier_vrai_dossier(m.organisation) + interval \'0 days\' end)' \
+  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
+prouver $'entrée 1.373.0 d : le dossier d\'exemple compté comme un vrai dossier' base/migrations/0216_code_apres_l_essai.sql \
+  $'      where d.cabinet = p_cabinet and d.statut = \'actif\' and e.active and not e.exemple),' \
+  $'      where d.cabinet = p_cabinet and d.statut = \'actif\' and e.active),' \
+  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
+prouver $'entrée 1.373.0 e : un cabinet nommé d\'une seule lettre' serveur/cabinet/routes.ts \
+  $'    corps: z.object({ nom: z.string().trim().min(2).max(200) }),' \
+  $'    corps: z.object({ nom: z.string().trim().min(1).max(200) }),' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 f : l\'exemple choisi à la porte ne se charge pas' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (voulu === new URLSearchParams(location.search).get(\'c\') && api.exempleEnLigne && estAssocie()) {' \
+  $'if (false && voulu === new URLSearchParams(location.search).get(\'c\') && api.exempleEnLigne && estAssocie()) {' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 g : l\'exemple compté dans les dossiers du cabinet' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const nb = dossiersActifs().filter(x => !x.demo).length, exSeul = !nb && dossiersActifs().some(x => x.demo);' \
+  $'    const nb = dossiersActifs().length, exSeul = false;' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 h : « Les miens / Tous » pour un comptable seul' modules/socle/ecrans/cabinet/app-1.js \
+  $'estAssocie() && aPlusieurs() && !o.sansPortee' \
+  $'estAssocie() && !o.sansPortee' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 i : le rappel du code muet' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (!S || !S.codeExigeLe) return \'\';' \
+  $'    if (S) return \'\';' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 j : la visite ne part pas à l\'arrivée sur l\'exemple' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
+  $'if (false && v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 k : la fenêtre du nouveau dossier tait le code à venir' modules/socle/ecrans/cabinet/app-2.js \
+  $'${S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code">' \
+  $'${false && S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code">' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver $'entrée 1.373.0 l : le cabinet créé s\'ouvre sans laisser choisir son départ' web/src/ecrans/Porte.tsx \
+  $'    setCabinetNeuf(r.corps.id); setEtape(\'depart\');' \
+  $'    cabinetCree(r.corps.id);' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

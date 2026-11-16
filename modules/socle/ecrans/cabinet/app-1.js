@@ -39,12 +39,19 @@
     if (on && api.exempleEnLigne) {
       voile = document.createElement('div'); voile.className = 'modal-bg'; voile.id = 'ex-charge';
       voile.innerHTML = `<div class="modal" role="status" aria-live="polite"><h2>Je prépare ton dossier d'exemple</h2>
-        <p>Une pâtisserie inventée, tenue de A à Z : deux exercices, la paie, la banque, les déclarations. Compte une demi-minute.</p>
+        <p>Une pâtisserie inventée, tenue de A à Z : deux exercices, la paie, la banque, les déclarations. Compte une à deux minutes : tu peux lire pendant ce temps, la fenêtre se ferme toute seule.</p>
+        <div class="ex-barre" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Avancement du dossier d'exemple"><span id="ex-barre"></span></div>
         <p class="muted small" id="ex-etape">Création du dossier…</p></div>`;
       document.body.appendChild(voile);
     }
     let etat;
-    try { etat = await api.demo(on, t => { const e = document.getElementById('ex-etape'); if (e) e.textContent = t; }); }
+    // (1.373.0) L'avancement se voit : une minute et demie devant une phrase qui change ressemblait à une panne. Le
+    // nombre d'étapes se compte (deux exercices mois par mois, la banque) ; la barre ne recule jamais et n'annonce 100 %
+    // qu'à la fin.
+    let faites = 0; const prevues = 20 + 2 * (new Date().getMonth() + 1);
+    try { etat = await api.demo(on, t => { const e = document.getElementById('ex-etape'); if (e) e.textContent = t;
+      const b = document.getElementById('ex-barre'); faites += 1;
+      if (b) { const pc = /prêt/.test(t) ? 100 : Math.min(96, Math.round(faites * 100 / prevues)); b.style.width = pc + '%'; b.parentElement.setAttribute('aria-valuenow', String(pc)); } }); }
     finally { if (voile) voile.remove(); }
     // 10.14.0 (vu à la souris) — l'exemple écrit et efface des LIVRES : le résumé des index (dossiers
     // tenus au cabinet, exercices clos, questions) se relit ici. Lu au démarrage, avant l'exemple, il
@@ -1155,6 +1162,7 @@
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
     });
     $('#upd-pill').onclick = () => versReglages('pan-maj');
+    document.addEventListener('click', e => { if (e.target instanceof Element && e.target.closest('[data-rappel-code]')) { e.preventDefault(); versReglages('pan-compte'); } });
     // La licence, dès l'ouverture : un bandeau qui n'apparaît qu'une fois les Réglages ouverts
     // n'avertit personne (règle 8.0.1 — « une échéance qui verrouille se voit depuis le premier
     // jour, pas depuis le dernier »).
@@ -1169,6 +1177,15 @@
     installerVisites();
     if (!location.hash) location.hash = '#/production';
     render();
+    // (1.373.0) « Découvrir avec un dossier d'exemple », choisi à la porte en créant son cabinet : il se charge ici, en
+    // disant où il en est, puis s'ouvre. Le mot ne sert qu'une fois, et seulement pour CE cabinet.
+    try {
+      const voulu = sessionStorage.getItem('skanfact.cabinet.exemple');
+      if (voulu) { sessionStorage.removeItem('skanfact.cabinet.exemple'); if (voulu === new URLSearchParams(location.search).get('c') && api.exempleEnLigne && estAssocie()) {
+        // Arrivé sur l'exemple, la visite de sa fiche part toute seule : il a choisi « découvrir », on lui fait faire le tour.
+        ouvrirExemple().then(() => setTimeout(() => { try { const v = visitePage(CV.cleDePage(location.hash)); if (v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0); } catch (_) { /* la visite reste dans « Guide-moi » */ } }, 1500));
+      } }
+    } catch (_) { /* sans stockage : l'exemple reste proposé dans « Par où commencer » */ }
     relirePieces();
     refreshBackupInfo();
     refreshInbox(true);
@@ -2286,10 +2303,17 @@
   // l'aurait laissé valider. Les deux noms valent.
   const peutValiderCl = d => { const r = d && d.droits && S && d.droits[S.moi]; return r ? r === 'supervision' || VALIDE_CL.has(r) : monRole() !== 'saisie'; };
   // « Les miens » ou « Tous » (l'associé seul choisit ; les autres voient les dossiers qu'on leur confie).
-  const portee = () => (estAssocie() ? prefs.get('portee', 'tous') : 'miens');
+  // (1.373.0) Seul dans son cabinet, « Les miens / Tous » ne trie rien : le fondateur n'a aucun dossier « confié », et
+  // « Les miens » lui montrait un cabinet vide à côté de ses dossiers. Le choix n'apparaît qu'à plusieurs.
+  const aPlusieurs = () => ((S && S.collaborateurs) || []).filter(c => c.actif !== false).length > 1;
+  const portee = () => (estAssocie() ? (aPlusieurs() ? prefs.get('portee', 'tous') : 'tous') : 'miens');
   const dossiersActifs = () => ((S && S.dossiers) || []).filter(d => !d.archived);
+  // (1.373.0) Le dossier d'exemple vit À CÔTÉ des vrais : dès qu'un vrai dossier existe, il sort des comptes, de la
+  // campagne et des échéances du cabinet (« 2 dossiers » pour un seul client, revue du 16/11/2026). Seul, il reste : c'est
+  // lui qui montre ce que ces écrans font.
+  const sansExemple = l => (l.some(d => !d.demo) ? l.filter(d => !d.demo) : l);
   function mesDossiers() {
-    const tous = dossiersActifs();
+    const tous = sansExemple(dossiersActifs());
     if (!estAssocie() || portee() === 'tous') return tous;
     return tous.filter(d => d.droits && d.droits[S.moi]);
   }
@@ -2479,7 +2503,7 @@
       + (api.modeles ? ligneVolet('modele', 'Modèles de messages', 'Les demandes de pièces prêtes', { action: 'modeles' }) : '')
       + ligneEpinglable('reglages')
       + `</div><div class="panneau-pied"><span>${ICONE_EPINGLE} épingle une page pour l'avoir dans « Mon cabinet »</span></div></div></div>`;
-    let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">Mon cabinet${estAssocie()
+    let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">Mon cabinet${estAssocie() && !aPlusieurs() ? '' : estAssocie()
       ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>`
       : '<span class="portee seul">Mes dossiers</span>'}</p>${ordre.map(lienCab).join('')}${voletCabinet}</div>`;
     html += '<div class="sep"></div>';
@@ -2517,10 +2541,10 @@
     }
     nav.innerHTML = html;
     // La tête : le nom du cabinet, combien de dossiers, et ses initiales.
-    const nb = dossiersActifs().length;
+    const nb = dossiersActifs().filter(x => !x.demo).length, exSeul = !nb && dossiersActifs().some(x => x.demo);
     $('#brand-cab').textContent = S.cabinet.name || 'Cabinet';
     const sousTete = $('#brand-cab-sous');
-    if (sousTete) sousTete.textContent = nb ? `Cabinet · ${pl(nb, 'dossier')}${estAssocie() ? '' : nb > 1 ? ' confiés' : ' confié'}` : 'Cabinet · aucun dossier encore';
+    if (sousTete) sousTete.textContent = nb ? `Cabinet · ${pl(nb, 'dossier')}${estAssocie() ? '' : nb > 1 ? ' confiés' : ' confié'}` : exSeul ? 'Cabinet · ton dossier d\'exemple' : 'Cabinet · aucun dossier encore';
     if (window.SkanBarre) window.SkanBarre.apresDessin();
   }
 
@@ -2557,6 +2581,11 @@
       if (!D.manual && role !== 'saisie' && api.messagerie) a.push({ titre: 'Demander une pièce', sous: 'Le client la reçoit dans SkanFact', touche: 'D', icone: icB('messages'), faire: () => fenDemanderCl(D, {}, { hors: true, apres: async () => {} }) });
     }
     if (estAssocie()) a.push({ titre: 'Nouveau dossier', sous: 'Un client, avec ou sans SkanFact', touche: 'O', icone: icB('nouveau'), faire: () => newDossierForm() });
+    // (1.373.0) Le dossier d'exemple reste à un clic : « Par où commencer » disparaît au premier vrai dossier, et l'offre
+    // partait avec lui.
+    if (estAssocie() && api.exempleEnLigne) a.push(exempleEnLigne()
+      ? { titre: 'Ouvrir le dossier d\'exemple', sous: 'Pour essayer : rien n\'y compte', touche: 'X', icone: icB('etoile'), faire: () => ouvrirExemple() }
+      : { titre: 'Charger un dossier d\'exemple', sous: 'Une pâtisserie inventée, pour tout essayer', touche: 'X', icone: icB('etoile'), faire: () => ouvrirExemple() });
     return { titre: D ? `Créer · ${D.name}` : 'Créer', actions: a, bloque: null };
   };
   // La cloche : ce qui attend, au même endroit (les pastilles de la barre restent).
@@ -2702,12 +2731,19 @@
   });
 
   // ---------- Ce qui sert au Tableau de bord, la page d'arrivée du Cabinet ----------
+  // (1.373.0) Le code du téléphone devient exigé sept jours après le premier vrai dossier (0216) : d'ici là, il se
+  // rappelle en haut des pages du cabinet, avec le jour et le geste — jamais par surprise au milieu d'une saisie.
+  function rappelCode() {
+    if (!S || !S.codeExigeLe) return '';
+    const j = String(S.codeExigeLe).slice(0, 10), reste = Math.max(0, joursEntre(K.today(), j));
+    return `<p class="info-box small" id="rappel-code"><b>Protège ton compte ${reste > 1 ? `d'ici ${reste} jours` : reste === 1 ? 'd\'ici demain' : 'aujourd\'hui'}.</b> Ton cabinet tient un vrai dossier : à partir du ${esc(fmtJourCourt(j))}, SkanFact demandera à chaque comptable un code sur son téléphone avant d'ouvrir le cabinet. Deux minutes, une seule fois. <a href="#/reglages" data-rappel-code>Mettre le code en place</a></p>`;
+  }
   function ctxCabinet(o = {}) {
-    const n = mesDossiers().length;
-    const qui = o.texte || (!n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
+    const n = mesDossiers().filter(d => !d.demo).length, exSeul = !n && mesDossiers().some(d => d.demo);
+    const qui = o.texte || (exSeul ? 'ton dossier d\'exemple' : !n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
       : estAssocie() && portee() === 'tous' ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} du cabinet` : estAssocie() ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} que tu tiens` : `${n > 1 ? 'tes ' : ''}${pl(n, 'dossier')} confié${n > 1 ? 's' : ''}`);
-    return `<div class="ctx-cab"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Mon cabinet</b> · ${qui}</span>${estAssocie() && !o.sansPortee
-      ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee-page="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee-page="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>` : ''}</div>`;
+    return `<div class="ctx-cab"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Mon cabinet</b> · ${qui}</span>${estAssocie() && aPlusieurs() && !o.sansPortee
+      ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee-page="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee-page="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>` : ''}</div>${rappelCode()}`;
   }
   const marqueCab = () => `<span class="marque-s cab" aria-hidden="true">${esc(initialesDe(S.cabinet.name))}</span>`;
   function lignePriorite(x, i, groupe) {
@@ -5074,7 +5110,7 @@
     const legs = [['fait', 'déposé'], ['rev', 'à réviser'], ['pc', 'à saisir'], ['pret', 'prêt'], ['manque', 'rien reçu'], ['cours', 'en cours'], ['hors', 'avant la mission']].filter(([c]) => etats.some(e => e[0] === c)).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('');
     const pop = ficheFd.mois ? popMoisFd(d, ficheFd.mois, etatMoisFd(d, ficheFd.mois, L, tard, mc), L, eq, dir, hors) : '';
     const anneeP = `<section class="panel fd-p" aria-labelledby="fd-an"><div class="fd-ph"><h2 id="fd-an">L'année ${annee} ${info('fd.mois')}</h2><span class="fd-ph-n">${d.manual ? 'lue dans le livre que tu tiens' : 'lue dans ses livres sur SkanFact · la barre : le chiffre d\'affaires du mois'}</span></div>
-      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}<span class="fd-leg-r">Date limite : le 28 du mois suivant (À VÉRIFIER)</span></div>${pop}</section>`;
+      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}<span class="fd-leg-r" title="Le jour de l'usage. Si le tien diffère, change-le dans Réglages › Échéances : tous tes écrans suivent.">Date limite : le 28 du mois suivant (À VÉRIFIER pour ton cabinet)</span></div>${pop}</section>`;
 
     // (1.216.0) Ce que montrait l'ancien « Suivi » : l'invitation du client tenu, les relances, qui travaille sur le dossier.
     const relancesT = (d.relances || []).filter(r => r && r.at).slice().reverse();
@@ -5103,7 +5139,7 @@
     const cote = `<aside class="fd-cote" aria-label="La fiche">
       ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honFiche(d) ? `${esc(dtCd(honFiche(d)))} DT HT par mois` : 'à écrire sur la fiche') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
       ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : '<span class="muted small">Personne ne suit encore ce dossier.</span>'}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
-      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', `${esc(labelOf(K.TVA_PERIODS, d.tvaPeriod) || 'mensuelle')} · déclarée le 28 (À VÉRIFIER)`)}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
+      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', esc(({ mensuelle: 'mensuelle · déclarée le 28', trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod] || 'mensuelle par défaut, à préciser sur la fiche · déclarée le 28'))}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
       ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
         : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}

@@ -13,7 +13,6 @@ import { chromium, type Browser } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
-import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -133,11 +132,7 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     expect(await c.locator('main, .ent').first().innerText()).toContain('le dossier de Imprimerie Ferjani y arrive aussitôt');
     await c.locator('label.field').filter({ hasText: 'Nom du cabinet' }).locator('input').fill('Cabinet Jlassi Conseil');
     await c.getByRole('button', { name: 'Créer mon cabinet', exact: true }).click();
-    await c.getByRole('button', { name: 'Mettre en place le code', exact: true }).click();
-    const cle = (await c.locator('.code-cle').innerText()).replace(/\s/g, '');
-    await c.getByText('Je les ai mis de côté', { exact: true }).click();
-    await c.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
-    await c.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
+    // (1.373.0) Plus de code du téléphone avant d'entrer : il n'est exigé que sept jours après le premier vrai dossier (0216).
     await c.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     // Le Cabinet s'ouvre (sur ses Priorités depuis la 1.152.0) : la proposition du client en tête, avant les premiers pas
     // d'un cabinet neuf (`.cab-neuf`), avec la paie qu'il a cochée.

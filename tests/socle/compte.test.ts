@@ -12,6 +12,7 @@ import { connecter, inscrire, mettreEnPlaceCode, quiEst, validerCode, type Conte
 import type { Courriel } from '../../serveur/courriel.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { cabinetQuiExigeLeCode } from './cabinet-tenu.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
@@ -37,7 +38,7 @@ async function personne(options: { code?: boolean; cabinet?: boolean } = {}) {
   let secret = '';
   let secours: string[] = [];
   if (options.code) ({ secret, codesDeSecours: secours } = await mettreEnPlaceCode(sansRelais, qui, 'application') as { secret: string; codesDeSecours: string[] });
-  if (options.cabinet) await enTantQue(pool, r.utilisateur, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`));
+  if (options.cabinet) await cabinetQuiExigeLeCode(pool, admin, r.utilisateur, `Cabinet ${n}`);
   return { email, id: r.utilisateur, qui, jeton: c.jeton, secret, secours };
 }
 const codeDe = (secret: string) => codeTotp(depuisBase32(secret), horloge.getTime());

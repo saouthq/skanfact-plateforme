@@ -52,6 +52,7 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
   const f = useFaute<HTMLInputElement>(faute, n);
   const id = useId();
   const [vu, setVu] = useState(false);
+  const enveloppe = useRef(false);
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   const liste = propositions?.length ? `${nom ?? cadre.libelle}-propositions`.replace(/\s+/g, '-') : undefined;
   const champ = (
@@ -66,7 +67,11 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
   // s'efface en quelques secondes, et l'aide d'en dessous (« Matricule complet ») disait le contraire du refus
   // (« déjà celui d'une autre entreprise »), parcours du 21/10/2026.
   const sous = f.rouge && refus ? <span className="ent-aide alerte" role="alert">{refus}</span> : dessous;
-  if (!revelable && !sous) return champ;
+  // (1.373.0) Une fois enveloppé, le champ le reste : au premier caractère tapé après un refus, le message partait, le
+  // champ repassait « nu », React le rebâtissait, et le curseur n'était plus nulle part — la suite de la frappe partait
+  // dans le vide (un cabinet créé sous le nom « C », revue du 16/11/2026).
+  if (sous) enveloppe.current = true;
+  if (!revelable && !sous && !enveloppe.current) return champ;
   // Le bouton « Afficher » vit à côté du libellé, jamais dedans : un libellé ne porte qu'une saisie.
   return (
     <div className={['ent-champ', cadre.classe ?? ''].filter(Boolean).join(' ')}>

@@ -167,7 +167,7 @@ export function PageDouble({ vitrine, haut, bas, children }: { vitrine: ReactNod
 // Le fil des étapes de la première fois : ton compte → ton entreprise → ton activité ; pour un cabinet comptable, ton
 // compte → ton cabinet → la sécurité (le code du téléphone lui est exigé).
 export function Fil({ etape, cabinet = false }: { etape: 1 | 2 | 3; cabinet?: boolean }) {
-  const noms = cabinet ? ['compte', 'cabinet', 'securite'] : ['compte', 'entreprise', 'activite'];
+  const noms = cabinet ? ['compte', 'cabinet', 'depart'] : ['compte', 'entreprise', 'activite'];
   return (
     <ol className="ent-fil" aria-label={titre('ecran.etape.fil')}>
       {noms.map((n, i) => {
