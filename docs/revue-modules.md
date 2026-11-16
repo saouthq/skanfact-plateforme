@@ -3931,3 +3931,30 @@ prix. Montants refaits à la main, base 360 : amorti à la sortie = 10 000 × 97
   - au Cabinet, le bouton annonçait « (1) » et le message « 2 écritures passées » : le bouton compte les écritures.
 - **Laissé, À VÉRIFIER** : l'avertissement « une sortie avant cinq ans peut imposer de reverser une partie de la TVA »
   s'affiche aussi pour un bien entré sans facture d'achat ; la règle dépend de ce qui a été déduit à l'époque.
+
+### 1.365.0 : la cohérence des écrans — une identité d'une page à l'autre
+
+Demandé par Skander le 16/11/2026 : « pas que chaque page soit différente : on garde une identité et on facilite la
+création d'habitudes ». L'instrument de rendu juge une page seule (rien ne déborde, tout se touche) ; rien ne jugeait
+les pages ENTRE ELLES.
+
+- **L'instrument** (`tests/instrument-coherence.ts`) relève, dans la page, la forme de chaque famille d'objets — titre
+  de page, titre de section, bouton, petit bouton, bouton principal, champ, pastille, en-tête de tableau, carte — et
+  chaque couleur de texte, de fond et de trait. Une carte se reconnaît à ce qu'elle EST (un bloc aux coins arrondis qui
+  se détache du fond), pas à un nom de classe : une carte dessinée à la main sous un autre nom est justement ce qu'il
+  doit voir.
+- **Le test** (`tests/web/coherence.test.ts`) ouvre 20 pages de l'entreprise et 17 du Cabinet sur des données qui
+  dessinent leurs tableaux, et exige que chaque forme vue soit la RÈGLE de la maison ou un écart NOMMÉ
+  (`tests/web/coherence-formes.json`), et que les couleurs hors charte ne dépassent pas leur plafond. Une forme nouvelle
+  fait tomber le test en nommant la page et l'objet. Le relevé complet est rangé dans `dist/coherence.json`.
+- **Ce qu'il a trouvé à sa première passe**, et ce qui est corrigé ici :
+  - deux styles d'en-têtes de liste selon la page (12 px en clair chez les Factures, 11 px en capitales au Catalogue,
+    au Stock, aux Réglages du Cabinet) : une liste a maintenant le même en-tête partout ;
+  - deux gris de texte secondaire (celui de la v10 et celui de la charte) : un seul, celui de la charte.
+- **Ce qui reste, nommé dans le fichier des formes** : 42 écarts marqués « dette », surtout les cartes (arrondis de 8 à
+  20 selon l'écran, surtout au Cabinet), les champs (arrondi 9 ou 10, texte de 13 à 15 px), les titres de section (de
+  14,5 à 26 px) et les couleurs écrites en dur (9 à l'entreprise, 24 au Cabinet). Cinq écarts sont voulus et le disent
+  (le titre qui salue, le grand bouton « Émettre », la tuile de choix, la colonne triée).
+- **La règle pour la suite** : un écran neuf ne passe que s'il parle la langue de la maison ; résorber une dette, c'est
+  retirer sa ligne du fichier et baisser le plafond des couleurs. Le thème sombre et le téléphone ne sont pas encore
+  relevés par cet instrument.

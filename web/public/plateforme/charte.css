@@ -204,3 +204,13 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 #modal-root .modal .btn:focus:not(:focus-visible) { outline: none; }
 #modal-root .modal .btn:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 2px; }
 body.dark .modal-bg { background: rgba(0, 0, 0, .55); }
+
+/* ── Une identité, d'une page à l'autre (1.365.0 ; tests/web/coherence.test.ts la mesure) ──
+   L'instrument de cohérence a compté deux styles d'en-têtes de tableau selon la liste ouverte (12 px en clair ici,
+   11 px en capitales là) et deux gris de texte secondaire (#7b8794 de la v10, #6b7685 de la charte). Une liste se lit
+   de la même façon partout : c'est ce qui fait une habitude.
+   - L'en-tête d'une LISTE : 12 px, demi-gras, sans capitales, gris de la charte. Un petit tableau posé dans un panneau
+     garde sa propre règle (elle nomme sa classe, et pèse plus lourd que celle-ci). */
+:where(#view, #modal-root) table.list th { font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--sb-gris-2); background: var(--sb-papier-2); }
+/* - Le gris du texte secondaire : celui de la charte, en clair comme en sombre. */
+body, body.dark { --muted: var(--sb-gris-2); }

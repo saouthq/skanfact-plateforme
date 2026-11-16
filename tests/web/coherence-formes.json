@@ -1,0 +1,189 @@
+{
+ "entreprise": {
+  "titre de page": {
+   "regle": [
+    "26px gras 700"
+   ],
+   "toleres": {
+    "30px gras 700": "voulu — le titre qui salue (l'accueil de l'entreprise, le tableau de bord du Cabinet) : un par application"
+   }
+  },
+  "titre de section": {
+   "regle": [
+    "15px gras 650"
+   ],
+   "toleres": {
+    "26px gras 650": "dette — à ramener à la règle ; vu sur #/relances (h2), et 2 autre(s) page(s)",
+    "15.5px gras 650": "dette — à ramener à la règle ; vu sur #/achat/p1 (h2), et 2 autre(s) page(s)",
+    "14.5px gras 700": "dette — à ramener à la règle ; vu sur #/doc/new/facture (h2), et 1 autre(s) page(s)",
+    "15px gras 700": "dette — à ramener à la règle ; vu sur #/stats (h2)"
+   }
+  },
+  "petit bouton": {
+   "regle": [
+    "28px de haut, arrondi 8, texte 12.5px gras 600"
+   ],
+   "toleres": {}
+  },
+  "bouton": {
+   "regle": [
+    "36px de haut, arrondi 10, texte 13.5px gras 600"
+   ],
+   "toleres": {
+    "32px de haut, arrondi 9, texte 13px gras 600": "dette — à ramener à la règle ; vu sur #/factures (button.row-menu-btn.btn.ico), et 4 autre(s) page(s)",
+    "44px de haut, arrondi 10, texte 14.5px gras 600": "voulu — le geste final d'une pièce (« Émettre ») : un seul grand bouton, en bas du formulaire",
+    "36px de haut, arrondi 10, texte 13px gras 600": "dette — à ramener à la règle ; vu sur #/client/c-rendu (button.row-menu-btn.btn.ico), et 1 autre(s) page(s)",
+    "78px de haut, arrondi 12, texte 13.5px gras 600": "voulu — un choix illustré (lire un fichier, saisir à la main) : une tuile à cliquer, pas un bouton de barre",
+    "36px de haut, arrondi 8, texte 12.5px gras 600": "dette — à ramener à la règle ; vu sur #/paie (button.btn.mini.btn-ghost)"
+   }
+  },
+  "bouton principal": {
+   "regle": [
+    "fond rgb(15, 157, 143)"
+   ],
+   "toleres": {}
+  },
+  "pastille": {
+   "regle": [
+    "arrondi plein, texte 12px gras 600"
+   ],
+   "toleres": {
+    "arrondi plein, texte 11px gras 600": "dette — à ramener à la règle ; vu sur #/dashboard (span.badge.envoyée)"
+   }
+  },
+  "carte": {
+   "regle": [
+    "arrondi 14, trait 1px, ombre"
+   ],
+   "toleres": {
+    "arrondi 14, sans trait, sans ombre": "dette — à ramener à la règle ; vu sur #/relances (div.panel.premiere.vide-utile), et 3 autre(s) page(s)",
+    "arrondi 12, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/doc/new/facture (div#ed-pq-liste.ed-pq-liste), et 2 autre(s) page(s)",
+    "arrondi 12, sans trait, sans ombre": "dette — à ramener à la règle ; vu sur #/doc/new/facture (div.ed-net), et 1 autre(s) page(s)",
+    "arrondi 14, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/compta (div.empty)",
+    "arrondi 10, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/parametres (div.span-2.exo-rs)"
+   }
+  },
+  "champ": {
+   "regle": [
+    "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px"
+   ],
+   "toleres": {
+    "arrondi 9, trait 1px rgb(230, 234, 240), texte 14px": "dette — à ramener à la règle ; vu sur #/catalogue (input.q), et 3 autre(s) page(s)",
+    "arrondi 10, trait 1px rgb(211, 217, 226), texte 13.5px": "dette — à ramener à la règle ; vu sur #/client/c-rendu (textarea#cl-notes), et 1 autre(s) page(s)",
+    "arrondi 8, trait 1px , texte 13px": "dette — à ramener à la règle ; vu sur #/achat/p1 (input.num)"
+   }
+  },
+  "en-tête de tableau": {
+   "regle": [
+    "12px gras 600 none rgb(107, 118, 133)",
+    "11px gras 600 uppercase rgb(107, 118, 133)"
+   ],
+   "toleres": {
+    "12px gras 600 none rgb(27, 36, 48)": "voulu — l'en-tête de la colonne triée prend l'encre",
+    "12.5px gras 600 none rgb(107, 118, 133)": "dette — à ramener à la règle ; vu sur #/achat/p1 (th)"
+   }
+  },
+  "couleurs hors charte": {
+   "regle": [
+    "9"
+   ],
+   "toleres": {}
+  }
+ },
+ "cabinet": {
+  "titre de page": {
+   "regle": [
+    "26px gras 700"
+   ],
+   "toleres": {
+    "30px gras 700": "voulu — le titre qui salue (l'accueil de l'entreprise, le tableau de bord du Cabinet) : un par application"
+   }
+  },
+  "petit bouton": {
+   "regle": [
+    "28px de haut, arrondi 8, texte 12.5px gras 600"
+   ],
+   "toleres": {}
+  },
+  "bouton principal": {
+   "regle": [
+    "fond rgb(15, 157, 143)"
+   ],
+   "toleres": {
+    "fond rgb(238, 241, 245)": "dette — à ramener à la règle ; vu sur #/messages (button.btn.btn-primary.msg-envoyer)"
+   }
+  },
+  "bouton": {
+   "regle": [
+    "36px de haut, arrondi 10, texte 13.5px gras 600"
+   ],
+   "toleres": {
+    "36px de haut, arrondi 10, texte 16px gras 600": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/saisie (button.row-menu-btn.btn.btn-icone), et 7 autre(s) page(s)",
+    "32px de haut, arrondi 9, texte 13.5px gras 600": "dette — à ramener à la règle ; vu sur #/ (a.btn.ico), et 1 autre(s) page(s)",
+    "32px de haut, arrondi 10, texte 13px gras 500": "dette — à ramener à la règle ; vu sur #/messages (button.btn.msg-g)",
+    "34px de haut, arrondi 10, texte 13.5px gras 600": "dette — à ramener à la règle ; vu sur #/messages (button.btn.btn-primary.msg-envoyer)"
+   }
+  },
+  "champ": {
+   "regle": [
+    "arrondi 9, trait 0px rgb(27, 36, 48), texte 13px"
+   ],
+   "toleres": {
+    "arrondi 9, trait 1px rgb(230, 234, 240), texte 14px": "dette — à ramener à la règle ; vu sur #/reglages (input#set-q), et 5 autre(s) page(s)",
+    "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px": "dette — à ramener à la règle ; vu sur #/ (select#cd-tri), et 1 autre(s) page(s)",
+    "arrondi 10, trait 0px rgb(27, 36, 48), texte 15px": "dette — à ramener à la règle ; vu sur #/messages (input)",
+    "arrondi 9, trait 1px rgb(15, 157, 143), texte 14px": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/saisie (input#sa-piece)",
+    "arrondi 6, trait 1px , texte 13px": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/saisie (input.sa-compte)",
+    "arrondi 9, trait 1px rgb(230, 234, 240), texte 13px": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/paie (select#pa-mois)"
+   }
+  },
+  "en-tête de tableau": {
+   "regle": [
+    "12px gras 600 none rgb(107, 118, 133)",
+    "11px gras 600 uppercase rgb(107, 118, 133)"
+   ],
+   "toleres": {
+    "13px gras 650 none rgb(27, 36, 48)": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/declaration (th)"
+   }
+  },
+  "carte": {
+   "regle": [
+    "arrondi 14, trait 1px, ombre"
+   ],
+   "toleres": {
+    "arrondi 16, trait 1px, ombre": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/saisie (div.cp-corps), et 7 autre(s) page(s)",
+    "arrondi 14, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/messages (div.msg-calme), et 3 autre(s) page(s)",
+    "arrondi 16, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/messages (div.msg-boite-corps), et 2 autre(s) page(s)",
+    "arrondi 12, trait 1px, sans ombre": "dette — à ramener à la règle ; vu sur #/messages (section.msg-cote-carte), et 2 autre(s) page(s)",
+    "arrondi 8, sans trait, sans ombre": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/declaration (div#dc-en-cours.warn-box.mt), et 1 autre(s) page(s)",
+    "arrondi 14, sans trait, sans ombre": "dette — à ramener à la règle ; vu sur #/production (div#tb-afaire.ajour)",
+    "arrondi 20, sans trait, sans ombre": "dette — à ramener à la règle ; vu sur #/reglages (section#abo-etat.abo-tete.calme)",
+    "arrondi 18, trait 1px, ombre": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/banque (div.apx-c)"
+   }
+  },
+  "titre de section": {
+   "regle": [
+    "15.5px gras 650"
+   ],
+   "toleres": {
+    "20px gras 600": "dette — à ramener à la règle ; vu sur #/messages (h2)",
+    "18px gras 650": "dette — à ramener à la règle ; vu sur #/dossier/… (h2#fd-ok)",
+    "16px gras 650": "dette — à ramener à la règle ; vu sur #/dossier/… (h2#fd-an)",
+    "15px gras 650": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/saisie (h2#sa-brouillard)",
+    "20px gras 650": "dette — à ramener à la règle ; vu sur #/dossier/…/comptabilite/paie (h2)"
+   }
+  },
+  "pastille": {
+   "regle": [
+    "arrondi plein, texte 12px gras 600"
+   ],
+   "toleres": {}
+  },
+  "couleurs hors charte": {
+   "regle": [
+    "24"
+   ],
+   "toleres": {}
+  }
+ }
+}

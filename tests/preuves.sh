@@ -29587,6 +29587,14 @@ prouver $'rebut 1.364.2 a : une question prend pour titre la réponse de son bou
   $'const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|^(oui|non)\\b|quand même/i;' \
   $'const GESTES_GENERIQUES = /^(confirmer|continuer|ok|oui|valider)$|quand même/i;' \
   $'ne recopie pas « Oui, sans prix » : il retombe sur le titre neutre'
+prouver $'cohérence 1.365.0 a : une liste garde ses en-têtes d\'avant (11 px, capitales) à côté des autres' web/public/plateforme/charte.css \
+  $':where(#view, #modal-root) table.list th { font-size: 12px; font-weight: 600; text-transform: none;' \
+  $':where(#view, #modal-inconnu) table.liste th { font-size: 12px; font-weight: 600; text-transform: none;' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.365.0 b : le texte secondaire garde deux gris selon la page' web/public/plateforme/charte.css \
+  $'body, body.dark { --muted: var(--sb-gris-2); }' \
+  $'body.inconnu { --muted: var(--sb-gris-2); }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
