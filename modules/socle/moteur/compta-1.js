@@ -2758,6 +2758,44 @@
     essayer(0, [], 0);
     // Dans l'ordre du bordereau : du plus ancien au plus récent.
     const enOrdre = liste => liste.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.piece || '').localeCompare(String(b.piece || '')));
+    // (1.363.1, bout en bout 30) La remise de CARTES : la banque verse en une ligne les ventes par carte d'un jour (ou de jours
+    // d'affilée), MOINS sa commission. Quand le client l'a pointée chez lui, le pont a écrit la commission (frais bancaires
+    // contre la banque) : la ligne est alors faite des encaissements de ces jours ET de cette écriture de frais, au millime.
+    // Faute d'une remise de même sens, une ligne qui entre cherche donc une écriture de frais bancaires (elle touche un 627)
+    // des sept jours d'avant (jusqu'à `jours` après) et, avec elle, les encaissements de jours entiers d'affilée — ou, à
+    // défaut, une à quatre écritures — qui font la ligne. Une seule réponse se propose ; à deux, rien (9.5.0). Sans
+    // l'écriture de frais, rien ne se propose ici : le livre ne dit pas quel encaissement vient d'une carte.
+    if (!trouvees.length && m > 0) {
+      const libres = lignesARapprocher(livre, R.compte).filter(c => !prises.has(c.ecritureId + '#' + c.ligne) && round3(c.montant)
+        && /^\d{4}-\d{2}-\d{2}$/.test(String(c.date)) && avant(c) <= 7 && avant(c) >= -jours);
+      const deFrais = c => c.montant < 0 && ((livre.ecritures || []).find(e => e.id === c.ecritureId) || { lignes: [] }).lignes.some(x => txt(x.compte).startsWith('627'));
+      const entrees = libres.filter(c => c.montant > 0 && avant(c) >= 0).map(c => ({ c, v: Math.round(c.montant * 1000) }));
+      const lesJours = [...new Set(entrees.map(x => String(x.c.date)))].sort();
+      const reponses = new Map();
+      libres.filter(deFrais).forEach(f => {
+        const but = cible + Math.round(-f.montant * 1000);
+        const avantF = reponses.size;
+        for (let i = 0; i < lesJours.length; i++) {
+          let somme = 0;
+          for (let k = i; k < lesJours.length && somme < but; k++) {
+            somme += entrees.filter(x => String(x.c.date) === lesJours[k]).reduce((t, x) => t + x.v, 0);
+            if (somme === but) {
+              const faces = entrees.filter(x => String(x.c.date) >= lesJours[i] && String(x.c.date) <= lesJours[k]).map(x => x.c).concat([f]);
+              reponses.set(faces.map(x => x.ecritureId + '#' + x.ligne).sort().join('|'), { faces, commission: round3(-f.montant) });
+            }
+          }
+        }
+        if (reponses.size > avantF) return;
+        const proches = entrees.slice().sort((x, y) => avant(x.c) - avant(y.c)).slice(0, 20);
+        const parmi = (debut, faces, total) => {
+          if (faces.length && total === but) { const l2 = faces.concat([f]); reponses.set(l2.map(x => x.ecritureId + '#' + x.ligne).sort().join('|'), { faces: l2, commission: round3(-f.montant) }); return; }
+          if (faces.length === 4 || total >= but) return;
+          for (let i = debut; i < proches.length && reponses.size < 3; i++) { faces.push(proches[i].c); parmi(i + 1, faces, total + proches[i].v); faces.pop(); }
+        };
+        parmi(0, [], 0);
+      });
+      if (reponses.size === 1) { const r = [...reponses.values()][0]; return { ecritures: enOrdre(r.faces), possibles: [], combinaisons: 1, commission: r.commission }; }
+    }
     if (trouvees.length === 1) return { ecritures: enOrdre(trouvees[0]), possibles: [], combinaisons: 1 };
     if (!trouvees.length) return vide;
     const union = [];

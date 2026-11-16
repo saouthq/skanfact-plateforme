@@ -3830,9 +3830,8 @@ commission : « REMISE TPE 0042 · 158,270 DT ».
   « Annuler » défait tout, la commission comprise. Les mouvements pointés font alors exactement la ligne de la banque.
   La commission part entière en frais bancaires (627) : sa TVA n'est pas distinguée — À VÉRIFIER avec le comptable.
 - **Le pont.** Le Cabinet reçoit l'écriture « Commission carte — REMISE TPE 0042 » au brouillard (627 au débit, la banque
-  au crédit) ; la banque de son livre fait 107,100 + 53,550 − 2,380 = 158,270, la ligne du relevé. **Ce qui reste à
-  faire** : si le comptable importe lui-même ce relevé au Cabinet, sa Banque ne sait pas encore proposer la remise de
-  cartes — ses écritures ne portent pas le mode de paiement. La commission notée par le client lui arrive déjà.
+  au crédit) ; la banque de son livre fait 107,100 + 53,550 − 2,380 = 158,270, la ligne du relevé. Le jumeau du
+  Cabinet (le comptable importe lui-même ce relevé) est fait en 1.363.1, juste dessous.
 - **« — » sous chaque ticket du pointage.** Un ticket de caisse sans client se dit « Vente au comptoir ».
 - **« Carte · versé par ta banque »**, au bilan du jour de la caisse, dit maintenant « moins sa commission ».
 - Vérifié à la souris : la caisse créée et ouverte, les trois tickets, le bilan du jour, l'import du relevé avant (la
@@ -3842,3 +3841,27 @@ commission : « REMISE TPE 0042 · 158,270 DT ».
   du bon montant qui ne se propose pas, l'ambiguïté, les sept jours, deux remises qui ne se volent pas leurs tickets) et
   `tests/web/carte-1363.test.ts` (à l'écran, puis « Annuler », puis le livre du Cabinet) ; quatorze preuves « carte
   1.363.0 ».
+
+### 1.363.1 : la remise de cartes, vue du Cabinet (bout en bout 30, le jumeau)
+
+Joué à la souris par Leïla, la comptable de Nour : elle importe le même relevé de la BIAT dans la Banque du dossier.
+
+- **La ligne « REMISE TPE » restait « rien en face ».** Les écritures du Cabinet ne portent pas le mode de paiement :
+  la règle du client ne se recopie pas. `remiseDeLigne` cherche autrement : une ligne positive restée seule se confronte
+  aux écritures de banque encore libres des sept jours précédents, et ne se propose que si une écriture de **frais
+  bancaires** (une sortie de banque dont la pièce porte un 627) fait, avec des encaissements, la ligne **au millime** :
+  d'abord des jours entiers d'affilée, sinon une à quatre écritures. Une seule réponse, sinon rien : une ambiguïté n'est
+  jamais sûre (9.5.0). Ici il n'y a pas de plafond de 5 % : la commission est une écriture qui existe, pas une
+  estimation.
+- **Sans écriture de frais bancaires, rien ne se propose** : une sortie au 613 du même montant n'est pas une commission.
+  Une commission déjà rapprochée ailleurs ne sert pas deux fois.
+- **L'écran le dit** : « Remise de 3 écritures · les ventes par carte, moins la commission de la banque : leur somme
+  fait la ligne au millime ». Le geste reste celui d'une remise de chèques : on relit, on pose.
+- Vérifié à la souris : le relevé importé, la proposition, les trois écritures en face, « Novembre 2026 est rapproché »,
+  relevé 21 146,338 = attendu 21 146,338.
+- Tests : `tests/moteur/banque-carte-1363.test.ts` (cinq cas, montants à la main) et la suite Cabinet de
+  `tests/web/carte-1363.test.ts` ; six preuves « carte 1.363.0 o à t ».
+- Vu en passant, regardé, laissé : la frise des mois du dossier dit février à juin « sans activité » et juillet à
+  septembre « sans activité, en retard ». Ce n'est pas une contradiction : les livres de ce client commencent en janvier
+  (deux écritures), et « en retard » ne se dit que des échéances que le calendrier du Cabinet regarde encore, les plus
+  récentes. À VÉRIFIER avec un comptable : faut-il réclamer aussi les déclarations à zéro plus anciennes ?

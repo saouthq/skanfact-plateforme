@@ -146,7 +146,28 @@ describe('la remise de cartes 1.363.0 : la banque verse le net, la commission se
     expect(banque).toBe(158270);
     expect((await bq()).map((x) => x.libelle)).toContain('Commission carte — REMISE TPE 0042');
 
+    // ── (1.363.1) Le comptable importe le même relevé au Cabinet : la ligne se propose avec les deux encaissements ET
+    // l'écriture de commission (avant : « Rien dans le livre en face »), et le serveur prend la remise.
+    const annee = Number(jour.slice(0, 4));
+    expect((await api('POST', `/entreprises/${ent}/compta/releves`, leila, { annee, compte: '532', banque: 'BIAT', fichier: 'tpe.csv', empreinte: 'd'.repeat(64),
+      soldeDebut: '0', soldeFin: '158,270', lignes: [{ date: jour, libelle: 'REMISE TPE 0042', reference: '', montant: '158,270' }] })).statut).toBe(201);
+    const cxC = await contexte(leila);
+    const c = await cxC.newPage();
+    c.on('pageerror', (x) => erreurs.push(`cabinet : ${x.message}`));
+    await c.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.corps.id)}#/dossier/${ent}/comptabilite/banque/${annee}`);
+    await c.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await plusTard(c);
+    const ligneC = c.locator('table.bq-t [data-bq-ligne]').filter({ hasText: 'REMISE TPE' });
+    await expect.poll(() => ligneC.getAttribute('data-groupe'), { timeout: 15_000 }).toBe('prop');
+    expect(net(await ligneC.innerText())).toMatch(/Remise de 3 écritures · les ventes par carte, moins la commission de la banque : leur somme fait la ligne au millime/);
+    await ligneC.locator('td').nth(1).click();
+    await expect.poll(() => c.locator('.bq-livre table.bq-rem tbody tr.on').count(), { timeout: 10_000 }).toBe(3);
+    await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'carte-1363-2-cabinet.png') });
+    await c.locator('#bq-principal').click();
+    await expect.poll(async () => { const l = (((await api('GET', `/entreprises/${ent}/compta/releves?annee=${annee}`, leila)).corps.releves as Obj[])[0]?.lignes as Obj[])[0];
+      return l?.rapprochement ? 1 + ((l.rapprochement.autres ?? []) as Obj[]).length : 0; }, { timeout: 15_000 }).toBe(3);
+
     expect(erreurs).toEqual([]);
-    await cx.close();
-  }, 150_000);
+    await cx.close(); await cxC.close();
+  }, 180_000);
 });

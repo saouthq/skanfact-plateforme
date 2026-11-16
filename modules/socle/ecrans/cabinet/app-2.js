@@ -559,7 +559,7 @@
       if (rem.ecritures.length && !rem.ecritures.some(c => enRemise.has(cleE(c)))) {
         rem.ecritures.forEach(c => enRemise.add(cleE(c)));
         const noms = rem.ecritures.map(c => c.piece || pieceBq(ecritureDuLivre(L, c.ecritureId))).filter(Boolean);
-        return { l, g: 'prop', jug, remise: rem.ecritures, titre: `Remise de ${rem.ecritures.length} écritures`, pq: `leur somme fait la ligne au millime${noms.length ? ` · ${noms.join(', ')}` : ''}`, ton: 'sur' };
+        return { l, g: 'prop', jug, remise: rem.ecritures, titre: `Remise de ${rem.ecritures.length} écritures`, pq: `${rem.commission ? 'les ventes par carte, moins la commission de la banque : ' : ''}leur somme fait la ligne au millime${noms.length ? ` · ${noms.join(', ')}` : ''}`, ton: 'sur' };
       }
       // (1.208.0) Rien au compte de banque : la ligne paie peut-être une facture encore ouverte (la même, au net de sa
       // retenue, ou plusieurs qui font une remise de chèques). Une réponse unique se propose, comme une écriture trouvée.

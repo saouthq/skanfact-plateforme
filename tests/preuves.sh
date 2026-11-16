@@ -29461,6 +29461,31 @@ prouver $'carte 1.363.0 n : le compteur dit « 0 retrouvée » d\'une remise ret
   $'<span><b>${ap.paires.length + ap.remises.length + (ap.remisesCarte || []).length}</b>' \
   $'<span><b>${ap.paires.length}</b>' \
   $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
+# 1.363.1 : le jumeau au Cabinet.
+prouver $'carte 1.363.0 o : au Cabinet, la remise de cartes reste « rien en face »' modules/socle/moteur/compta-1.js \
+  $'    if (!trouvees.length && m > 0) {' \
+  $'    if (!trouvees.length && m > 0 && !livre) {' \
+  $'les encaissements du jour et l\'écriture de commission font la ligne : ils se proposent ensemble'
+prouver $'carte 1.363.0 p : au Cabinet, n\'importe quelle sortie passe pour la commission' modules/socle/moteur/compta-1.js \
+  $'.lignes.some(x => txt(x.compte).startsWith(\'627\'));' \
+  $'.lignes.length > 0;' \
+  $'sans écriture de frais bancaires, rien ne se propose : une sortie au 613 du même montant n\'est pas une commission'
+prouver $'carte 1.363.0 q : au Cabinet, une commission déjà rapprochée sert deux fois' modules/socle/moteur/compta-1.js \
+  $'      const libres = lignesARapprocher(livre, R.compte).filter(c => !prises.has(c.ecritureId + \'#\' + c.ligne) && round3(c.montant)' \
+  $'      const libres = lignesARapprocher(livre, R.compte).filter(c => round3(c.montant)' \
+  $'la somme doit faire la ligne au millime ; une commission déjà rapprochée ailleurs ne sert pas deux fois'
+prouver $'carte 1.363.0 r : au Cabinet, deux réponses et la première est prise' modules/socle/moteur/compta-1.js \
+  $'      if (reponses.size === 1) {' \
+  $'      if (reponses.size) {' \
+  $'un jour qui mêle un virement et les cartes : les seules écritures qui font la ligne ; deux réponses : rien'
+prouver $'carte 1.363.0 s : au Cabinet, un jour mêlé de virements ne se retrouve pas' modules/socle/moteur/compta-1.js \
+  $'        parmi(0, [], 0);\n' \
+  $'' \
+  $'un jour qui mêle un virement et les cartes : les seules écritures qui font la ligne ; deux réponses : rien'
+prouver $'carte 1.363.0 t : au Cabinet, la proposition ne dit pas que c\'est une remise de cartes' modules/socle/ecrans/cabinet/app-2.js \
+  $'${rem.commission ? \'les ventes par carte, moins la commission de la banque : \' : \'\'}' \
+  $'' \
+  $'la ligne nette du relevé retrouve les ventes par carte, note la commission, se défait, et arrive au Cabinet'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
