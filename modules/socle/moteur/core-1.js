@@ -4144,6 +4144,9 @@
       (d.lines || []).forEach((l, i) => {
         if (l.noDiscount) return;              // ligne d'acompte ou de déduction : aucune marchandise
         if (isSale && sortieAuBon(d, l)) return;
+        // (1.362.4, bout en bout 28) Une ligne d'avoir qui ne rend pas de marchandise (une remise, une erreur de prix) ne
+        // remet rien en rayon : sans ce drapeau, l'avoir « Remise accordée » sur 20 coffrets en remettait 20 en stock.
+        if (isReturn && l.sansRetour) return;
         // Un kit (brique 96) : ce sont ses composants qui sortent (ou rentrent, sur un avoir), chacun à sa
         // quantité par kit ; la ligne d'un article ordinaire est son propre et unique composant.
         const art = itemOfLine(l, data);

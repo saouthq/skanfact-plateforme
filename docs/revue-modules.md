@@ -3735,3 +3735,38 @@ de novembre et de décembre ; la prévision de trésorerie côté entreprise, pu
   relecture du formulaire. (4) « Quitter sans enregistrer ? » après la suppression d'une pièce : la question arrive au
   changement d'adresse, une image plus tard ; le test attend d'être parti puis regarde un instant. (5) Le jour d'arrivée
   des pièces : le défaut posait « 15 », juste le 15 du mois ; il pose un jour de plus. Neuf preuves refaites.
+
+### 1.362.4 : un client rend une partie de la marchandise, un autre obtient une remise (bout en bout 28)
+
+Joué à la souris par la pâtisserie de Nour : 30 coffrets de chocolats en stock à 25 DT, 20 vendus à l'Hôtel Mouradi
+(FAC-2026-007, 1 072 DT). Puis trois avoirs : 5 coffrets rendus, une remise de 5 DT sur les 20, 3 coffrets rendus encore.
+
+- **Une remise remettait la marchandise en rayon.** Tout avoir émis rendait au stock la quantité de ses lignes, quel que
+  soit son motif : la remise de 5 DT sur les 20 coffrets (rien n'est revenu du client) en remettait 20 en stock. Le stock
+  montait à 45, et le coût des ventes du mois devenait négatif — une remise qui fabriquait de la marge. Chaque ligne d'un
+  avoir porte maintenant `sansRetour` ; le moteur du stock la saute (`stockMovements`). Le motif choisit d'office :
+  « Retour de marchandise » et « Annulation totale » remettent en stock, « Remise accordée », « Erreur de prix » et
+  « Prestation non faite » non.
+- **La ligne le dit, et se change.** Sous chaque ligne d'un article suivi : « revient en stock à l'émission : 25 → 28 »,
+  avec « Ne revient pas en stock », ou « ne revient pas en stock » avec « La remettre en stock ». Un même avoir peut rendre
+  une ligne et pas l'autre.
+- **La fenêtre d'émission et l'avoir émis le disent.** Le dernier écran avant le geste irréversible récapitulait le client,
+  la facture et le montant, jamais le stock : il porte une ligne « Stock » (« 3 remis en stock à l'émission (25 → 28) »,
+  « ne revient pas en stock »), et l'avoir émis la garde dans son résumé.
+- **Un avoir qui rendrait plus que la facture n'a vendu le dit avant.** « Corriger par un avoir » recopie les 20 coffrets
+  de la facture, même quand 5 sont déjà revenus : la ligne dit « FAC-2026-007 en a vendu 20, dont 5 déjà remis en stock ».
+  Une remise ne compte pas comme marchandise rendue.
+- **La ligne d'un avoir ne parle plus de marge.** Une remise de 5 DT sur un coffret qui coûte 25 s'affichait « marge
+  −400 % · tu vends à perte », et « Avant d'émettre » la signalait « vendue à perte » : un avoir ne vend rien, la marge de
+  la vente se lit sur la facture.
+- Le Cabinet lit les deux avoirs au journal des ventes, au brouillard : AVO-2026-004 (411 au crédit 119, 707 au débit 100,
+  4367 19) et AVO-2026-005 (160,650 ; 135 ; 25,650). À VÉRIFIER avec le comptable : une remise accordée sur des
+  marchandises va-t-elle au 709 (rabais, remises et ristournes accordés) plutôt qu'au débit du 707 ?
+- Vérifié à la souris : le stock reste à 25 après la remise, passe à 28 après le retour de 3 coffrets (700 DT au coût moyen
+  de 25) ; au Cabinet, les deux avoirs au journal des ventes.
+- Tests : `tests/moteur/avoir-retour-stock-1362-4.test.ts` (le retour, la remise, les deux ensemble et le brouillon, une
+  ligne rendue et l'autre non ; stock et coût des ventes comptés à la main), `tests/web/retour-stock-1362-4.test.ts` (le
+  motif, la ligne changée dans les deux sens, la marge absente, la fenêtre d'émission, le retour de trop, le stock à 15) ;
+  neuf preuves « stock 1.362.4 ». Deux d'entre elles restaient vertes au premier passage : l'article du test n'avait pas
+  de coût au catalogue, donc aucune marge ne s'affichait et le contrôle ne pouvait rien voir — des données qui ne
+  discriminent pas ne prouvent rien.

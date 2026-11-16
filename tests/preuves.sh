@@ -29316,6 +29316,46 @@ prouver $'le chemin d\'une pièce modifiée laisse un lien de 16 px au doigt' we
   $'  .ed-chemin > a:first-child, .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }' \
   "$RV"
 
+# (1.362.4, bout en bout 28) L'avoir et le stock : le motif dit si la marchandise revient, la ligne se change, la fenêtre
+# d'émission et l'avoir émis le disent, un retour de plus que la facture n'a vendu se dit avant, la ligne d'un avoir ne
+# parle plus de marge.
+prouver $'stock 1.362.4 a : une remise remet la marchandise en rayon' modules/socle/moteur/core-1.js \
+  $'        if (isReturn && l.sansRetour) return;\n' \
+  $'' \
+  $'une remise sur les 20 coffrets ne remet rien en stock, et le coût des ventes reste celui des 20 sortis'
+prouver $'stock 1.362.4 b : « Remise accordée » laisse la marchandise revenir' modules/socle/ecrans/entreprise/app-1.js \
+  $'\'Remise accordée\': true,' \
+  $'\'Remise accordée\': false,' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 c : la ligne ne se remet plus en stock' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (l) { if (l.sansRetour) delete l.sansRetour; else l.sansRetour = true; touch(); drawLines(); }' \
+  $'if (l) { l.sansRetour = true; touch(); drawLines(); }' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 d : la fenêtre d\'émission tait le stock' modules/socle/ecrans/entreprise/app-1.js \
+  $'          ${stockDeLAvoir(doc) ? ligne(\'Stock\', stockDeLAvoir(doc)) : \'\'}\n' \
+  $'' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 e : l\'avoir émis tait le stock' modules/socle/ecrans/entreprise/app-1.js \
+  $'        ${isAv && stockDeLAvoir(doc, true) ? ligne(\'Stock\', stockDeLAvoir(doc, true)) : \'\'}\n' \
+  $'' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 f : un avoir rend plus que la facture n\'a vendu, sans un mot' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (q > C.round3(vendus - rendus) + 0.0005) r.push(' \
+  $'if (false && q > C.round3(vendus - rendus) + 0.0005) r.push(' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 g : une remise comptée comme marchandise déjà rendue' modules/socle/ecrans/entreprise/app-1.js \
+  $'const duMeme = x => !x.sansRetour && !x.noDiscount && (C.itemOfLine(x, data) || {}).id === it.id;' \
+  $'const duMeme = x => !x.noDiscount && (C.itemOfLine(x, data) || {}).id === it.id;' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 h : la ligne d\'un avoir parle de marge' modules/socle/ecrans/entreprise/app-1.js \
+  $'const taux = !isAv && cout > 0 && tl.ht > 0 ?' \
+  $'const taux = cout > 0 && tl.ht > 0 ?' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'stock 1.362.4 i : « vendue à perte » sur une remise' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (!isAv) t.lines.forEach((tl, i) => {\n          const l = doc.lines[i]; if (!l || tl.titre || !(tl.ht > 0)) return;' \
+  $'        t.lines.forEach((tl, i) => {\n          const l = doc.lines[i]; if (!l || tl.titre || !(tl.ht > 0)) return;' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

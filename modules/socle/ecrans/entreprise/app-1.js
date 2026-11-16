@@ -1324,6 +1324,22 @@
     return true;
   }
   let apresEmission = null; // ce que la fenêtre d'émission a coché « juste après l'émission »
+  // (1.362.4, bout en bout 28) Ce qu'un avoir fait au stock, dit avant de l'émettre et sur l'avoir émis : la marchandise
+  // d'une ligne revient en rayon, ou non (une remise, une erreur de prix). Rien ne le disait : la fenêtre d'émission
+  // récapitulait le client, la facture et le montant, jamais les coffrets remis en stock. Vide sans article suivi.
+  function stockDeLAvoir(doc, emis) {
+    if (!doc || doc.type !== 'avoir') return '';
+    return (doc.lines || []).map(l => {
+      if (l.noDiscount || C.estTitre(l)) return '';
+      const it = C.itemOfLine(l, data), q = Number(l.qty) || 0;
+      if (!it || !it.tracked || !q) return '';
+      if (l.sansRetour) return `« ${h(it.label)} » : ne revient pas en stock`;
+      if (emis) return `« ${h(it.label)} » : ${pct(q)} remis en stock`;
+      const st = C.stockOf(data, it.id).qty;
+      return `« ${h(it.label)} » : ${pct(q)} remis en stock à l'émission (${pct(st)} → ${pct(C.round3(st + q))})`;
+    }).filter(Boolean).join(' · ');
+  }
+
   function confirmerEmission(doc, numero, avertissements, opts) {
     if (montantNonEmettable(doc)) return Promise.resolve(false);
     const exporter = !!(opts && opts.exporter);
@@ -1392,6 +1408,7 @@
           ${ligne('Date', C.fmtDate(doc.date))}
           ${!isAv && doc.dueDate ? ligne('Échéance', doc.dueDate === doc.date ? 'À réception' : C.fmtDate(doc.dueDate)) : ''}
           ${ligne(isAv ? 'Montant de l\'avoir' : 'Net à payer', `<strong>${C.money(t.netToPay, cur)}</strong>`)}
+          ${stockDeLAvoir(doc) ? ligne('Stock', stockDeLAvoir(doc)) : ''}
           ${C.normCurrency(cur) !== C.normCurrency(company().currency) && !C.missingRate(doc, company())
             ? ligne('Taux de change', `1 ${h(cur)} = ${C.money(C.rateOf(doc, company()), company().currency)} · soit ${C.money(C.toBase(doc, t.netToPay, company()), company().currency)} à ce taux`) : ''}
         </div>
@@ -6095,6 +6112,7 @@
       return `<dl class="lecture-piece" id="lecture-piece">
         ${ligne('Client', doc.clientId ? `<a href="#/client/${h(doc.clientId)}">${h(clientName(doc.clientId))}</a>${charte && (clientById(doc.clientId) || {}).email ? ` · ${h(clientById(doc.clientId).email)}` : ''}` : doc.passage ? `${h(nomClientPiece(doc))} <span class="muted">· client de passage</span>` : '—')}
         ${fi ? ligne('Facture corrigée', `<a href="#/doc/${h(fi.id)}">${h(fi.number)}</a>${doc.creditReason ? ` · ${h(doc.creditReason)}` : ''}`) : ''}
+        ${isAv && stockDeLAvoir(doc, true) ? ligne('Stock', stockDeLAvoir(doc, true)) : ''}
         ${ligne('Date', `${C.fmtDate(doc.date)}${isInv && doc.dueDate ? ` · échéance le ${C.fmtDate(doc.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
         ${doc.subject && !charte ? ligne('Objet', h(doc.subject)) : ''}
         ${doc.reference ? ligne('Référence', h(doc.reference)) : ''}
@@ -7283,6 +7301,25 @@
         const st = C.stockOf(data, it.id).qty, q = Number(l.qty) || 0;
         r.push(q > st ? `<span class="alerte">stock : ${pct(st)}, il en manque ${pct(C.round3(q - st))}</span>` : `<span class="${st > 0 ? 'ok' : 'alerte'}">en stock : ${pct(st)}</span>`);
       }
+      // (1.362.4, bout en bout 28) La marchandise d'un avoir revient-elle en rayon ? Le motif décide d'office (un retour, une
+      // annulation : oui ; une remise, une erreur de prix, une prestation non faite : non) et chaque ligne se change ici. Rien
+      // ne le disait : un avoir « Remise accordée » sur 20 coffrets les remettait tous en stock, en silence.
+      if (it && it.tracked && isAv) {
+        const st = C.stockOf(data, it.id).qty, q = Number(l.qty) || 0;
+        r.push(l.sansRetour
+          ? `<span>ne revient pas en stock</span><button type="button" class="lien-fl" data-retour="${i}">La remettre en stock</button>`
+          : `<span class="ok">revient en stock à l'émission : ${pct(st)} → ${pct(C.round3(st + q))}</span><button type="button" class="lien-fl" data-retour="${i}">Ne revient pas en stock</button>`);
+        // Plus que la facture n'a vendu, déjà rendus compris : « Corriger par un avoir » recopie les 20 coffrets de la facture
+        // même quand 5 sont déjà revenus, et le stock aurait compté 5 coffrets qui ne sont jamais sortis.
+        const fa = !l.sansRetour && doc.creditOf ? docById(doc.creditOf) : null;
+        if (fa) {
+          const duMeme = x => !x.sansRetour && !x.noDiscount && (C.itemOfLine(x, data) || {}).id === it.id;
+          const somme = p => (p.lines || []).filter(duMeme).reduce((s, x) => s + (Number(x.qty) || 0), 0);
+          const vendus = (fa.lines || []).filter(x => !x.noDiscount && (C.itemOfLine(x, data) || {}).id === it.id).reduce((s, x) => s + (Number(x.qty) || 0), 0);
+          const rendus = C.round3((data.documents || []).filter(d => d.type === 'avoir' && d.creditOf === fa.id && d.status !== 'brouillon' && d.id !== doc.id).reduce((s, d) => s + somme(d), 0));
+          if (q > C.round3(vendus - rendus) + 0.0005) r.push(`<span class="alerte">${h(fa.number || 'la facture')} en a vendu ${pct(vendus)}${rendus ? `, dont ${pct(rendus)} déjà remis en stock` : ''}</span>`);
+        }
+      }
       return `${r.join('')}<span class="ligne-marge" data-marge="${i}"></span>${it && it.serialized && (isInv || doc.type === 'livraison') ? seriesLigne(it, l) : ''}`;
     };
     // (maquette « numéros de série ») Sous une ligne d'un article suivi par numéro : combien sont choisis sur combien, les
@@ -8215,7 +8252,9 @@
           const it = C.itemOfLine(l, data);
           if (it && it.tracked) { const st = C.stockOf(data, it.id).qty, q = Number(l.qty) || 0; if (q > st) points.push([false, `Stock : il manque ${pct(C.round3(q - st))} « ${l.label} » (tu peux émettre quand même)`, '']); }
         });
-        t.lines.forEach((tl, i) => {
+        // (1.362.4, bout en bout 28) Un avoir ne vend rien : sa ligne réduit une vente. Une remise de 5 DT sur un coffret
+        // qui coûte 25 n'est pas « vendue à perte : marge −400 % » — la marge de la vente se lit sur la facture.
+        if (!isAv) t.lines.forEach((tl, i) => {
           const l = doc.lines[i]; if (!l || tl.titre || !(tl.ht > 0)) return;
           const cout = C.lineCost(l, data, doc, co);
           if (cout > tl.ht + 0.0005) points.push([false, `« ${l.label || 'Ligne ' + (i + 1)} » vendue à perte : marge ${pct(Math.round((tl.ht - cout) / tl.ht * 100))} %`, '']);
@@ -8506,7 +8545,7 @@
         $$('[data-marge]').forEach(m => {
           const i = Number(m.dataset.marge), l = doc.lines[i], tl = t.lines[i];
           const cout = l && tl ? C.lineCost(l, data, doc, company()) : 0;
-          const taux = cout > 0 && tl.ht > 0 ? Math.round((tl.ht - cout) / tl.ht * 100) : null;
+          const taux = !isAv && cout > 0 && tl.ht > 0 ? Math.round((tl.ht - cout) / tl.ht * 100) : null;
           m.textContent = taux == null ? '' : `marge ${pct(taux)} %${taux < 0 ? ' · tu vends à perte' : ''}`;
           m.classList.toggle('alerte', taux != null && taux < 0);
         });
@@ -9020,7 +9059,12 @@
     };
     if ($('#serials')) $('#serials').onclick = () => serialAssignForm(docById(doc.id) || doc, () => render(true));
     // Le geste des numéros de série sous une ligne (les lignes se redessinent : on écoute le tableau, qui reste).
-    if ($('#lines')) $('#lines').addEventListener('click', e => { if (e.target.closest('[data-series]')) serialAssignForm(docById(doc.id) || doc, () => render(true)); });
+    if ($('#lines')) $('#lines').addEventListener('click', e => {
+      if (e.target.closest('[data-series]')) serialAssignForm(docById(doc.id) || doc, () => render(true));
+      const rt = e.target.closest('[data-retour]');
+      const l = rt && !figee ? (doc.lines || [])[Number(rt.dataset.retour)] : null;
+      if (l) { if (l.sansRetour) delete l.sansRetour; else l.sansRetour = true; touch(); drawLines(); }
+    });
     if ($('#bill-btn')) $('#bill-btn').onclick = e => { e.stopPropagation(); const l = $('#bill-list'); const open = l.hidden; closeMenus(); l.hidden = !open; };
     $$('#bill-list button:not(.i)').forEach(b => b.addEventListener('click', () => { $('#bill-list').hidden = true; }));
     $('#pdf').onclick = async () => {
@@ -10011,7 +10055,20 @@
         const c = $('[name="applyStamp"]', head); if (!c) return;
         c.checked = avec; c.dispatchEvent(new Event('change', { bubbles: true }));
       };
+      // (1.362.4, bout en bout 28) Le motif dit si la marchandise revient : « Retour de marchandise » et « Annulation totale »
+      // la remettent en stock, une remise, une erreur de prix ou une prestation non faite non. Chaque ligne se change ensuite.
+      const SANS_RETOUR = { 'Retour de marchandise': false, 'Annulation totale': false, 'Remise accordée': true, 'Erreur de prix': true, 'Prestation non faite': true };
       $$('[data-motif]', pq).forEach(b => b.onclick = () => {
+        if (b.dataset.motif in SANS_RETOUR) {
+          let change = false;
+          (doc.lines || []).forEach(l => {
+            const it = C.itemOfLine(l, data);
+            if (!it || !it.tracked || !!l.sansRetour === SANS_RETOUR[b.dataset.motif]) return;
+            if (SANS_RETOUR[b.dataset.motif]) l.sansRetour = true; else delete l.sansRetour;
+            change = true;
+          });
+          if (change) drawLines();
+        }
         const fa = doc.creditOf ? docById(doc.creditOf) : null;
         if (b.dataset.motif === 'Annulation totale' && timbreDAnnulation(fa) && doc.applyStamp !== true) { timbreParMotif = true; timbreDeLAvoir(true); }
         else if (b.dataset.motif !== 'Annulation totale' && timbreParMotif) { timbreParMotif = false; timbreDeLAvoir(false); }
