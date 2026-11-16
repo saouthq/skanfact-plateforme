@@ -3894,6 +3894,12 @@ plus-value 766,667.
 - **« Il manque 8 mois… relancer le client »** s'affichait au-dessus de huit mois dits « sans activité » (1.362.5) :
   un mois que le client a clôturé sans une écriture n'est plus compté manquant.
 - Le serveur rend au Cabinet le jour d'entrée du bien (`entree`), lu sur la fiche du client. Rien de plus ne part.
+- Second cas joué à la souris : un four en service depuis le 01/03/2024 (10 000 DT, 5 ans), enregistré après la
+  clôture. Son entrée au 01/11/2026 : 22 = 10 000 ; 28 = 3 666,667 (2024 : 1 666,667 ; 2025 : 2 000) ; 12 = 6 333,333. Le
+  tableau de 2026 part bien d'un cumul au 01/01 de 3 666,667.
+- **Limite connue, laissée** : au Cabinet, l'entrée proposée porte les amortissements des exercices finis ; si le
+  comptable ouvre ensuite un de ces exercices et y passe les écritures d'inventaire, la dotation de cette année-là
+  s'écrirait une seconde fois. Les deux sont au brouillard et relues par lui ; à fermer dans un prochain lot.
 - Vu en passant, laissé : la fenêtre de sortie grandit de 15 px quand on saisit le prix (l'avertissement gagne une
   ligne). À VÉRIFIER avec un comptable : la contrepartie d'un bien entré sans facture (report à nouveau, compte 12) et
   la TVA à reverser sur une revente avant cinq ans, que la fenêtre signale déjà.
