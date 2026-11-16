@@ -7603,6 +7603,26 @@
     return { du: y + '-01', au: y + '-12' };
   }
 
+  // (1.369.0) Le rapport d'une balance lue dans un tableur (jumeau de celui du FEC, plateforme/fec.js).
+  function rapportBalanceHtml(fichier, b) {
+    const ligne = (x, y) => `<tr><td>${x}</td><td class="r nw">${y}</td></tr>`;
+    return `<p class="small muted">« ${esc(fichier)} », lu sur cet ordinateur : <b>rien n'est encore repris</b>.</p>
+      <table class="list compact" id="bal-rapport"><tbody>
+        ${ligne('Les comptes lus dans le fichier', esc(pl(b.comptes, 'compte')))}
+        ${ligne('Les colonnes prises', b.colonnes === 'soldes' ? 'les soldes (débiteur et créditeur)' : 'le débit moins le crédit de chaque compte')}
+        ${b.gestion ? ligne('Les charges et les produits (classes 6 et 7), pas repris', esc(pl(b.gestion, 'compte'))) : ''}
+        ${b.gestion && b.resultat ? ligne(`Leur résultat (${b.resultat > 0 ? 'un bénéfice' : 'une perte'}), reporté au compte ${esc(b.compteResultat)}`, esc(montant(Math.abs(b.resultat)))) : ''}
+        ${ligne('La balance d’ouverture', esc(pl(b.lignes, 'ligne')))}
+        ${ligne('Son total au débit', esc(montant(b.debit)))}
+        ${ligne('Son total au crédit', esc(montant(b.credit)))}
+      </tbody></table>
+      ${b.ecart ? `<p class="small err-inline mt" id="bal-ecart">Cette balance ne s’équilibre pas : il y a ${esc(montant(Math.abs(b.ecart)))} de plus au ${b.ecart > 0 ? 'débit' : 'crédit'}. Tu peux la reprendre et corriger la ligne en cause dans la fenêtre ; le livre ne se crée qu’une fois l’écart à zéro.</p>`
+    : '<p class="small ligne-ok mt" id="bal-ok"><span aria-hidden="true">✓</span> Elle s’équilibre : le débit égale le crédit.</p>'}
+      ${b.ignorees ? `<p class="small muted">${b.ignorees > 1 ? `${b.ignorees} lignes du fichier ne sont pas des comptes` : 'Une ligne du fichier n’est pas un compte'} : la liste suit.</p>` : ''}
+      ${b.gestion ? '<p class="small muted">Une balance de fin d’exercice porte encore ses charges et ses produits : ils n’ouvrent pas l’exercice suivant, c’est leur résultat qui se reporte (À VÉRIFIER : le compte, si le résultat est déjà affecté).</p>' : ''}
+      <p class="small muted">Ces lignes remplacent la balance de la fenêtre : relis-les, corrige-les si besoin, puis crée le livre.</p>`;
+  }
+
   // Les exercices qu'on peut ouvrir : ceux des paquets reçus, ceux que le cabinet TIENT (lus dans
   // l'index des livres), et celui qu'on regarde. 10.10.0 (C-12) : la liste ne connaissait que les
   // paquets — « Ouvrir 2027 » créait un livre qu'aucun écran ne permettait d'ouvrir, même après un
@@ -7621,13 +7641,23 @@
       const n = Number(K.today().slice(0, 4)); // l'année du CALENDRIER : partir de l'année choisie reculerait d'un an à chaque choix
       set.add(String(n)); set.add(String(n - 1));
     }
+    // (1.369.0) Et l'année d'AVANT le premier exercice connu reste offerte : un cabinet qui a ouvert 2026 sur la balance
+    // de son ancien logiciel veut encore y reprendre 2025 (son FEC, pour comparer et pour la liasse). Une fois le livre
+    // de 2026 créé, 2025 n'était plus proposé nulle part.
+    const connues = [...set].filter(y => /^\d{4}$/.test(y)).sort();
+    // Seulement quand ce premier exercice commence un 1er janvier : un client qui a démarré en cours d'année (son livre
+    // s'ouvre le jour de sa création) n'a pas d'année d'avant à reprendre.
+    const premier = (d.exercices || []).find(x => String(x.annee) === connues[0]);
+    if (connues.length && d.dossier && d.dossier.manual && premier && /-01-01$/.test(String(premier.du || ''))) set.add(String(Number(connues[0]) - 1));
     return [...set].filter(y => /^\d{4}$/.test(y)).sort().reverse();
   }
-  function exerciceConnu(annee) {
+  function exerciceConnu(annee, du) {
     const d = livresState.data;
     if (!d || d.erreur) return;
     d.exercices = d.exercices || [];
-    if (!d.exercices.some(x => String(x.annee) === String(annee))) d.exercices.push({ annee: String(annee), clos: false, ecritures: 0 });
+    const deja = d.exercices.find(x => String(x.annee) === String(annee));
+    if (deja) { if (du && !deja.du) deja.du = String(du); }
+    else d.exercices.push({ annee: String(annee), du: String(du || ''), clos: false, ecritures: 0 });
   }
   function majSelecteurExercice(root) {
     const sel = $('#lv-annee', root) || $('#lv-annee');
@@ -7984,6 +8014,9 @@
             if (r.annule) return;
             // (plateforme) Un FEC : ce qu'il porte et ce qui est repris, lu avant que la balance change (C61).
             if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
+            // (1.369.0) Une balance lue dans un tableur a son rapport aussi : ce que le fichier porte, ce qui est repris
+            // (les soldes, le résultat des classes 6 et 7 au compte 13), ce qui ne l'est pas — lu avant que la balance change.
+            if (r.balance && !(await confirmDialog('Reprendre les soldes de cette balance ?', rapportBalanceHtml(r.fichier, r.balance), 'Reprendre ces soldes'))) return;
             lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers || '', debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
             redessine();
             if (r.ignorees.length) await infoDialog('Lignes ignorées', r.ignorees.map(x => `Ligne ${x.ligne} : ${x.motif}`).join('\n'));
@@ -8002,7 +8035,7 @@
           try {
             const r = await api.reprendre({ dossierId: dossier.id, annee: Number(v.annee), du: v.du, au: v.au, ouverture: lire(), source: 'balance' });
             s.annee = v.annee; s.livre = r.livre; s.livreEtat = 'ouvert'; s.livreCle = dossier.id + '|' + v.annee; livresConnus.set(dossier.id, true);
-            exerciceConnu(v.annee);
+            exerciceConnu(v.annee, v.du);
             suivreExercice(dossier);
             close();
             // 10.14.1 — un livre qu'on vient de créer s'ouvre sur la SAISIE, par la porte qui tient

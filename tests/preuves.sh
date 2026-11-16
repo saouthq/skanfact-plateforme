@@ -29677,6 +29677,34 @@ prouver $'cabinet sans client 1.368.1 g : un matricule illisible laisse « Ajout
   $'if (bouton) bouton.disabled = false;' \
   $'une ligne fausse arrête tout ; la liste corrigée ajoute chaque client, un doublon est ignoré et nommé'
 
+prouver $'import 1.369.0 a : la balance d\'un autre logiciel est lue par ses mouvements, pas par ses soldes' modules/socle/moteur/compta-1.js \
+  $'const soldes = col.soldeDebit !== undefined && col.soldeCredit !== undefined;' \
+  $'const soldes = false;' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 b : « Intitulé du compte » n\'est pas reconnu, le nom du compte est perdu' modules/socle/moteur/compta-1.js \
+  $'\'intituleducompte\', ' \
+  $'' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 c : les charges et les produits d\'une balance de fin d\'année ouvrent l\'exercice suivant sans leur résultat' modules/socle/moteur/compta-1.js \
+  $'gestion = round3(gestion + solde); nb++;' \
+  $'nb++;' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 d : deux clients repris s\'appellent « Clients », deux banques « Banques »' modules/socle/moteur/compta-1.js \
+  $'L.filter(x => x.compte === l.compte).length === 1) nommerSousCompte(livre, l.compte, l.libelle);' \
+  $'L.filter(x => x.compte === l.compte).length === 1) void 0;' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 e : le sous-compte d\'un client repris ne porte pas son nom en tiers' modules/socle/moteur/compta-1.js \
+  $'l.tiers = txt(l.libelle).slice(0, 200);' \
+  $'void 0;' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 f : le livre de 2026 créé, l\'année d\'avant n\'est plus offerte nulle part' modules/socle/ecrans/cabinet/app-1.js \
+  $'/-01-01$/.test(String(premier.du || \'\'))) set.add(String(Number(connues[0]) - 1));' \
+  $'/-01-01$/.test(String(premier.du || \'\'))) void 0;' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
+prouver $'import 1.369.0 g : une année importée ne se valide que journal par journal ou mois par mois' modules/socle/ecrans/cabinet/app-2.js \
+  $'lotsBl.length > 2 && !lotsBl.some(l => l.n >= n)' \
+  $'lotsBl.length > 99 && !lotsBl.some(l => l.n >= n)' \
+  $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

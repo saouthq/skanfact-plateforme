@@ -1031,6 +1031,32 @@
   // Le nom d'un compte d'après le plan, par le plus LONG préfixe : `4366` donne « TVA déductible »
   // et pas « Tiers ». Rend `''` quand le plan ne connaît pas le numéro — c'est à l'appelant de
   // décider quoi mettre, et surtout pas à cette fonction d'inventer.
+  // (1.369.0) Ce numéro est-il, tel quel, un compte du plan ? « 411 » oui, « 41100001 » non : c'est un sous-compte,
+  // celui d'un client ou d'une banque, et le nom que lui donnait l'ancien logiciel du cabinet est le sien.
+  function estAuPlan(compte) {
+    const n = String(compte || '').trim();
+    return !!n && PLAN_COMPTABLE.some(([p]) => p === n);
+  }
+  // Le nom qu'une balance reprise donne à un sous-compte. Jamais celui d'un compte du plan (son nom est celui du plan),
+  // jamais depuis une écriture de tous les jours (son libellé dit l'opération, pas le compte : règle 9.8.5).
+  function nommerSousCompte(livre, compte, libelle) {
+    const n = String(compte || '').trim(), nom = String(libelle || '').trim();
+    if (!n || !nom || estAuPlan(n)) return null;
+    let c = livre.plan.find(x => x.compte === n);
+    if (!c) { c = { compte: n, libelle: nom, nature: natureDeCompte(n), source: 'reprise' }; livre.plan.push(c); }
+    else if (c.source !== 'cabinet') { c.libelle = nom; c.source = 'reprise'; }
+    return c;
+  }
+  // Les comptes d'une écriture entrent au plan du livre ; celle qui reprend une balance d'ouverture (`reprise`) nomme en
+  // plus ses sous-comptes. Un collectif repris tiers par tiers (un FEC : « Pièces Auto Sfax — non lettré ») garde le nom
+  // du plan : son libellé dit le tiers, pas le compte. Un sous-compte n'a qu'une ligne, et son libellé est son nom.
+  function comptesDeLEcriture(livre, e, reprise) {
+    const L = (e && e.lignes) || [];
+    L.forEach(l => {
+      if (reprise && l.libelle && l.libelle !== e.libelle && (!l.tiers || l.tiers === l.libelle) && L.filter(x => x.compte === l.compte).length === 1) nommerSousCompte(livre, l.compte, l.libelle);
+      assurerCompte(livre, l.compte, l.libelle);
+    });
+  }
   function libelleDuPlan(compte) {
     const n = String(compte || '').trim();
     if (!n) return '';
@@ -2343,28 +2369,82 @@
   function balanceDepuisCsv(rows) {
     const r = Array.isArray(rows) ? rows : [];
     if (!r.length) return { lignes: [], ignorees: [], motif: 'Le fichier est vide.' };
+    // (1.369.0) Une balance sortie d'un autre logiciel porte souvent les MOUVEMENTS et les SOLDES côte à côte
+    // (« Total débit, Total crédit, Solde débiteur, Solde créditeur ») : ce qui ouvre un livre, ce sont les soldes. On
+    // les prend quand ils sont là ; sinon les deux colonnes de mouvements, et chaque compte ouvre de son solde (le
+    // débit moins le crédit), jamais des deux côtés à la fois. Les titres se lisent aussi dans leur forme longue
+    // (« N° de compte », « Intitulé du compte »).
     const ALIAS = {
-      compte: ['compte', 'numero', 'numerodecompte', 'ncompte', 'code'],
-      libelle: ['libelle', 'intitule', 'nom', 'designation'],
-      debit: ['debit', 'soldedebit', 'debiteur', 'soldedebiteur'],
-      credit: ['credit', 'soldecredit', 'crediteur', 'soldecrediteur']
+      compte: ['compte', 'numero', 'numerodecompte', 'numerocompte', 'numcompte', 'ncompte', 'ndecompte', 'nodecompte', 'nocompte', 'code', 'comptegeneral'],
+      libelle: ['libelle', 'intitule', 'nom', 'designation', 'intituleducompte', 'libelleducompte', 'intitulecompte', 'libellecompte', 'nomducompte'],
+      soldeDebit: ['soldedebit', 'debiteur', 'soldedebiteur', 'soldesdebiteurs', 'soldedebiteurs', 'soldefindebit', 'soldefinaldebit'],
+      soldeCredit: ['soldecredit', 'crediteur', 'soldecrediteur', 'soldescrediteurs', 'soldecrediteurs', 'soldefincredit', 'soldefinalcredit'],
+      debit: ['debit', 'totaldebit', 'mouvementdebit', 'mouvementsdebit', 'cumuldebit', 'totaldebits'],
+      credit: ['credit', 'totalcredit', 'mouvementcredit', 'mouvementscredit', 'cumulcredit', 'totalcredits']
     };
+    const paires = c => (c.soldeDebit !== undefined && c.soldeCredit !== undefined) || (c.debit !== undefined && c.credit !== undefined);
     // « Balance générale au 31/12/2025 » au-dessus du tableau : on cherche la ligne des titres (IMP-01).
-    const h = ligneDEntete(r, l => { const c = colonnesPar(l, ALIAS); return c.compte !== undefined && c.debit !== undefined && c.credit !== undefined; });
+    const h = ligneDEntete(r, l => { const c = colonnesPar(l, ALIAS); return c.compte !== undefined && paires(c); });
     const col = colonnesPar(r[h], ALIAS);
-    if (col.compte === undefined || col.debit === undefined || col.credit === undefined) {
-      return { lignes: [], ignorees: [], motif: 'Il faut les colonnes « Compte », « Débit » et « Crédit ».' };
+    if (col.compte === undefined || !paires(col)) {
+      return { lignes: [], ignorees: [], motif: 'Il faut les colonnes « Compte », « Débit » et « Crédit » (ou « Solde débiteur » et « Solde créditeur »).' };
     }
+    const soldes = col.soldeDebit !== undefined && col.soldeCredit !== undefined;
+    const cd = soldes ? col.soldeDebit : col.debit, cc = soldes ? col.soldeCredit : col.credit;
     const lignes = [], ignorees = [];
     r.slice(h + 1).forEach((ligne, i) => {
       const n = String(ligne[col.compte] || '').trim();
       if (!n || ligneDeTotal(n)) return;                     // « Total général » : un total, pas un compte
+      if (col.libelle !== undefined && ligneDeTotal(String(ligne[col.libelle] || '').trim()) && !/^\d/.test(n)) return;
       if (!/^\d{1,12}$/.test(n)) { ignorees.push({ ligne: ligne.no || (h + i + 2), motif: `« ${n} » n'est pas un numéro de compte`, valeur: n }); return; }
-      const d = nombreDepuisCsv(ligne[col.debit]), c = nombreDepuisCsv(ligne[col.credit]);
-      if (!d && !c) return;                                    // un compte à zéro n'ouvre rien
-      lignes.push({ compte: n, libelle: col.libelle !== undefined ? String(ligne[col.libelle] || '').trim() : '', debit: round3(d), credit: round3(c) });
+      const d = nombreDepuisCsv(ligne[cd]), c = nombreDepuisCsv(ligne[cc]);
+      const solde = round3(d - c);
+      if (!solde) return;                                      // un compte à zéro n'ouvre rien
+      lignes.push({ compte: n, libelle: col.libelle !== undefined ? String(ligne[col.libelle] || '').trim() : '', debit: solde > 0 ? solde : 0, credit: solde < 0 ? round3(-solde) : 0 });
     });
-    return { lignes, ignorees, motif: '' };
+    return { lignes, ignorees, motif: '', colonnes: soldes ? 'soldes' : 'mouvements' };
+  }
+
+  // (1.369.0) La reprise d'une balance lue dans un tableur, d'un bloc : ses lignes d'ouverture, et ce que l'écran en dit
+  // avant de changer la balance de la fenêtre (`balance`). Un sous-compte de client ou de fournisseur porte le nom de
+  // ce tiers : la ligne d'ouverture le garde (lettrage, balance par tiers), comme les à-nouveaux d'un FEC.
+  function repriseDepuisBalance(rows, fichier) {
+    const r = balanceDepuisCsv(rows);
+    if (r.motif) return { motif: r.motif };
+    if (!r.lignes.length) return { motif: `« ${txt(fichier)} » ne porte aucun compte avec un solde : rien n'est repris. Vérifie que c'est bien une balance (une ligne par compte, ses colonnes « Débit » et « Crédit » ou « Solde débiteur » et « Solde créditeur »).` };
+    const o = ouvertureDepuisBalance(r.lignes);
+    o.lignes.forEach(l => { const c = txt(l.compte); if (/^(411|401)\d+$/.test(c) && l.libelle && !l.tiers) l.tiers = txt(l.libelle).slice(0, 200); });
+    return { motif: '', lignes: o.lignes, ignorees: r.ignorees, balance: { comptes: r.lignes.length, colonnes: r.colonnes, ignorees: r.ignorees.length, gestion: o.gestion, resultat: o.resultat, compteResultat: o.compteResultat, debit: o.debit, credit: o.credit, ecart: o.ecart, lignes: o.lignes.length } };
+  }
+
+  // (1.369.0) Une balance de fin d'exercice, sortie avant l'affectation du résultat, porte encore les comptes de charges
+  // et de produits (classes 6 et 7). Ils n'ouvrent pas l'exercice suivant : leur net est le résultat, qui se reporte au
+  // compte de résultat (13), exactement comme la clôture le fait (`anouveauxDe`). Pure : rend les lignes d'ouverture et
+  // ce qui a été replié, pour que la fenêtre le dise avant de changer la balance.
+  function ouvertureDepuisBalance(lignes, o) {
+    const compteResultat = txt(o && o.compteResultat) || '13';
+    const L = Array.isArray(lignes) ? lignes : [];
+    let gestion = 0, charges = 0, produits = 0, nb = 0;
+    const out = [];
+    L.forEach(l => {
+      const c = txt(l.compte).charAt(0);
+      if (c === '6' || c === '7') {
+        const solde = round3((Number(l.debit) || 0) - (Number(l.credit) || 0));
+        gestion = round3(gestion + solde); nb++;
+        if (c === '6') charges = round3(charges + solde); else produits = round3(produits - solde);
+        return;
+      }
+      out.push({ ...l });
+    });
+    const resultat = round3(-gestion);                          // un bénéfice est créditeur
+    if (nb && resultat) {
+      const deja = out.find(l => txt(l.compte) === compteResultat);
+      const net = round3((deja ? (Number(deja.credit) || 0) - (Number(deja.debit) || 0) : 0) + resultat);
+      const ligne = { compte: compteResultat, libelle: deja && deja.libelle || 'Résultat de l\'exercice', debit: net < 0 ? round3(-net) : 0, credit: net > 0 ? net : 0 };
+      if (deja) Object.assign(deja, ligne); else out.push(ligne);
+    }
+    const debit = round3(out.reduce((t, l) => t + (Number(l.debit) || 0), 0)), credit = round3(out.reduce((t, l) => t + (Number(l.credit) || 0), 0));
+    return { lignes: out.filter(l => (Number(l.debit) || 0) || (Number(l.credit) || 0)), gestion: nb, charges, produits, resultat, compteResultat, debit, credit, ecart: round3(debit - credit) };
   }
 
   // ============================================================================ LA BANQUE (9.5.0)

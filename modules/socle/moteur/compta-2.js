@@ -103,7 +103,7 @@
     natureDeCompte, livreVide, exerciceDeReprise, isValidLivre, livreVersionInconnue, assurerCompte,
     ajouterEcriture, validerEcriture, contrepasser, importerPaquet, piecesDepuisLignes,
     lettrer, delettrer, prochaineLettre, balanceOuverture, lignesDuLivre,
-    planDepuisCsv, balanceDepuisCsv,
+    planDepuisCsv, balanceDepuisCsv, ouvertureDepuisBalance, repriseDepuisBalance, estAuPlan, nommerSousCompte, comptesDeLEcriture,
     // La saisie (9.3.0)
     premierDuMoisSuivant, ajouterMoisIso, sansAccents, soldeDeLignes, comptesQuiCorrespondent, comptesProposables, MOTS_COURANTS, motsCourantsDe,
     modifierEcriture, supprimerEcriture, analyserImportEcritures, appliquerImportEcritures, lireFichierTexte, texteDeClasseur, rangeesDeTexte, separateurCsv, validerLot, extourner, prevoirExtourne, chercherEcritures, ceQuePorte,

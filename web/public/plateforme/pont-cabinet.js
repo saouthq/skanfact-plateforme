@@ -495,7 +495,7 @@
     const annees = [...new Set(mois.map((m) => m.slice(0, 4)))].sort();
     return {
       mois,
-      exercices: annees.map((a) => ({ annee: a, clos: !!(ouverts.find((x) => String(x.annee) === a) || {}).closLe, ecritures: toutes.filter((e) => String(e.date).startsWith(a)).length })),
+      exercices: annees.map((a) => ({ annee: a, du: String((ouverts.find((x) => String(x.annee) === a) || {}).du || ''), clos: !!(ouverts.find((x) => String(x.annee) === a) || {}).closLe, ecritures: toutes.filter((e) => String(e.date).startsWith(a)).length })),
     };
   }
   const nombre = (/** @type {string} */ v) => Number(v) || 0;
@@ -540,8 +540,8 @@
           ligneId: l.id, compte: l.compte, tiersId: l.tiersId || e.tiers || (l.tiers ? parSonNom(l.tiers) : null), tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
         })),
       });
+      KC.comptesDeLEcriture(livre, e, e.piece === 'OUVERTURE' && !e.contrepassee && e.origine.type !== 'contre_passation'); // (1.369.0) une balance reprise nomme ses sous-comptes
       for (const l of e.lignes) {
-        KC.assurerCompte(livre, l.compte, l.libelle);
         if (!l.lettre) continue;
         const g = lettrages.get(l.lettre) || { lettre: String(l.lettre), compte: String(l.compte), ecritures: /** @type {string[]} */ ([]), le: '', par: '' };
         if (!g.ecritures.includes(e.id)) g.ecritures.push(e.id);
@@ -1598,9 +1598,8 @@
       await exercicesDe(o.dossierId);
       return { livre: await livreDe(o.dossierId, o.annee) };
     },
-    // Une balance d'ouverture lue dans un classeur Excel ou un CSV, choisi sur l'ordinateur : la
-    // lecture est celle de la v10 (compta.js) ; rien ne part au serveur avant que la fenêtre l'envoie
-    // (« Créer le livre », « Ouvrir l'exercice »), et seulement ses lignes.
+    // Une balance d'ouverture lue dans un classeur Excel ou un CSV, choisi sur l'ordinateur (lecture : compta.js) ; rien
+    // ne part au serveur avant que la fenêtre l'envoie (« Créer le livre », « Ouvrir l'exercice »), et seulement ses lignes.
     // Un FEC (C61) : ses soldes au premier jour du livre (`o.du`), par la règle de la clôture, recomptés sur
     // le fichier (plateforme/fec.js) ; et son rapport, que la fenêtre montre avant de changer la balance.
     importerBalance: async (/** @type {any} */ o = {}) => {
@@ -1617,9 +1616,9 @@
         if (!r.ok) throw new Error(r.motif);
         return { lignes: r.lignes, ignorees: [], fichier: f.name, rapport: FEC.rapport(r, f.name) };
       }
-      const r = KC.balanceDepuisCsv(KC.rangeesDeTexte(texte));
+      const r = KC.repriseDepuisBalance(KC.rangeesDeTexte(texte), f.name); // (1.369.0) les soldes, le résultat des classes 6 et 7 au compte 13, le nom des tiers : au moteur
       if (r.motif) throw new Error(r.motif);
-      return { lignes: r.lignes, ignorees: r.ignorees, fichier: f.name };
+      return { lignes: r.lignes, ignorees: r.ignorees, fichier: f.name, balance: r.balance };
     },
 
     // ── Les fichiers du livre (brique 39 bis) : le tableau CSV (le BOM que la v10 posait, pour Excel
@@ -2594,8 +2593,7 @@
     // Une liste de clients collée (brique 52 ; docs/cabinet.md, C42) : lue par la v10 (parseDossierLines,
     // les doublons écartés et nommés), chaque ligne contrôlée AVANT d'écrire (un matricule que le serveur
     // refuserait arrête tout, rien n'est ajouté), puis chaque client créé comme par « Nouveau client ».
-    // (1.368.1) L'aperçu de la liste collée pose la même question que l'ajout, AVANT de valider.
-    matriculeLisible: (/** @type {unknown} */ v) => mfLisible(v) !== null,
+    matriculeLisible: (/** @type {unknown} */ v) => mfLisible(v) !== null, // (1.368.1) l'aperçu de la liste collée le demande avant de valider
     importDossiers: async (/** @type {string} */ texte) => {
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
       const etat = await construireEtat();

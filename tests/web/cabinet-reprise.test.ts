@@ -66,6 +66,11 @@ describe('la reprise d\'un client, à la souris', () => {
   const choisir = async (p: Page, nom: string, octets: Buffer) => {
     const [fenetre] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#rf-csv').click()]);
     await fenetre.setFiles({ name: nom, mimeType: nom.endsWith('.csv') ? 'text/csv' : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: octets });
+    // (1.369.0) Une balance lue montre d'abord son rapport (« Reprendre les soldes de cette balance ? ») ; un fichier
+    // refusé montre son refus. On accepte le rapport quand c'est lui qui s'ouvre.
+    const accepter = p.getByRole('button', { name: 'Reprendre ces soldes', exact: true });
+    await expect.poll(async () => (await accepter.count()) + (await p.locator('#modal-root .modal').count() > 1 ? 1 : 0), { timeout: 10_000 }).toBeGreaterThan(0);
+    if (await accepter.count()) await accepter.click();
   };
 
   it('un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste', async () => {

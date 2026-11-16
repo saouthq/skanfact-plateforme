@@ -3955,7 +3955,7 @@
             nombre d'écritures ; il dit « 8 choix ». */''}
       ${brouillards.length ? `${r.validerParLot && peutValiderCl(dossier) && lotsBl.length ? (lots => mSx || lotsBl.length > 3
           ? `<details class="sa-lot-plus" id="sa-lot-plus"><summary>${mSx ? 'Valider un autre lot' : 'Valider par lot'} <span class="mu">· ${pl((lots.match(/<button/g) || []).length, 'choix', 'choix')}, par journal ou par mois</span></summary><div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div></details>`
-          : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')) : ''}
+          : `<div class="sa-lot">${lots}<span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>`)(`${(n => lotsBl.length > 2 && !lotsBl.some(l => l.n >= n) ? `<button type="button" class="btn btn-sm" data-lot-tout id="sa-lot-tout" title="Une année reprise d'un autre logiciel se valide d'un geste : la fenêtre liste ce qui part, et ce qui ne tombe pas juste reste au brouillard">Tout le brouillard (${n})</button>` : '')(brouillards.filter(e => String(e.date || '') <= K.today()).length)}${lotsBl.map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}`) : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
         <div class="scroll-x"><table class="list compact sx-bl"><thead><tr>
@@ -4447,6 +4447,7 @@
 
     $$('[data-lot-journal]', el).forEach(b => { b.onclick = () => validerUnLot(root, dossier, { journal: b.dataset.lotJournal }); });
     $$('[data-lot-mois]', el).forEach(b => { b.onclick = () => validerUnLot(root, dossier, { mois: b.dataset.lotMois }); });
+    $$('[data-lot-tout]', el).forEach(b => { b.onclick = () => validerUnLot(root, dossier, { tout: true }); });
     const blTout = $('#sx-bl-tout', el); if (blTout) blTout.onclick = () => { sxState.blTout = !sxState.blTout; livresState.page = 1; pageFocus = 'sa-brouillard'; drawLivres(root, dossier); };
     // (1.212.0) « Guides » : la grille au clavier, le choix du guide ouvert.
     const gd = $('#sx-guides', el); if (gd) gd.onclick = () => { sxState.mode = 'km'; drawLivres(root, dossier); const g = $('#sa-guide'); if (g) { g.focus(); g.scrollIntoView({ block: 'center' }); if (typeof g.showPicker === 'function') { try { g.showPicker(); } catch { /* sans geste direct : le champ a le curseur */ } } } };
@@ -4541,7 +4542,7 @@
     if (!cibles.length) { await infoDialog('Rien à valider', enDemande.length ? `${enDemande.map(e => e.piece || e.libelle).join(', ')} : sa date est demandée au client ; elle se validera une fois corrigée.` : 'Aucune écriture en brouillard ne correspond.'); return; }
     if (await refusLicence('Valider un lot d\'écritures')) return;
     // (1.217.0, maquette) « de septembre » : l'exercice est déjà dans la page.
-    const quoi = filtre.journal ? `du journal ${filtre.journal}` : String(filtre.mois).slice(0, 4) === String(s.annee) ? deMois(filtre.mois) : KC.deMois(moisLabelCourt(filtre.mois));
+    const quoi = filtre.tout ? 'du brouillard' : filtre.journal ? `du journal ${filtre.journal}` : String(filtre.mois).slice(0, 4) === String(s.annee) ? deMois(filtre.mois) : KC.deMois(moisLabelCourt(filtre.mois));
     // L'accord suit le nombre (10.12.0, vu au test humain) : « Chacune… Celles qui… » sous « Valider
     // 1 écriture » se lisait comme un modèle de phrase qu'on n'a pas fini de remplir.
     const une = cibles.length === 1;

@@ -4077,3 +4077,32 @@ muettes, visent ses règles.
 **Pas rejoué ce jour-là :** l'inscription à la souris (compte créé par l'interface du serveur), le double facteur,
 les courriels, le téléphone ; et les quarante-huit appels propres à l'application de bureau, dont on n'a pas vérifié
 qu'aucun bouton ne reste à l'écran.
+
+### 1.369.0 : tout importer le premier jour (le Cabinet d'un comptable qui arrive d'un autre logiciel)
+
+Skander : « vérifie qu'on peut bien tout importer le premier jour et exporter ». Joué à la souris sur le cabinet
+neuf, avec de vrais fichiers : une balance Excel de fin d'année, un journal CSV en Windows-1252, un FEC d'un an.
+
+- **La balance d'un autre logiciel** se lit par ses SOLDES quand le fichier porte aussi les mouvements, ses titres
+  longs sont reconnus (« N° de compte », « Intitulé du compte »), et chaque compte ouvre d'un seul côté. Avant, les
+  intitulés étaient perdus, et une balance « Débit, Crédit, Solde débiteur, Solde créditeur » risquait d'ouvrir le
+  livre sur ses mouvements.
+- **Une balance de fin d'année** porte encore ses charges et ses produits : ils ne sont pas repris, et leur résultat
+  va au compte 13 (À VÉRIFIER : le compte, si le résultat est déjà affecté). Un rapport le dit AVANT que la balance
+  de la fenêtre change : comptes lus, colonnes prises, résultat reporté, total au débit et au crédit, équilibre.
+- **Les sous-comptes gardent leur nom** : « 41100001 Client CNAM », « 53200000 BIAT ». Deux clients s'appelaient
+  « Clients », deux banques « Banques ». Le sous-compte d'un client ou d'un fournisseur porte aussi son nom en tiers.
+- **L'année d'avant reste offerte** : après avoir ouvert 2026 sur la balance, on peut encore ouvrir 2025 pour y
+  reprendre l'historique (un FEC). Elle n'était plus proposée nulle part.
+- **« Tout le brouillard »** : une année importée (36 écritures) se valide d'un geste ; il fallait douze mois ou trois
+  journaux. Le bouton ne paraît que s'il valide plus qu'un lot seul.
+- Le menu d'une ligne se referme quand on change d'écran par « Précédent ».
+- **Vérifié sans rien changer** : le journal CSV en Windows-1252 (accents, dates JJ/MM/AAAA, virgules), le FEC en
+  balance d'ouverture et en historique, l'aller-retour FEC (99 lignes, 127 098,000 au débit et au crédit, à
+  l'identique), l'export de la balance.
+- Les règles neuves vivent dans le moteur (`modules/socle/moteur/compta-1.js`), pas dans le pont, qui retrouve sa
+  limite de taille (le rouge GitHub de la 1.368.1).
+- Sept preuves « import 1.369.0 a–g ».
+
+**Ce qui manque encore à l'import** : une liste de salariés et un tableau d'immobilisations à coller (aujourd'hui,
+un par un).

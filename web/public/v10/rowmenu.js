@@ -229,6 +229,7 @@
       document.removeEventListener('mousedown', dehors, true);
       document.removeEventListener('keydown', clavier, true);
       window.removeEventListener('resize', close);
+      window.removeEventListener('hashchange', close);
       if (scroller) scroller.removeEventListener('scroll', siDefile);
       if (registre.lire() === close) registre.poser(null);
       // Sous condition : `close` peut être rappelé (redimensionnement puis clic) alors qu'un AUTRE
@@ -253,6 +254,8 @@
     document.addEventListener('mousedown', dehors, true);
     document.addEventListener('keydown', clavier, true);
     window.addEventListener('resize', close);
+    // (1.369.0) « Précédent » du navigateur change d'écran sans un clic : le menu restait ouvert, posé sur l'écran suivant.
+    window.addEventListener('hashchange', close);
     if (scroller) scroller.addEventListener('scroll', siDefile);
     registre.poser(close);
     // On ferme AVANT d'exécuter : une action qui ouvre une fenêtre laisserait sinon le menu dessous,
