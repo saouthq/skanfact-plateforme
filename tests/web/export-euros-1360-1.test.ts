@@ -152,6 +152,9 @@ describe('une vente en euros à l\'export, réglée à un autre taux (1.360.1)',
     expect(await taux.inputValue()).toBe('3,412');
     const hauteur = async () => Math.round((await fenetre().locator('#ok').boundingBox())?.y ?? -1);
     const neutre = await hauteur();
+    // (1.368.0, rouge GitHub de c785121) La fenêtre pose le curseur dans « Montant » un instant après s'être ouverte :
+    // un taux tapé à ce moment-là partait dans le montant. On attend que le curseur y soit, puis on écrit le taux.
+    await expect.poll(async () => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name ?? ''), { timeout: 10_000 }).toBe('amount');
     await taux.fill('3,380');
     await expect.poll(async () => net(await fenetre().locator('#rg-change').innerText().catch(() => '')), { timeout: 5_000 }).toContain('perte de change de 80,000 DT');
     expect(await hauteur()).toBe(neutre);

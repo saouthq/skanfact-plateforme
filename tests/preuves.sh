@@ -29631,6 +29631,23 @@ prouver $'cohérence 1.367.1 a : au téléphone, une zone de texte ou un sélect
   $'@media (max-width: 760px) { #inconnu textarea, #inconnu select { font-size: 16px; } }' \
   $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
 
+prouver $'cohérence 1.368.0 a : un onglet reprend une autre hauteur que celle de la maison (36 px pour 40)' web/public/plateforme/charte.css \
+  $'height: 40px; min-height: 40px; margin: 0; padding: 0 14px;' \
+  $'height: 36px; min-height: 36px; margin: 0; padding: 0 14px;' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.368.0 b : une vue reprend une autre hauteur (29 px pour 26) — le segment d\'une page ne ressemble plus à celui d\'une autre' web/public/plateforme/charte.css \
+  $'height: 26px; min-height: 26px; margin: 0; padding: 0 12px;' \
+  $'height: 29px; min-height: 29px; margin: 0; padding: 0 12px;' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.368.0 c : un filtre perd sa forme de pastille (coins de 8 px) et se confond avec une vue' web/public/plateforme/charte.css \
+  $'border: 1px solid var(--sb-trait); border-radius: 999px; background: var(--sb-papier);' \
+  $'border: 1px solid var(--sb-trait); border-radius: 8px; background: var(--sb-papier);' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.368.0 d : au téléphone, une vue repasse sous la hauteur du doigt (38 px pour 44)' web/public/plateforme/charte.css \
+  $'.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 44px; min-height: 44px; }' \
+  $'.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 38px; min-height: 38px; }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

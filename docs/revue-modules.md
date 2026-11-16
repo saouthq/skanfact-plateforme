@@ -4018,3 +4018,29 @@ La dette nommée par la 1.367.0 est résorbée : les zones de texte (notes d'une
 et les sélecteurs restés à 13,5 px (statistiques, comptabilité, mois de la paie du Cabinet) passent à 16 px sous
 760 px de large, comme les autres champs. Les écrans ne débordent pas (tests de rendu à 390 px rejoués). Il ne reste
 plus aucune dette de forme, ni à l'ordinateur ni au téléphone. Une preuve « cohérence 1.367.1 a ».
+
+### 1.368.0 : onglets, vues, filtres — trois composants, les mêmes dans les deux applications
+
+Demande de Skander : « on a 3 différents des fois, donc pas cohérent ». Le relevé en a trouvé quatre familles et une
+vingtaine de variantes ; la même forme voulait dire « filtrer » sur un écran et « changer d'écran » sur un autre.
+Maquette validée le 16/11/2026, puis appliquée :
+
+- **Un onglet est souligné** (40 px, trait vert d'eau sous le choix actif, sur un filet) : Paramètres, Réglages du
+  Cabinet, Catalogue, Stock, Statistiques, Trésorerie, Comptabilité, Paie, fiche d'un client, pièces reçues, les
+  groupes de la comptabilité d'un dossier. Le segment noir a disparu.
+- **Une vue est un segment gris**, le choix actif en blanc, en deux tailles (26 px pour une page, 22 px dans une
+  liste) : factures / en retard, les genres d'une liste, HT / TTC d'une facture, les sous-écrans de la comptabilité
+  d'un dossier, « Les miens / Tous ».
+- **Un filtre est une pastille** avec son nombre, le choix actif en vert doux : dossiers, tableau de bord, pièces
+  reçues, messages.
+- **Au doigt**, les trois font 44 px, et un rang trop long défile de côté au lieu de passer à la ligne.
+- **À part, et voulu** : les frises de calendrier (les mois d'un dossier, les jours de pointage) montrent un état par
+  case ; la caisse garde ses grandes touches.
+- Les groupes gardent leurs classes et leur comportement : seule la forme est ramenée à la charte
+  (`web/public/plateforme/charte.css`, bloc 1.368.0).
+- **La vérification de cohérence** gagne la famille « groupe de choix » : elle reconnaît le genre à la forme du choix
+  actif et refuse toute forme hors de ces trois, en clair, en sombre et au téléphone.
+- Au passage : le survol d'un bouton discret en sombre prend la teinte de la charte ; et le rouge intermittent de la
+  1.366.0 sur GitHub (vente en euros) venait du test, qui tapait parfois le taux pendant que la fenêtre posait le
+  curseur dans « Montant » — il attend maintenant le curseur.
+- Quatre preuves « cohérence 1.368.0 a–d ».

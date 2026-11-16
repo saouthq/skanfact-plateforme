@@ -1141,7 +1141,7 @@ body.dark input::placeholder, body.dark textarea::placeholder { color: #6f7c8c; 
    atténuations s'additionnent. */
 input::placeholder, textarea::placeholder { font-weight: 400; color: var(--muted); opacity: 1; }
 body.dark .btn { background: var(--ink-soft); color: var(--text); }
-body.dark .btn:hover { background: #2c3644; }
+body.dark .btn:hover { background: var(--sb-survol, #2c3644); }
 body.dark .btn-primary { background: var(--primary); color: #0b1512; }
 body.dark .btn-primary:hover { background: var(--primary-hover); }
 body.dark .btn-danger { background: var(--danger-soft); color: var(--danger); }

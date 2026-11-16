@@ -85,6 +85,17 @@
         "28px de haut, arrondi 8"
       ],
       "toleres": {}
+    },
+    "groupe de choix": {
+      "regle": [
+        "onglets : 40px de haut, arrondi 0, texte 13.5px gras 600",
+        "vues : 26px de haut, arrondi 8, texte 13px gras 600",
+        "vues : 22px de haut, arrondi 6, texte 12.5px gras 600",
+        "filtres : 32px de haut, arrondi plein, texte 13px gras 600"
+      ],
+      "toleres": {
+        "vues : 72px de haut, arrondi 12, texte 15px gras 400": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre"
+      }
     }
   },
   "cabinet": {
@@ -170,6 +181,18 @@
         "28px de haut, arrondi 8"
       ],
       "toleres": {}
+    },
+    "groupe de choix": {
+      "regle": [
+        "onglets : 40px de haut, arrondi 0, texte 13.5px gras 600",
+        "vues : 26px de haut, arrondi 8, texte 13px gras 600",
+        "vues : 22px de haut, arrondi 6, texte 12.5px gras 600",
+        "filtres : 32px de haut, arrondi plein, texte 13px gras 600"
+      ],
+      "toleres": {
+        "vues : 45px de haut, arrondi 0, texte 12.5px gras 600": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre",
+        "vues : 45px de haut, arrondi 10, texte 14px gras 400": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre"
+      }
     }
   },
   "entreprise · sombre": {
@@ -263,6 +286,17 @@
         "2"
       ],
       "toleres": {}
+    },
+    "groupe de choix": {
+      "regle": [
+        "onglets : 44px de haut, arrondi 0, texte 13.5px gras 600",
+        "vues : 44px de haut, arrondi 8, texte 13px gras 600",
+        "vues : 44px de haut, arrondi 6, texte 13px gras 600",
+        "filtres : 44px de haut, arrondi plein, texte 13px gras 600"
+      ],
+      "toleres": {
+        "vues : 71px de haut, arrondi 12, texte 15px gras 400": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre"
+      }
     }
   },
   "cabinet · sombre": {
@@ -358,6 +392,18 @@
         "15"
       ],
       "toleres": {}
+    },
+    "groupe de choix": {
+      "regle": [
+        "onglets : 44px de haut, arrondi 0, texte 13.5px gras 600",
+        "vues : 44px de haut, arrondi 8, texte 13px gras 600",
+        "vues : 44px de haut, arrondi 6, texte 13px gras 600",
+        "filtres : 44px de haut, arrondi plein, texte 13px gras 600"
+      ],
+      "toleres": {
+        "vues : 58px de haut, arrondi 0, texte 12.5px gras 600": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre",
+        "vues : 58px de haut, arrondi 10, texte 14px gras 400": "voulu — une frise de calendrier (les mois d'un dossier, les jours de pointage) : elle montre un état par case, ce n'est ni un onglet ni un filtre"
+      }
     }
   }
 }

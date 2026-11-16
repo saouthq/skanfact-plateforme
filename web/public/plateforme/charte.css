@@ -229,3 +229,50 @@ body { --warning: var(--sb-ambre-texte); }
 /* 1.367.1 — au téléphone, une zone de texte et un sélecteur s'écrivent à 16 px comme les autres champs : en dessous,
    l'écran d'un téléphone zoome à la saisie et la page se retrouve décalée. */
 @media (max-width: 760px) { #view textarea, #view select { font-size: 16px; } }
+/* ── 1.368.0 — Onglets, vues, filtres : trois composants, un rôle chacun, les mêmes dans les deux applications ──
+   La forme dit le geste (maquette validée le 16/11/2026). Un SOULIGNÉ change de partie de la page. Un SEGMENT change de
+   vue sur le même sujet. Une PASTILLE filtre la liste. Avant : quatre dessins et une vingtaine de variantes, et la même
+   forme voulait dire « filtrer » sur un écran, « changer d'écran » sur un autre. Les groupes gardent leurs classes et
+   leur comportement ; seule la forme est ramenée ici. Le choix actif se lit partout sur les mêmes quatre marques.
+   Restent à part : les frises de calendrier (.cp-an, .ptj-nav) — des états, pas des onglets — et la caisse (au doigt). */
+/* 1 · Les onglets : soulignés, sur un filet. */
+#view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) {
+  display: flex; flex-wrap: nowrap; gap: 4px; width: auto; max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: inset 0 -1px 0 var(--sb-trait); overflow-x: auto; scrollbar-width: none; }
+#view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) > :is(button, a) {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; height: 40px; min-height: 40px; margin: 0; padding: 0 14px; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; box-shadow: none;
+  font-size: 13.5px; font-weight: 600; color: var(--sb-gris); white-space: nowrap; text-decoration: none; }
+#view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) > :is(button, a):hover { color: var(--sb-encre); background: none; }
+#view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) > :is(.active, .ed-seg > .on, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"]) {
+  color: var(--sb-encre); border-bottom-color: var(--sb-sarcelle); background: none; box-shadow: none; }
+/* La comptabilité d'un dossier (Cabinet) : les deux niveaux étaient côte à côte dans une carte ; ils se suivent, comme partout. */
+#view .cp-modele .c-nav { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#view .cp-modele .c-nav > #c-groupes { justify-self: stretch; }
+/* 2 · Les vues : un segment gris, le choix actif en blanc. Deux tailles. */
+#view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) {
+  display: inline-flex; flex-wrap: nowrap; gap: 2px; width: auto; max-width: 100%; padding: 3px; border: 0; border-radius: 10px; background: var(--sb-survol); box-shadow: none; overflow-x: auto; scrollbar-width: none; }
+#view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 26px; min-height: 26px; margin: 0; padding: 0 12px; border: 0; border-radius: 8px; background: transparent; box-shadow: none;
+  font-size: 13px; font-weight: 600; color: var(--sb-gris); white-space: nowrap; text-decoration: none; }
+#view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a):hover { color: var(--sb-encre); }
+#view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) > :is(.active, .ed-seg > .on, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"]) {
+  background: var(--sb-actif); color: var(--sb-encre); box-shadow: var(--sb-actif-ombre); }
+#view#view :is(.segment.petit, .portee, .ec-vue, .msg-onglets, .ptj-seg) { padding: 2px; border-radius: 8px; }
+#view#view :is(.segment.petit, .portee, .ec-vue, .msg-onglets, .ptj-seg) > :is(button, a) { height: 22px; min-height: 22px; padding: 0 10px; border-radius: 6px; font-size: 12.5px; }
+/* (`#view#view` : la liste du segment porte un identifiant, la règle du petit doit peser plus qu'elle.) */
+/* 3 · Les filtres : des pastilles avec leur nombre, le choix actif en vert doux. */
+#view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+#view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) > :is(button, a) {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; height: 32px; min-height: 32px; margin: 0; padding: 0 12px; border: 1px solid var(--sb-trait); border-radius: 999px; background: var(--sb-papier); box-shadow: none;
+  font-size: 13px; font-weight: 600; color: var(--sb-encre); white-space: nowrap; text-decoration: none; }
+#view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) > :is(button, a):hover { border-color: var(--sb-trait-fort); }
+#view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) > :is(.active, .ed-seg > .on, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"]) {
+  background: var(--sb-doux); border-color: color-mix(in srgb, var(--sb-sarcelle) 32%, var(--sb-papier)); color: var(--sb-doux-texte); box-shadow: none; }
+/* Sous le doigt : 44 px ; un rang trop long défile de côté au lieu de passer à la ligne. */
+@media (max-width: 760px), (pointer: coarse) {
+  #view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) > :is(button, a) { height: 44px; min-height: 44px; }
+  #view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 44px; min-height: 44px; }
+  #view#view :is(.segment.petit, .portee, .ec-vue, .msg-onglets, .ptj-seg) > :is(button, a) { height: 44px; min-height: 44px; font-size: 13px; }
+  #view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  #view :is(.cd-vues, .tb-puces, .pc-fl, .msg-filtres, .pa-seg.filtre) > :is(button, a) { height: 44px; min-height: 44px; }
+}

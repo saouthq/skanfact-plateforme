@@ -118,6 +118,20 @@ export function releve(): Releve {
     if (rayon < 6 || (!trait && (!fond || fond === fondPage) && s.boxShadow === 'none')) continue;
     noter('carte', `arrondi ${rayon}, ${trait ? `trait ${px(s.borderTopWidth)}px` : 'sans trait'}, ${s.boxShadow === 'none' ? 'sans ombre' : 'ombre'}`, e);
   }
+  // Les groupes « un choix parmi plusieurs » (1.368.0) : onglets, vues, filtres. Trois formes, une par geste — la forme
+  // se lit sur le choix actif : souligné (un trait dessous, aucun dessus — l'écran réduit à 90 % l'amincit à 1 px) = un onglet, en pastille = un filtre, sinon une vue (le segment).
+  const choisi = (e: Element): boolean => e.classList.contains('active') || e.classList.contains('on') || ['aria-selected', 'aria-pressed'].some((k) => e.getAttribute(k) === 'true') || e.getAttribute('aria-current') === 'page';
+  for (const c of dansRacine('*')) {
+    const enfants = Array.from(c.children).filter((e) => /^(BUTTON|A)$/.test(e.tagName) && visible(e as HTMLElement));
+    if (enfants.length < 2) continue;
+    const actif = enfants.find(choisi);
+    if (!actif) continue;
+    const r = c.getBoundingClientRect();
+    if (r.width < 60 || r.height > 120) continue;
+    const sa = getComputedStyle(actif), rayon = px(sa.borderTopLeftRadius);
+    const genre = px(sa.borderBottomWidth) >= 1 && px(sa.borderTopWidth) === 0 && rayon === 0 ? 'onglets' : rayon >= 99 ? 'filtres' : 'vues';
+    noter('groupe de choix', `${genre} : ${Math.round(px(sa.height))}px de haut, arrondi ${rayon >= 99 ? 'plein' : rayon}, texte ${px(sa.fontSize)}px gras ${sa.fontWeight}`, c);
+  }
   // Les couleurs : le texte, le fond et le trait de tout ce qui se voit.
   for (const e of Array.from(racine.querySelectorAll<HTMLElement>('*'))) {
     if (e.closest('svg, canvas, iframe, [data-couleur-libre]') || !visible(e)) continue;
