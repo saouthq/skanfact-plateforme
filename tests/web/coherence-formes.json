@@ -171,5 +171,197 @@
       ],
       "toleres": {}
     }
+  },
+  "entreprise · sombre": {
+    "couleurs hors charte": {
+      "regle": [
+        "5"
+      ],
+      "toleres": {}
+    }
+  },
+  "entreprise · téléphone": {
+    "titre de page": {
+      "regle": [
+        "26px gras 700"
+      ],
+      "toleres": {
+        "24px gras 700": "voulu — le titre qui salue (l'accueil, le tableau de bord), ramené à la largeur d'un téléphone",
+        "22px gras 700": "voulu — l'en-tête d'une pièce qu'on écrit : le titre partage sa ligne avec le retour et le statut"
+      }
+    },
+    "petit bouton": {
+      "regle": [
+        "44px de haut, arrondi 8, texte 12.5px gras 600"
+      ],
+      "toleres": {}
+    },
+    "carte": {
+      "regle": [
+        "arrondi 14, trait 1px, ombre",
+        "arrondi 12, trait 1px, sans ombre",
+        "arrondi 12, sans trait, sans ombre",
+        "arrondi 14, trait 1px, sans ombre"
+      ],
+      "toleres": {
+        "arrondi 14, sans trait, sans ombre": "voulu — un aplat teinté sans cadre : la page vide qui accueille, l'encart « tout est à jour », l'en-tête de l'abonnement"
+      }
+    },
+    "bouton icône": {
+      "regle": [
+        "44px de haut, arrondi 8",
+        "44px de haut, arrondi 10"
+      ],
+      "toleres": {}
+    },
+    "pastille": {
+      "regle": [
+        "arrondi plein, texte 12px gras 600"
+      ],
+      "toleres": {}
+    },
+    "en-tête de tableau": {
+      "regle": [
+        "12px gras 600 none rgb(107, 118, 133)"
+      ],
+      "toleres": {}
+    },
+    "titre de section": {
+      "regle": [
+        "15px gras 650"
+      ],
+      "toleres": {
+        "21px gras 650": "voulu — la page vide qui accueille : un seul grand titre au milieu de l'écran"
+      }
+    },
+    "bouton": {
+      "regle": [
+        "44px de haut, arrondi 10, texte 13.5px gras 600"
+      ],
+      "toleres": {
+        "44px de haut, arrondi 10, texte 14.5px gras 600": "voulu — le geste final d'une pièce (« Émettre », « Régler ») : un seul bouton plus grand par page",
+        "78px de haut, arrondi 12, texte 13.5px gras 600": "voulu — un choix illustré (lire un fichier, saisir à la main) : une tuile, pas un bouton de barre",
+        "48px de haut, arrondi 10, texte 13.5px gras 600": "voulu — le geste principal du jour, posé en bas de l'écran sous le pouce (valider le pointage)"
+      }
+    },
+    "bouton principal": {
+      "regle": [
+        "fond rgb(15, 157, 143)"
+      ],
+      "toleres": {
+        "fond rgb(12, 135, 123)": "état — le bouton principal sous le doigt ou la souris (la teinte foncée du survol)"
+      }
+    },
+    "champ": {
+      "regle": [
+        "arrondi 10, trait 1px rgb(230, 234, 240), texte 16px"
+      ],
+      "toleres": {
+        "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px": "dette — une zone de texte ou un sélecteur resté à 13,5 px : au téléphone un champ s'écrit à 16 px (sinon l'écran zoome à la saisie) — À VÉRIFIER sur un vrai téléphone"
+      }
+    },
+    "couleurs hors charte": {
+      "regle": [
+        "2"
+      ],
+      "toleres": {}
+    }
+  },
+  "cabinet · sombre": {
+    "couleurs hors charte": {
+      "regle": [
+        "18"
+      ],
+      "toleres": {}
+    },
+    "carte": {
+      "regle": [],
+      "toleres": {
+        "arrondi 14, sans trait, ombre": "voulu — l'en-tête de l'abonnement, sombre dans les deux thèmes : en sombre un filet intérieur le détache du fond"
+      }
+    }
+  },
+  "cabinet · téléphone": {
+    "titre de page": {
+      "regle": [
+        "26px gras 700"
+      ],
+      "toleres": {
+        "24px gras 700": "voulu — le titre qui salue (l'accueil, le tableau de bord), ramené à la largeur d'un téléphone",
+        "20px gras 700": "voulu — la fiche d'un dossier : le nom du client à côté de sa pastille, sur une ligne"
+      }
+    },
+    "petit bouton": {
+      "regle": [
+        "44px de haut, arrondi 8, texte 12.5px gras 600"
+      ],
+      "toleres": {
+        "38px de haut, arrondi 8, texte 12.5px gras 600": "voulu — aligné sur la barre de recherche des pièces reçues (38 px), sur la même ligne qu'elle"
+      }
+    },
+    "bouton icône": {
+      "regle": [
+        "44px de haut, arrondi 8",
+        "44px de haut, arrondi 10"
+      ],
+      "toleres": {}
+    },
+    "carte": {
+      "regle": [
+        "arrondi 14, trait 1px, ombre",
+        "arrondi 14, trait 1px, sans ombre",
+        "arrondi 12, sans trait, sans ombre",
+        "arrondi 12, trait 1px, sans ombre"
+      ],
+      "toleres": {
+        "arrondi 14, sans trait, sans ombre": "voulu — un aplat teinté sans cadre : la page vide qui accueille, l'encart « tout est à jour », l'en-tête de l'abonnement"
+      }
+    },
+    "bouton": {
+      "regle": [
+        "44px de haut, arrondi 10, texte 13.5px gras 600"
+      ],
+      "toleres": {}
+    },
+    "titre de section": {
+      "regle": [
+        "15px gras 650",
+        "18px gras 650"
+      ],
+      "toleres": {}
+    },
+    "bouton principal": {
+      "regle": [
+        "fond rgb(15, 157, 143)"
+      ],
+      "toleres": {}
+    },
+    "champ": {
+      "regle": [
+        "arrondi 10, trait 1px rgb(230, 234, 240), texte 16px",
+        "arrondi 8, trait 1px , texte 13px"
+      ],
+      "toleres": {
+        "arrondi 10, trait 1px rgb(230, 234, 240), texte 13.5px": "dette — une zone de texte ou un sélecteur resté à 13,5 px : au téléphone un champ s'écrit à 16 px (sinon l'écran zoome à la saisie) — À VÉRIFIER sur un vrai téléphone"
+      }
+    },
+    "pastille": {
+      "regle": [
+        "arrondi plein, texte 12px gras 600"
+      ],
+      "toleres": {}
+    },
+    "en-tête de tableau": {
+      "regle": [
+        "12px gras 600 none rgb(107, 118, 133)"
+      ],
+      "toleres": {}
+    },
+    "couleurs hors charte": {
+      "regle": [
+        "15"
+      ],
+      "toleres": {}
+    }
   }
 }

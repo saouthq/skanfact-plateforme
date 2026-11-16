@@ -58,9 +58,15 @@ describe('la cohérence des écrans : une identité, les mêmes formes d\'une pa
   // ── Ce que l'identité permet. `regle` : la forme de la maison. `toleres` : un écart connu, avec sa raison — une
   // dette à résorber ou une exception voulue. Rien d'autre ne passe.
   type Famille = { regle: string[]; toleres: Record<string, string> };
-  const FORMES: Record<'entreprise' | 'cabinet', Record<string, Famille>> = JSON.parse(fs.readFileSync(path.join(RACINE, 'tests/web/coherence-formes.json'), 'utf8'));
+  const FORMES: Record<string, Record<string, Famille>> = JSON.parse(fs.readFileSync(path.join(RACINE, 'tests/web/coherence-formes.json'), 'utf8'));
   // Les couleurs hors charte, par application : un plafond qui ne peut que baisser.
-  const HORS_CHARTE = { entreprise: Number(FORMES.entreprise['couleurs hors charte']?.regle[0] ?? 0), cabinet: Number(FORMES.cabinet['couleurs hors charte']?.regle[0] ?? 0) };
+  const plafond = (cle: string): number => Number(FORMES[cle]?.['couleurs hors charte']?.regle[0] ?? 0);
+  // Trois lectures de chaque application (1.367.0). En clair, à l'ordinateur : la règle. En SOMBRE : les mêmes formes,
+  // à la couleur près — le thème change les teintes, jamais une taille ni un arrondi — et son propre plafond de couleurs.
+  // Au TÉLÉPHONE : ses formes à lui (les boutons grandissent sous le doigt), écrites à part.
+  const MODES = ['clair', 'sombre', 'téléphone'] as const;
+  const cleDe = (app: string, mode: (typeof MODES)[number]): string => (mode === 'clair' ? app : `${app} · ${mode}`);
+  const sansCouleur = (forme: string): string => forme.replace(/rgb\([^)]*\)/g, '').replace(/\s+/g, ' ').trim();
 
   it('les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte', async () => {
     const leila = await personne('leila');
@@ -105,49 +111,53 @@ describe('la cohérence des écrans : une identité, les mêmes formes d\'une pa
     const faux: string[] = [];
     type Vu = { familles: Record<string, Record<string, string[]>>; horsCharte: Record<string, string[]>; pages: number };
     const rapport: Record<string, Vu> = {};
-    for (const tour of TOURNEES) {
-      const cx = await contexte(tour.jeton);
+    for (const tour of TOURNEES) for (const mode of MODES) {
+      const cle = cleDe(tour.app, mode);
+      const cx = mode === 'téléphone' ? await contexte(tour.jeton, 390, 844) : await contexte(tour.jeton);
       const page = await cx.newPage();
       const erreurs: string[] = [];
       page.on('pageerror', (x) => erreurs.push(x.message));
       await page.goto(`${serveur.adresse}${tour.adresse}`);
       await page.locator('#view h1').first().waitFor({ timeout: 20_000 });
       const vu: Vu = { familles: {}, horsCharte: {}, pages: 0 };
-      rapport[tour.app] = vu;
+      rapport[cle] = vu;
+      // Le thème sombre se pose sur le corps de la page ; un redessin peut le reprendre, on le repose avant chaque lecture.
+      const lire = async (): Promise<Releve> => { if (mode === 'sombre') await page.evaluate(() => { document.body.classList.add('dark'); }); return page.evaluate(releve); };
       for (const hash of tour.pages) {
         await page.evaluate((h) => { location.hash = h; }, hash);
         await page.waitForTimeout(250);
         await page.locator('#view h1').first().waitFor({ timeout: 15_000 });
         await plusTard(page);
         // La page a fini de se dessiner quand deux relevés de suite comptent les mêmes objets.
-        let r: Releve = await page.evaluate(releve);
-        for (let i = 0; i < 12; i++) { await page.waitForTimeout(350); const s = await page.evaluate(releve); const pareil = s.lus === r.lus; r = s; if (pareil) break; }
+        let r: Releve = await lire();
+        for (let i = 0; i < 12; i++) { await page.waitForTimeout(350); const s = await lire(); const pareil = s.lus === r.lus; r = s; if (pareil) break; }
         const nom = hash.replace(ent, '…');
-        if (r.lus < 2) faux.push(`${tour.app} ${nom} : l'instrument n'y lit presque rien (${r.lus} objet) — la page est-elle là ?`);
+        if (r.lus < 2) faux.push(`${cle} ${nom} : l'instrument n'y lit presque rien (${r.lus} objet) — la page est-elle là ?`);
         for (const [famille, formes] of Object.entries(r.familles)) for (const [forme, exemple] of Object.entries(formes)) ((vu.familles[famille] ??= {})[forme] ??= []).push(`${nom} ${exemple}`);
         for (const [couleur, exemple] of Object.entries(r.couleurs)) if (!r.palette.includes(couleur)) (vu.horsCharte[couleur] ??= []).push(`${nom} ${exemple}`);
         vu.pages++;
       }
-      faux.push(...erreurs.map((x) => `${tour.app} : erreur de la page : ${x}`));
+      faux.push(...erreurs.map((x) => `${cle} : erreur de la page : ${x}`));
       await cx.close();
       // Le jugement : une forme vue est la règle, un écart nommé, ou une faute.
-      const connues = FORMES[tour.app];
+      const connues = FORMES[mode === 'sombre' ? tour.app : cle] ?? {};
+      const propres = FORMES[cle] ?? {};
       for (const [famille, formes] of Object.entries(vu.familles)) {
         const f = connues[famille];
         for (const [forme, ou] of Object.entries(formes)) {
           if (f && (f.regle.includes(forme) || forme in f.toleres)) continue;
-          faux.push(`${tour.app} — ${famille} : une forme inconnue, « ${forme} », sur ${ou[0]}${ou.length > 1 ? ` (et ${ou.length - 1} autre${ou.length > 2 ? 's' : ''})` : ''}. La maison : ${f ? f.regle.join(' ; ') : '(famille inconnue)'}.`);
+          if (mode === 'sombre' && ((f && [...f.regle, ...Object.keys(f.toleres)].some((x) => sansCouleur(x) === sansCouleur(forme))) || forme in (propres[famille]?.toleres ?? {}))) continue;
+          faux.push(`${cle} — ${famille} : une forme inconnue, « ${forme} », sur ${ou[0]}${ou.length > 1 ? ` (et ${ou.length - 1} autre${ou.length > 2 ? 's' : ''})` : ''}. La maison : ${f ? f.regle.join(' ; ') : '(famille inconnue)'}.`);
         }
       }
       const hors = Object.keys(vu.horsCharte).length;
-      if (hors > HORS_CHARTE[tour.app]) faux.push(`${tour.app} : ${hors} couleurs hors charte pour ${HORS_CHARTE[tour.app]} tolérées. Les plus rares : ${Object.entries(vu.horsCharte).sort((a, b) => a[1].length - b[1].length).slice(0, 8).map(([c, ou]) => `${c} (${ou[0]})`).join(' ; ')}`);
+      if (hors > plafond(cle)) faux.push(`${cle} : ${hors} couleurs hors charte pour ${plafond(cle)} tolérées. Les plus rares : ${Object.entries(vu.horsCharte).sort((a, b) => a[1].length - b[1].length).slice(0, 8).map(([c, ou]) => `${c} (${ou[0]})`).join(' ; ')}`);
     }
     fs.mkdirSync(path.join(RACINE, 'dist'), { recursive: true });
     fs.writeFileSync(path.join(RACINE, 'dist/coherence.json'), JSON.stringify(rapport, null, 1));
     expect(faux).toEqual([]);
     // Un instrument qui n'atteint pas ses écrans dirait « tout va bien ».
-    expect(rapport.entreprise?.pages).toBe(TOURNEES[0]?.pages.length);
-    expect(rapport.cabinet?.pages).toBe(TOURNEES[1]?.pages.length);
+    for (const tour of TOURNEES) for (const mode of MODES) expect(rapport[cleDe(tour.app, mode)]?.pages, cleDe(tour.app, mode)).toBe(tour.pages.length);
     for (const app of ['entreprise', 'cabinet'] as const) for (const famille of ['titre de page', 'bouton', 'carte', 'en-tête de tableau', 'champ']) expect(Object.keys(rapport[app]?.familles[famille] ?? {}).length, `${app} : aucun objet « ${famille} » lu`).toBeGreaterThan(0);
-  }, 600_000);
+  }, 900_000);
 });

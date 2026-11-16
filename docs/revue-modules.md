@@ -3993,4 +3993,22 @@ La 1.365.0 avait posé l'instrument et NOMMÉ 47 exceptions. Il en reste 10, tou
 - **Le rouge GitHub de la 1.365.0** : quatre tests d'écran lisaient encore des en-têtes en capitales (« DÉSIGNATION »,
   « DATE », « 3 BIENS »). Les en-têtes sont en casse ordinaire depuis la 1.365.0 ; les tests le disent. La faute :
   seuls les tests de rendu avaient été rejoués, pas ceux qui LISENT un tableau.
-- Reste à faire : étendre l'instrument au thème sombre et au téléphone.
+
+### 1.367.0 : la cohérence, lue aussi en thème sombre et au téléphone
+
+L'instrument lisait les écrans en clair, à l'ordinateur. Il les lit maintenant trois fois : les 37 pages en clair, en
+sombre, et à la largeur d'un téléphone (390 px) — 111 lectures.
+
+- **En sombre**, la règle est simple : le thème change les teintes, jamais une taille ni un arrondi. Les formes vues
+  sont comparées à celles du clair, à la couleur près. Résultat : aucune différence, sauf l'en-tête de l'abonnement
+  (un filet intérieur, nommé comme voulu). Les couleurs hors charte ont leur plafond propre (entreprise 5, Cabinet 18).
+- **Au téléphone**, les formes ont leurs règles à elles (un bouton fait 44 px sous le doigt, un champ s'écrit à 16 px) :
+  elles sont écrites à part dans `tests/web/coherence-formes.json`. Deux arrondis ramenés à la règle au passage
+  (l'encart vert « c'est fait », le cadre des écrans de comptabilité du Cabinet au téléphone).
+- **Une dette nommée, pas encore résorbée** : quelques zones de texte et sélecteurs restent à 13,5 px au téléphone
+  (les notes d'une facture, le mois de la paie du Cabinet). Sous 16 px, un téléphone peut zoomer à la saisie —
+  À VÉRIFIER sur un vrai téléphone avant de changer.
+- Deux preuves « cohérence 1.367.0 a–b » (une forme qui change en sombre, un bouton trop bas au téléphone). Une
+  troisième, sur les teintes sombres, a été écrite puis retirée : en sombre, l'ancienne feuille avait déjà les teintes
+  de la charte, la preuve ne prouvait rien.
+

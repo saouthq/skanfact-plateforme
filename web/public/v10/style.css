@@ -1479,7 +1479,7 @@ body.dark .cal-d.out { color: #5b6572; }
    double dans un tableur) n'est pas un avertissement, et du orange sur une situation normale apprend
    à ignorer l'orange (8.0.1). Elles vivent ici depuis la 10.14.0, pour les deux applications. */
 .ok-box {
-  background: var(--success-soft); border-inline-start: 3px solid var(--success); border-radius: 8px;
+  background: var(--success-soft); border-inline-start: 3px solid var(--success); border-radius: 12px;
   padding: 11px 14px; font-size: 13px; line-height: 1.55;
 }
 .info-box {

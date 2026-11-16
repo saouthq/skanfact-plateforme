@@ -29617,6 +29617,15 @@ prouver $'cohérence 1.366.0 d : un titre de section reste à 16 px gras 700 sur
   $'.section-head h2 { margin: 0; font-size: 16px; font-weight: 700; }' \
   $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
 
+prouver $'cohérence 1.367.0 a : en thème sombre, un champ change de forme (les coins passent à 6 px)' web/public/plateforme/charte.css \
+  $'body.dark { --sb-fond: #12161c; --sb-creux: #232b36; --sb-vert-doux: #1a3328; }' \
+  $'body.dark { --sb-fond: #12161c; --sb-creux: #232b36; --sb-vert-doux: #1a3328; --radius-sm: 6px; }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+prouver $'cohérence 1.367.0 b : au téléphone, les boutons n\'ont plus la hauteur du doigt (40 px pour 44)' web/public/plateforme/charte.css \
+  $'@media (max-width: 760px), (pointer: coarse) { .btn, .btn-sm { min-height: 44px; } }' \
+  $'@media (max-width: 760px), (pointer: coarse) { .btn, .btn-sm { min-height: 40px; } }' \
+  $'les pages de l\'entreprise et du Cabinet ne montrent que les formes de la maison, et leurs couleurs viennent de la charte'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
