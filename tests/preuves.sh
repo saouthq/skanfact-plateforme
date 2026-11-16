@@ -29555,6 +29555,34 @@ prouver $'cession 1.364.0 q : au Cabinet, le bien que rien n\'a fait entrer ne s
   $'${(d.entrees || []).length ? `<div class="warn-box mt" id="im-entrees">' \
   $'${(d.entrees || []).length > 99 ? `<div class="warn-box mt" id="im-entrees">' \
   $'le bien d\'avant la clôture s\'enregistre chez le client, et son entrée se passe au Cabinet'
+prouver $'cession 1.364.1 r : au Cabinet, la dotation d\'un exercice déjà dans l\'entrée du bien se compte à écrire' modules/socle/moteur/compta-1.js \
+  $'aEcrire: rows.filter(r => !r.ecrite && !r.couverte && (r.dotation || r.cession)).length' \
+  $'aEcrire: rows.filter(r => !r.ecrite && (r.dotation || r.cession)).length' \
+  $'en 2025, la dotation reste au tableau mais ne s\'écrit pas : elle est dans l\'entrée'
+prouver $'cession 1.364.1 s : au Cabinet, la dotation d\'un exercice déjà dans l\'entrée du bien s\'écrit une seconde fois' modules/socle/moteur/compta-1.js \
+  $'      if (r.dotation && !r.ecrite && !r.couverte) {' \
+  $'      if (r.dotation && !r.ecrite) {' \
+  $'en 2025, la dotation reste au tableau mais ne s\'écrit pas : elle est dans l\'entrée'
+prouver $'cession 1.364.1 t : au Cabinet, la pastille réclame une dotation que l\'entrée du bien porte déjà' modules/socle/moteur/compta-1.js \
+  $'filter(r => !r.ecrite && !r.couverte && (r.cession || (dues && r.dotation))).length;' \
+  $'filter(r => !r.ecrite && (r.cession || (dues && r.dotation))).length;' \
+  $'en 2025, la dotation reste au tableau mais ne s\'écrit pas : elle est dans l\'entrée'
+prouver $'cession 1.364.1 u : au Cabinet, l\'entrée d\'un bien se propose dans un exercice d\'avant, datée d\'après lui' modules/socle/moteur/compta-1.js \
+  $'      if (date > fin) return;' \
+  $'      if (date < debut) return;' \
+  $'en 2025, aucune entrée ne se propose : elle s\'écrit en 2026'
+prouver $'cession 1.364.1 v : au Cabinet, un bien entré par sa facture d\'achat perd ses dotations' modules/socle/moteur/compta-1.js \
+  $'    return b && !txt(b.achat) && txt(b.entree) > mes ? txt(b.entree) : \'\';' \
+  $'    return b && txt(b.entree) > mes ? txt(b.entree) : \'\';' \
+  $'un bien entré par sa facture d\'achat, ou sans date d\'entrée tardive, garde ses dotations'
+prouver $'cession 1.364.1 w : au Cabinet, le bien « repris » que le client a fait entrer cette année n\'a pas d\'entrée' modules/socle/moteur/compta-1.js \
+  $'      if (!f || (f.reporteDe && !(tard >= debut && tard <= fin)) || !valeur || !mes || mes > fin) return;' \
+  $'      if (!f || f.reporteDe || !valeur || !mes || mes > fin) return;' \
+  $'en 2026, le bien « repris de 2025 » que le client a fait entrer cette année a quand même son entrée'
+prouver $'cession 1.364.1 x : au Cabinet, l\'année de l\'entrée perd sa dotation' modules/socle/moteur/compta-1.js \
+  $'        couverte: Number(entreeTardive(livre, f).slice(0, 4)) > y ? entreeTardive(livre, f) : \'\',' \
+  $'        couverte: Number(entreeTardive(livre, f).slice(0, 4)) >= y ? entreeTardive(livre, f) : \'\',' \
+  $'en 2026, l\'année de l\'entrée, la dotation s\'écrit comme d\'habitude'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -100,3 +100,48 @@ describe('le bien que rien n\'a fait entrer au livre (Cabinet)', () => {
     expect(r[0].lignes.map((l: Obj) => `${l.compte} ${l.debit} ${l.credit}`)).toEqual(['224 10000 0', '28 0 3666.667', '12 0 6333.333']);
   });
 });
+
+// 1.364.1 — le four de 2024 (10 000 DT, 5 ans), entré dans les livres le 01/11/2026 : son entrée porte 2024 et 2025
+// (1 666,667 + 2 000). Si le comptable ouvre 2025, la dotation de 2025 ne se propose pas une seconde fois.
+describe('un exercice que l\'entrée du bien couvre déjà (Cabinet)', () => {
+  const four = fiche({ id: 'f-0000-four', libelle: 'Four', valeur: 10000, dateMiseEnService: '2024-03-01', dateAcquisition: '2024-03-01', origine: { source: 'client', docId: 'four' } });
+  const duClient = bien({ id: 'four', libelle: 'Four', date: '2024-03-01', valeur: '10000', entree: '2026-11-01' });
+  const l2025 = (biens: Obj[]): Obj => ({ ...livre([four]), biensClient: biens });
+
+  it('en 2025, la dotation reste au tableau mais ne s\'écrit pas : elle est dans l\'entrée', () => {
+    const e = KC.etatImmobilisations(l2025([duClient]), 2025);
+    expect(e.rows[0].dotation).toBe(2000);
+    expect(e.rows[0].couverte).toBe('2026-11-01');
+    expect(e.aEcrire).toBe(0);
+    expect(KC.ecrituresImmobilisations(l2025([duClient]), 2025)).toEqual([]);
+    // La pastille de l'onglet ne réclame rien non plus, même au dernier mois de l'exercice.
+    expect(KC.aReclamerImmobilisations(e, { au: '2025-12-31' }, '2025-12-15')).toBe(0);
+  });
+
+  it('en 2025, aucune entrée ne se propose : elle s\'écrit en 2026', () => {
+    expect(KC.entreesManquantes(l2025([duClient]), 2025, [duClient])).toEqual([]);
+    expect(KC.entreesManquantes(l2025([duClient]), 2026, [duClient]).map((x: Obj) => x.date)).toEqual(['2026-11-01']);
+  });
+
+  it('en 2026, le bien « repris de 2025 » que le client a fait entrer cette année a quand même son entrée', () => {
+    const repris = { ...l2025([duClient]), immobilisations: [{ ...four, reporteDe: 2025 }] };
+    const r = KC.entreesManquantes(repris, 2026, [duClient]);
+    expect(r.map((x: Obj) => x.date)).toEqual(['2026-11-01']);
+    expect(r[0].lignes.map((l: Obj) => `${l.compte} ${l.debit} ${l.credit}`)).toEqual(['224 10000 0', '28 0 3666.667', '12 0 6333.333']);
+    // Un bien repris que les à-nouveaux portent (aucune entrée tardive chez le client) ne se propose pas.
+    expect(KC.entreesManquantes({ ...repris, biensClient: [{ ...duClient, entree: '' }] }, 2026, [{ ...duClient, entree: '' }])).toEqual([]);
+    expect(KC.entreesManquantes(repris, 2027, [duClient])).toEqual([]);
+  });
+
+  it('en 2026, l\'année de l\'entrée, la dotation s\'écrit comme d\'habitude', () => {
+    const e = KC.etatImmobilisations(l2025([duClient]), 2026);
+    expect(e.rows[0].couverte).toBe('');
+    expect(e.aEcrire).toBe(1);
+  });
+
+  it('un bien entré par sa facture d\'achat, ou sans date d\'entrée tardive, garde ses dotations', () => {
+    expect(KC.etatImmobilisations(l2025([{ ...duClient, achat: 'ACH-2024-001' }]), 2025).aEcrire).toBe(1);
+    expect(KC.etatImmobilisations(l2025([{ ...duClient, entree: '' }]), 2025).aEcrire).toBe(1);
+    expect(KC.etatImmobilisations(l2025([]), 2025).aEcrire).toBe(1);
+  });
+});

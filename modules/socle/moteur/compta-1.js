@@ -4211,6 +4211,15 @@
     return { ok: true };
   }
 
+  // (1.364.1) Un bien du client enregistré APRÈS coup entre dans les livres à une date plus tardive que sa
+  // mise en service, et son entrée porte déjà les amortissements des exercices finis. La dotation d'un de ces
+  // exercices ne s'écrit donc pas une seconde fois : la ligne reste au tableau, elle dit pourquoi.
+  function entreeTardive(livre, f) {
+    const b = f && f.origine && f.origine.source === 'client' ? (livre.biensClient || []).find(x => txt(x.id) === txt(f.origine.docId)) : null;
+    const mes = txt(f && f.dateMiseEnService) || txt(f && f.dateAcquisition);
+    return b && !txt(b.achat) && txt(b.entree) > mes ? txt(b.entree) : '';
+  }
+
   // L'état des immobilisations d'un exercice : une ligne par bien, et des totaux qui tombent juste.
   function etatImmobilisations(livre, annee) {
     const y = Number(annee) || 0;
@@ -4230,6 +4239,7 @@
         reprise: repriseSubvention(f, y),
         cession: ced && Number(ced.date.slice(0, 4)) === y ? ced : null,
         ecrite: !!(ligne && ligne.ecritureId),
+        couverte: Number(entreeTardive(livre, f).slice(0, 4)) > y ? entreeTardive(livre, f) : '',
         // Repris d'un exercice précédent par « Ouvrir N+1 » (10.14.0) : l'écran le DIT, sinon on ne
         // comprend ni son cumul au 1er janvier ni pourquoi il refuse de se supprimer ici.
         reporteDe: Number(f.reporteDe) || null,
@@ -4248,7 +4258,7 @@
       reprise: somme(r => r.reprise),
       cessions: rows.filter(r => r.cession),
       // Ce qui reste à passer en écriture : c'est ce chiffre qui fait le bouton.
-      aEcrire: rows.filter(r => !r.ecrite && (r.dotation || r.cession)).length
+      aEcrire: rows.filter(r => !r.ecrite && !r.couverte && (r.dotation || r.cession)).length
     };
   }
 
@@ -4261,7 +4271,7 @@
   function aReclamerImmobilisations(etat, exercice, aujourdhui) {
     const au = txt((exercice || {}).au);
     const dues = !au || String(aujourdhui || '') >= au.slice(0, 7) + '-01';
-    return ((etat && etat.rows) || []).filter(r => !r.ecrite && (r.cession || (dues && r.dotation))).length;
+    return ((etat && etat.rows) || []).filter(r => !r.ecrite && !r.couverte && (r.cession || (dues && r.dotation))).length;
   }
 
   // Les lignes d'un compte d'immobilisation qui n'ont AUCUNE fiche : le pont avec ce que le client
@@ -4384,7 +4394,7 @@
     etat.rows.forEach(r => {
       const f = (livre.immobilisations || []).find(x => x.id === r.id);
       if (!f) return;
-      if (r.dotation && !r.ecrite) {
+      if (r.dotation && !r.ecrite && !r.couverte) {
         // (1.345.0) La dotation d'un bien SORTI dans l'exercice se date du jour de sa sortie, comme dans l'app
         // entreprise (« au 31 décembre, ou au jour de la sortie ») : datée du 31/12, après une sortie du 30/09, elle
         // laissait le 28 débiteur d'octobre à décembre — la sortie reprenait un amortissement pas encore écrit.
@@ -4443,13 +4453,17 @@
     const out = [];
     (livre.immobilisations || []).forEach(f => {
       const mes = txt(f.dateMiseEnService) || txt(f.dateAcquisition), valeur = round3(num(f.valeur));
-      if (!f || f.reporteDe || !valeur || !mes || mes > fin) return;
+      // (1.364.1) « Repris de N-1 » dit que les à-nouveaux portent déjà le bien — sauf celui que le client a fait
+      // entrer CETTE année, après coup : aucun à-nouveau ne le porte, son entrée s'écrit ici.
+      const tard = entreeTardive(livre, f);
+      if (!f || (f.reporteDe && !(tard >= debut && tard <= fin)) || !valeur || !mes || mes > fin) return;
       if (f.origine && parId.has(txt(f.origine.docId).split('#')[0])) return;
       const compte = txt(f.compte) || compteImmo(livre, 'immobilisations'), piece = 'ENT-' + txt(f.id).slice(-4);
       if (ecritures.some(e => txt(e.piece) === piece || (e.lignes || []).some(l => txt(l.compte) === compte && Math.abs(num(l.debit) - valeur) < 0.0005))) return;
       const b = f.origine && f.origine.source === 'client' ? (biens || []).find(x => txt(x.id) === txt(f.origine.docId)) : null;
       if (b && txt(b.achat)) return;
       const date = [mes, txt(b && b.entree), debut].sort().pop();
+      if (date > fin) return;   // entré dans les livres après cet exercice : son entrée s'écrit dans le sien
       const anterieurs = date.slice(0, 4) > mes.slice(0, 4) ? round3(cumulDuBien(f, `${Number(date.slice(0, 4)) - 1}-12-31`)) : 0;
       const ran = txt(((livre.plan || []).find(c => c.role === 'reportANouveau') || {}).compte) || '12';   // le compte du client (DEFAULT_ACCOUNTS.reportANouveau) : deux chemins, un chiffre
       const lignes = [{ compte, libelle: `Entrée — ${f.libelle}`, debit: valeur, credit: 0 }];

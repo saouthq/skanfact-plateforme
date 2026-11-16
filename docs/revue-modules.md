@@ -3897,9 +3897,17 @@ plus-value 766,667.
 - Second cas joué à la souris : un four en service depuis le 01/03/2024 (10 000 DT, 5 ans), enregistré après la
   clôture. Son entrée au 01/11/2026 : 22 = 10 000 ; 28 = 3 666,667 (2024 : 1 666,667 ; 2025 : 2 000) ; 12 = 6 333,333. Le
   tableau de 2026 part bien d'un cumul au 01/01 de 3 666,667.
-- **Limite connue, laissée** : au Cabinet, l'entrée proposée porte les amortissements des exercices finis ; si le
-  comptable ouvre ensuite un de ces exercices et y passe les écritures d'inventaire, la dotation de cette année-là
-  s'écrirait une seconde fois. Les deux sont au brouillard et relues par lui ; à fermer dans un prochain lot.
+- **1.364.1 — la limite fermée, et un trou trouvé en la fermant.** Jouée à la souris au Cabinet sur le four de 2024 :
+  - la fiche d'un bien mis en service avant l'exercice porte « repris de N-1 », et une fiche reprise ne proposait
+    jamais son entrée : le four n'entrait dans aucune écriture du cabinet. Elle se propose maintenant quand le client
+    a fait entrer le bien CETTE année (01/11/2026 : 223 = 10 000 ; 28 = 3 666,667 ; 12 = 6 333,333) ;
+  - en 2025, la dotation (2 000) reste au tableau, marquée « dans son entrée », mais ne s'écrit plus : ni bouton, ni
+    pastille, et la phrase dit pourquoi. Aucune entrée ne se propose dans un exercice d'avant le jour d'entrée ;
+  - le livre du Cabinet connaît les biens du client (`livre.biensClient`, posé par le pont) : une seule règle,
+    `entreeTardive`, pour le tableau, les écritures, la pastille et l'entrée. Sept preuves (r → x).
+  - Reste noté : un bien que le cabinet tient SEUL (dossier hors SkanFact), saisi des années après sa mise en
+    service, n'a pas de « jour d'entrée » ; son entrée se propose au 1er janvier de l'exercice regardé. À VÉRIFIER
+    avec le comptable pilote avant d'y poser une règle.
 - Vu en passant, laissé : la fenêtre de sortie grandit de 15 px quand on saisit le prix (l'avertissement gagne une
   ligne). À VÉRIFIER avec un comptable : la contrepartie d'un bien entré sans facture (report à nouveau, compte 12) et
   la TVA à reverser sur une revente avant cinq ans, que la fenêtre signale déjà.

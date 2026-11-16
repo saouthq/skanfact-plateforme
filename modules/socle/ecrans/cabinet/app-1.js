@@ -10777,7 +10777,8 @@
     const pourquoiEcrire = e.aEcrire ? ''
       : !e.rows.length ? 'Rien à écrire : aucun bien sur cet exercice.'
         : e.rows.some(r => r.ecrite) ? `Celles de ${s.annee} sont passées — les repasser compterait la dotation deux fois.`
-          : `Aucune dotation ni sortie sur ${s.annee} : rien à écrire.`;
+          : e.rows.some(r => r.couverte) ? `Les amortissements de ${s.annee} sont déjà dans l'entrée ${e.rows.filter(r => r.couverte).length > 1 ? 'des biens' : 'du bien'}, passée plus tard : rien à écrire ici.`
+            : `Aucune dotation ni sortie sur ${s.annee} : rien à écrire.`;
     const au = String((s.livre && s.livre.exercice && s.livre.exercice.au) || `${s.annee}-12-31`);
     const motifs = !e.rows.length ? ['« Passer les écritures d\'inventaire » et « Exporter le tableau » attendent un premier bien.']
       : pourquoiEcrire ? ['« Passer les écritures d\'inventaire » : ' + pourquoiEcrire.charAt(0).toLowerCase() + pourquoiEcrire.slice(1)]
@@ -10849,8 +10850,9 @@
               une cellule tronquée, « repris de 2025 » tombait derrière les points de suspension, et la
               découverte éclairait un « … » en disant « ce bien vient de l'exercice précédent ». */''}
         <td class="tronq" title="${esc(r.libelle)}">${marquesDuNom(esc(r.libelle), [
-    r.reporteDe ? `<span class="badge" data-repris="${esc(r.reporteDe)}" title="Repris de l'exercice ${esc(r.reporteDe)} avec son plan d'amortissement">repris de ${esc(r.reporteDe)}</span>` : '',
+    r.reporteDe && !r.couverte ? `<span class="badge" data-repris="${esc(r.reporteDe)}" title="Repris de l'exercice ${esc(r.reporteDe)} avec son plan d'amortissement">repris de ${esc(r.reporteDe)}</span>` : '',
     r.cession ? `<span class="badge b-part">${esc(r.cession.motif === 'rebut' ? 'rebut' : 'cédé')}</span>` : '',
+    r.couverte ? `<span class="badge" data-couverte title="Ce bien est entré dans les livres le ${esc(fmtJour(r.couverte))} : son entrée porte déjà l'amortissement de ${esc(s.annee)}. Rien à écrire ici.">dans son entrée</span>` : '',
     r.ecrite ? '<span class="badge b-paid">écrite</span>' : ''])}</td>
         <td class="nw">${esc(fmtJour(r.date))}</td>
         <td class="nw">${esc(METHODE_LABEL[r.methode] || r.methode)}</td>

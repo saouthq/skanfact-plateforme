@@ -567,7 +567,7 @@
       livre.exercice.closPar = ex.closPar || '';
       livre.exercice.reouvertures = (ex.reouvertures || []).map((/** @type {any} */ x) => ({ le: Date.parse(x.le) || 0, par: x.par || '', motif: x.motif, closLe: Date.parse(x.closLe) || 0 }));
     }
-    livre.releves = releves;
+    livre.releves = releves; livre.biensClient = biensClient.get(ent) || [];
     livre.declarations = declarations;
     // Un bien mis en service avant l'exercice y est « reporté » (la v10 le notait à « Ouvrir N+1 ») : sa
     // valeur arrive par les à-nouveaux, qui ne sont pas une acquisition à créer (C-10 de la v10). Sur la
