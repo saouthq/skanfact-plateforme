@@ -217,12 +217,26 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const coordonnees = new Map((clients.length ? (await tx.query(`select entreprise, email, telephone
           from socle.coordonnees_de_mes_clients() where entreprise = any($1::uuid[])`, [clients])).rows : [])
         .map((x) => [x.entreprise as string, { email: String(x.email ?? ''), telephone: String(x.telephone ?? '') }]));
+      // (1.362.5) La période que le client a clôturée chez lui (socle.cloture_de_mes_clients, 0213) : le cabinet lui
+      // réclamait encore les mois qu'il venait de déclarer finis. Le jour seul, et quand il a été posé ; un jour
+      // impossible ne sort pas.
+      const jourValide = (v: string) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+        if (!m) return false;
+        const j = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+        return j.getUTCMonth() === Number(m[2]) - 1 && j.getUTCDate() === Number(m[3]);
+      };
+      const clotures = new Map((clients.length ? (await tx.query(`select entreprise, jusqua, le
+          from socle.cloture_de_mes_clients() where entreprise = any($1::uuid[])`, [clients])).rows : [])
+        .filter((x) => jourValide(String(x.jusqua ?? '')))
+        .map((x) => [x.entreprise as string, { jusqua: String(x.jusqua), le: x.le ? (x.le as Date).toISOString() : null }]));
       return {
         corps: {
           dossiers: r.rows.map((d) => ({
             mandat: d.mandat, entreprise: d.entreprise, raisonSociale: d.raison_sociale, matriculeFiscal: d.matricule_fiscal,
             statut: d.statut, perimetre: d.perimetre, debut: d.debut, tenu: d.tenu, role: d.role,
             ...(coordonnees.has(d.entreprise) ? { coordonnees: coordonnees.get(d.entreprise) } : {}),
+            ...(clotures.has(d.entreprise) ? { clotureClient: clotures.get(d.entreprise) } : {}),
           })),
         },
       };

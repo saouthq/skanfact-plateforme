@@ -27235,8 +27235,10 @@ prouver 'tableau 1.338.0 h : le serveur ne compte pas les photos de « Mon compt
 prouver 'tableau 1.338.0 i : le serveur ne compte pas les pièces déposées par le cabinet' serveur/cabinet/routes.ts \
   'where d.cabinet = $1 and d.rubrique = '\''piece'\'' and d.remplace_par is null and d.entreprise in (${portefeuille})' 'where d.cabinet = $1 and d.rubrique = '\''rien'\'' and d.remplace_par is null and d.entreprise in (${portefeuille})' \
   "$TB1338"
+# (1.362.5) Le défaut d'origine ne taisait que la branche « avant le 15 » : du 16 à la fin du mois, il n'avait aucun effet,
+# et la preuve restait verte (la nuit du 16/11). La campagne qui tait les personnes physiques se tait les deux jours.
 prouver 'tableau 1.338.0 j : la campagne tait les personnes physiques dues le 15' modules/socle/ecrans/cabinet/app-1.js \
-  'ppAvant.length && restent.length ? ' 'false ? ' \
+  '<span class="tb-h-pp">${esc([pret, pp15]' '<span class="tb-h-pp">${esc([pret]' \
   "$TB1338"
 prouver 'tableau 1.338.0 k : la date limite se lit sur le premier dossier venu' modules/socle/ecrans/cabinet/app-1.js \
   'const due = (tous.length ? tous : mens).map(x => dueTb(x.d, moisC)).sort()[0];' 'const due = tous.length ? dueTb(tous[0].d, moisC) : dueTb(mens[0].d, moisC);' \
@@ -29355,6 +29357,52 @@ prouver $'stock 1.362.4 i : « vendue à perte » sur une remise' modules/socle/
   $'        if (!isAv) t.lines.forEach((tl, i) => {\n          const l = doc.lines[i]; if (!l || tl.titre || !(tl.ht > 0)) return;' \
   $'        t.lines.forEach((tl, i) => {\n          const l = doc.lines[i]; if (!l || tl.titre || !(tl.ht > 0)) return;' \
   $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+
+# (1.362.5, bout en bout 29) La clôture de Nour, de la fenêtre au Cabinet.
+prouver $'clôture 1.362.5 a : la fenêtre « Clôturer jusqu\'à… » nomme ses points sans les ouvrir' modules/socle/ecrans/entreprise/app-2.js \
+  $'return `<li>${h(c.label)}${a ? ` <button type="button" class="lien-fl" data-ct-check="${h(c.id)}">${h(a.label)}</button>` : \'\'}</li>`;' \
+  $'return `<li>${h(c.label)}</li>`;' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 b : le geste d\'un point s\'ouvre sous la fenêtre restée ouverte' modules/socle/ecrans/entreprise/app-2.js \
+  $'                comptaState.clotChoisi = to;\n                close();\n' \
+  $'                comptaState.clotChoisi = to;\n' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 c : revenue de son point, la fenêtre repart au premier mois' modules/socle/ecrans/entreprise/app-2.js \
+  $'                comptaState.clotChoisi = to;\n' \
+  $'' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 d : le portefeuille tait la clôture du client' serveur/cabinet/routes.ts \
+  $'            ...(clotures.has(d.entreprise) ? { clotureClient: clotures.get(d.entreprise) } : {}),\n' \
+  $'' \
+  $'(1.362.5) sous un mandat actif, le cabinet lit la période que son client a clôturée chez lui ; un jour impossible ne sort pas ; proposé ou arrêté, rien'
+prouver $'clôture 1.362.5 e : un jour impossible (ou levé) sort du portefeuille' serveur/cabinet/routes.ts \
+  $'        .filter((x) => jourValide(String(x.jusqua ?? \'\')))\n' \
+  $'' \
+  $'(1.362.5) sous un mandat actif, le cabinet lit la période que son client a clôturée chez lui ; un jour impossible ne sort pas ; proposé ou arrêté, rien'
+prouver $'clôture 1.362.5 f : un mandat seulement proposé lit déjà la clôture' base/migrations/0213_cloture_des_clients.sql \
+  $'where x.statut = \'actif\' and x.debut' \
+  $'where x.statut in (\'actif\', \'propose\') and x.debut' \
+  $'(1.362.5) sous un mandat actif, le cabinet lit la période que son client a clôturée chez lui ; un jour impossible ne sort pas ; proposé ou arrêté, rien'
+prouver $'clôture 1.362.5 g : un mois clôturé vide reste un mois qui manque' modules/socle/pont/cabinet.js \
+  $'        if (vus.has(m)) continue;\n' \
+  $'        continue;\n' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 h : la fiche réclame un mois que le client a clôturé vide' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (!x.ecr && (d.packs || []).some(p => p.month === m && p.vide)) return [\'pret\', \'sans activité\', enRetard];\n' \
+  $'' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 i : « Rien reçu depuis le 15 » au-dessus d\'une écriture plus récente' modules/socle/ecrans/cabinet/app-1.js \
+  $'sansRien.length && L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? `Rien reçu depuis le' \
+  $'sansRien.length && L && L.derniere ? `Rien reçu depuis le' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 j : « Aucune écriture depuis » une écriture d\'après les mois vides' modules/socle/ecrans/cabinet/app-1.js \
+  $'const avant = L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? L.derniere : \'\';' \
+  $'const avant = L && L.derniere ? L.derniere : \'\';' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
+prouver $'clôture 1.362.5 k : la grille dit « rien reçu » avant le premier mois des livres' modules/socle/ecrans/cabinet/app-1.js \
+  $'const debut = d.from || (d.manual ? \'\' : K.debutDeMission(d));' \
+  $'const debut = d.from;' \
+  $'la fenêtre ouvre ses points et retrouve son mois ; le Cabinet ne réclame plus ce que le client a clôturé vide'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

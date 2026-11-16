@@ -6258,6 +6258,8 @@
       // `vise` : le dernier mois demandé par un autre écran (le paquet d'août propose « Clôturer
       // jusqu'à août 2026… » quand juin et juillet ne le sont pas encore — 10.14.0).
       const ouvrirJusqua = vise => {
+        // (1.362.5) Parti pointer un mouvement depuis cette fenêtre, on la rouvre sur le mois qu'on avait choisi.
+        vise = vise || comptaState.clotChoisi || '';
         modal(`<h2>Clôturer jusqu'à…</h2>
           <p class="small">Tous les mois jusqu'à celui que tu choisis seront clôturés d'un coup.</p>
           <form id="ct" class="grid-2"><label class="field span-2">${lbl('Dernier mois à clôturer', 'clot.jusqua')}
@@ -6275,9 +6277,22 @@
               const to = $('select[name=m]', root).value;
               const tous = C.closureChecks(data, company(), next.from, to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false });
               const dangers = tous.filter(c => c.level === 'danger');
+              // (1.362.5) Chaque point porte le geste qui l'ouvre, comme la liste du mois suivant (7.15.0 : ce
+              // qu'un écran nomme, il l'ouvre) : « 2 mouvements non pointés » se lisait sans aucun moyen d'aller
+              // les pointer — il fallait fermer, chercher la Trésorerie, puis revenir rouvrir cette fenêtre.
               $('#ct-points', root).innerHTML = tous.length
-                ? `<p class="${dangers.length ? 'warn-box' : ''}">${pl(tous.length, 'point')} à regarder du ${C.fmtDate(next.from)} au ${C.fmtDate(to)} : ${tous.map(c => h(c.label)).join(', ')}. Tu peux clôturer quand même.</p>`
+                ? `<div class="${dangers.length ? 'warn-box' : ''}"><p>${pl(tous.length, 'point')} à regarder du ${C.fmtDate(next.from)} au ${C.fmtDate(to)}. Tu peux clôturer quand même.</p>
+                    <ul class="ct-liste">${tous.map(c => {
+                      const a = actionDeControle(c.id);
+                      return `<li>${h(c.label)}${a ? ` <button type="button" class="lien-fl" data-ct-check="${h(c.id)}">${h(a.label)}</button>` : ''}</li>`;
+                    }).join('')}</ul></div>`
                 : `<p class="muted">Rien à signaler du ${C.fmtDate(next.from)} au ${C.fmtDate(to)}.</p>`;
+              $$('[data-ct-check]', root).forEach(b => b.onclick = () => {
+                const c = tous.find(x => x.id === b.dataset.ctCheck);
+                comptaState.clotChoisi = to;
+                close();
+                actionDeControle(c.id).run(c);
+              });
             };
             $('select[name=m]', root).onchange = points;
             points();

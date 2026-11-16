@@ -147,6 +147,7 @@
 /* Au téléphone (la maquette, vue téléphone) */
 @media (max-width: 760px) {
   #page-bord .a-tete h1 { font-size: 24px; }
+  .tb-avoir-b { min-height: 44px; } /* (1.362.5) « À voir · 3 » se touche au doigt (rouge de la nuit du 16/11) */
   #page-bord .lf table.tb-t td.cl { min-width: 0; }
   #page-bord .lf table.tb-t td.cl b { max-width: 130px; }
   #page-bord .tb-hero { gap: 12px; padding: 14px; }

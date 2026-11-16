@@ -3770,3 +3770,42 @@ Joué à la souris par la pâtisserie de Nour : 30 coffrets de chocolats en stoc
   neuf preuves « stock 1.362.4 ». Deux d'entre elles restaient vertes au premier passage : l'article du test n'avait pas
   de coût au catalogue, donc aucune marge ne s'affichait et le contrôle ne pouvait rien voir — des données qui ne
   discriminent pas ne prouvent rien.
+
+### 1.362.5 : Nour clôture jusqu'à octobre, et le Cabinet cesse de lui réclamer ce qu'elle a déclaré fini (bout en bout 29)
+
+Joué à la souris par la pâtisserie de Nour : « Clôturer jusqu'à… » de décembre 2025 à octobre 2026, puis le Cabinet de
+Jlassi Conseil le même jour.
+
+- **La fenêtre nommait ses points sans les ouvrir.** « 1 point à regarder du 01/12/2025 au 31/10/2026 : 2 mouvements non
+  pointés » — et aucun moyen d'aller les pointer, alors que la liste du mois suivant, juste derrière, porte ses boutons
+  (7.15.0 : ce qu'un écran nomme, il l'ouvre). Chaque point porte maintenant son geste (« Pointer les mouvements », « Voir
+  les brouillons »…), par la même table que la liste (`actionDeControle`) ; la fenêtre se ferme avant d'emmener.
+- **Revenue de son point, la fenêtre repartait au premier mois.** On rouvre « Clôturer jusqu'à… » sur le mois qu'on avait
+  choisi (`comptaState.clotChoisi`).
+- **Le Cabinet ne savait pas que le client avait clôturé.** Le tableau de bord réclamait « 8 mois sans écriture » à Nour, la
+  fiche « Juillet, août et septembre · rien reçu · Relancer le client… », pour des mois qu'elle venait de déclarer finis —
+  et vides. La clôture est la promesse faite au comptable (« ce mois ne bougera plus ») : elle doit lui parvenir. Le
+  serveur la lit sous le mandat actif (`socle.cloture_de_mes_clients`, 0213 : le jour seul et quand il a été posé, la fiche
+  du client reste fermée ; un jour impossible ne sort pas), le portefeuille la porte (`clotureClient`), et le pont
+  (`SkanMoisClos`, rangé dans `modules/socle/pont/cabinet.js` : le vieux fichier du pont ne grandit pas) fait de chaque
+  mois clôturé sans écriture un mois **vide** (du premier mois de ses livres au dernier mois clos en entier,
+  jamais le mois en cours). La fiche dit « sans activité » : rien à réclamer au client, mais la déclaration se dépose
+  quand même, à zéro (À VÉRIFIER avec le comptable).
+- **« Rien reçu depuis le 30/11 », au-dessus de juillet à septembre.** La dernière écriture était APRÈS les mois qui
+  manquent : le trou est au milieu des livres. « Depuis » ne se dit plus que d'une écriture d'avant le premier mois vide ;
+  sinon « Aucune écriture sur ces mois, alors que ses livres en ont après (la dernière le 15/10) ».
+- **La grille disait « rien reçu » avant le début de la mission.** La fiche affiche « Début de mission : le premier mois
+  de ses livres », et la grille de l'année marquait « rien reçu » de janvier à juin pour des livres qui commencent en
+  juillet — ce que rien ne réclame par ailleurs. Elle prend le même début (`K.debutDeMission`).
+- **Le rouge de la nuit du 16/11** (1.362.3) : « À voir · 3 », au tableau de bord du Cabinet, faisait 23 px de haut au
+  téléphone (il ne paraît que les jours où il y a quelque chose « à voir ») ; il en fait 44. Et la preuve « tableau
+  1.338.0 j » restait verte à partir du 16 : son défaut ne taisait que la branche « avant le 15 » des personnes physiques.
+  Elle tait désormais la ligne entière, quel que soit le jour.
+- Vérifié à la souris : la fenêtre, « Pointer les mouvements » vers le rapprochement, le retour sur octobre, la clôture et
+  son journal ; au Cabinet, le tableau de bord sans la ligne de Nour, la fiche avec « sans activité » et sans « Rien reçu
+  depuis ».
+- Tests : `tests/web/cloture-client-1362-5.test.ts` (dans les deux applications, sur des mois lus sur l'horloge du test :
+  avant la clôture, la phrase juste ; la fenêtre, son geste, son mois retrouvé ; après, « sans activité » et rien de
+  réclamé ; la grille d'une année ouverte avec l'horloge de la page posée en décembre, pour que janvier existe avant les
+  livres quel que soit le jour), et un test de `tests/cabinet/mandats.test.ts` (ce qui sort, à qui, et jamais un jour
+  impossible) ; onze preuves « clôture 1.362.5 ».

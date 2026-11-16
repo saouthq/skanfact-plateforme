@@ -428,6 +428,7 @@ main { --main-haut: 32px; --main-bas: 48px; flex: 1; overflow-y: auto; scrollbar
    sous le texte (T-56, 9.8.8). Partagée par les deux applications (10.14.1). */
 .ctrl-geste { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
 .annonce-stable.encadre > .warn-box, .annonce-stable.encadre > .ok-box, .annonce-stable.encadre > p { margin: 0; }
+.ct-liste { margin: 4px 0 0; padding-inline-start: 18px; } .ct-liste li + li { margin-block-start: 2px; } #ct-points p { margin: 0; } /* (1.362.5) chaque point et son geste */
 /* Toute la ligne d'une grille, quel que soit son nombre de colonnes. La classe était posée par le
    formulaire d'un contrat récurrent et n'existait nulle part : « Notes sur la facture » tenait dans
    un tiers de la fenêtre, et « Contrat actif… » sur quatre lignes à côté (10.12.0). */

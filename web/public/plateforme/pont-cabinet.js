@@ -315,7 +315,7 @@
       if (!String(lue.phone || '').trim() && c.telephone) lue.phone = c.telephone;
       // (1.168.0) Ce que le client a confié au cabinet : les Pièces reçues ne proposent pas de saisir un achat qu'il saisit lui-même.
       return Object.assign(K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
-        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) }), { perimetre: d.tenu ? null : (d.perimetre || null), relieDepuis: d.tenu ? '' : String(d.debut || '').slice(0, 7) });
+        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise), d.tenu ? undefined : d.clotureClient) }), { perimetre: d.tenu ? null : (d.perimetre || null), relieDepuis: d.tenu ? '' : String(d.debut || '').slice(0, 7) });
     });
     // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
     // adresse à la place du poste) ; les dossiers confiés sont les droits posés sur chaque dossier.
@@ -355,15 +355,15 @@
   // Les mois des livres d'un dossier, dans la forme des « paquets » que le tableau du portefeuille
   // compte (cabcore.js, packSummary) : un mois qui a des écritures est « reçu » ; il est DÉFINITIF
   // quand aucune n'est plus au brouillard ; son chiffre d'affaires est celui des comptes 70, et son
-  // jour celui du dernier mouvement. Rien n'est inventé : un mois sans écriture n'a pas de paquet.
-  /** @param {any} K @param {any[]} mois */
-  function moisVersPaquets(K, mois) {
-    return mois.map((m) => ({
+  // jour celui du dernier mouvement. Rien n'est inventé : un mois sans écriture n'a pas de paquet, sauf (1.362.5) celui que le
+  // client a clôturé chez lui : modules/socle/pont/cabinet.js le pose, vide (`SkanMoisClos`).
+  /** @param {any} K @param {any[]} mois @param {any} [cloture] */ function moisVersPaquets(K, mois, cloture) {
+    return (/** @type {(K: any, p: any[], c: any) => any[]} */ (/** @type {any} */ (window).SkanMoisClos?.completer || ((_K, p) => p)))(K, mois.map((m) => ({
       month: m.mois, label: K.monthLabel(m.mois), definitive: m.brouillards === 0,
       receivedAt: Date.parse(m.dernier) || null, generatedAt: m.dernier || null,
       files: 0, missing: [], absent: 0, digest: '', bytes: 0, path: '', sealed: false, appVersion: '',
       figures: { ca: Number(m.ca), devise: 'DT' }, integrity: null, livre: true,
-    })).sort((a, b) => (a.month < b.month ? 1 : -1));
+    })), cloture).sort((a, b) => (a.month < b.month ? 1 : -1));
   }
 
   // L'index des livres de chaque dossier (brique 48 ; docs/cabinet.md, C38), dans la forme que la v10

@@ -7,6 +7,33 @@
 (function () {
   'use strict';
   const w = /** @type {any} */ (window);
+  // (1.362.5) Un mois que le client a CLÔTURÉ chez lui sans une écriture est un mois vide, pas un mois qui manque. Le cabinet lui
+  // réclamait « juillet, août et septembre · rien reçu » et « 8 mois sans écriture » le jour où il venait de les déclarer finis.
+  // Le portefeuille porte sa clôture (`clotureClient`, base 0213) ; le pont (`moisVersPaquets`) passe ici ses paquets, et ces
+  // mois-là reviennent avec `vide` et le jour de la clôture : du premier mois de ses livres jusqu'au dernier mois clos EN ENTIER,
+  // jamais le mois en cours, jamais avant ses livres. Pur : il ne parle à personne, et il sert avant la vérification du cabinet.
+  w.SkanMoisClos = Object.freeze({
+    /** @param {any} K @param {any[]} paquets @param {{ jusqua: string, le: string | null } | undefined} cloture @returns {any[]} */
+    completer(K, paquets, cloture) {
+      const premier = paquets.map((p) => p.month).sort()[0];
+      const jusqua = cloture && cloture.jusqua ? cloture.jusqua.slice(0, 7) : '';
+      // Un mois n'est clos en entier que si la clôture va jusqu'à son dernier jour.
+      const finDe = (/** @type {string} */ m) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
+      const dernierClos = !jusqua ? '' : finDe(jusqua) === cloture?.jusqua ? jusqua : K.addMonth(jusqua, -1);
+      const fini = K.addMonth(K.today().slice(0, 7), -1);
+      const fin = dernierClos < fini ? dernierClos : fini;
+      if (!premier || !fin || premier > fin) return paquets;
+      const vus = new Set(paquets.map((p) => p.month));
+      /** @type {any[]} */ const vides = [];
+      for (const m of K.monthsBetween(premier, fin)) {
+        if (vus.has(m)) continue;
+        vides.push({ month: m, label: K.monthLabel(m), definitive: true, receivedAt: Date.parse(String(cloture?.le || '')) || null, generatedAt: null,
+          files: 0, missing: [], absent: 0, digest: '', bytes: 0, path: '', sealed: false, appVersion: '',
+          figures: { ca: 0, devise: 'DT' }, livre: true, integrity: null, vide: true, closLe: cloture?.le || null });
+      }
+      return paquets.concat(vides);
+    },
+  });
   if (!w.cabinet || !w.Socle) return;
   /** @type {(methode: string, chemin: string, corps?: unknown) => Promise<any>} */
   const appel = w.Socle.porte('pont').appel;

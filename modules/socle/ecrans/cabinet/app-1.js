@@ -4861,7 +4861,10 @@
   // Où en est un mois, lu dans les livres et ses déclarations : [classe, mot, en retard ?].
   function etatMoisFd(d, m, L, tard, mc) {
     if (m >= moisSuivant(mc)) return ['avenir', 'à venir', false];
-    if (d.from && m < d.from) return ['hors', 'avant la mission', false];
+    // (1.362.5) Le début de mission est celui que la fiche affiche (« le premier mois de ses livres ») : la grille disait
+    // « rien reçu » de janvier à juin pour des livres qui commencent en juillet, que rien ne réclame.
+    const debut = d.from || (d.manual ? '' : K.debutDeMission(d));
+    if (debut && m < debut) return ['hors', 'avant la mission', false];
     const x = (L && L.parMois[m]) || { ecr: 0, br: 0 };
     const decl = (L && L.decl[m]) || declarationConnue(d.id, m);
     if (m === mc) return ['cours', 'en cours', false];
@@ -4871,6 +4874,8 @@
     if (x.br) return ['rev', 'à réviser', enRetard];
     if (x.ecr) return ['pret', 'révisé', enRetard];
     if (!L && ecrituresConnues(d.id, m)) return brouillardsConnus(d.id, m) ? ['rev', 'à réviser', enRetard] : ['pret', 'révisé', enRetard];
+    // (1.362.5) Un mois que le client a clôturé chez lui sans une écriture : rien à lui réclamer, sa déclaration se dépose quand même.
+    if (!x.ecr && (d.packs || []).some(p => p.month === m && p.vide)) return ['pret', 'sans activité', enRetard];
     return d.manual ? ['pc', 'à saisir', enRetard] : ['manque', 'rien reçu', enRetard];
   }
 
@@ -4904,19 +4909,23 @@
     if (sansRien.length) {
       const noms = sansRien.map(moisLong), titre = `${cap(noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0])} · rien reçu`;
       const dit = sansRien.map(m => (tard.includes(m) ? `${cap(moisLong(m))} est en retard depuis le ${jjmm(limiteDe(m))}` : `${cap(moisLong(m))} ${quandMp}`)).join(' ; ');
-      attend.push(['alerte', tard.some(m => sansRien.includes(m)) ? 'rouge' : 'ambre', titre, `${L && L.derniere ? `Aucune écriture depuis le ${jjmm(L.derniere)}. ` : 'Aucune écriture encore. '}${dit}. ${relanceTxt}`, [`Relancer ${prenom || 'le client'}…`, 'relancer']]);
+      // (1.362.5) « Aucune écriture depuis le 30/11 » au-dessus de juillet à septembre : la dernière écriture est APRÈS les mois
+      // qui manquent, le trou est au milieu des livres. « Depuis » ne se dit que d'une écriture d'avant le premier mois vide.
+      const avant = L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? L.derniere : '';
+      attend.push(['alerte', tard.some(m => sansRien.includes(m)) ? 'rouge' : 'ambre', titre, `${avant ? `Aucune écriture depuis le ${jjmm(avant)}. ` : L && L.derniere ? `Aucune écriture sur ${sansRien.length > 1 ? 'ces mois' : 'ce mois'}, alors que ses livres en ont après (la dernière le ${jjmm(L.derniere)}). ` : 'Aucune écriture encore. '}${dit}. ${relanceTxt}`, [`Relancer ${prenom || 'le client'}…`, 'relancer']]);
     }
     for (const m of tard) {
-      const [cl] = etatMoisFd(d, m, L, tard, mc), br = ((L && L.parMois[m]) || {}).br || brouillardsConnus(d.id, m);
+      const [cl, mot] = etatMoisFd(d, m, L, tard, mc), br = ((L && L.parMois[m]) || {}).br || brouillardsConnus(d.id, m);
       if (cl === 'manque') continue;
       else if (cl === 'rev') attend.push(['alerte', 'rouge', `${cap(moisLong(m))} · en retard depuis le ${jjmm(limiteDe(m))}`, `${pl(br, 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(m)}`, versSaisie, eq.suit && eq.suit.id !== S.moi && !dir ? `${prenomDe(eq.suit)} révise` : '']]);
-      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · prêt, en retard depuis le ${jjmm(limiteDe(m))}`, 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
+      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · ${mot === 'sans activité' ? mot : 'prêt'}, en retard depuis le ${jjmm(limiteDe(m))}`, mot === 'sans activité' ? 'Clôturé par le client sans une écriture : sa déclaration se dépose quand même, à zéro (À VÉRIFIER), sur e-jibaya, puis se marque déposée dans Échéances.' : 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
     }
     if (!tard.includes(mp) && (!d.from || d.from <= mp)) {
       const [cl, mot] = etatMoisFd(d, mp, L, tard, mc), lim = limiteDe(mp);
       const quand = lim === aujourdhui ? 'à déposer aujourd\'hui' : lim > aujourdhui ? `à déposer d'ici le ${jjmm(lim)}` : 'à déposer';
       if (cl === 'rev') attend.push(['alerte', 'ambre', `${cap(moisLong(mp))} · ${quand}`, `${pl(((L && L.parMois[mp]) || {}).br || brouillardsConnus(d.id, mp), 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(mp)}`, versSaisie]]);
       else if (cl === 'pc') attend.push(['saisie', 'ambre', `${cap(moisLong(mp))} · ${quand}, à saisir`, 'Un dossier tenu au cabinet : ses pièces se saisissent ici.', ['Saisir ' + moisLong(mp), versSaisie]]);
+      else if (cl === 'pret' && mot === 'sans activité') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · sans activité, ${quand}`, 'Clôturé par le client sans une écriture : la déclaration se prépare quand même, à zéro (À VÉRIFIER), puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declarations`]]);
       else if (cl === 'pret' && mot === 'révisé') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · révisé, ${quand}`, 'La déclaration se prépare d\'après ses livres, puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declarations`]]);
       else if (cl === 'pret') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · prête, ${quand}`, 'Elle se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
     }
@@ -5037,7 +5046,7 @@
 
     // L'en-tête.
     const phrase = [
-      sansRien.length && L && L.derniere ? `Rien reçu depuis le ${jjmm(L.derniere)}` : '',
+      sansRien.length && L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? `Rien reçu depuis le ${jjmm(L.derniere)}` : '',
       tard.length ? `${cap(tard.map(moisLong).join(', '))} en retard` : '',
       !tard.includes(mp) && etats[mois.indexOf(mp)] && etats[mois.indexOf(mp)][0] !== 'fait' && (!d.from || d.from <= mp) ? `${moisLong(mp)} ${limiteDe(mp) === aujourdhui ? 'à déposer aujourd\'hui' : limiteDe(mp) > aujourdhui ? `à déposer d'ici le ${jjmm(limiteDe(mp))}` : 'à déposer'}` : '',
       em.nonLus ? `${pl(em.nonLus, 'non lu', 'non lus')} de ${esc(prenom || d.name)}` : '',

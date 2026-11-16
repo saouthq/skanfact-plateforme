@@ -188,6 +188,40 @@ describe('le cabinet et ses mandats', () => {
     expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.coordonnees_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
   });
 
+  it('(1.362.5) sous un mandat actif, le cabinet lit la période que son client a clôturée chez lui ; un jour impossible ne sort pas ; proposé ou arrêté, rien', async () => {
+    const cl = await client();
+    const cab = await cabinet();
+    const poser = (v: unknown) => admin.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, '_racine', 'closedUntil', $2::jsonb)
+      on conflict (entreprise, collection, cle) do update set contenu = excluded.contenu, modifie_le = now()`, [cl.ent, JSON.stringify(v)]);
+    await poser('2026-10-31');
+    const lue = async () => (((await appeler('GET', `/cabinets/${cab.id}/portefeuille`, cab.associe.jeton)).corps.dossiers as { entreprise: string; clotureClient?: { jusqua: string; le: string | null } }[])
+      .find((d) => d.entreprise === cl.ent) ?? null)?.clotureClient;
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    // Proposé : rien ne sort encore — ni du portefeuille, ni de la fonction elle-même (le serveur ne la questionne que
+    // pour les mandats actifs : sans ce second regard, la garde de la base ne serait prouvée par rien).
+    expect(await lue()).toBeUndefined();
+    expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.cloture_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    const c = await lue();
+    expect(c?.jusqua).toBe('2026-10-31');
+    expect(Number.isFinite(Date.parse(String(c?.le)))).toBe(true);
+    // Ce jour seul : la fonction ne rend que ses trois colonnes.
+    const colonnes = await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select * from socle.cloture_de_mes_clients() where entreprise = $1', [cl.ent])).fields.map((f) => f.name));
+    expect(colonnes).toEqual(['entreprise', 'jusqua', 'le']);
+    // Un jour impossible (ou une clôture levée : la chaîne vide) ne sort pas, et ne fait pas tomber le portefeuille.
+    await poser('2026-02-30');
+    expect(await lue()).toBeUndefined();
+    await poser('');
+    expect(await lue()).toBeUndefined();
+    await poser('2026-09-30');
+    expect((await lue())?.jusqua).toBe('2026-09-30');
+    // Un autre cabinet n'en lit rien ; arrêté, le cabinet non plus.
+    const autre = await cabinet();
+    expect(await enTantQue(pool, autre.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.cloture_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+    await appeler('DELETE', `/entreprises/${cl.ent}/mandat`, cl.jeton);
+    expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.cloture_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+  });
+
   it('inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite', async () => {
     const cl = await client();
     const jetonDe = (lien: unknown) => decodeURIComponent(/[?&]comptable=([^&]+)/.exec(String(lien))?.[1] ?? '');
