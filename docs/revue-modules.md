@@ -4783,3 +4783,10 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
 - La fenêtre d'émission et la fenêtre d'envoi jugent l'adresse de la même façon : « pas-un-email » n'est plus proposé.
 - L'adresse tapée à l'envoi, quand la fiche n'en a pas de valable, est gardée sur la fiche du client (et c'est dit).
 - Reste de V-14 : la fiche accepte encore une adresse mal formée (elle le signale seulement).
+
+## 1.379.11 — Le Cabinet : des mots justes, une recherche sans accents (issue 12, constats 9, 13, 28)
+
+- « la déclaration d'octobre », « Relevé bancaire d'avril », « Salaire d'août », « 3 écritures d'octobre au brouillard » : plus de « de octobre ».
+- La recherche du tableau de bord, du portefeuille, des pièces reçues et des relances trouve « Hôtel » en tapant « hotel ».
+- « Retirer l'exemple » du bandeau pose la même question que celui des Réglages.
+- Pas de test neuf pour ces trois points (tests des écrans touchés rejoués, verts) : à couvrir avec le reste de l'issue 12.

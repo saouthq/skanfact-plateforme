@@ -1812,7 +1812,7 @@
     const tard = retard.get(d.name) || [];
     if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp))}`, texte: `${bonjour}votre déclaration ${deFr(moisLong(mp))} est prête : je la dépose avant le ${jjmm(limiteDe(mp))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
     else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces ${deFr(moisLong(mp))}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
-    if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations de ${tard.map(moisLong).join(' et ')} sont` : `la déclaration de ${moisLong(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
+    if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations ${deMois(tard[0])}${tard.slice(1).map(m => ` et ${deMois(m)}`).join('')} sont` : `la déclaration ${deMois(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
     return l.slice(0, 2);
   }
   // (1.178.0) « vendredi 30/10 ».
@@ -1915,7 +1915,7 @@
         <p class="small muted">L'invitation part depuis sa fiche, à l'adresse que tu donnes ; le client choisit ce que voit le cabinet.</p></div>
       <div class="msg-tenu-apercu" aria-hidden="true"><div class="msg-ap-tete">${ic('<path d="M4 5h16v11H8l-4 4z"/>')}<b>Mon comptable</b><small>${esc((S.cabinet && S.cabinet.name) || 'ton cabinet')}</small></div>
         <div class="msg-ap-bulle">Bonjour, pour ${esc(moisLong(moisPrecedent(K.today().slice(0, 7))))} il me manque le relevé de la banque. Merci !</div>
-        <div class="msg-ap-demande"><b>Relevé bancaire de ${esc(moisLong(moisPrecedent(K.today().slice(0, 7))))}</b><small>pièce demandée</small><span class="msg-ap-btn">Envoyer la pièce…</span></div>
+        <div class="msg-ap-demande"><b>Relevé bancaire ${esc(deMois(moisPrecedent(K.today().slice(0, 7))))}</b><small>pièce demandée</small><span class="msg-ap-btn">Envoyer la pièce…</span></div>
         <small class="msg-ap-pied">ce que ce client verrait dans SkanFact</small></div>`;
   }
   // (1.178.0, maquette « Messages ») Le cabinet sans client en ligne : ce que fait la messagerie, et trois gestes pour qu'elle
@@ -2975,7 +2975,7 @@
       : !revState.donnees ? '<div class="tb-vide" id="tb-rev-lecture"><b>Lecture des livres…</b><span>La révision lit chaque livre du portefeuille : le dernier relevé rapproché, le compte d\'attente, le crédit de TVA, le brouillard.</span></div>' : corps;
     return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${etat}${revState.donnees && note ? `<p class="tb-note">${note}</p>` : ''}</div></div>`;
   }
-  const filtreQTb = L => { const q = tbState.q.trim().toLowerCase(); return L.filter(x => !q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)); };
+  const filtreQTb = L => { const q = tbState.q.trim().toLowerCase(); return L.filter(x => !q || x.d.name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)) || String(x.d.matricule || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q))); };
   const videQTb = () => `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`;
   const celDossierTb = x => `<td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${estAssocie() && portee() === 'tous' && !tbState.qui && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>`;
   const menuTb = x => `<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td>`;
@@ -3133,7 +3133,7 @@
     const moisC = P.dernier;
     const filtre = tbState.filtre.startsWith('et:') ? (x => x.mois.has(moisC) && x.mois.get(moisC).etape === tbState.filtre.slice(3)) : (FILTRES_TB[tbState.filtre] || FILTRES_TB.tous);
     const q = tbState.q.trim().toLowerCase();
-    const fl = L.filter(x => (!q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)) && filtre(x));
+    const fl = L.filter(x => (!q || x.d.name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)) || String(x.d.matricule || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q))) && filtre(x));
     return [...fl].sort((a, b) => (b.manque * 10 + b.aSaisir * 5 + b.aReviser) - (a.manque * 10 + a.aSaisir * 5 + a.aReviser) || a.d.name.localeCompare(b.d.name, 'fr'));
   }
   // ── (1.198.0, maquette « Le menu ⋯ de la page ») Exporter la grille : en tableur, ou en PDF pour une réunion ──
@@ -3539,7 +3539,7 @@
     const q = st.q.trim().toLowerCase();
     const parDossier = st.dossier && !d ? source.filter(p => p.entreprise === st.dossier) : source;
     const filtre = (FILTRES.find(f => f[0] === st.filtre) || FILTRES[0])[2];
-    const l = parDossier.filter(filtre).filter(p => !q || `${p.fichier.nom} ${p.de} ${p.texte} ${p.demande || ''} ${p.achat || ''} ${dossierDe(p.entreprise).name}`.toLowerCase().includes(q));
+    const l = parDossier.filter(filtre).filter(p => !q || `${p.fichier.nom} ${p.de} ${p.texte} ${p.demande || ''} ${p.achat || ''} ${dossierDe(p.entreprise).name}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)));
     // Les dossiers, le plus pressé d'abord, puis celui dont la pièce est la plus récente ; leurs pièces dans l'ordre d'arrivée.
     const groupes = [...new Set(l.map(p => p.entreprise))].sort((a, b) => (presse.get(b) ? 1 : 0) - (presse.get(a) ? 1 : 0));
     // Dans un dossier, l'ordre d'arrivée (la plus ancienne d'abord) ; classées, la plus récemment classée d'abord.
@@ -4093,6 +4093,8 @@
     view.insertBefore(el, view.firstChild);
     const off = $('#demo-off', el);
     off.onclick = async () => {
+      // (1.379.11, issue 12 constat 9) Le bandeau retirait l'exemple d'un clic ; les Réglages demandaient. Une seule façon.
+      if (api.exempleEnLigne && !await confirmDialog('Retirer le dossier d\'exemple ?', 'Il part avec ses livres, sa paie et ses relevés. Tes vrais dossiers ne bougent pas, et tu pourras le recharger à neuf.', 'Retirer l\'exemple')) return;
       S = await chargerOuRetirerExemple(false); VISITES = null;
       // Quitté depuis la fiche d'un dossier FICTIF, on revient au portefeuille : l'écran restait sur
       // un dossier qui venait de partir (vu à la souris). Sur la fiche d'un vrai dossier, on reste.
@@ -4482,7 +4484,7 @@
     const dansVue = (v, x) => v === 'tous' ? true : v === 'mes' ? aMoi(x.d) : v === 'manque' ? x.reclame && !x.pc : v === 'tenus' ? x.d.manual : false;
     const compte = v => v === 'archives' ? archives.length : L.filter(x => dansVue(v, x)).length;
     const q = st.q.trim().toLowerCase();
-    const cherche = x => `${x.d.name} ${x.d.matricule || ''} ${x.d.phone || ''} ${x.d.email || ''} ${x.d.contact || ''}`.toLowerCase().includes(q);
+    const cherche = x => `${x.d.name} ${x.d.matricule || ''} ${x.d.phone || ''} ${x.d.email || ''} ${x.d.contact || ''}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q));
     const base = st.vue === 'archives' ? archives.map(lignesDe) : L.filter(x => dansVue(st.vue, x));
     let l = (q ? (st.vue === 'archives' ? base : L.concat(archives.map(lignesDe))).filter(cherche) : base)
       .filter(x => !st.suivi || (x.d.droits && x.d.droits[st.suivi]));

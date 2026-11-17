@@ -6222,7 +6222,7 @@
       const prudence = e.id === 'cnss' && employeurInconnu(d, e);
       const sous = {
         sans: [`rien reçu pour ${t.moisNom}`, autres.length ? `${autres.map(m => K.monthLabel(m).split(' ')[0]).join(', ')} attend${autres.length > 1 ? 'ent' : ''} aussi` : '', derniereRelanceCd(d)].filter(Boolean).join(' · '), saisir: `${t.moisNom} sans écriture : c'est au cabinet de le saisir`,
-        pieces: `${pl(nPieces, 'pièce reçue', 'pièces reçues')}, à classer`, valider: brouillards ? `${pl(brouillards, 'écriture')} de ${t.moisNom} au brouillard` : `${t.moisNom} à réviser`,
+        pieces: `${pl(nPieces, 'pièce reçue', 'pièces reçues')}, à classer`, valider: brouillards ? `${pl(brouillards, 'écriture')} ${/^[aeiouo]/i.test(t.moisNom) ? 'd\'' : 'de '}${t.moisNom} au brouillard` : `${t.moisNom} à réviser`,
         prete: t.sorte === 'mens' ? `${t.moisNom} révisé : la déclaration peut se préparer` : 'les mois sont révisés',
         preparee: decl && decl.prepareeLe ? `préparée le ${jourMois(decl.prepareeLe)}${decl.preparePar ? ` par ${decl.preparePar}` : ''}` : '',
         deposee: decl && decl.deposeeLe ? `déposée le ${jourMois(decl.deposeeLe)}${decl.deposeePar ? ` par ${decl.deposeePar}` : ''}${d.paieDecl === 'client' ? ' · le client la paie lui-même' : ''}` : '',
@@ -6384,7 +6384,7 @@
     // Au-delà de quinze dossiers : rangés par état, une recherche, les déposés repliés en une ligne.
     const beaucoup = x.lignes.length > 15;
     const q = st.q.trim().toLowerCase();
-    const cherchees = filtrees.filter(l => !q || l.d.name.toLowerCase().includes(q));
+    const cherchees = filtrees.filter(l => !q || l.d.name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)));
     const TITRES = { sans: 'Rien reçu', saisir: 'À saisir au cabinet', pieces: 'Pièces à classer', valider: 'À réviser', prete: 'Prêtes à préparer', preparee: 'Préparées, à déposer', deposee: 'Déposées, à payer' };
     let rang = 0;
     const parEtat = () => Object.entries(TITRES).map(([k, t]) => {

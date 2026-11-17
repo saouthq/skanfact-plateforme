@@ -1781,7 +1781,7 @@
       <div class="cp-pa-grille avec-volet">
         <div><h4>Son dernier bulletin, ${esc(KC.moisPaie(mois))} ${esc(an)} <span class="muted small">· À VÉRIFIER : la règle des congés et l'indemnité de fin de contrat</span></h4>
           <table class="list compact" id="pa-depart-bul"><tbody>
-            ${ligne(`Salaire de ${esc(KC.moisPaie(mois))}`, sal.prorata ? `au prorata : ${esc(joursFr(sal.prorata.jours))} j sur ${esc(joursFr(sal.prorata.sur))} (${esc(sal.prorata.motif)}) · ${esc(money(sal.prorata.brutFiche))} pour un mois complet` : 'le brut de sa fiche, pour un mois complet', esc(money(salaire)))}
+            ${ligne(`Salaire ${esc(KC.deMois(KC.moisPaie(mois)))}`, sal.prorata ? `au prorata : ${esc(joursFr(sal.prorata.jours))} j sur ${esc(joursFr(sal.prorata.sur))} (${esc(sal.prorata.motif)}) · ${esc(money(sal.prorata.brutFiche))} pour un mois complet` : 'le brut de sa fiche, pour un mois complet', esc(money(salaire)))}
             ${ligne(`Congés pas pris : ${esc(joursFr(ic.jours))} j`, ic.solde < 0 ? `il a pris ${esc(joursFr(-ic.solde))} j de plus qu'il n'en a acquis : rien à indemniser` : `le solde au ${esc(fmtJour(x.sortie))} · ${esc(joursFr(ic.jours))} × ${esc(money(ic.journalier))} (son brut sur les jours d'un mois complet)`, esc(money(ic.montant)))}
             ${ligne('Indemnité de fin de contrat', 'selon son contrat et la convention collective (À VÉRIFIER)', '<span class="muted">—</span>')}
           </tbody><tfoot><tr><th>Brut du dernier bulletin</th><th class="r nw" id="pa-depart-brut">${esc(money(brut))}</th></tr></tfoot></table></div>
