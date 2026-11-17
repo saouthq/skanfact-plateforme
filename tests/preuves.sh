@@ -30003,6 +30003,10 @@ prouver $'revue 1.375.0 f : le modèle lu ne se dit pas' modules/socle/ecrans/ca
   $'${lignes.length && lu.parModele && !lu.modele && !deja ? `<div' \
   $'${lignes.length < 0 ? `<div' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.1 a : le justificatif déposé n\'est pas joint à son écriture' modules/socle/ecrans/cabinet/app-2.js \
+  $'await api.classeur.classer(dossier.id, doc.id, true, \'jointe\', id);' \
+  $'await api.classeur.classer(dossier.id, doc.id, true, \'jointe\');' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

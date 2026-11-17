@@ -418,7 +418,7 @@
   b('#sa-ok', 'Enregistre la pièce en brouillard : elle se corrige encore, et n\'a pas de numéro.');
   b('#sa-okvalider', 'Enregistre et valide : la pièce reçoit son numéro et ne se modifie plus (elle se contre-passe).');
   b('#sa-vider', 'Efface la pièce en cours pour repartir d\'une grille vide.');
-  b('#sa-joindre', 'Joint un justificatif à la pièce : le fichier est copié dans le dossier.');
+  b('#sa-joindre', 'Joint un justificatif à la pièce : le fichier va au classeur du dossier, sur son écriture.');
   b('#sa-guide', 'Préremplit la pièce avec un guide d\'écriture (un loyer, un salaire…).', { nom: 'Guide' });
   b('[data-sup]', 'Retire cette ligne de la pièce en cours.', { nom: 'Retirer la ligne', cle: 'sup-ligne' });
   b('#ab-new', 'Crée une écriture qui revient chaque mois (un loyer), générée en brouillard.');

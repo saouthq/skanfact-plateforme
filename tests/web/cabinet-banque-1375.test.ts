@@ -150,6 +150,28 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     // La grille est vide : un second clic n'a plus rien à enregistrer.
     await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
     expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').map((e) => e.statut)).toEqual(['brouillard']);
+
+    // ── (1.375.1) « Joindre un justificatif… » : le fichier va au classeur du dossier, joint à l'écriture ─────
+    await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
+    await p.locator('#sa-piece').fill('OD-JUST');
+    await p.locator('#sa-libelle').fill('Loyer de janvier');
+    for (const [i, [compte, debit, credit]] of ([['6132', '80', ''], ['401', '', '80']] as const).entries()) {
+      if (!(await p.locator(`#sa-lignes tr[data-i="${i}"]`).count())) await p.locator('#sa-ajouter').click();
+      const tr = p.locator(`#sa-lignes tr[data-i="${i}"]`);
+      await tr.locator('input[data-k="compte"]').fill(compte);
+      if (debit) await tr.locator('input[data-k="debit"]').fill(debit);
+      if (credit) await tr.locator('input[data-k="credit"]').fill(credit);
+    }
+    await p.locator('#sa-joindre').click();
+    const [fj] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer et joindre' }).click()]);
+    await fj.setFiles({ name: 'quittance-loyer.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n', 'utf8') });
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^« quittance-loyer\.pdf » est joint à l'écriture : il est au classeur du dossier, en janvier \d{4}\.$/);
+    const just = (await ecritures(cafe, associe)).find((e) => e.piece === 'OD-JUST');
+    expect(just?.statut).toBe('brouillard');
+    const docs = (await api('GET', `/cabinets/${cabinet}/classeur/${cafe}/documents`, associe)).corps.documents as { titre: string; periode: string; rubrique: string; raison: string; jointe?: string }[];
+    expect(docs.filter((d) => d.titre === 'quittance-loyer.pdf').map((d) => [d.periode, d.rubrique, d.raison, d.jointe ?? null]))
+      .toEqual([[`${demain.getFullYear()}-01`, 'piece', 'jointe', just?.id ?? '?']]);
+    await expect.poll(() => p.locator('#sa-joindre').innerText()).toBe('Justificatif joint ✓');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

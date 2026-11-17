@@ -4562,14 +4562,32 @@
         } catch (e) { await infoDialog('Enregistrement impossible', plainError(e)); return; }
       } else id = saisieState.piece.id;
     }
+    // (1.375.1) En ligne, le fichier va au CLASSEUR du dossier, au mois de l'écriture, joint à elle du même geste : le
+    // bouton appelait un geste que le Cabinet en ligne n'avait pas (« Justificatif impossible », partout — issue 11).
+    const f = await choisirJustificatif();
+    if (!f) return;
     try {
-      const r = await api.joindreEcriture({ dossierId: dossier.id, annee: s.annee, id });
-      if (r.annule) return;
-      s.livre = r.livre;
-      if (saisieState.piece && saisieState.piece.id === id) saisieState.piece.pieceJointe = r.pieceJointe;
-      toast('Justificatif joint et copié dans le dossier du client.');
+      const e = ((s.livre && s.livre.ecritures) || []).find(x => x.id === id) || saisieState.piece || {};
+      const periode = /^\d{4}-\d{2}/.test(String(e.date || '')) ? String(e.date).slice(0, 7) : null;
+      const doc = await api.classeur.deposer(dossier.id, { rubrique: 'piece', periode, titre: f.name, provenance: 'la Saisie du cabinet' }, f);
+      await api.classeur.classer(dossier.id, doc.id, true, 'jointe', id);
+      clState.docs.delete(dossier.id); clState.livres.delete(`${dossier.id}:${s.annee}`); clState.just.clear();
+      if (saisieState.piece && saisieState.piece.id === id) saisieState.piece.pieceJointe = f.name;
+      toast(`« ${f.name} » est joint à l'écriture : il est au classeur du dossier${periode ? `, en ${K.monthLabel(periode)}` : ''}.`);
       drawLivres(root, dossier);
     } catch (e) { await infoDialog('Justificatif impossible', plainError(e)); }
+  }
+  // Le fichier se choisit dans la fenêtre du système ; fermée sans rien choisir, rien ne se passe.
+  function choisirJustificatif() {
+    return new Promise(fini => {
+      const i = document.createElement('input');
+      i.type = 'file'; i.accept = '.pdf,image/*'; i.id = 'sa-justif-fichier'; i.hidden = true;
+      document.body.appendChild(i);
+      const rendre = f => { i.remove(); fini(f); };
+      i.addEventListener('change', () => rendre((i.files && i.files[0]) || null));
+      i.addEventListener('cancel', () => rendre(null));
+      i.click();
+    });
   }
 
   // Valider un lot. On DIT d'abord combien de pièces sont concernées : « valider » est irréversible,
@@ -4937,7 +4955,7 @@
     }
     a.push({ icon: 'texte', label: e.pieceJointe ? 'Remplacer le justificatif…' : 'Joindre un justificatif…',
       court: 'Justificatif…',
-      hint: 'Le fichier est copié dans le dossier du client', run: () => joindreJustificatif(root, dossier, e.id) });
+      hint: 'Le fichier va au classeur du dossier, joint à cette écriture', run: () => joindreJustificatif(root, dossier, e.id) });
     // (plateforme) 1.105.0 — la pièce n'est pas encore au serveur : son justificatif attend qu'elle y soit.
     if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
       run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });

@@ -4333,3 +4333,10 @@ venait d'être tapé. Le curseur va au bout. Ce défaut dépend de la vitesse de
 (le défaut remis, le test passe une fois sur deux), c'est dit ici plutôt que caché.
 
 Test à la souris : `tests/web/cabinet-banque-1375.test.ts`. Six preuves « revue 1.375.0 a…f ».
+
+## 1.375.1 — « Joindre un justificatif… » marche
+
+Le bouton de la grille de saisie et l'entrée du menu d'une écriture appelaient un geste que le Cabinet en ligne n'avait
+pas : « Justificatif impossible », partout (issue 11, point 9), alors qu'une visite guidée l'enseigne. Plutôt que de le
+retirer, il fait ce qu'il dit : le fichier choisi va au classeur du dossier, au mois de l'écriture, joint à elle du même
+geste (les deux appels existaient déjà, rien de neuf ne part au serveur). Preuve « revue 1.375.1 a ».
