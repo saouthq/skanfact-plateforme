@@ -2707,12 +2707,17 @@
       const emp = donnees.employees.find(x => x.id === salarieId);
       return emp ? KC.saisieDuMois(donnees, emp, Number(s.annee), Number(mois)) : null;
     };
-    const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);
+    // (1.377.3, CABPAIE-6) Un bulletin nouveau s'ouvre sur le premier salarié qui n'a PAS encore le sien ce mois-ci : la
+    // fenêtre repartait du premier de la liste, déjà servi, bouton éteint, et il fallait choisir le suivant à chaque fois.
+    const dejaServis = new Set(KC.bulletinsDuMois(L, s.annee, s.paieMois).map(x => x.salarieId));
+    const aServir = actifs.filter(x => !dejaServis.has(x.id));
+    const premier = aServir[0] || actifs[0] || {};
+    const depart = b ? null : saisieDe(premier.id, s.paieMois);
     const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: depart ? depart.workedDays : 26, joursAbsence: depart ? depart.absentDays : 0,
       primes: depart ? depart.bonuses : [], prorata: depart ? depart.prorata : null,
       // (plateforme) 1.71.0 — et l'échéance de chacune de ses avances en cours, comme dans l'entreprise.
       retenues: depart ? depart.deductions : [] };
-    const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
+    const salDefaut = b ? b.salarieId : premier.id;
     const brutDefaut = b ? b.brut : (depart ? depart.gross : 0);
     // (plateforme) 1.66.0 — dans un dossier TENU, les taux de la paie sont ceux que le Cabinet règle pour le client. Un
     // bulletin modifié garde ceux de son calcul (un bulletin de septembre, les taux de septembre : les barèmes ne sont
@@ -2757,6 +2762,7 @@
       ${b && b.ecritureId && (ecritureDuLivre(L, b.ecritureId) || {}).statut !== 'brouillard' ? `<p class="small muted mt" id="bf-ecriture">L'écriture de paie ${esc(KC.deMois(KC.moisPaie(b.mois)))} est validée : enregistrer ce bulletin la contre-passe (au brouillard) et en écrit une nouvelle à côté.</p>` : ''}
       <p class="small warn-text" id="bf-refus" role="status" aria-live="polite" hidden></p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        ${!b && aServir.length > 1 ? `<button class="btn" id="ok-suivant" title="Enregistre ce bulletin, puis ouvre celui du salarié suivant qui n'a pas encore le sien">Enregistrer et passer au suivant</button>` : ''}
         <button class="btn btn-primary" id="ok">Enregistrer le bulletin</button></div>`,
     (rootModal, close) => {
       const f = $('#bf', rootModal);
@@ -2874,6 +2880,8 @@
         const bouton = $('#ok', rootModal);
         bouton.disabled = !verdict.ok;
         bouton.title = verdict.ok ? '' : verdict.motif;
+        const suivantB = $('#ok-suivant', rootModal);
+        if (suivantB) suivantB.disabled = !verdict.ok;
       };
       // Le brut PROPOSÉ suit le salarié choisi, tant qu'on n'y a pas touché (règle 10.6.0 : un champ
       // pré-rempli se recalcule quand ce dont il dépend change). Changer de salarié gardait le brut
@@ -2916,15 +2924,20 @@
       $('#bf-plus-prime', rootModal).onclick = () => { primesTouchees = true; ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true }); };
       $('#bf-plus-retenue', rootModal).onclick = () => { retenuesTouchees = true; ajouter('#bf-retenues', retenues, 'retenue', { label: '', amount: 0 }); };
       maj();
-      $('#ok', rootModal).onclick = async () => {
+      const enregistrerBulletin = async puisSuivant => {
         const v = lire();
         const ok = KC.bulletinValide(v, L, baremes);
         if (!ok.ok) return toast(ok.motif, 'error');
         try {
           const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v, tauxDuJour: !!(caseDuJour && caseDuJour.checked) });
           s.livre = r.livre; close(); toast('Bulletin enregistré.'); drawLivres(root, dossier);
+          // « … et passer au suivant » : la fenêtre se rouvre sur le salarié suivant sans bulletin, tant qu'il en reste.
+          if (puisSuivant) bulletinForm(root, dossier, null);
         } catch (err) { toast(plainError(err), 'error'); }
       };
+      $('#ok', rootModal).onclick = () => enregistrerBulletin(false);
+      const okSuivant = $('#ok-suivant', rootModal);
+      if (okSuivant) okSuivant.onclick = () => enregistrerBulletin(true);
     });
   }
 

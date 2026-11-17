@@ -192,6 +192,28 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await menu('Annuler la sortie');
     await expect.poll(toast).toBe('Amel Trabelsi est de nouveau en poste.');
     await expect.poll(async () => { const f = await fiche('s1'); return [f.endDate ?? '', f.active]; }).toEqual(['', true]);
+    // ── (1.377.3, CABPAIE-6) Les bulletins s'enchaînent : la fenêtre s'ouvre sur le premier salarié à servir, « Enregistrer
+    // et passer au suivant » la rouvre sur le suivant, et le dernier n'a plus ce bouton.
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await p.locator('#pa-mois').selectOption('9');
+    await ouvrirUnBulletin(p);
+    expect(await fenetre.locator('[name=salarieId]').inputValue()).toBe('s1');
+    await fenetre.locator('#ok-suivant').click();
+    await expect.poll(toast).toBe('Bulletin enregistré.');
+    await expect.poll(() => fenetre.locator('[name=salarieId]').inputValue().catch(() => '')).toBe('s2');
+    expect(await fenetre.locator('#ok-suivant').count()).toBe(0);
+    await fenetre.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/paie/dossier`, associe)).corps.objets as Objet[]).filter((o) => o.collection === 'payslips').length).toBe(2);
+    // Un seul bulletin manque : la fenêtre s'ouvre sur celui-là, pas sur le premier de la liste (déjà servi).
+    await p.locator('#pa-mois').selectOption('8');
+    await ouvrirUnBulletin(p);
+    await fenetre.locator('[name=salarieId]').selectOption('s1');
+    await fenetre.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    await ouvrirUnBulletin(p);
+    expect(await fenetre.locator('[name=salarieId]').inputValue()).toBe('s2');
+    await p.keyboard.press('Escape');
     expect(erreurs).toEqual([]);
   }, 120_000);
 });

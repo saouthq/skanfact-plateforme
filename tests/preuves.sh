@@ -30087,6 +30087,14 @@ prouver $'revue 1.377.2 c : la sortie d\'un bien sans geste au menu' modules/soc
   $'famille: f.famille || familleDuClient(f.id) }, \'cessionDate\') }]),' \
   $'famille: f.famille || familleDuClient(f.id) }, \'\') }]),' \
   $'l\'acquisition se propose, la fiche se crée, la dotation s\'éc'
+prouver $'revue 1.377.3 a : la fenêtre du bulletin repart du premier salarié, déjà servi' modules/personnel/ecrans/cabinet/paie.js \
+  $'const premier = aServir[0] || actifs[0] || {};' \
+  $'const premier = actifs[0] || {};' \
+  $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.3 b : « passer au suivant » ne rouvre rien' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (puisSuivant) bulletinForm(root, dossier, null);' \
+  $'if (puisSuivant && false) bulletinForm(root, dossier, null);' \
+  $'la sortie d\'un salarié se note avec son jour'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

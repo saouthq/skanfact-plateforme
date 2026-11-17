@@ -4427,3 +4427,13 @@ Le motif de la sortie n'est pas demandé : rien ne le lit encore (les documents 
 
 Reste de CABPAIE-15, dit : le prix de cession n'est toujours pas montré en produit ni en plus ou moins-value à l'écran.
 Essais : `cabinet-paie-parcours.test.ts`, `cabinet-immobilisations.test.ts`. Trois preuves.
+
+## 1.377.3 — Les bulletins s'enchaînent (issue 10, CABPAIE-6)
+
+« Établir les bulletins : 3 à faire… » ouvrait la fenêtre sur le premier salarié de la liste, déjà servi (bouton éteint) :
+il fallait choisir le suivant à la main, à chaque fois. La fenêtre s'ouvre sur **le premier salarié qui n'a pas encore son
+bulletin** ce mois-ci, et **« Enregistrer et passer au suivant »** la rouvre sur le suivant tant qu'il en reste (le dernier
+n'a plus ce bouton). « Enregistrer le bulletin » ferme comme avant : on reste libre de s'arrêter.
+
+Reste de CABPAIE-6, dit : pas de préparation de tous les bulletins d'un seul geste (la maquette « Préparer les 5 bulletins »).
+Essai : `tests/web/cabinet-paie-regul-1377.test.ts`. Deux preuves.
