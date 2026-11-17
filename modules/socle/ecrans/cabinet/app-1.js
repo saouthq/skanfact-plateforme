@@ -5408,6 +5408,9 @@
   const jjmmaaCl = j => `${String(j).slice(8, 10)}/${String(j).slice(5, 7)}/${String(j).slice(0, 4)}`;
   // Le compte d'un rôle fiscal : celui du plan du dossier, sinon celui du moteur (compta.js, COMPTES_FISCAUX).
   const compteRoleCl = (livre, role) => (((livre && livre.plan) || []).find(c => c.role === role) || {}).compte || (KC.COMPTES_FISCAUX || {})[role] || '';
+  // (1.378.3, issue 9 CABDECLARER-9) Un export dit son NOM et où il est : « Fichier enregistré. » laissait chercher
+  // lequel, parmi les téléchargements du jour.
+  const fichierDit = r => (r && r.path ? `Fichier enregistré dans tes téléchargements : ${r.path}` : 'Fichier enregistré.');
   const nomCompteCl = (livre, c, l) => (l && l.tiers && /^4[01]/.test(String(c))) ? l.tiers : ((((livre && livre.plan) || []).find(x => x.compte === String(c)) || {}).libelle || (l && l.libelle) || '');
   const quiCl = id => { if (!id) return 'le cabinet'; const c = (S.collaborateurs || []).find(x => x.id === id || x.utilisateur === id); return c ? String(c.nom || '').split(' ')[0] : 'le cabinet'; };
   const prenomCl = t => String(t || '').split(' ')[0] || '';
@@ -6263,7 +6266,7 @@
       const valideLe = new Map((lv.ecritures || []).map(e => [e.id, e.valideeLe ? KC.jourDeLInstant(e.valideeLe) : '']));
       const r = lignes.length ? KC.fichierFec(lignes, { identifiant: d.matricule || d.name, fin: (lv.exercice || {}).au, decimales: 3,
         nomJournal: c => ((lv.journaux || KC.JOURNAUX_PAR_DEFAUT).find(j => j.code === c) || {}).libelle || c,
-        nomCompte: (c, l) => nomCompteCl(lv, c, l), aux: l => (l.tiers && /^4[01]/.test(String(l.account)) && String(l.account).length > 3) ? { num: l.account, lib: l.tiers } : null,
+        nomCompte: (c, l) => ((lv.plan || []).find(x => x.compte === String(c)) || {}).libelle || KC.libelleDuPlan(c) || (l && l.tiers) || '', aux: KC.fecAuxDeTiers(), // (1.378.3) le même fichier que celui du journal : le compte porte son nom, le tiers ses deux colonnes
         dateValidation: p => valideLe.get((p.lignes[0] || {}).ecritureId) || p.date }) : null;
       if (r && r.ok) { ajouter({ chemin: r.nom || `FEC-${an}.txt`, octets: r.texte }); fec += r.pieces || 0; }
     }
@@ -8658,7 +8661,9 @@
                 : s.onglet === 'liasse' ? vueLiasse(dossier)
                   : s.onglet === 'inventaire' ? vueInventaire(dossier)
                   : s.onglet === 'paie' ? vuePaie(dossier)
-                    : !lignes.length
+                    // (1.378.3, issue 9 CABDECLARER-16) Un mois sans mouvement n'est pas un livre vide : la balance et le grand
+                    // livre montrent les soldes reportés. « Aucune écriture… Saisir une première pièce » y cachait la banque.
+                    : !lignes.length && !((s.onglet === 'balance' || s.onglet === 'grand-livre') && !s.aux && Object.values((s.periode || {}).ouverture || {}).some(v => Math.abs(Number(v) || 0) >= 0.0005))
                       // Un écran de lecture vide sur un livre OUVERT dit d'où viennent les écritures,
                       // et mène à la saisie (7.0.0 : une liste vide donne le geste qui la remplit).
                       // (plateforme) 1.76.0 — des écritures du client au brouillard : « Aucune écriture sur cette période »
@@ -8934,6 +8939,7 @@
     // un filtre vient de réduire la sélection. L'inverse afficherait une page vide, puis la bonne
     // au redessin suivant — c'est-à-dire un tableau qui paraît vide sans raison.
     pagerBar(lj.pieces.length, s, 'pièce');   // appelé pour son EFFET (borner s.page) ; la barre se dessine plus bas
+    const nomCj = nomDeCompte(); // (1.378.3) le nom du compte, au survol de son numéro
     const plates = [];
     paginate(lj.pieces, s).forEach(p => p.lignes.forEach((e, i) => plates.push({ ...e, numero: p.numero, premiere: i === 0 })));
     return `${barreLivres(`<select id="lv-journal" aria-label="Filtrer par journal"><option value="">Tous les journaux</option>${journaux.map(j => `<option value="${esc(j)}" ${s.journal === j ? 'selected' : ''}>${esc(j)}</option>`).join('')}</select>
@@ -8946,17 +8952,18 @@
             barrée, mais la pièce jumelle — même numéro de pièce, mêmes libellés — ne portait aucun
             repère, et il fallait DÉDUIRE la correction au lieu de la lire. Le lien « ↩ n° 49 » est
             celui que le moteur enregistre depuis la 9.3.0 et que l'écran n'atteignait jamais. */''}
-      <tbody>${plates.map(e => `<tr class="${e.statut === 'brouillard' ? 'br-ligne' : e.statut === 'contrepassee' ? 'cp-ligne' : e.contrepasseDe || e.extourneDe ? 'cp-miroir' : ''}">
+      <tbody>${plates.map(e => `<tr${e.ecritureId ? ` data-ecr="${esc(e.ecritureId)}"` : ''} class="${e.statut === 'brouillard' ? 'br-ligne' : e.statut === 'contrepassee' ? 'cp-ligne' : e.contrepasseDe || e.extourneDe ? 'cp-miroir' : ''}">
         <td class="r muted">${e.premiere ? (e.statut === 'brouillard' ? '<span class="badge">brouillard</span>' : e.numero || '') : ''}</td>
         <td class="nw">${e.premiere ? esc(fmtJour(e.date)) : ''}</td>
         <td>${e.premiere ? esc(e.journal) : ''}</td>
         <td>${e.premiere ? `<span class="nw">${esc(e.piece)}</span>${marqueJustif(e, e.ecritureId && s.livre ? (ecritureDuLivre(s.livre, e.ecritureId) || {}).pieceJointe : '')}${miroirBadge(e)}` : ''}</td>
-        <td class="nw">${esc(e.account)}</td>
+        <td class="nw" title="${esc(nomCj(e.account))}">${esc(e.account)}</td>
         <td class="tronq" title="${esc(e.tiers)}">${esc(e.tiers)}</td>
         <td class="tronq lg" title="${esc(e.label)}">${esc(e.label)}</td>
         <td class="r nw">${e.debit ? esc(money(e.debit, e.currency)) : ''}</td>
         <td class="r nw">${e.credit ? esc(money(e.credit, e.currency)) : ''}</td>
-        ${e.premiere ? rowMenuCell(e.ecritureId ? 'E:' + e.ecritureId : [e.piece, e.mois || '', e.journal || '', e.date || ''].join('|')) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody>
+        ${e.premiere ? rowMenuCell(e.ecritureId ? 'E:' + e.ecritureId : [e.piece, e.mois || '', e.journal || '', e.date || ''].join('|')) : '<td class="row-actions"></td>'}</tr>`).join('')
+        || `<tr id="lv-rien"><td colspan="10" class="muted">Rien ne correspond${s.q ? ` à «\u00a0${esc(s.q)}\u00a0»` : ''}${s.journal ? ` dans le journal ${esc(s.journal)}` : ''} sur cette période. <button class="btn btn-sm btn-ghost" id="lv-q-vider">Tout montrer</button></td></tr>`}</tbody>
       <tfoot><tr><td colspan="7"><strong>Total de la sélection</strong> <span class="muted small">— toutes les pièces, pas seulement la page affichée</span></td>
         <td class="r nw"><strong>${esc(money(lj.debit))}</strong></td>
         <td class="r nw"><strong>${esc(money(lj.credit))}</strong></td><td></td></tr></tfoot></table></div>
@@ -9012,7 +9019,7 @@
     const s = livresState;
     const ouverture = (s.periode || {}).ouverture || null;
     const gl = KC.grandLivreDepuisLignes(lignes, s.compte, ouverture, nomDeCompte());
-    const comptes = [...new Set(lignes.map(l => l.account))].sort();
+    const comptes = [...new Set(lignes.map(l => l.account).concat(Object.keys(ouverture || {})))].sort(); // (1.378.3) un compte qui n'a que son ouverture se choisit aussi
     const nomC = nomDeCompte();
     return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à afficher"><option value="">Tous les comptes</option>${comptes.map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}${nomC(c) ? ` — ${esc(nomC(c))}` : ''}</option>`).join('')}</select>`, 'Exporter le grand livre')}
       <div class="muted small mb">${phraseOuverture()}</div>
@@ -9029,15 +9036,15 @@
           <span class="gl-chiffres"><span class="muted gl-mv">${pl(c.lignes.length, 'mouvement')}${c.ouverture ? ` · ouverture ${esc(money(c.ouverture))}` : ''}</span>
             <span class="gl-m">D ${esc(money(c.debit))}</span><span class="gl-m">C ${esc(money(c.credit))}</span>
             <strong class="gl-m gl-solde">${esc(soldeTete(c.solde))}</strong></span></summary>
-        <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Pièce</th><th>Libellé</th>
-          <th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="r nw">Solde</th></tr></thead>
-        <tbody>${lignesAffichees(c).map(e => `<tr class="${e.statut === 'contrepassee' ? 'cp-ligne' : e.contrepasseDe || e.extourneDe ? 'cp-miroir' : ''}"><td class="nw">${esc(fmtJour(e.date))}</td><td><span class="nw">${esc(e.piece)}</span>${marqueJustif(e, e.ecritureId && s.livre ? (ecritureDuLivre(s.livre, e.ecritureId) || {}).pieceJointe : '')}${miroirBadge(e)}</td>
-          <td class="tronq lg" title="${esc(e.label)}">${esc(e.label)}</td>
+        <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Jal</th><th class="nw">Pièce</th><th>Libellé</th>
+          <th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="r nw">Solde</th><th class="nw" title="La lettre du lettrage, quand la ligne est lettrée">Let.</th></tr></thead>
+        <tbody>${lignesAffichees(c).map(e => `<tr${e.ecritureId ? ` data-ecr="${esc(e.ecritureId)}"` : ''} class="${e.statut === 'contrepassee' ? 'cp-ligne' : e.contrepasseDe || e.extourneDe ? 'cp-miroir' : ''}"><td class="nw">${esc(fmtJour(e.date))}</td><td class="nw muted">${esc(e.journal || '')}</td><td><span class="nw">${esc(e.piece)}</span>${marqueJustif(e, e.ecritureId && s.livre ? (ecritureDuLivre(s.livre, e.ecritureId) || {}).pieceJointe : '')}${miroirBadge(e)}</td>
+          <td class="tronq lg" title="${esc([e.tiers, e.label].filter(Boolean).join(' — '))}">${e.tiers && !String(e.label || '').includes(e.tiers) ? `<span class="muted">${esc(e.tiers)} · </span>` : ''}${esc(e.label)}</td>
           <td class="r nw">${e.debit ? esc(money(e.debit)) : ''}</td><td class="r nw">${e.credit ? esc(money(e.credit)) : ''}</td>
-          <td class="r nw">${esc(soldeDC(e.solde))}</td></tr>`).join('')}</tbody>
-        <tfoot><tr><td colspan="3"><strong>${pl(c.lignes.length, 'mouvement')}</strong></td>
+          <td class="r nw">${esc(soldeDC(e.solde))}</td><td class="nw muted">${esc(e.lettre || '')}</td></tr>`).join('')}</tbody>
+        <tfoot><tr><td colspan="4"><strong>${pl(c.lignes.length, 'mouvement')}</strong></td>
           <td class="r nw"><strong>${esc(money(c.debit))}</strong></td><td class="r nw"><strong>${esc(money(c.credit))}</strong></td>
-          <td class="r nw"><strong>${esc(soldeDC(c.solde))}</strong></td></tr></tfoot></table></div>${suiteDuCompte(c)}</details>`).join('')}`;
+          <td class="r nw"><strong>${esc(soldeDC(c.solde))}</strong></td><td></td></tr></tfoot></table></div>${suiteDuCompte(c)}</details>`).join('')}`;
   }
 
   // Saturation (10.14.0) — un compte déplié affichait TOUTES ses lignes : le 411 d'un livre de
@@ -9115,7 +9122,7 @@
         <th class="nw">${s.aux ? 'Tiers' : 'Compte'}</th><th>${s.aux ? 'Comptes' : 'Intitulé'}</th>${colOuv}
         <th class="${thN}">Mouvements débit</th><th class="${thN}">Mouvements crédit</th>
         <th class="${thN}">Solde débiteur</th><th class="${thN}">Solde créditeur</th></tr></thead>
-      <tbody>${paginate(b.rows, s).map(r => `<tr><td class="nw">${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
+      <tbody>${paginate(b.rows, s).map(r => `<tr${s.aux ? '' : ` data-gl-compte="${esc(r.account)}" title="Ouvrir le grand livre du ${esc(r.account)} sur la même période"`}><td class="nw">${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
         avecOuv ? `<td class="r nw">${r.ouvertureD ? esc(money(r.ouvertureD)) : ''}</td><td class="r nw">${r.ouvertureC ? esc(money(r.ouvertureC)) : ''}</td>` : ''}
         <td class="r nw">${esc(money(r.debit))}</td><td class="r nw">${esc(money(r.credit))}</td>
         <td class="r nw">${r.soldeD ? esc(money(r.soldeD)) : ''}</td><td class="r nw">${r.soldeC ? esc(money(r.soldeC)) : ''}</td></tr>`).join('')}</tbody>
@@ -9642,7 +9649,7 @@
         .concat(rangs.map(r => K.toCsvLine([r[0], r[1], K.csvMontant(r[2]), r[3] == null ? '' : Number(r[3]).toLocaleString('fr-FR'), K.csvMontant(r[4]), r[5] || '']))).join('\r\n') + '\r\n';
       try {
         const r = await api.exportCsv(texte, `declaration-${s.decl.periode}-${dossier.matricule || dossier.name}`);
-        if (r) toast('Fichier enregistré.');
+        if (r) toast(fichierDit(r));
       } catch (e) { toast(plainError(e), 'error'); }
     };
   }
@@ -10286,7 +10293,7 @@
         ])))).join('\r\n') + '\r\n';
       try {
         const r = await api.exportCsv(texte, `liasse-${s.annee}-${dossier.matricule || dossier.name}`);
-        if (r) toast('Fichier enregistré.');
+        if (r) toast(fichierDit(r));
       } catch (e) { toast(plainError(e), 'error'); }
     };
     // (plateforme) 1.73.0 — ce qui manque à la déclaration s'ouvre d'un geste : la CIN d'un salarié (sa fiche, sur la case),
@@ -10306,7 +10313,7 @@
       const texte = [K.toCsvLine(cols.map(c => c[1]))].concat(sal.rows.map(ligne), [ligne(total)]).join('\r\n') + '\r\n';
       try {
         const r = await api.exportCsv(texte, `declaration-employeur-${s.annee}-${dossier.matricule || dossier.name}`);
-        if (r) toast('Fichier enregistré.');
+        if (r) toast(fichierDit(r));
       } catch (e) { toast(plainError(e), 'error'); }
     };
   }

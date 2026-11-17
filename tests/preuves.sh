@@ -2023,7 +2023,7 @@ prouver "l'assistant de saisie qui lettre, à la porte" serveur/compta/gestes.ts
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$S5"
 prouver "la lettre absente du journal" serveur/compta/routes.ts \
-  "lettre: lettres.get(l.id) ?? null," "lettre: null," \
+  "lettre: lettres.get(l.id)?.lettre ?? null," "lettre: null," \
   "$S5"
 # Les mois du portefeuille : la fonction de la 0021 est remplacée par celle de la 0022 (brique 39, les
 # à-nouveaux n'écrivent aucun mois) ; c'est celle-là qui compte.
@@ -27919,7 +27919,7 @@ prouver 'paie du Cabinet 1.355.6 k : le paiement de la part paie fait par le cli
   'const payeeClient = !payee ? paiementClientDe(s.livre, d.periode) : null;' 'const payeeClient = null;' \
   "$PS13556X"
 prouver 'paie du Cabinet 1.355.6 l : « Marquer payée » note aujourd'\''hui, pas le jour où le client a payé' 'modules/socle/ecrans/cabinet/app-1.js' \
-  'le: (quoi === '\''payee'\'' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today()' 'le: K.today()' \
+  'const defaut = (quoi === '\''payee'\'' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today();' 'const defaut = K.today();' \
   "$PS13556X"
 
 PS13557A='le trimestre court encore : la retenue du mois déclarée suffit, sans elle l’étape attend'
@@ -30200,6 +30200,47 @@ prouver $'issue 9 1.378.2 e : « recalculer » reste offert sur un mois déposé
   $'id="dc-preparer"${deposee ? \' disabled title=' \
   $'id="dc-preparer"${false ? \' disabled title=' \
   $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
+# 1.378.3 — les livres s'ouvrent d'une ligne, leurs fichiers disent ce que l'écran montre (issue 9).
+prouver $'issue 9 1.378.3 a : une ligne du journal ou du grand livre n\'ouvre plus son écriture' modules/socle/ecrans/cabinet/app-2.js \
+  $'tr.onclick = ev => { if (!horsLigne(ev) && s.livre) voirEcriture(' \
+  $'tr.onclick = ev => { if (false && s.livre) voirEcriture(' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 b : un compte de la balance n\'ouvre plus son grand livre' modules/socle/ecrans/cabinet/app-2.js \
+  $'s.compte = tr.dataset.glCompte; s.page = 1;' \
+  $'s.compte = \'\'; s.page = 1;' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 c : l\'export du grand livre redevient le journal entier' modules/socle/ecrans/cabinet/app-2.js \
+  $'const GL = s.onglet === \'grand-livre\';' \
+  $'const GL = false;' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 d : un résultat de la Recherche ne s\'ouvre plus' modules/socle/ecrans/cabinet/app-2.js \
+  $'if (!ev.target.closest(\'button, a, input, select, .row-actions\') && s.livre) voirEcriture(' \
+  $'if (false) voirEcriture(' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 e : « Tout montrer » ne défait plus la recherche' modules/socle/ecrans/cabinet/app-2.js \
+  $'qv.onclick = () => { s.q = \'\'; s.journal = \'\';' \
+  $'qv.onclick = () => { s.journal = \'\';' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 f : un export ne dit plus le nom de son fichier' modules/socle/ecrans/cabinet/app-1.js \
+  $'const fichierDit = r => (r && r.path ?' \
+  $'const fichierDit = r => (false ?' \
+  $'une ligne ouvre son écriture, un compte de la balance son grand livre'
+prouver $'issue 9 1.378.3 g : le tiers d\'un collectif nu n\'a plus de compte auxiliaire' modules/socle/moteur/compta-2.js \
+  $'if (!tiers || !/^4[01]/.test(compte)) return null;' \
+  $'if (!tiers || !/^4[01]/.test(compte) || compte.length <= 3) return null;' \
+  $'le compte auxiliaire : un sous-compte tel quel'
+prouver $'issue 9 1.378.3 h : deux tiers au même début de nom prennent le même code' modules/socle/moteur/compta-2.js \
+  $'while (pris.has(code) && pris.get(code) !== cle) code' \
+  $'while (false) code' \
+  $'le compte auxiliaire : un sous-compte tel quel'
+prouver $'issue 9 1.378.3 i : une ligne lettrée perd sa date dans le FEC' modules/socle/moteur/compta-1.js \
+  $'dateLettre: l.lettre ? (l.lettreLe || \'\') : \'\',' \
+  $'dateLettre: \'\',' \
+  $'dans le fichier : le tiers dans ses deux colonnes'
+prouver $'issue 9 1.378.3 j : le serveur n\'envoie plus la date du lettrage' serveur/compta/routes.ts \
+  $'lettreLe: jourLettre(lettres.get(l.id)?.le),' \
+  $'lettreLe: null,' \
+  $'lettrer une facture et son règlement'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

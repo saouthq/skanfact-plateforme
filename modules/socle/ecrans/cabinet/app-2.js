@@ -4839,7 +4839,7 @@
           <th class="r nw">Total</th><th class="nw">État</th><th></th></tr></thead>
         <tbody>${paginate(trouvees, s).map(e => {
           const t = KC.soldeDeLignes(e.lignes);
-          return `<tr data-re="${esc(e.id)}" class="${e.statut === 'brouillard' ? 'br-ligne' : e.statut === 'contrepassee' ? 'cp-ligne' : ''}">
+          return `<tr data-re="${esc(e.id)}" data-ecr="${esc(e.id)}" class="${e.statut === 'brouillard' ? 'br-ligne' : e.statut === 'contrepassee' ? 'cp-ligne' : ''}">
             <td class="r nw">${e.numero == null ? '—' : e.numero}</td><td class="nw">${esc(fmtJour(e.date))}</td>
             <td>${esc(e.journal)}</td><td class="nw">${esc(e.piece || '—')}${marqueJustif(e, e.pieceJointe)}</td>
             <td>${esc(e.libelle || '')}</td>
@@ -4872,6 +4872,8 @@
     }
     const j = $('#re-journal', el); if (j) j.onchange = () => { rechState.journal = j.value; s.page = 1; drawLivres(root, dossier); };
     const st = $('#re-statut', el); if (st) st.onchange = () => { rechState.statut = st.value; s.page = 1; drawLivres(root, dossier); };
+    // (1.378.3) Un résultat s'ouvre : l'écriture entière, comme au journal et au grand livre.
+    $$('tr[data-ecr]', el).forEach(tr => { tr.onclick = ev => { if (!ev.target.closest('button, a, input, select, .row-actions') && s.livre) voirEcriture(ecritureDuLivre(s.livre, tr.dataset.ecr)); }; });
     bindPager(el, () => drawLivres(root, dossier), s);
     bindRowMenus(el, cle => {
       if (!String(cle).startsWith('R:') || !s.livre) return [];
@@ -4901,6 +4903,26 @@
   // Les actions d'une écriture, à UN endroit. Elles sont les mêmes depuis la recherche, le
   // livre-journal et le brouillard — trois tables séparées auraient divergé au premier ajout, et
   // c'est exactement le défaut que la 7.29.0 a trouvé sur le devis déjà facturé.
+  // (1.378.3, issue 9 CABDECLARER-6) L'écriture ENTIÈRE, d'un clic sur une de ses lignes : toutes ses lignes, leurs
+  // comptes nommés, le tiers, la lettre, le total des deux colonnes et son état. C'est le geste de base d'un contrôle —
+  // « d'où vient ce montant ? » — et aucun écran ne l'offrait : la Recherche ne montrait qu'un total, le grand livre une
+  // ligne sans sa contrepartie. La fenêtre ne modifie rien ; ses gestes restent ceux du menu de la ligne.
+  function voirEcriture(e) {
+    if (!e) return;
+    const nom = nomDeCompte();
+    const t = KC.soldeDeLignes(e.lignes || []);
+    const etat = e.statut === 'brouillard' ? 'au brouillard, sans numéro' : e.statut === 'contrepassee' ? `contre-passée (n°\u00a0${e.numero || '—'})` : `validée, n°\u00a0${e.numero || '—'}`;
+    const jl = ((livresState.livre && livresState.livre.journaux) || KC.JOURNAUX_PAR_DEFAUT).find(j => j.code === e.journal);
+    const justif = e.pieceJointe ? `Justificatif joint au cabinet : ${esc(String(e.pieceJointe).split(/[\\/]/).pop())}.` : e.justifClient === true ? 'Justificatif joint par le client à son achat, dans SkanFact.' : 'Aucun justificatif joint.';
+    return infoHtml(`${e.piece || '(sans référence)'} · ${fmtJour(e.date)}`,
+      `<p class="small" id="ve-tete">Journal <b>${esc(e.journal || '')}</b>${jl && jl.libelle ? ` (${esc(jl.libelle)})` : ''} — écriture ${etat}.${e.libelle ? ` ${esc(e.libelle)}` : ''}</p>
+       <div class="scroll-x"><table class="list compact" id="ve-lignes"><thead><tr><th class="nw">Compte</th><th>Intitulé</th><th>Tiers</th><th>Libellé</th><th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="nw">Let.</th></tr></thead>
+       <tbody>${(e.lignes || []).map(l => `<tr><td class="nw">${esc(l.compte)}</td><td>${esc(nom(l.compte, l.tiers) || '')}</td><td>${esc(l.tiers || '')}</td><td>${esc(l.libelle || e.libelle || '')}</td>
+         <td class="r nw">${l.debit ? esc(montant(l.debit)) : ''}</td><td class="r nw">${l.credit ? esc(montant(l.credit)) : ''}</td><td class="nw muted">${esc(l.lettre || '')}</td></tr>`).join('')}</tbody>
+       <tfoot><tr><td colspan="4"><strong>${pl((e.lignes || []).length, 'ligne')}</strong></td><td class="r nw"><strong>${esc(montant(t.debit))}</strong></td><td class="r nw"><strong>${esc(montant(t.credit))}</strong></td><td></td></tr></tfoot></table></div>
+       <p class="small muted" id="ve-justif">${justif} Pour la valider, la contre-passer ou y joindre un fichier : le bouton « Actions » de sa ligne.</p>`);
+  }
+
   function actionsEcriture(root, dossier, e) {
     const a = [];
     // Le geste qui DÉTRUIT vit tout en bas, après un trait (7.29.0). Vu au test humain (10.12.0) :
@@ -5060,6 +5082,11 @@
     // tapait qu'une lettre (vu au test humain, 10.12.0 — « PAIE-2026-08 » devenait « P »). La
     // Recherche et la page Dossiers l'avaient ; lui, jamais (le jumeau manquant, 7.3.0).
     const q = $('#lv-q', el); if (q) q.oninput = () => { s.q = q.value; s.page = 1; sansPerdreLaFrappe(q, redraw); };
+    // (1.378.3, CABDECLARER-6) Une ligne s'ouvre : l'écriture entière ; le compte d'une balance : son grand livre, même période.
+    const horsLigne = ev => ev.target.closest('button, a, input, select, summary, label, .row-actions');
+    $$('tr[data-ecr]', el).forEach(tr => { tr.onclick = ev => { if (!horsLigne(ev) && s.livre) voirEcriture(ecritureDuLivre(s.livre, tr.dataset.ecr)); }; });
+    $$('tr[data-gl-compte]', el).forEach(tr => { tr.onclick = ev => { if (horsLigne(ev)) return; s.compte = tr.dataset.glCompte; s.page = 1; allerSousOnglet(root, dossier, 'grand-livre'); }; });
+    const qv = $('#lv-q-vider', el); if (qv) qv.onclick = () => { s.q = ''; s.journal = ''; s.page = 1; redraw(); }; // (1.378.3) une recherche sans résultat dit pourquoi, et se défait d'un geste
     const c = $('#lv-compte', el); if (c) c.onchange = () => { s.compte = c.value; s.page = 1; redraw(); };
     // Un compte qu'on a ouvert reste ouvert quand l'écran se redessine (« Montrer la suite », une
     // page suivante et retour) : sans ça, montrer plus de lignes refermait ce qu'on lisait.
@@ -5153,9 +5180,9 @@
       decimales: 3,
       nomJournal: c => ((s.livre.journaux || KC.JOURNAUX_PAR_DEFAUT).find(j => j.code === c) || {}).libelle || c,
       nomCompte: (c, l) => nom(c, l.tiers),
-      // Un sous-compte de tiers (411001) est son propre compte auxiliaire ; un collectif nu n'en a
-      // pas — on n'invente pas un code qu'aucun livre ne porte.
-      aux: l => (l.tiers && /^4[01]/.test(String(l.account)) && String(l.account).length > 3) ? { num: l.account, lib: l.tiers } : null,
+      // Un sous-compte de tiers (411001) est son propre compte auxiliaire ; sur un collectif nu, le
+      // code se tire du nom du tiers (1.378.3) : vide, le logiciel qui reprend le fichier perdait le client.
+      aux: KC.fecAuxDeTiers(),
       dateValidation: p => valideLe.get((p.lignes[0] || {}).ecritureId) || p.date
     });
     if (!r.ok) {
@@ -5166,20 +5193,31 @@
     }
     try {
       const f = await api.exportFec(r.texte, r.nom);
-      if (f) toast(`Fichier FEC enregistré : ${pl(r.pieces, 'pièce')}, ${pl(r.lignes, 'ligne')}.`);
+      if (f) toast(`Fichier FEC enregistré dans tes téléchargements : ${f.path || r.nom} — ${pl(r.pieces, 'pièce')}, ${pl(r.lignes, 'ligne')}.`);
     } catch (e) { toast(plainError(e), 'error'); }
   }
 
   async function exporterLivre(lignes) {
     const s = livresState;
-    const cols = s.onglet === 'balance'
+    // (1.378.3, issue 9 CABDECLARER-9) Le grand livre exporte CE QUE L'ÉCRAN MONTRE : le compte choisi (ou tous), rangé par
+    // compte, l'ouverture en tête, le solde après chaque ligne et son sens. Son fichier était le journal entier, dans
+    // l'ordre du journal et sans solde, quel que soit le compte filtré.
+    const GL = s.onglet === 'grand-livre';
+    const cols = GL
+      ? [['account', 'Compte'], ['intitule', 'Intitulé'], ['date', 'Date'], ['journal', 'Journal'], ['numero', 'N°'], ['piece', 'Pièce'], ['tiers', 'Tiers'], ['label', 'Libellé'], ['debit', 'Débit'], ['credit', 'Crédit'], ['soldeAbs', 'Solde'], ['sens', 'Sens'], ['lettre', 'Lettrage']]
+      : s.onglet === 'balance'
       ? (s.aux
         ? [['tiers', 'Tiers'], ['account', 'Comptes'], ['ouvertureD', 'Ouverture débit'], ['ouvertureC', 'Ouverture crédit'], ['debit', 'Mouvements débit'], ['credit', 'Mouvements crédit'], ['soldeD', 'Solde débiteur'], ['soldeC', 'Solde créditeur']]
         : [['account', 'Compte'], ['label', 'Intitulé'], ['ouvertureD', 'Ouverture débit'], ['ouvertureC', 'Ouverture crédit'], ['debit', 'Mouvements débit'], ['credit', 'Mouvements crédit'], ['soldeD', 'Solde débiteur'], ['soldeC', 'Solde créditeur']])
       : [['numero', 'N°'], ['date', 'Date'], ['journal', 'Journal'], ['piece', 'Pièce'], ['account', 'Compte'], ['tiers', 'Tiers'], ['label', 'Libellé'], ['debit', 'Débit'], ['credit', 'Crédit'], ['lettre', 'Lettrage']];
     // La MÊME période que l'écran (ouverture comprise, T-38) : un export qui ne porte pas ce que
     // l'écran montre est un second document, et les deux finissent par se contredire.
-    const rows = s.onglet === 'balance'
+    const sensDe = v => (Math.abs(Number(v) || 0) < 0.0005 ? '' : v < 0 ? 'C' : 'D');
+    const rows = GL
+      ? KC.grandLivreDepuisLignes(lignes, s.compte, (s.periode || {}).ouverture || null, nomDeCompte()).comptes.flatMap(c => [
+        { account: c.account, intitule: c.label, date: '', journal: '', numero: '', piece: '', tiers: '', label: 'Ouverture', debit: '', credit: '', soldeAbs: Math.abs(c.ouverture), sens: sensDe(c.ouverture), lettre: '' },
+        ...c.lignes.map(e => ({ ...e, intitule: c.label, numero: e.numero || '', soldeAbs: Math.abs(e.solde), sens: sensDe(e.solde) }))])
+      : s.onglet === 'balance'
       ? (s.aux ? balanceAux(lignes, s.auxRole === 'fournisseurs' ? 'fournisseurs' : 'clients')
         : KC.balanceDepuisLignes(lignes, (s.periode || {}).ouverture || null, nomDeCompte())).rows
       // (1.371.0) Le lettrage exporte le compte qu'il montre (411 par défaut), pas tout le grand livre : son fichier était
@@ -5190,18 +5228,18 @@
     // point-virgule un jour sur dix, et un montant s'écrit à la virgule décimale.
     // Un montant et une date au format de l'app entreprise (C2) : les colonnes se reconnaissent à leur
     // clé, jamais au type de la valeur — un n° de pièce ou de compte est aussi un nombre.
-    const MONTANTS = ['debit', 'credit', 'ouvertureD', 'ouvertureC', 'soldeD', 'soldeC'];
-    const cell = (v, cle) => MONTANTS.includes(cle) ? K.csvMontant(v) : cle === 'date' ? K.csvDate(v) : String(v == null ? '' : v);
+    const MONTANTS = ['debit', 'credit', 'ouvertureD', 'ouvertureC', 'soldeD', 'soldeC', 'soldeAbs'];
+    const cell = (v, cle) => v === '' ? '' : MONTANTS.includes(cle) ? K.csvMontant(v) : cle === 'date' ? K.csvDate(v) : String(v == null ? '' : v);
     const csv = [K.toCsvLine(cols.map(c => c[1]))]
       .concat(rows.map(r => K.toCsvLine(cols.map(c => cell(r[c[0]], c[0])))))
       .join('\r\n') + '\r\n';
-    const nom = s.onglet === 'balance' ? 'balance' : s.onglet === 'grand-livre' ? 'grand-livre'
+    const nom = s.onglet === 'balance' ? 'balance' : GL ? `grand-livre${s.compte ? `-${s.compte}` : ''}`
       : s.onglet === 'lettrage' ? `lettrage-${s.compte || '411'}` : 'livre-journal';
     try {
       // Le même chemin d'export que le reste de l'application : `cab:exportCsv` pose le BOM et la
       // fenêtre d'enregistrement. En écrire un second aurait fini par diverger sur l'un des deux.
       const r = await api.exportCsv(csv, `${nom}-${s.data.dossier.matricule || s.data.dossier.name}`);
-      if (r) toast('Fichier enregistré.');
+      if (r) toast(fichierDit(r));
     } catch (e) { toast(plainError(e), 'error'); }
   }
 

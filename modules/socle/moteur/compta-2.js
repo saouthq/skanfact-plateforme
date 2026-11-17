@@ -43,6 +43,29 @@
   // tunisienne ne le fixe).
   const fecNom = (identifiant, fin) => `${String(identifiant || '').toUpperCase().replace(/[^0-9A-Z]/g, '') || 'SKANFACT'}FEC${fecDate(fin) || '00000000'}.txt`;
 
+  // (1.378.3, issue 9 CABDECLARER-10) Le compte auxiliaire d'une ligne de tiers. Un sous-compte
+  // (411001) est son propre auxiliaire. Sur un collectif nu (411), le tiers n'a pas de numéro : le
+  // fichier portait alors deux colonnes vides, et le logiciel qui le reprend perdait le client. Le
+  // code se tire du NOM du tiers (411CAFEJASMIN) : il ne change pas d'un export à l'autre, et se
+  // relit. Un nom sans lettre latine prend son identifiant. Deux tiers au même début de nom ne se
+  // confondent pas : le second prend un chiffre. Une fabrique par fichier, pour tenir ce registre.
+  function fecAuxDeTiers() {
+    const pris = new Map();
+    return l => {
+      const compte = String((l && l.account) || '');
+      const tiers = String((l && l.tiers) || '').trim();
+      if (!tiers || !/^4[01]/.test(compte)) return null;
+      if (compte.length > 3) return { num: compte, lib: tiers };
+      const cle = tiers.toLowerCase();
+      const brut = tiers.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 12)
+        || String(l.tiersId || '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(-8) || 'TIERS';
+      let code = compte + brut, n = 1;
+      while (pris.has(code) && pris.get(code) !== cle) code = compte + brut + (++n);
+      pris.set(code, cle);
+      return { num: code, lib: tiers };
+    };
+  }
+
   function fichierFec(lignes, opts) {
     const o = opts || {};
     const nomJournal = o.nomJournal || (c => c);
@@ -134,7 +157,7 @@
     anEnVigueur, livreSuivantVide, ecartAnouveaux, lignesComplementAnouveaux, poserComplementAnouveaux, etatExerciceSuivant, dateDuMiroir,
     etatsDepuisLignes, groupesDesEtats, sigDepuisLignes, dossierDeCloture, clotureValide,
     // Le fichier des écritures (H3)
-    FEC_COLONNES, fichierFec, fecMontant, fecNom,
+    FEC_COLONNES, fichierFec, fecAuxDeTiers, fecMontant, fecNom,
     // La liasse et l'annuel (10.0.0)
     LIASSE_ETATS, MODELE_LIASSE, RETRAITEMENTS,
     modeleLiasse, migrerModeleLiasse, rubriqueDuCompte, liasseDepuisLignes,

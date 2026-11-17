@@ -98,9 +98,11 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         : [];
       const corrigee = (id: string, type: string) => miroirs.some((x) => x.origine === id && x.origine_type === type);
       // La lettre de chaque ligne lettrée (brique 38).
+      // (1.378.3) Et le jour où elle a été posée : le FEC le porte (DateLet).
+      const jourLettre = (le: Date | string | undefined) => (le ? new Date(le).toISOString().slice(0, 10) : null);
       const lettres = new Map(lignes.length
         ? (await db.selectFrom('compta.ligne_lettree as t').innerJoin('compta.lettrage as g', 'g.id', 't.lettrage')
-          .select(['t.ligne', 'g.lettre']).where('t.ligne', 'in', lignes.map((l) => l.id)).execute()).map((x) => [x.ligne, x.lettre])
+          .select(['t.ligne', 'g.lettre', 'g.cree_le']).where('t.ligne', 'in', lignes.map((l) => l.id)).execute()).map((x) => [x.ligne, { lettre: x.lettre, le: x.cree_le }] as const)
         : []);
       // Le NOM du tiers de chaque écriture (1.82.0) : la v10 le portait sur chaque ligne, et sans lui
       // la balance auxiliaire du Cabinet rangeait tous les clients sous « (sans tiers) ».
@@ -147,7 +149,7 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),
             lignes: lignes.filter((l) => l.ecriture === e.id).map((l) => ({
               id: l.id, compte: l.compte, libelle: l.libelle, debit: m(l.debit), credit: m(l.credit), tauxTva: l.taux_tva === null ? null : versTexte(l.taux_tva, 4),
-              tiers: l.tiers_libelle, tiersId: l.tiers, lettre: lettres.get(l.id) ?? null,
+              tiers: l.tiers_libelle, tiersId: l.tiers, lettre: lettres.get(l.id)?.lettre ?? null, lettreLe: jourLettre(lettres.get(l.id)?.le),
             })),
           })),
           suite: ecritures.length === n && dernier ? versCurseur(dernier.date_ecriture, dernier.id) : null,

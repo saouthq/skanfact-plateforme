@@ -4518,3 +4518,27 @@ Essais : `tests/web/declaration-1350.test.ts`, `tests/web/revision-1348.test.ts`
 
 Reste de CABDECLARER-11, dit : glisser le fichier de l'accusé dans la même fenêtre (il se dépose aujourd'hui dans le
 classeur). Essai : `tests/web/cabinet-declaration.test.ts`. Cinq preuves.
+
+## 1.378.3 — Les livres s'ouvrent d'une ligne, et leurs fichiers disent ce que l'écran montre (issue 9, CABDECLARER-6, -9, -10, -16, -31, -33)
+
+- **Une ligne s'ouvre** (CABDECLARER-6). Dans le journal, le grand livre et la Recherche, un clic sur une ligne ouvre
+  l'écriture ENTIÈRE : toutes ses lignes, le nom de chaque compte, le tiers, la lettre, le total des deux colonnes, son
+  état et son justificatif. Dans la balance, un clic sur un compte ouvre son grand livre sur la même période. Le bouton
+  « Actions » garde son menu. La fenêtre ne modifie rien.
+- **Le grand livre** montre le journal, le tiers et la lettre de chaque ligne ; son filtre propose aussi un compte qui
+  n'a que son ouverture (CABDECLARER-33). Au journal, le nom d'un compte se lit au survol de son numéro.
+- **L'export du grand livre est le grand livre** (CABDECLARER-9) : le compte choisi (ou tous), rangé par compte,
+  l'ouverture en tête, le solde après chaque ligne et son sens. C'était le journal entier, sans solde. Chaque export
+  dit le nom de son fichier et où il est.
+- **Le FEC porte les tiers** (CABDECLARER-10) : sur un collectif nu (411, 401), « CompAuxNum » se tire du nom du tiers
+  (411CAFEJASMIN) et « CompAuxLib » porte ce nom ; un sous-compte reste son propre auxiliaire. « DateLet » porte la date
+  du lettrage, que le serveur envoie maintenant avec la lettre. Le FEC du classeur et celui du journal nomment les
+  comptes de la même façon (reste de CABDECLARER-4).
+- **Un mois sans mouvement montre ses soldes** (CABDECLARER-16) : la balance et le grand livre affichent les comptes
+  reportés au lieu de « Aucune écriture… Saisir une première pièce ».
+- **Une recherche sans résultat au journal le dit** (CABDECLARER-31), avec « Tout montrer ».
+
+Restes, dits : le menu « voir le grand livre » depuis un compte de la Révision ; un PDF pour la balance, le grand livre
+et les états (CABDECLARER-9, seconde moitié) ; le lettrage à la main (CABDECLARER-7). À VÉRIFIER : la forme du code
+auxiliaire tiré du nom (aucune règle tunisienne ne la fixe).
+Essais : `tests/web/livres-1378-3.test.ts`, `tests/moteur/fec-tiers-1378.test.ts`, `tests/compta/saisie.test.ts`.

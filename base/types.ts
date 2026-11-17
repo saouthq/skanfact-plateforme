@@ -325,6 +325,7 @@ export interface BaseDeDonnees {
     clos_le: Date | null;
     clos_par: string | null;
     jusqua_avant: string | null;
+    rouvert_le: Date | null;
   };
   'compta.immobilisation': {
     id: Generated<string>;

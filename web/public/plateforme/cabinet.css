@@ -38,3 +38,8 @@
    (`select { width: 100% }`) l'étirait d'un bord à l'autre, sur sa propre rangée, sous chaque tableau du Cabinet :
    1 193 px pour dire « 25 par page » — vu à l'écran le jour où toutes les listes ont reçu leur pied. */
 .pager select { width: auto; flex: 0 0 auto; padding-block: 5px; font-size: 12px; }
+
+/* (1.378.3, issue 9 CABDECLARER-6) Une ligne des livres s'ouvre : le compte d'une balance mène à son grand livre,
+   une ligne du journal, du grand livre ou de la recherche à son écriture entière. La main le dit. */
+tr[data-ecr], tr[data-gl-compte] { cursor: pointer; }
+tr[data-ecr]:hover td, tr[data-gl-compte]:hover td { background: var(--accent-soft, var(--info-soft)); }

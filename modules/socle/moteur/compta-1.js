@@ -1577,7 +1577,7 @@
         // FAC-2026-014 ». Vide quand la ligne n'en porte pas : « (sans tiers) » est honnête, un
         // libellé recopié ne l'est pas.
         account: l.compte, tiers: l.tiers || '', label: l.libelle || e.libelle,
-        debit: l.debit, credit: l.credit, lettre: l.lettre || '',
+        debit: l.debit, credit: l.credit, lettre: l.lettre || '', dateLettre: l.lettre ? (l.lettreLe || '') : '',
         tiersId: l.tiersId || '', ecritureId: e.id, statut: e.statut,
         // Le libellé de PIÈCE (« Contre-passation — … ») et les liens du miroir vers son origine.
         libellePiece: e.libelle || '', mois: e.mois || '',

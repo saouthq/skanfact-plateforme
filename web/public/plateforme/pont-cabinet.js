@@ -537,13 +537,13 @@
         extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({
           // Le tiers d'une ligne : le sien (saisie), sinon celui de son écriture, comme la v10 (1.82.0).
-          ligneId: l.id, compte: l.compte, tiersId: l.tiersId || e.tiers || (l.tiers ? parSonNom(l.tiers) : null), tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
+          ligneId: l.id, compte: l.compte, tiersId: l.tiersId || e.tiers || (l.tiers ? parSonNom(l.tiers) : null), tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '', lettreLe: l.lettreLe || '',
         })),
       });
       KC.comptesDeLEcriture(livre, e, e.piece === 'OUVERTURE' && !e.contrepassee && e.origine.type !== 'contre_passation'); // (1.369.0) une balance reprise nomme ses sous-comptes
       for (const l of e.lignes) {
         if (!l.lettre) continue;
-        const g = lettrages.get(l.lettre) || { lettre: String(l.lettre), compte: String(l.compte), ecritures: /** @type {string[]} */ ([]), le: '', par: '' };
+        const g = lettrages.get(l.lettre) || { lettre: String(l.lettre), compte: String(l.compte), ecritures: /** @type {string[]} */ ([]), le: String(l.lettreLe || ''), par: '' };
         if (!g.ecritures.includes(e.id)) g.ecritures.push(e.id);
         lettrages.set(l.lettre, g);
       }

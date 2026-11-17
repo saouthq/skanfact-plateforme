@@ -79,7 +79,7 @@ async function dossier() {
   return { client, ent, associe, cabinet, mandat, collaborateur, assistant };
 }
 
-type Ligne = { compte: string; libelle: string; debit: string; credit: string; tiers: string | null; tiersId: string | null; lettre: string | null };
+type Ligne = { compte: string; libelle: string; debit: string; credit: string; tiers: string | null; tiersId: string | null; lettre: string | null; lettreLe?: string | null };
 type EcritureLue = { id: string; journal: string; date: string; piece: string | null; libelle: string; statut: string; numero: string | null; chaine: number | null;
   origine: { type: string; id: string }; revision: number; lignes: Ligne[] };
 async function livres(ent: string, p: Personne): Promise<EcritureLue[]> {
@@ -117,8 +117,8 @@ describe('la saisie dans les livres du serveur', () => {
     let lue = (await livres(d.ent, d.client)).find((e) => e.id === id);
     expect(lue).toMatchObject({ statut: 'brouillard', numero: null, origine: { type: 'saisie', id }, revision: 1, libelle: 'Loyer d\'août' });
     expect(lue?.lignes).toEqual([
-      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, tiersId: null, lettre: null },
-      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', tiersId: null, lettre: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '6132', libelle: 'Loyer d\'août', debit: '850.500', credit: '0.000', tauxTva: null, tiers: null, tiersId: null, lettre: null, lettreLe: null },
+      { id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '401', libelle: 'Agence du Lac', debit: '0.000', credit: '850.500', tauxTva: null, tiers: 'Agence du Lac', tiersId: null, lettre: null, lettreLe: null },
     ]);
     // Les contrôles de la v10, chacun avec sa phrase et le numéro de sa ligne.
     const refus = async (corps: unknown) => (await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, corps)).corps.motif;
@@ -352,6 +352,8 @@ describe('la saisie dans les livres du serveur', () => {
     // La lettre est sur les lignes du 411, et seulement elles.
     const lues = (await livres(d.ent, d.client)).filter((e) => [facture, partiel, solde].includes(e.id));
     expect(lues.flatMap((e) => e.lignes.map((x) => `${x.compte}:${x.lettre ?? ''}`)).sort()).toEqual(['411:A', '411:A', '411:A', '532:', '532:', '706:']);
+    // (1.378.3) La date du lettrage suit la lettre : le FEC la porte (DateLet), et une ligne non lettrée n'en a pas.
+    expect(lues.flatMap((e) => e.lignes.map((x) => `${x.compte}:${/^\d{4}-\d{2}-\d{2}$/.test(x.lettreLe ?? '') ? 'le' : ''}`)).sort()).toEqual(['411:le', '411:le', '411:le', '532:', '532:', '706:']);
     expect((await lettrer(d.collaborateur, [facture, solde])).corps.motif).toBe('Une de ces lignes est déjà lettrée : délettre-la d\'abord.');
     // Délettrer, puis relettrer sous une lettre choisie.
     expect((await appeler('DELETE', `/entreprises/${d.ent}/compta/lettrages/A`, d.collaborateur.jeton)).statut).toBe(200);
