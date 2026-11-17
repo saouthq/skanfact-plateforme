@@ -828,6 +828,12 @@
   // un barème changé l'an prochain ne doit pas réécrire un bulletin déjà remis.
   function payslipForm(slip, employee, year, month, done) {
     if (!slip && licenceBlock('Établir un nouveau bulletin', 'paie')) return;
+    // (1.379.1, GEST-1) Aucun bulletin neuf pour un mois entièrement hors du contrat, d'où qu'on vienne.
+    if (!slip && employee) {
+      const ymB = `${year}-${String(month).padStart(2, '0')}`;
+      if (employee.hireDate && ymB < employee.hireDate.slice(0, 7)) { toast(`${employee.name || 'Ce salarié'} est entré le ${C.fmtDate(employee.hireDate)} : pas de bulletin pour ${MONTHS_LONG[month - 1]} ${year}.`, true); return; }
+      if (employee.endDate && ymB > employee.endDate.slice(0, 7)) { toast(`${employee.name || 'Ce salarié'} est sorti le ${C.fmtDate(employee.endDate)} : pas de bulletin pour ${MONTHS_LONG[month - 1]} ${year}.`, true); return; }
+    }
     // (plateforme) 1.235.0 — un bulletin validé par le cabinet ne bouge plus : une correction passe par un mois suivant.
     if (slip && slip.valideLe) { toast('Ce bulletin est validé par ton cabinet : il ne change plus. Une correction passe par une régularisation sur un mois suivant ; demande-la à ton comptable.', true); return; }
     // (1.274.0, audit du 04/11/2026, G05) Payé, il ne change plus non plus (le serveur le refuse).
@@ -5564,7 +5570,15 @@
       { icon: 'dossier', label: parti ? 'Son départ' : 'Préparer sa sortie', hint: 'date de sortie, solde de tout compte, certificat', run: () => { ficheSal.onglet = 'depart'; rouvrir(); } }
     ], { titre: e.name, classe: 'gestes-menu', label: 'Autres gestes pour ce salarié' });
     $$('#view [data-onglet]').forEach(bt => bt.onclick = () => { ficheSal.onglet = bt.dataset.onglet; rouvrir(); });
-    if ($('#new-slip')) $('#new-slip').onclick = () => { const t = C.addMonths(auj.slice(0, 7) + '-01', -1, 1); payslipForm(null, e, Number(t.slice(0, 4)), Number(t.slice(5, 7)), rouvrir); };
+    // (1.379.1, issue 16, GEST-1) « Un bulletin » visait toujours le mois dernier : pour un salarié entré ce mois-ci, il
+    // établissait un mois plein AVANT son embauche. Le mois proposé reste dans le contrat (son premier mois, ou son dernier).
+    if ($('#new-slip')) $('#new-slip').onclick = () => {
+      let ym = C.addMonths(auj.slice(0, 7) + '-01', -1, 1).slice(0, 7);
+      if (e.hireDate && e.hireDate.slice(0, 7) > auj.slice(0, 7)) { toast(`${e.name || 'Ce salarié'} entre le ${C.fmtDate(e.hireDate)} : son premier bulletin sera celui de ce mois-là.`, true); return; }
+      if (e.hireDate && ym < e.hireDate.slice(0, 7)) ym = e.hireDate.slice(0, 7);
+      if (e.endDate && ym > e.endDate.slice(0, 7)) ym = e.endDate.slice(0, 7);
+      payslipForm(null, e, Number(ym.slice(0, 4)), Number(ym.slice(5, 7)), rouvrir);
+    };
     $$('#view [data-voir]').forEach(bt => bt.onclick = ev => { ev.stopPropagation(); apercuBulletin(payslipById(bt.dataset.voir), rouvrir); });
     // (1.249.0) Les pièces de l'onglet Documents, et la pagination de chaque onglet.
     $$('#view [data-voir-l]').forEach(tr => tr.onclick = ev => { if (!ev.target.closest('button')) apercuBulletin(payslipById(tr.dataset.voirL), rouvrir); });

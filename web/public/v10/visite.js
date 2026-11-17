@@ -1154,6 +1154,8 @@
     // geste suivant).
     if (!cur) return;
     cur.i = cur.p.etapes.length; cur.fin = true; cur.essai = null; cur.mini = false; cur.couvert = false;
+    // (1.379.1, issue 14, ENTSOCLE-8) Où la visite s'est finie, et quand : la carte de fin se ferme si l'on change de page.
+    cur.finOu = location.hash; cur.finA = Date.now();
     // Une visite qui a un BUT (« un client de plus ») ne félicite que si le but est atteint : fermer
     // la fenêtre sans enregistrer, ou passer les étapes, n'est pas « Ton client est enregistré ».
     // Le but se relève à chaque tour et TERMINE la visite dès qu'il est atteint ; une PREUVE
@@ -1193,6 +1195,10 @@
     boucle = requestAnimationFrame(image);
   }
   function verifier() {
+    // (1.379.1, issue 14, ENTSOCLE-8) La carte « Visite terminée » restait au milieu de l'écran de page en page, les clics
+    // passant dessous. Changer de page la ferme ; dans la seconde qui suit la fin, la page où le dernier geste a mené
+    // (« Enregistrer » ouvre la fiche) est encore celle de la visite.
+    if (cur && cur.fin && location.hash !== cur.finOu) { if (Date.now() - cur.finA < 1500) cur.finOu = location.hash; else terminer(); return; }
     if (!cur || cur.fin || cur.attente) return;
     const e = etape(); if (!e) return;
     if (typeof cur.p.but === 'function') {

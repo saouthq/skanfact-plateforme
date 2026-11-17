@@ -4656,3 +4656,20 @@ Trouvé en passant : deux essais de la 1.378.5 et de la 1.378.6 lisaient `pont-c
 Essais : `tests/web/entree.test.ts`, `assistant.test.ts`, `facture-details.test.ts`, `cabinet-livre-a-jour.test.ts`,
 `cabinet.test.ts`, `tests/v10/visites-en-ligne.test.ts`, `tests/compta/declaration.test.ts`, `annuel.test.ts`.
 Neuf preuves.
+
+## 1.379.1 — Les issues 14 et 16 : deux bloquants de la gestion, et la carte de fin d'une visite
+
+- **GEST-1 (bloquant)** : « Un bulletin », sur la fiche d'un salarié entré ce mois-ci, proposait le mois dernier — un
+  bulletin plein pour un mois où il n'était pas là. Le mois proposé reste dans le contrat : son premier mois s'il vient
+  d'entrer, son dernier s'il est sorti. Un salarié qui n'est pas encore entré n'a pas de bulletin, et le bouton le dit
+  (« Ines Mrad entre le … : son premier bulletin sera celui de ce mois-là »). Le formulaire lui-même refuse un mois
+  entièrement hors du contrat, d'où qu'on vienne.
+- **GEST-2 (bloquant)** : en Trésorerie, un mouvement enregistré relit toute la page. Avant, seul l'onglet se
+  redessinait : « Disponible aujourd'hui » et les compteurs gardaient les chiffres d'avant, jusqu'à ce qu'on quitte la
+  page. Vaut pour « + Mouvement », la modification d'un mouvement, le virement depuis un compte et l'occurrence d'un
+  mouvement qui se répète.
+- **ENTSOCLE-8** : la carte « Visite terminée » ne suit plus de page en page ; changer de page la ferme (moteur de
+  visite partagé, donc les deux applications).
+
+Essais : `tests/web/paie-bulletin-1379.test.ts` (neuf), `tests/web/tresorerie-1298.test.ts`,
+`tests/web/cabinet-visites-1372.test.ts`. Quatre preuves.

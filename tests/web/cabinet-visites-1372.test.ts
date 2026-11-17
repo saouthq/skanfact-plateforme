@@ -158,6 +158,12 @@ describe('les visites guidées du Cabinet expliquent chaque écran (1.372.0)', (
     // Le nom de la ligne est son premier morceau : ni la date ni le compte ne s'y collent.
     expect(dates).not.toMatch(/\d{4}(lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)/);
     expect(dates).not.toMatch(/Emmène à la page « [^»]*\d+ dossiers?/);
+    // (1.379.1, issue 14, ENTSOCLE-8) La carte de fin ne suit pas de page en page : changer de page la ferme.
+    if (!/Visite terminée/i.test(net(await bulle.innerText()))) await bulle.locator('.vb-suiv').click();
+    await expect.poll(async () => net(await bulle.innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/Visite terminée/i);
+    await p.waitForTimeout(1_700);
+    await p.evaluate(() => { location.hash = '#/echeances'; });
+    await expect.poll(() => p.locator('#visite-bulle').count(), { timeout: 5_000 }).toBe(0);
     // (1.374.0) « Tenir la fiche d'un client » suit la fiche d'aujourd'hui : elle ouvrait l'ancien écran « …/suivi » (issue 12).
     await p.keyboard.press('Escape');
     await p.evaluate(() => { location.hash = '#/guide'; });

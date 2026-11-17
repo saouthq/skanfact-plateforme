@@ -3662,8 +3662,8 @@
       const sortie = Socle.lire('sorties-prevues').find(s => s.ouvre(e));
       if (sortie) return sortie.ouvrir(e, () => draw());
       if (e.kind === 'fiscal') return vers('#/compta', () => { comptaState.tab = 'calendrier'; })();
-      if (e.kind === 'repete') { const m = (data.movements || []).find(x => x.id === e.movementId); if (m) movementForm(m, () => draw()); return; }
-      if (src === 'libre') { const m = (data.movements || []).find(x => x.id === e.id); if (m) movementForm(m, () => draw()); return; }
+      if (e.kind === 'repete') { const m = (data.movements || []).find(x => x.id === e.movementId); if (m) movementForm(m, () => render(true)); return; }
+      if (src === 'libre') { const m = (data.movements || []).find(x => x.id === e.id); if (m) movementForm(m, () => render(true)); return; }
       navigate(e.kind === 'client' || src === 'vente' ? '#/doc/' + e.id : e.kind === 'fournisseur' || src === 'achat' ? '#/achat/' + e.id : '#/contrat/' + e.id);
     };
     // L'essai « et si je décale ce paiement ? » : une autre date pour une échéance, sans rien enregistrer.
@@ -3865,7 +3865,7 @@
       // Un mouvement déduit d'un paiement ne se modifie pas ici — mais il DOIT mener à sa pièce :
       // la phrase juste en dessous disait d'aller la corriger, sans offrir d'y aller.
       $$('#t-body tr[data-mv], #t-body tr[data-go]').forEach(tr => {
-        if (tr.dataset.mv) tr.onclick = () => movementForm(data.movements.find(m => m.id === tr.dataset.mv), () => draw());
+        if (tr.dataset.mv) tr.onclick = () => movementForm(data.movements.find(m => m.id === tr.dataset.mv), () => render(true));
         else if (tr.dataset.go) tr.onclick = () => navigate(tr.dataset.go);
       });
       const wrap = $('#m-wrap');
@@ -4202,7 +4202,9 @@
     });
     // Le compte de la fiche, s'il n'existe pas encore (une caisse créée d'abord, la banque ensuite).
     $('#new-acc').onclick = () => accountForm(null, () => render(), modeleCompte());
-    $('#new-move').onclick = () => movementForm(null, () => draw());
+    // (1.379.1, issue 16, GEST-2) Un mouvement enregistré relit TOUTE la page : `draw()` seul redessinait l'onglet avec les
+    // soldes calculés à l'ouverture — « Où j'en suis » et les compteurs des onglets restaient ceux d'avant le mouvement.
+    $('#new-move').onclick = () => movementForm(null, () => render(true));
     draw();
   };
 

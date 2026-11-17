@@ -30384,6 +30384,23 @@ prouver $'issue 4 1.379.0 i : « Besoin d\'aide ? » ne montre pas l\'adresse' w
   $'<a className="ent-aide-adresse" href={`mailto:${CONTACT}`}>{CONTACT}</a>' \
   $'<a className="ent-aide-adresse" href={`mailto:${CONTACT}`}>{\'\'}</a>' \
   $'« Besoin d\'aide ? » montre'
+# 1.379.1 — issues 14 et 16 : la carte de fin d'une visite, la trésorerie qui se relit, « Un bulletin » dans le contrat.
+prouver $'issue 14 1.379.1 a : la carte de fin d\'une visite suit de page en page' web/public/v10/visite.js \
+  $'if (cur && cur.fin && location.hash !== cur.finOu) {' \
+  $'if (false && cur && cur.fin && location.hash !== cur.finOu) {' \
+  $'chaque écran du Cabinet explique ses blocs'
+prouver $'issue 16 1.379.1 b : un mouvement saisi ne relit pas le haut de la trésorerie' modules/socle/ecrans/entreprise/app-2.js \
+  $'$(\'#new-move\').onclick = () => movementForm(null, () => render(true));' \
+  $'$(\'#new-move\').onclick = () => movementForm(null, () => draw());' \
+  $'du loyer oublié au relevé pointé'
+prouver $'issue 16 1.379.1 c : « Un bulletin » propose le mois d\'avant l\'embauche' modules/personnel/ecrans/entreprise/paie.js \
+  $'if (e.hireDate && ym < e.hireDate.slice(0, 7)) ym = e.hireDate.slice(0, 7);' \
+  $'if (false && e.hireDate && ym < e.hireDate.slice(0, 7)) ym = e.hireDate.slice(0, 7);' \
+  $'un salarié entré ce mois-ci reçoit le bulletin de ce mois'
+prouver $'issue 16 1.379.1 d : « Un bulletin » s\'ouvre pour un salarié pas encore entré' modules/personnel/ecrans/entreprise/paie.js \
+  $'if (e.hireDate && e.hireDate.slice(0, 7) > auj.slice(0, 7)) { toast(' \
+  $'if (false && e.hireDate && e.hireDate.slice(0, 7) > auj.slice(0, 7)) { toast(' \
+  $'un salarié entré ce mois-ci reçoit le bulletin de ce mois'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

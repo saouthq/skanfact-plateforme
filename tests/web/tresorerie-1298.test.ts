@@ -159,6 +159,16 @@ describe('la trésorerie 1.298.0 : loyer pas noté, remise de chèques, frais, s
     const libelles = await p.locator('#t-body tbody tr:not(.tr-mois) td:nth-child(2)').evaluateAll((l) => l.map((x) => ((x as HTMLElement).innerText.split('\n')[0] ?? '').trim()).filter(Boolean));
     expect(libelles.sort()).toEqual(['FRAIS TENUE DE COMPTE', 'Loyer de l\'atelier', 'Loyer de l\'atelier']);
     expect(net(await p.locator('#t-body thead').innerText())).not.toMatch(/Solde après/i);
+
+    // 4 bis. (1.379.1, GEST-2) Un mouvement saisi depuis cet onglet met à jour le chiffre du haut sans quitter la page.
+    const haut = () => p.locator('#tr-resume .mg-chiffre b').first().innerText().then(net);
+    const avantHaut = await haut();
+    await p.locator('#new-move').click();
+    await p.locator('.modal [name=amount]').fill('137,5');
+    await p.locator('.modal [name=label]').fill('Petit achat du jour');
+    await p.locator('.modal #ok').click();
+    await expect.poll(haut, { timeout: 10_000 }).not.toBe(avantHaut);
+    expect(await p.evaluate(() => location.hash)).toContain('tresorerie');
     await cx.close();
 
     // 5. Au téléphone : la liste des mouvements tient dans l'écran.
