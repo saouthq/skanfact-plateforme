@@ -27615,7 +27615,7 @@ prouver 'pagination 1.352.0 a : la recherche coupe aux 200 premières' modules/s
   'statut: rechState.statut, max: 1e9 })' 'statut: rechState.statut, max: 200 })' \
   "$PG1352C"
 prouver 'pagination 1.352.0 b : les pièces d'\''une case d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
-  'paginate(c.ecritures || [], livresState)).map(id =>' '(c.ecritures || [])).map(id =>' \
+  'paginate(d.lignes, livresState)).map(e => `<tr data-ecr=' 'd.lignes).map(e => `<tr data-ecr=' \
   "$PG1352C"
 prouver 'pagination 1.352.0 c : les à-nouveaux d'\''un seul tenant' modules/socle/ecrans/cabinet/app-1.js \
   'paginate(d.anouveaux.lignes, s)).map(l =>' 'd.anouveaux.lignes).map(l =>' \
@@ -29889,8 +29889,8 @@ prouver $'visites 1.372.0 l : le dossier d\'exemple compte parmi les clients' mo
   $'    const vrais = actifs;' \
   $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
 prouver $'visites 1.372.0 m : le menu d\'un dossier tenu propose « Les paquets reçus »' modules/socle/ecrans/cabinet/app-1.js \
-  $'            packs.length && !dossier.manual ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
-  $'            packs.length ? { icon: \'dossier\', label: \'Les paquets reçus\',' \
+  $'            // (1.378.7 ; issue 9, CABDECLARER-21) « Les paquets reçus » : un écran d\'avant, sorti du menu. Les mois du client se lisent sur sa fiche.\n' \
+  $'            packs.length ? { icon: \'dossier\', label: \'Les paquets reçus\', hint: pl(packs.length, \'paquet\'), run: () => versOnglet(\'paquets\') } : null,\n' \
   $'chaque écran du Cabinet explique ses blocs, et la visite du tableau de bord se déroule jusqu\'au bout'
 
 
@@ -30310,6 +30310,25 @@ prouver $'issue 9 1.378.7 d : le pied des pièces d\'une case absent' modules/so
   $'${d.juste ? `<tfoot><tr><td colspan="4">Total · ' \
   $'${false ? `<tfoot><tr><td colspan="4">Total · ' \
   $'un dossier plein : la recherche, les pièces d\'une case'
+prouver $'issue 9 1.378.8 a : l\'état d\'un mois reste « saisi » une fois la déclaration préparée' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (etat.declaration) return [\'prêt à déposer\', \'b-due\'];
+' \
+  $'' \
+  $'préparer, écrire, recalculer après une vente oubliée'
+prouver $'issue 9 1.378.8 b : « déclaré » au lieu de « déposé »' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (etat.declare) return [\'déposé\', \'b-part\'];' \
+  $'    if (etat.declare) return [\'déclaré\', \'b-part\'];' \
+  $'préparer, écrire, recalculer après une vente oubliée'
+prouver $'issue 9 1.378.8 c : un règlement non lettré laisse sa facture « à plus de 90 jours »' modules/socle/moteur/compta-1.js \
+  $'      if (!aImputer) { restes.push(...ls); return; }' \
+  $'      if (true) { restes.push(...ls); return; }' \
+  $'un règlement non lettré solde la plus ancienne facture'
+prouver $'issue 9 1.378.8 d : un règlement partiel soldé au hasard' modules/socle/moteur/compta-1.js \
+  $'.sort((x, y) => (x.echeance || \'\').localeCompare(y.echeance || \'\')).forEach(l => {
+        const pris' \
+  $'.sort((x, y) => (y.echeance || \'\').localeCompare(x.echeance || \'\')).forEach(l => {
+        const pris' \
+  $'un règlement partiel entame la plus ancienne'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

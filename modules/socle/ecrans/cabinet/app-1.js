@@ -4781,7 +4781,8 @@
   // dans l'index sans déchiffrer le livre (mesure de la 9.1.0), avec la MÊME fonction que le tableau
   // de production — deux écrans qui disent l'état d'un mois ne peuvent pas se contredire (6.8.1).
   // Chaque mois porte son geste : saisir celui qui n'a rien, ouvrir la déclaration des autres.
-  const MOT_TENU = { saisi: 'à saisir', revise: 'saisi', declare: 'révisé', fini: 'déclaré' };
+  // (1.378.8) Les mots du tableau de bord (SIGNE_TB) : ce qu'il reste à faire sur le mois, pas ce qui est fait.
+  const MOT_TENU = { saisi: 'à saisir', revise: 'à réviser', declare: 'prêt à déposer', fini: 'déposé' };
   const CASE_TENU = { saisi: 'manquant', revise: 'provisoire', declare: 'provisoire', fini: 'complet' };
   // (plateforme) 1.127.0 — le mois en cours d'un client sur SkanFact, lu dans ses livres : les pièces arrivées (ventes,
   // achats, achats sans justificatif), ce qui attend au brouillard, la dernière validation ; et le geste, valider les
@@ -9219,6 +9220,7 @@
         <tfoot><tr><td>${esc(pl(agee.tiers.length, 'tiers', 'tiers'))}</td>
           ${agee.tranches.map(t => `<td class="r nw">${t.montant ? esc(m(t.montant)) : ''}</td>`).join('')}
           <td class="r nw"><strong>${esc(m(agee.total))}</strong></td></tr></tfoot></table></div>
+        ${agee.impute ? `<p class="small muted mt" id="lv-agee-impute">Des règlements ou des avoirs ne sont pas encore lettrés : ils sont imputés ici aux pièces les plus anciennes de chaque tiers. Lettre le compte pour fixer quelle pièce est soldée.</p>` : ''}
         ${agee.tiers.length > 12 ? `<div class="small muted mt">Les douze plus gros ; le pied porte les ${agee.tiers.length}.</div>` : ''}</div>` : ''}
       ${l.lettragesFaux.length ? `<div class="warn-box mb">${l.lettragesFaux.map(f =>
         `<div>Lettrage « ${esc(f.lettre) }» de ${esc(f.tiers)} : les pièces ne se soldent pas entre elles (écart ${esc(money(Math.abs(f.ecart)))}).</div>`).join('')}</div>` : ''}
@@ -9426,7 +9428,7 @@
         `<option value="${m}" ${m === d.periode ? 'selected' : ''}>${MOIS_COURTS[i]} ${esc(s.annee)}</option>`).join('')}</select></label>
       ${info('dc.etat')}
       <span class="small muted">État</span>
-      <span class="badge ${etat.etat === 'payé' ? 'b-paid' : etat.etat === 'déclaré' ? 'b-part' : etat.etat === 'saisi' ? 'b-due' : ''}">${esc(etat.etat)}</span>
+      ${(([mot, ton]) => `<span class="badge ${ton}" id="dc-etat">${esc(mot)}</span>`)(motEtatDecl(etat, d.periode))}
       <span class="grow"></span>
       <button class="btn btn-sm btn-ghost" id="dc-csv">Exporter les cases</button>
     </div>
@@ -9486,6 +9488,18 @@
 
   // (1.378.7 ; issue 9, CABDECLARER-23) Chaque pièce porte ce qu'elle met dans la case (et sa base hors taxes pour la
   // TVA) ; le pied porte la case entière, pas la page — et seulement quand la somme des pièces retombe dessus.
+  // (1.378.8 ; issue 9, CABDECLARER-18) L'état d'un mois, avec les mots de la frise et du tableau de bord : « déposé »,
+  // jamais « déclaré » ; « prêt à déposer » une fois la déclaration préparée (l'état restait « saisi ») ; « en cours »
+  // tant que le mois n'est pas fini. Trois vocabulaires disaient la même chose.
+  function motEtatDecl(etat, periode) {
+    const mc = K.today().slice(0, 7);
+    if (etat.paye) return ['déposé et payé', 'b-paid'];
+    if (etat.declare) return ['déposé', 'b-part'];
+    if (periode > mc) return ['à venir', ''];
+    if (etat.declaration) return ['prêt à déposer', 'b-due'];
+    if (periode === mc) return ['en cours', ''];
+    return etat.saisi ? ['à déposer', 'b-due'] : ['à saisir', ''];
+  }
   const panneauPieces = (c, titre, cle) => {
     const d = KC.piecesDeCase(livresState.livre, cle, c);
     const avecBase = d.lignes.some(l => l.base != null), avecMontant = d.lignes.some(l => l.montant != null);

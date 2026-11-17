@@ -3293,8 +3293,29 @@
     const T = (Array.isArray(tranches) && tranches.length ? tranches : AGING_BUCKETS)
       .map(([min, max, label]) => ({ label, min, max, montant: 0, nombre: 0 }));
     const e = echeancierDepuisLignes(entries, compteOuRole, todayIso);
+    // (1.378.8 ; issue 9, CABDECLARER-8) Tant qu'un compte n'est pas lettré, une facture de février et son règlement de
+    // juin tombaient dans deux tranches : « plus de 90 jours : 10 138,800 » pour un client qui ne devait rien de si
+    // vieux. Par tiers, ce qui vient en sens contraire (règlements, avoirs non lettrés) s'impute aux pièces les plus
+    // ANCIENNES ; seul le reste se range par âge. `impute` dit que l'écran doit l'annoncer.
+    let impute = false;
+    const groupes = new Map();
+    e.lignes.forEach(l => { const k = l.tiersId || ('~' + l.tiers); if (!groupes.has(k)) groupes.set(k, []); groupes.get(k).push(l); });
+    const restes = [];
+    groupes.forEach(ls => {
+      const total = round3(ls.reduce((t, l) => t + l.montant, 0));
+      const signe = total < 0 ? -1 : 1;
+      let aImputer = round3(ls.filter(l => l.montant * signe < 0).reduce((t, l) => t - l.montant * signe, 0));
+      if (!aImputer) { restes.push(...ls); return; }
+      impute = true;
+      ls.filter(l => l.montant * signe > 0).sort((x, y) => (x.echeance || '').localeCompare(y.echeance || '')).forEach(l => {
+        const pris = Math.min(aImputer, l.montant * signe);
+        aImputer = round3(aImputer - pris);
+        const reste = round3(l.montant * signe - pris);
+        if (reste) restes.push({ ...l, montant: reste * signe });
+      });
+    });
     const parTiers = {};
-    e.lignes.forEach(l => {
+    restes.forEach(l => {
       const t = T.find(x => l.retard >= x.min && l.retard <= x.max) || T[T.length - 1];
       t.montant = round3(t.montant + l.montant); t.nombre++;
       const k = l.tiersId || ('~' + l.tiers);
@@ -3305,7 +3326,7 @@
     });
     return {
       tranches: T, tiers: Object.values(parTiers).sort((a, b) => b.total - a.total),
-      total: round3(T.reduce((s, x) => s + x.montant, 0))
+      total: round3(T.reduce((s, x) => s + x.montant, 0)), impute
     };
   }
 

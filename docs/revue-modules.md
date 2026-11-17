@@ -4592,3 +4592,14 @@ Six preuves.
   sur sa fiche.
 
 Essais : `tests/moteur/pieces-de-case-1378.test.ts`, `tests/web/pagination-1352.test.ts`. Quatre preuves.
+
+## 1.378.8 — Un seul vocabulaire pour l'état d'un mois, une ancienneté qui ne ment pas (issue 9, CABDECLARER-8, -18)
+
+- **L'état d'un mois** sur la Déclaration prend les mots de la frise et du tableau de bord : à saisir, en cours, à
+  déposer, prêt à déposer (une fois préparée — il restait « saisi »), déposé, déposé et payé. « Déclaré » disparaît ; la
+  bulle dit les mêmes mots, et les mois d'un dossier tenu aussi (à réviser, prêt à déposer, déposé).
+- **« Ce qui reste dû, par ancienneté »** sur un compte pas encore lettré : par tiers, les règlements et avoirs non
+  lettrés s'imputent aux pièces les plus anciennes ; seul le reste se range par âge, et l'écran le dit. Une facture de
+  février réglée en juin ne paraît plus « à plus de 90 jours ».
+
+Essais : `tests/moteur/anciennete-1378.test.ts`, `tests/web/cabinet-declaration.test.ts`. Quatre preuves.

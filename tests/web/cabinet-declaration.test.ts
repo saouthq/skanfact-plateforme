@@ -136,9 +136,13 @@ describe('la déclaration du mois, à la souris', () => {
     expect(await p.locator('[data-copier]').allInnerTexts()).toEqual(expect.arrayContaining([expect.stringMatching(/^190,125/), expect.stringMatching(/^50,255/), expect.stringMatching(/^140,870/)]));
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-declaration-1-cases.png') });
 
+    // (1.378.8 ; issue 9, CABDECLARER-18) L'état du mois, avec les mots de la frise : fini et saisi, il est « à déposer ».
+    expect(await p.locator('#dc-etat').innerText()).toBe('à déposer');
     // ── Préparer : au serveur, au millime ────────────────────────────────────────────────────────────
     await p.locator('#dc-preparer').click();
     await expect.poll(toast).toBe('Déclaration préparée.');
+    // Préparé, l'état le dit (il restait « saisi »).
+    await expect.poll(() => p.locator('#dc-etat').innerText()).toBe('prêt à déposer');
     let [d] = await declarations(cafe, associe);
     expect(d).toMatchObject({ periode: '2026-03', ecriture: null, deposee: { le: '' } });
     expect([d?.cases.tvaCollectee, d?.cases.tvaDeductible, d?.cases.timbre, d?.cases.aDecaisser]).toEqual(['190.125', '50.255', '1.000', '140.870']);
@@ -210,11 +214,13 @@ describe('la déclaration du mois, à la souris', () => {
     // (1.378.2, issue 9 CABDECLARER-37) Déposé, le mois ne se recalcule plus : le bouton est éteint et ne le propose pas.
     await expect.poll(() => p.locator('#dc-preparer').isDisabled()).toBe(true);
     expect(await p.locator('#dc-preparer').innerText()).not.toMatch(/recalculer/);
+    expect(await p.locator('#dc-etat').innerText()).toBe('déposé');
     await p.locator('#dc-payee').click();
     await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toBe('Notée payée.');
     await expect.poll(async () => (await declarations(cafe, associe))[0]?.payee.le).toBe(aujourdhui);
     await expect.poll(() => p.locator('.dc-etapes').innerText()).toMatch(/Payée le/);
+    expect(await p.locator('#dc-etat').innerText()).toBe('déposé et payé');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-declaration-3-payee.png') });
     await p.locator('#dc-deposee').click();
     // (1.378.2, issue 9 CABDECLARER-11) Annuler demande d'abord, et dit que le paiement part avec le dépôt ; « Garder » ne touche à rien.
