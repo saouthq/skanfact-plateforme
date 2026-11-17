@@ -4832,3 +4832,35 @@ Règles tenues :
 Tests : `tests/abonnement/abonnement-cabinet.test.ts` (les treize gestes par l'API, un cabinet témoin),
 `tests/web/console.test.ts` (à la souris : dix dossiers gratuits, suspendre, reprendre, le support sans geste ; rendu
 clair, sombre, téléphone). Six preuves « gestes cabinet a…f ».
+
+## 1.381.0 — « À venir » partout, et la paie en « Bêta » (demandé par Skander le 17/11/2026)
+
+Skander : « le module caisse faut mettre à venir et on le lock, pour la paie la pastille bêta, et à venir pour ce qu'on
+n'a pas branché, afin que le comptable et l'entreprise qui vont essayer comprennent », puis « traite tout et pas que
+l'élément : dans "Ajouter un module" la caisse est toujours cochée », et « soigne les écrans d'à venir ».
+
+- **Un second réglage du serveur, `SKANFACT_BETA`** (`serveur/a-venir.ts`, jumeau de `SKANFACT_A_VENIR`) : absent, la
+  paie est en bêta ; vide, rien ne l'est. Il part dans `/moi` (`compte.beta`) et les deux applications le lisent
+  (`window.__beta`). Les tests tournent avec les deux réglages vides, sauf celui qui les prouve.
+- **La caisse est verrouillée partout où elle se montrait** : le menu (grisée, pastille), « Au quotidien » d'un
+  commerce (elle n'y est plus), « Créer », la recherche (« Caisse (à venir) »), **« Ajouter un module »** (plus de case,
+  plus de « Ouvrir » : la ligne s'annonce) et **l'assistant de départ** (elle n'est plus proposée cochée).
+- **L'écran d'une page à venir** dit trois choses dans trois cadres : où on en est, quoi faire en attendant (pour la
+  caisse : la facture, avec son bouton), et qu'elle s'ouvrira d'elle-même. Clair, sombre, téléphone.
+- **La facture électronique** : tant qu'elle est à venir, « Signer par DigiGo » ne se propose plus (fenêtre d'émission,
+  menu « Plus », frise) ; la frise d'une facture émise n'a plus qu'une étape « El Fatoora · À venir » au lieu de deux
+  étapes « à faire » qu'on ne peut pas faire.
+- **La paie porte « Bêta »** : la ligne du menu, le titre de la page, la ligne du module, l'assistant, et le titre de la
+  paie d'un dossier au Cabinet. La bulle dit ce que ça veut dire : ça marche, on vérifie encore — relis tes premiers
+  chiffres avec ton comptable.
+
+Ce qui n'a pas changé, et pourquoi : le fichier CNSS du trimestre se fabrique déjà et porte son « À VÉRIFIER » ; les
+attestations TEJ n'ont aucun écran dans les applications (rien à annoncer) ; la console dit déjà, format par format,
+« contre un service simulé » ou « pas encore ».
+
+À VÉRIFIER avec Skander : en production les deux réglages sont absents, donc la caisse et la facture électronique sont
+« à venir » et la paie « bêta » dès la publication. Ouvrir la caisse : `SKANFACT_A_VENIR=efacture`. Sortir la paie de
+la bêta : `SKANFACT_BETA=` (vide).
+
+Tests : `tests/web/a-venir-1379.test.ts` (le titre et le menu de la paie, les trois cadres de l'écran, la ligne du
+module sans case ni bouton, et rien de tout cela quand tout est ouvert), `tests/socle/a-venir.test.ts` (`enBeta`).

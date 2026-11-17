@@ -290,7 +290,7 @@
     const [moi, mes, porte, lues, mois, regles, eq] = await Promise.all([appel('GET', '/moi'), appel('GET', '/cabinets'), appel('GET', `/cabinets/${cabinetId}/portefeuille`),
       appel('GET', `/cabinets/${cabinetId}/fiches`), appel('GET', `/cabinets/${cabinetId}/mois?depuis=${depuis}`), appel('GET', `/cabinets/${cabinetId}/reglages`),
       appel('GET', `/cabinets/${cabinetId}/equipe`)]);
-    equipeLue = { membres: eq.membres || [], invitations: eq.invitations || [], affectations: eq.affectations || [] };
+    equipeLue = { membres: eq.membres || [], invitations: eq.invitations || [], affectations: eq.affectations || [] }; /** @type {any} */ (window).__beta = (moi && moi.compte && moi.compte.beta) || [];
     mandats.clear();
     for (const d of porte.dossiers || []) mandats.set(d.entreprise, d.mandat);
     reglages = { contenu: regles.contenu || {}, revision: regles.revision ?? null };

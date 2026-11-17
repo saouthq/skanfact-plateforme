@@ -1398,7 +1398,7 @@
       // (1.353.0) « Si la signature est branchée » : la fenêtre ne le vérifiait pas. Sur un serveur où DigiGo n'est pas
       // branché, ou tant que personne n'est désigné pour signer, la case cochée d'avance ouvrait une fenêtre qui répondait
       // « rien n'a été signé ». On ne propose pas un geste qui sera refusé ; il reste dans le menu de la pièce.
-      bridge.signerPiece && !C.estDemo(data) && !(bridge.signaturePrete && bridge.signaturePrete() === false) ? ['signer', 'Signer par DigiGo', 'puis elle part à El Fatoora', true] : null,
+      bridge.signerPiece && !aVenir('efacture') && !C.estDemo(data) && !(bridge.signaturePrete && bridge.signaturePrete() === false) ? ['signer', 'Signer par DigiGo', 'puis elle part à El Fatoora', true] : null,
       // (1.379.10, issue 15 V-14) Une adresse qui n'en a pas la forme n'est pas proposée à l'envoi (même contrôle que la fenêtre d'envoi).
       ccl && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(ccl.email || '').trim()) ? ['envoyer', 'L\'envoyer par e-mail', h(ccl.email), true] : null,
       isInvE ? ['payer', 'Ouvrir l\'enregistrement d\'un paiement', 's\'il a déjà payé', false] : null,
@@ -2965,6 +2965,12 @@
   };
   // (1.379.3) Ce que le serveur dit « à venir » (la caisse, la facture électronique) : visible, pas encore ouvert.
   const aVenir = id => (window.__aVenir || []).includes(id);
+  // (1.381.0) « Bêta » : la partie marche, on la finit avec les premiers essais (la paie). Le serveur le dit, comme « À venir ».
+  const enBeta = id => (window.__beta || []).includes(id === 'salarie' ? 'paie' : id);
+  const PASTILLE_BETA = '<span class="pastille-beta" title="Version bêta : cette partie marche, on la finit avec vos retours. Vérifie tes premiers chiffres avec ton comptable.">Bêta</span>';
+  // Un module est « à venir » quand toutes ses pages le sont (la caisse) : il ne se coche pas, il ne se propose pas.
+  const moduleAVenir = m => !!m && Array.isArray(m.pages) && m.pages.length > 0 && m.pages.every(aVenir);
+  window.__pastilles = { aVenir, enBeta, moduleAVenir, beta: PASTILLE_BETA };
   function pageCachee(id) {
     if (aVenir(id)) return true;
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
@@ -2977,11 +2983,23 @@
     const nom = (C.pageById(name) || {}).titre || PAGE_LABELS[name] || 'Cette page';
     const titre = nom.charAt(0).toUpperCase() + nom.slice(1);
     if (aVenir(name)) {
+      // (1.381.0) L'écran d'une partie à venir : ce qu'elle fera, où on en est, quoi faire en attendant — et un geste utile.
+      const mod = C.moduleById((C.pageById(name) || {}).module) || {};
+      const enAttendant = name === 'caisse' ? 'Tes ventes se font par une facture : elle se règle en espèces, par carte ou par chèque, comme au comptoir.' : 'Tout le reste de l\'application marche comme d\'habitude.';
       $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)} <span class="pastille-avenir">À venir</span></h1></div>
-        <div class="panel vide-utile" id="page-a-venir"><h2>${h(titre)} arrive bientôt</h2>
-          <p class="small">Cette partie de SkanFact n'est pas encore ouverte sur ce serveur : on finit de la brancher. Tu n'as rien à faire, elle apparaîtra ici dès qu'elle sera prête. En attendant, tes ventes se font par une facture, et tout le reste de l'application marche.</p>
-          <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
+        <div class="panel avenir-ecran" id="page-a-venir">
+          <span class="avenir-ic" aria-hidden="true">${icone(name)}</span>
+          <h2>${h(titre)} arrive bientôt</h2>
+          ${mod.quoi ? `<p class="avenir-quoi">${h(mod.quoi)}</p>` : ''}
+          <ul class="avenir-points">
+            <li><b>Où on en est</b><span>On finit de la brancher et de la vérifier. Tu n'as rien à faire, et rien à payer en plus.</span></li>
+            <li><b>En attendant</b><span>${h(enAttendant)}</span></li>
+            <li><b>Le jour où elle ouvre</b><span>Elle apparaît ici d'elle-même, sans rien installer.</span></li>
+          </ul>
+          <div class="inline mt">${name === 'caisse' && !pageCachee('factures') ? '<button class="btn btn-primary" id="pi-facture">Faire une facture</button><button class="btn" id="pi-accueil">Revenir à l\'accueil</button>' : '<button class="btn btn-primary" id="pi-accueil">Revenir à l\'accueil</button>'}</div>
+        </div>`;
       $('#pi-accueil').onclick = () => navigate('#/dashboard');
+      if ($('#pi-facture')) $('#pi-facture').onclick = () => navigate('#/doc/new/facture');
       return;
     }
     $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
@@ -3089,7 +3107,8 @@
     const pages = C.navPages(data).filter(p => !pageCachee(p.id) || aVenir(p.id));
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
     const role = roleBarre();
-    const quotidien = navQuotidien(pages);
+    // (1.381.0) Une page à venir ne prend pas une place « Au quotidien » (la première, chez un commerçant) : elle reste dans son volet.
+    const quotidien = navQuotidien(pages.filter(p => !aVenir(p.id)));
     const reglable = role !== 'caissier';
     const lien = (p, dansQuotidien) => {
       if (aVenir(p.id)) return `<a href="#/${p.id}" data-route="${p.id}" class="lien a-venir" data-tip="${h(p.titre)}" title="${h(p.titre)} arrive bientôt : cette partie n'est pas encore ouverte."><span class="ic">${icone(p.id)}</span>${h(p.titre)}<span class="pastille-avenir">À venir</span><span class="point"></span></a>`;
@@ -3099,7 +3118,7 @@
       const texte = p.quoi || (m && m.quoi) || '';
       const bulle = (texte + (ferme ? ' — dans l\'offre Complet : ici, tu peux lire, pas créer.' : '')).trim();
       return `<a href="#/${p.id}" data-route="${p.id}" class="lien"${dansQuotidien && reglable ? ` draggable="true" data-nom="${p.id}"` : ''} data-tip="${h(p.titre)}"${bulle ? ` title="${h(bulle)}"` : ''}>`
-        + `<span class="ic">${icone(p.id)}</span>${h(p.titre)}${ferme ? CADENAS : ''}`
+        + `<span class="ic">${icone(p.id)}</span>${h(p.titre)}${ferme ? CADENAS : ''}${enBeta(p.id) ? PASTILLE_BETA : ''}`
         + (cid ? `<span class="nav-count compte${NAV_INFO.includes(p.id) ? ' info' : ''}" id="${cid}" hidden></span>` : '')
         + (dansQuotidien && reglable ? `<span class="prise" title="Glisse pour ranger">${ICONE_PRISE}</span>` : '')
         + '<span class="point"></span></a>';
@@ -3125,7 +3144,7 @@
       const dedans = quotidien.includes(p.id);
       const epingle = `<button type="button" class="epingler" data-epingle="${p.id}" aria-pressed="${dedans}" title="${dedans ? 'Retirer de « Au quotidien »' : 'Épingler dans « Au quotidien »'}" aria-label="${h((dedans ? 'Retirer de « Au quotidien » : ' : 'Épingler dans « Au quotidien » : ') + p.titre)}">${dedans ? ICONE_COCHE : ICONE_EPINGLE}</button>`;
       // Une page que l'offre ferme porte son cadenas dans son volet aussi (ici, on lit ; la création attend l'offre).
-      const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d" title="${h(dedans ? '' : phrase(p))}">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
+      const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}${enBeta(p.id) ? ' ' + PASTILLE_BETA : ''}</b><span class="d" title="${h(dedans ? '' : phrase(p))}">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
       if (aVenir(p.id)) return `<div class="ligne a-venir"><button type="button" class="pl-l" data-aller="${p.id}"><span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)} <span class="pastille-avenir">À venir</span></b><span class="d">Pas encore ouverte : elle arrive bientôt.</span></span></button></div>`;
       if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${p.id}">${corps}</button>${epingle}</div>`;
       // Une page qui n'a pas de compteur porte celui de sa vue (la Facturation récurrente à générer, sur « Autres pièces »),
@@ -6441,7 +6460,7 @@
             ${isInv ? `<div class="ml-ligne"><button id="make-recurring">Rendre récurrent (contrat)…</button>${info('ed.recurring')}</div>` : ''}
             ${locked && isInv && doc.status !== 'annulée' ? `<button id="credit">Créer un avoir…</button>` : ''}
             ${locked && (isInv || isAv) && doc.status !== 'annulée' ? `<div class="ml-ligne"><button id="teif">Fichier pour El Fatoora (TEIF)…</button>${info('ed.teif')}</div>` : ''}
-            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.signerPiece ? `<div class="ml-ligne"><button id="signer">Signer (DigiGo)…</button>${info('ed.signer')}</div>` : ''}
+            ${locked && (isInv || isAv) && doc.status !== 'annulée' && !C.estTicket(doc) && bridge.signerPiece && !aVenir('efacture') ? `<div class="ml-ligne"><button id="signer">Signer (DigiGo)…</button>${info('ed.signer')}</div>` : ''}
             ${canUnlock ? `<button id="unlock">Modifier malgré l'émission…</button>` : ''}
             ${!figee ? `<button id="del" class="danger">Supprimer</button>` : ''}
           </div></div>` : '');
@@ -6625,9 +6644,13 @@
       const duApresAvoirs = b ? C.round3(b.totals.netToPay - b.credited) : 0;
       const etapes = [
         { t: 'Émise', fait: true, d: doc.issuedTs ? quand(doc.issuedTs) : `le ${C.fmtDate(doc.date)}` },
+        // (1.381.0) Tant que la facture électronique est « à venir », la signature et le dépôt ne se proposent pas :
+        // une seule étape les annonce, sans bouton. Le jour où elle ouvre, les deux étapes reviennent d'elles-mêmes.
+        ...(aVenir('efacture') ? [{ t: 'El Fatoora', fait: false, d: '<span class="pastille-avenir">À venir</span>' }] : [
         { t: 'Signée', fait: signee, d: signee ? 'DigiGo' : 'DigiGo, à faire', g: !signee && bridge.signerPiece && roleBarre() !== 'commercial' ? '<button type="button" class="btn btn-sm" data-frise="signer">Signer</button>' : '' },
         { t: 'El Fatoora', fait: e === 'acceptee', alerte: e === 'refusee' || e === 'retenue',
           d: C.estDemo(data) ? 'jamais : entreprise d\'essai' : e === 'acceptee' ? `acceptée${ttn.reference ? ` · ${h(ttn.reference)}` : ''}` : e === 'refusee' ? 'refusée : le motif est dans « Fichier pour El Fatoora »' : e === 'retenue' ? 'retenue : à reprendre' : e === 'deposee' ? 'déposée, en attente' : e === 'a_envoyer' || e === 'signee' ? 'en route' : 'partira après la signature' },
+        ]),
         { t: 'Envoyée', k: 'envoyee', fait: !!dernier, d: dernier ? `<span${dernier.to ? ` title="envoyée à ${h(dernier.to)}"` : ''}>${dernier.date ? lfJm(dernier.date) : ''}${dernier.canal === 'whatsapp' ? ' · par WhatsApp' : ''}</span>` : `<span class="ed-fr-adr" title="${h(cl.email || '')}">à ${h(cl.email || 'ton client')}</span>`,
           g: dernier ? '' : '<button type="button" class="btn btn-sm" data-frise="email">Envoyer</button>' },
         { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${argentLu(-b.remaining, cur)} à son crédit` : paye && effetEnAttente(doc) ? `${parEffet(effetEnAttente(doc))} · à la banque <span class="nw">le ${lfJmA(effetEnAttente(doc).date)}</span>` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${argentLu(duApresAvoirs, cur)}` : b && b.credited > 0.0005 ? `rien de reçu · reste ${argentLu(b.remaining, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
@@ -15406,7 +15429,7 @@
     const actions = aLeurRang([
       ['Nouveau devis', () => navigate('#/doc/new/devis')], ['Nouvelle facture', () => navigate('#/doc/new/facture')], ['Nouvel avoir', () => navigate('#/doc/new/avoir')],
       ['Accueil', () => navigate('#/dashboard')], ['Devis', () => navigate('#/devis')], ['Factures', () => navigate('#/factures')], ['Relances', () => navigate('#/relances')],
-      ['Facturation récurrente (contrats qui refacturent)', () => navigate('#/contrats')], ['Achats et dépenses', () => navigate('#/achats')], ['Nouvelle facture d\'achat', () => navigate('#/achat/new')], ['Nouvelle dépense', () => navigate('#/achat/new/-/depense')], ['Fournisseurs', () => navigate('#/fournisseurs')], ['Trésorerie', () => navigate('#/tresorerie')], ['Marges et rentabilité', () => navigate('#/marges')], ['Paie', () => navigate('#/paie')], ['Caisse', () => navigate('#/caisse')], ['Stock', () => navigate('#/stock')], ['Garanties', () => navigate('#/garanties')], ['Entrée de numéros de série', () => serialIntakeForm(null, () => render())], ['Mouvement de stock', () => adjustForm(null, () => render())], ['Immobilisations', () => navigate('#/immos')], ['Nouvelle immobilisation', () => assetForm(null, a => navigate('#/immo/' + a.id))], ['Nouvelle affaire', () => projectForm(null, p => navigate('#/affaire/' + p.id))], ['Nouveau fournisseur', () => supplierForm(null, () => render())], ['Proformas', () => navigate('#/autres/proforma')], ['Bons de commande', () => navigate('#/autres/commande')], ['Bons de livraison', () => navigate('#/autres/livraison')], ['Contrats à signer', () => navigate('#/autres/contrat')], ['Clients', () => navigate('#/clients')], ['Catalogue', () => navigate('#/catalogue')], ['Statistiques', () => navigate('#/stats')], ['Comptabilité', () => navigate('#/compta')], ['Paramètres', () => navigate('#/parametres')],
+      ['Facturation récurrente (contrats qui refacturent)', () => navigate('#/contrats')], ['Achats et dépenses', () => navigate('#/achats')], ['Nouvelle facture d\'achat', () => navigate('#/achat/new')], ['Nouvelle dépense', () => navigate('#/achat/new/-/depense')], ['Fournisseurs', () => navigate('#/fournisseurs')], ['Trésorerie', () => navigate('#/tresorerie')], ['Marges et rentabilité', () => navigate('#/marges')], ['Paie', () => navigate('#/paie')], [aVenir('caisse') ? 'Caisse (à venir)' : 'Caisse', () => navigate('#/caisse')], ['Stock', () => navigate('#/stock')], ['Garanties', () => navigate('#/garanties')], ['Entrée de numéros de série', () => serialIntakeForm(null, () => render())], ['Mouvement de stock', () => adjustForm(null, () => render())], ['Immobilisations', () => navigate('#/immos')], ['Nouvelle immobilisation', () => assetForm(null, a => navigate('#/immo/' + a.id))], ['Nouvelle affaire', () => projectForm(null, p => navigate('#/affaire/' + p.id))], ['Nouveau fournisseur', () => supplierForm(null, () => render())], ['Proformas', () => navigate('#/autres/proforma')], ['Bons de commande', () => navigate('#/autres/commande')], ['Bons de livraison', () => navigate('#/autres/livraison')], ['Contrats à signer', () => navigate('#/autres/contrat')], ['Clients', () => navigate('#/clients')], ['Catalogue', () => navigate('#/catalogue')], ['Statistiques', () => navigate('#/stats')], ['Comptabilité', () => navigate('#/compta')], ['Paramètres', () => navigate('#/parametres')],
       ['Aide et guide', () => navigate('#/aide')], ['Me guider (visites guidées)', () => navigate('#/guide')], ['Nouveau client', () => clientForm(null, () => render())],
       ['Importer mes clients depuis un tableur', () => importerTableau('clients', () => render(true))], ['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))], ['Importer mes fournisseurs depuis un tableur', () => importerTableau('fournisseurs', () => render(true))],
       ['Ta facture à ton image (logo, cachet, couleurs)', () => imageDeMarque(() => render(true))],

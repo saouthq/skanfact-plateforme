@@ -2210,7 +2210,7 @@
       const sous = data.employees.length ? `${pl(enPoste, 'salarié')}${qui ? ` · ${qui}` : ''} · ${jour}` : 'Tes salariés, leurs bulletins, ce que la paie te coûte';
       // (1.257.0) Les réglages ont leur titre, comme la maquette : « Accueil › Paie › Réglages », « Réglages de la paie ».
       const regl = s.tab === 'baremes';
-      return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}${regl ? `<a href="#/paie" id="p-chemin-paie">Paie</a>${ICONE_CHEVRON}<span>Réglages</span>` : '<span>Paie</span>'}</div><h1>${regl ? 'Réglages de la paie' : 'Paie'}</h1><p class="sous">${sous}</p></div>
+      return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}${regl ? `<a href="#/paie" id="p-chemin-paie">Paie</a>${ICONE_CHEVRON}<span>Réglages</span>` : '<span>Paie</span>'}</div><h1>${regl ? 'Réglages de la paie' : 'Paie'}${window.__pastilles && window.__pastilles.enBeta('paie') ? ' ' + window.__pastilles.beta : ''}</h1><p class="sous">${sous}</p></div>
         <div class="actions">${data.employees.length && peutEcrireAuCabinet() ? `<button type="button" class="btn" id="p-ecrire">${lfIc('message', 15)} Écrire à mon comptable</button>` : ''}${embaucher}${data.employees.length ? `<button type="button" class="btn btn-ghost pa-plus" id="p-plus" aria-haspopup="menu" aria-label="Autres gestes de la paie" title="Autres gestes de la paie">${lfIc('plus', 16)}</button>` : ''}${prin}</div>`;
     };
     // Le mois choisi, à gauche des vues : l'année partout où elle compte, le mois sur « Le mois ».

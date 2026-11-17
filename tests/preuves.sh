@@ -4312,7 +4312,7 @@ prouver "après un code faux, le curseur n'est plus dans la case du code" web/pu
 " "" \
   "$SGW"
 prouver "« Signer (DigiGo)… » absent du menu d'une pièce émise" modules/socle/ecrans/entreprise/app-1.js \
-  "&& bridge.signerPiece ? \`<div class=\"ml-ligne\"><button id=\"signer\">" "&& false ? \`<div class=\"ml-ligne\"><button id=\"signer\">" \
+  "&& bridge.signerPiece && !aVenir('efacture') ? \`<div class=\"ml-ligne\"><button id=\"signer\">" "&& false ? \`<div class=\"ml-ligne\"><button id=\"signer\">" \
   "$SGW"
 prouver "le panneau « Qui signe » jamais dessiné" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerSignataire && \$('#signataire-panel')) void bridge.dessinerSignataire(\$('#signataire-panel'));
@@ -30480,6 +30480,23 @@ prouver $'gestes cabinet f : la fiche ne se relit pas après le geste' web/conso
   $'fait={() => { setGeste(null); }}' \
   $'la fiche d\'un cabinet : la direction lui donne dix dossiers gratuits, puis le suspend et le reprend ; le support lit sans geste'
 
+# (1.381.0) « À venir » partout et la paie en « Bêta » : le module, l'assistant, la frise, les titres.
+prouver $'bêta a : la paie sans sa pastille dans le titre' modules/personnel/ecrans/entreprise/paie.js \
+  $'window.__pastilles.enBeta(\'paie\') ? \' \' + window.__pastilles.beta : \'\'' \
+  $'false ? \' \' + window.__pastilles.beta : \'\'' \
+  $'à venir : la ligne « Caisse » est grisée avec sa pastille'
+prouver $'bêta b : la caisse à venir encore cochable dans « Ajouter un module »' modules/socle/ecrans/entreprise/app-2.js \
+  $'        const bientot = PA.moduleAVenir(m);\n' \
+  $'        const bientot = false;\n' \
+  $'à venir : la ligne « Caisse » est grisée avec sa pastille'
+prouver $'bêta c : l\'écran à venir sans ses trois cadres' modules/socle/ecrans/entreprise/app-1.js \
+  $'<li><b>Le jour où elle ouvre</b>' \
+  $'<li><b>Plus tard</b>' \
+  $'à venir : la ligne « Caisse » est grisée avec sa pastille'
+prouver $'bêta d : la paie en bêta sans qu\'on l\'ait décidé quand le réglage est vide' serveur/a-venir.ts \
+  $'v === undefined ? BETA_CONNUS.join(\',\') : v' \
+  $'v === undefined || v === \'\' ? BETA_CONNUS.join(\',\') : v' \
+  $'en bêta (1.381.0) : absent, la paie'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

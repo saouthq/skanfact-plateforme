@@ -75,9 +75,12 @@ describe('1.379.3 : ce qui n\'est pas encore branché porte « À venir » (la c
 
   it('à venir : la ligne « Caisse » est grisée avec sa pastille, sa page dit qu\'elle arrive, « Créer » ne la propose pas, et les Paramètres le disent de la facture électronique', async () => {
     const x = await monter();
-    process.env.SKANFACT_A_VENIR = 'caisse,efacture';
+    process.env.SKANFACT_A_VENIR = 'caisse,efacture'; process.env.SKANFACT_BETA = 'paie';
     try {
       const p = await ouvrir(x);
+      // (1.381.0) La paie est en bêta : son titre et sa ligne du menu le disent.
+      expect(espace(await p.locator('#p-head h1').innerText())).toBe('Paie Bêta');
+      expect(await p.locator('nav .pastille-beta').count()).toBeGreaterThan(0);
       const ligne = p.locator('.a-venir').first();
       await ligne.waitFor({ state: 'attached', timeout: 10_000 });
       expect(espace(String(await ligne.textContent()))).toMatch(/^Caisse ?À venir/);
@@ -86,6 +89,9 @@ describe('1.379.3 : ce qui n\'est pas encore branché porte « À venir » (la c
       await p.locator('#page-a-venir').waitFor({ timeout: 10_000 });
       expect(espace(await p.locator('#view h1').innerText())).toBe('Caisse À venir');
       expect(espace(await p.locator('#page-a-venir h2').innerText())).toBe('Caisse arrive bientôt');
+      // (1.381.0) L'écran dit trois choses : où on en est, quoi faire en attendant, et que ça s'ouvrira tout seul.
+      expect((await p.locator('#page-a-venir .avenir-points li b').allInnerTexts()).map((t) => espace(t).toLowerCase())).toEqual(['où on en est', 'en attendant', 'le jour où elle ouvre']);
+      expect(await p.locator('#page-a-venir').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
       const creer = await p.evaluate(() => (window as unknown as { __creer: () => { actions: [string, string][] } }).__creer().actions.map((a) => a[0]));
       expect(creer).not.toContain('caisse');
       await p.locator('#pi-accueil').click();
@@ -94,16 +100,24 @@ describe('1.379.3 : ce qui n\'est pas encore branché porte « À venir » (la c
       await p.locator('#efacture-a-venir').waitFor({ state: 'attached', timeout: 8_000 }).catch(async () => { throw new Error(`pas de ligne : ${p.url()} · ${erreurs.join(' | ')} · ${await p.evaluate(() => [String((window as unknown as { __aVenir: unknown }).__aVenir), document.querySelector('#view h1')?.textContent, document.querySelectorAll('[data-pane]').length, !!document.querySelector('#p-efacture')].join(' · '))}`); });
       expect(espace(await p.locator('#efacture-a-venir').innerText().catch(async () => String(await p.locator('#efacture-a-venir').textContent())))).toMatch(/^À venir La facture électronique \(El Fatoora\) n'est pas encore branchée/);
       expect(await p.locator('input[name="efacture"]').isVisible()).toBe(false);
+      // (1.381.0) « Ajouter un module » : la caisse ne se coche pas et ne s'ouvre pas, elle s'annonce.
+      await p.evaluate(() => { location.hash = '#/modules'; });
+      const rang = p.locator('.mod-row[data-a-venir]').first();
+      await rang.waitFor({ timeout: 10_000 });
+      expect(espace(await rang.locator('.mod-t').innerText())).toMatch(/À venir$/);
+      expect(await rang.locator('input[type="checkbox"]').count()).toBe(0);
+      expect(await rang.locator('button').count()).toBe(0);
+      expect(await p.locator('.mod-row:not([data-a-venir]) .pastille-beta').count()).toBe(1);
       expect(erreurs).toEqual([]);
       await p.context().close();
-    } finally { process.env.SKANFACT_A_VENIR = ''; }
+    } finally { process.env.SKANFACT_A_VENIR = ''; process.env.SKANFACT_BETA = ''; }
   }, 120_000);
 
   it('tout ouvert (le réglage vide) : la caisse est une ligne ordinaire et sa page s\'ouvre', async () => {
     const x = await monter();
     const p = await ouvrir(x);
     await p.locator('[data-route="caisse"], [data-aller="caisse"]').first().waitFor({ state: 'attached', timeout: 10_000 });
-    expect(await p.locator('.a-venir, .pastille-avenir').count()).toBe(0);
+    expect(await p.locator('.a-venir, .pastille-avenir, .pastille-beta').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/caisse'; });
     await p.locator('#cs-tabs, #cs-creer, #cs-body').first().waitFor({ timeout: 15_000 });
     expect(await p.locator('#page-a-venir').count()).toBe(0);

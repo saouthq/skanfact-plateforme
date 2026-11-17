@@ -7907,19 +7907,23 @@
       const lignes = C.MODULES.map(m => {
         const n = C.moduleCount(data, m.id);
         const why = C.moduleWhy(data, m.id);
-        const on = C.moduleOn(data, m.id);
+        // (1.381.0) Un module à venir (la caisse) ne se coche pas et ne s'ouvre pas : il s'annonce. Un module en bêta le dit.
+        const PA = window.__pastilles || { moduleAVenir: () => false, enBeta: () => false, beta: '' };
+        const bientot = PA.moduleAVenir(m);
+        const on = !bientot && C.moduleOn(data, m.id);
         const pages = C.PAGES.filter(p => p.module === m.id && !p.horsMenu).map(p => p.titre).join(' · ');
         const contenu = n ? `${n} élément${n > 1 ? 's' : ''} enregistré${n > 1 ? 's' : ''}.` : 'Rien d\'enregistré pour l\'instant.';
-        const note = m.toujours ? 'Toujours affiché : c\'est le cœur du métier.'
+        const note = bientot ? 'Pas encore ouvert : il apparaîtra dans le menu de lui-même, le jour où il sera prêt.'
+          : m.toujours ? 'Toujours affiché : c\'est le cœur du métier.'
           : why === 'tout' ? `Affiché : tu n'as encore rien retiré du menu. ${contenu}`
           : why === 'masque' ? `Hors du menu. ${contenu}${n ? ' Rien n\'est supprimé.' : ''}`
           : contenu;
-        return `<div class="mod-row${on ? ' on' : ''}">
-          <label class="mod-check">${m.toujours
+        return `<div class="mod-row${on ? ' on' : ''}${bientot ? ' a-venir' : ''}"${bientot ? ` data-a-venir="${h(m.id)}"` : ''}>
+          <label class="mod-check">${bientot ? `<span class="mod-lock" title="${h(note)}" aria-hidden="true">…</span>` : m.toujours
             ? `<span class="mod-lock" title="${h(note)}">★</span>`
             : `<input type="checkbox" data-mod="${h(m.id)}" data-n="${n}" ${on ? 'checked' : ''}>`}</label>
           <div class="mod-txt">
-            <div class="mod-t">${h(m.label)}${(licence.reserves || []).includes(m.id) ? ' <span class="badge">offre Complet : tu peux lire, pas créer</span>' : ''}</div>
+            <div class="mod-t">${h(m.label)}${bientot ? ' <span class="pastille-avenir">À venir</span>' : ''}${!bientot && (m.pages || []).some(PA.enBeta) ? ' ' + PA.beta : ''}${!bientot && (licence.reserves || []).includes(m.id) ? ' <span class="badge">offre Complet : tu peux lire, pas créer</span>' : ''}</div>
             <div class="small muted">${h(m.quoi)}</div>
             <div class="small muted mt-s"><b>Pages :</b> ${h(pages)} · ${h(note)}</div>
           </div>
@@ -10758,8 +10762,12 @@
         // Marges à quelqu'un qui n'a pas encore un seul client. Le tri existait, personne ne
         // l'armait. Les cases arrivent cochées d'après le métier déclaré à l'écran précédent.
         if (s.id === 'modules') {
+          // (1.381.0) Un module à venir (la caisse) ne se propose pas coché : il s'annonce, sans case.
+          const PA = window.__pastilles || { moduleAVenir: () => false, enBeta: () => false, beta: '' };
+          const pret = id => !PA.moduleAVenir(C.moduleById(id));
           if (!a.modulesTouche) a.modules = C.modulesSuggeres(a.activity);
-          const suggere = C.modulesSuggeres(a.activity);
+          a.modules = (a.modules || []).filter(pret);
+          const suggere = C.modulesSuggeres(a.activity).filter(pret);
           const coeur = C.MODULES.filter(m => m.toujours);
           const choix = C.MODULES.filter(m => !m.toujours);
           // Le cœur du métier tient en UNE ligne. La première version lui donnait trois lignes
@@ -10769,10 +10777,17 @@
           return `<p class="small muted">Les cases sont posées d'après ton métier. ${C.liste(coeur.map(m => m.label))} sont toujours là.</p>
           <div id="sf-mods" class="mods-serre">${choix.map(m => {
             const on = a.modules.includes(m.id);
+            if (!pret(m.id)) return `<div class="mod-row a-venir" data-a-venir="${h(m.id)}">
+              <label class="mod-check"><span class="mod-lock" aria-hidden="true">…</span></label>
+              <div class="mod-txt">
+                <div class="mod-t">${h(m.label)} <span class="pastille-avenir">À venir</span></div>
+                <div class="small muted">${h(m.quoi)} Pas encore ouvert : il arrivera de lui-même.</div>
+              </div>
+            </div>`;
             return `<div class="mod-row${on ? ' on' : ''}">
               <label class="mod-check"><input type="checkbox" data-sfmod="${h(m.id)}" ${on ? 'checked' : ''}></label>
               <div class="mod-txt">
-                <div class="mod-t">${h(m.label)}${suggere.includes(m.id) ? ' <span class="small muted">— proposé pour ton métier</span>' : ''}</div>
+                <div class="mod-t">${h(m.label)}${(m.pages || []).some(PA.enBeta) ? ' ' + PA.beta : ''}${suggere.includes(m.id) ? ' <span class="small muted">— proposé pour ton métier</span>' : ''}</div>
                 <div class="small muted">${h(m.quoi)}</div>
               </div>
             </div>`;

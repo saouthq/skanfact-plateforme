@@ -6,6 +6,14 @@
 //   (absent)                       les deux à venir — le choix de la production d'aujourd'hui.
 export const A_VENIR_CONNUS = ['caisse', 'efacture'];
 
+// (1.381.0 ; Skander, 18/11/2026) Ce qui marche mais se finit encore avec les premiers essais porte une pastille « Bêta » :
+// la paie. Même réglage, même forme : SKANFACT_BETA="" n'en pose aucune (les tests), absent : la paie.
+export const BETA_CONNUS = ['paie'];
+export function enBeta(env: Record<string, string | undefined> = process.env): string[] {
+  const v = env.SKANFACT_BETA;
+  return (v === undefined ? BETA_CONNUS.join(',') : v).split(',').map((x) => x.trim()).filter((x) => BETA_CONNUS.includes(x));
+}
+
 export function aVenir(env: Record<string, string | undefined> = process.env): string[] {
   const v = env.SKANFACT_A_VENIR;
   return (v === undefined ? A_VENIR_CONNUS.join(',') : v).split(',').map((x) => x.trim()).filter((x) => A_VENIR_CONNUS.includes(x));

@@ -2,7 +2,7 @@
 // son geste (03 D2). Les écritures sensibles passent par les fonctions de la base, qui appliquent
 // les règles de l'équipe (D4 à D6) et tracent.
 
-import { aVenir } from '../a-venir.ts';
+import { aVenir, enBeta } from '../a-venir.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
@@ -174,7 +174,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // de son cabinet) ; rien avec l'e-mail, qui en tient lieu.
       const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige || cabinets.length > 0, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
         codeCourriel: (await tx.query('select socle.veut_code_courriel($1) v', [qui.utilisateur])).rows[0].v as boolean,
-        aVenir: aVenir(), courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
+        aVenir: aVenir(), beta: enBeta(), courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
       return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
     },
   });

@@ -265,7 +265,7 @@
       sans: `faite par ${P.client} seul dans SkanFact · le cabinet la lit et la passe en comptabilité` }[P.mode];
     const V = [['mois', 'Le mois'], ['salaries', 'Salariés', P.actifs], ['conges', 'Congés et avances'], ['cnss', 'CNSS du trimestre', P.sansCnss.length, 'alerte'], ['annee', 'L\'année']];
     const vueDe = ['pointage', 'ecarts', 'param'].includes(vue) ? 'mois' : vue === 'tous' ? 'annee' : vue;
-    return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>Paie ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(annee)}</h2>
+    return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>Paie ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(annee)}${(window.__beta || []).includes('paie') ? ' <span class="pastille-beta" title="Version bêta : la paie fonctionne, on la vérifie encore avec les premiers cabinets. Relis chaque bulletin avant de le remettre.">Bêta</span>' : ''}</h2>
         <select id="pa-mois" aria-label="Le mois de la paie">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
         <p class="small muted" id="pa-qui">${esc(pl(P.actifs, 'salarié'))} · ${esc(qui)}</p></div>
       <div class="cp-pa-vues">${vue !== 'mois' && (P.mode === 'cabinet' || P.mode === 'tenue') && P.duMois && !P.valides ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}

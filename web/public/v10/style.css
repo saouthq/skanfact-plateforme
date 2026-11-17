@@ -919,6 +919,25 @@ body.dark details.tech > code { background: #1d232b; }
 .pastille-avenir { display: inline-block; margin-inline-start: auto; background: var(--line, #e5e7eb); color: var(--muted, #6b7280); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap; vertical-align: middle; }
 h1 .pastille-avenir, p .pastille-avenir { margin-inline-start: 6px; }
 nav a.lien.a-venir { opacity: .62; }
+/* (1.381.0) « Bêta » : la fonction marche, on la vérifie encore avec les premiers utilisateurs. */
+.pastille-beta { display: inline-block; margin-inline-start: 6px; background: #ede9fe; color: #5b21b6; font-size: 11px; font-weight: 700; letter-spacing: .2px; border-radius: 999px; padding: 1px 8px; white-space: nowrap; vertical-align: middle; cursor: help; }
+body.dark .pastille-beta { background: #3b2f6b; color: #ddd6fe; }
+nav a.lien .pastille-beta { margin-inline-start: auto; }
+/* (1.381.0) L'écran d'une page à venir : ce que c'est, où on en est, quoi faire en attendant. */
+.avenir-ecran { max-width: 720px; margin-inline: auto; padding: 32px 28px; text-align: center; }
+.avenir-ecran .avenir-ic { display: inline-grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: var(--primary-soft, #e6f6f4); color: var(--primary, #0f9d8f); margin-bottom: 14px; }
+.avenir-ecran .avenir-ic svg { width: 30px; height: 30px; }
+.avenir-ecran h2 { font-size: 21px; margin: 0 0 8px; text-wrap: balance; }
+.avenir-ecran .avenir-quoi { color: var(--muted, #6b7280); margin: 0 auto 20px; max-width: 520px; }
+.avenir-points { list-style: none; margin: 0 0 22px; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: start; }
+.avenir-points li { border: 1px solid var(--line, #e5e7eb); border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.avenir-points li b { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted, #6b7280); }
+.avenir-points li span { font-size: 13.5px; line-height: 1.45; }
+.avenir-ecran .inline { justify-content: center; }
+@media (max-width: 760px) { .avenir-points { grid-template-columns: 1fr; } .avenir-ecran { padding: 24px 16px; } }
+/* (1.381.0) Dans la liste des modules, un module à venir ne se coche pas : il s'annonce. */
+.mod-row.a-venir, .mod-row.a-venir:hover { opacity: .78; }
+.mod-row.a-venir .mod-lock { color: var(--muted, #6b7280); cursor: default; font-weight: 700; }
 .nav-count { margin-inline-start: auto; background: var(--warning-soft); color: var(--warning); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
 /* Le cadenas d'un module fermé par l'offre (7.33.0) : la page reste, elle se lit, elle ne crée plus. */
 nav a svg.nav-lock { width: 12px; height: 12px; margin-inline-start: 4px; opacity: .55; flex: none; }
