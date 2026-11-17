@@ -207,6 +207,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.regle_cabinet': { classe: 'hors', raison: 'les règles de l\'abonnement des cabinets (0172) : un réglage de la plateforme, commun à tous' },
   'plateforme.abonnement_cabinet': { classe: 'hors', raison: 'l\'abonnement d\'un cabinet (0172) : la relation du cabinet avec SkanFact, pas une entreprise' },
   'plateforme.facture_cabinet': { classe: 'hors', raison: 'le lien entre une facture de SkanFact et l\'abonnement d\'un cabinet (0172) ; la pièce elle-même est dans le dossier de SkanFact' },
+  'plateforme.faveur_cabinet': { classe: 'hors', raison: 'ce que SkanFact a accordé à un cabinet (0220) : la relation du cabinet avec SkanFact, pas une entreprise' },
   'plateforme.facture_cabinet_refus': { classe: 'hors', raison: 'pourquoi une facture de cabinet ne s\'est pas faite seule (0172) : la relation du cabinet avec SkanFact' },
   'plateforme.choix_refuse': { classe: 'hors', raison: 'pourquoi un choix d\'offre ne s\'est pas facturé seul (0171) : la relation avec SkanFact, comme le choix lui-même' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
