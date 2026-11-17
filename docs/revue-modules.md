@@ -4359,3 +4359,9 @@ Une autre session a revu la paie, les immobilisations et l'inventaire du Cabinet
 Reste de l'issue 10, à faire : l'absence posée après la validation (bloquant, demande un geste de régularisation),
 les retenues au compte du personnel (avis du métier, À VÉRIFIER), le lot de bulletins, les immobilisations au niveau
 de la paie. Quatre preuves « revue 1.376.0 a…d ».
+
+## 1.376.1 — Un trimestre de CNSS payé ne crie plus « Date limite dépassée »
+
+Dans la Paie › CNSS du trimestre, la ligne de la date limite disait en rouge « Date limite dépassée » deux lignes au-dessus
+de « le trimestre est payé » (issue 10, point 11). Quand le livre porte, le trimestre suivant, un versement au moins égal
+à ce qui est dû, la ligne dit « Payée : le versement est au livre ». Preuve « revue 1.376.1 a » (sur le dossier d'exemple).

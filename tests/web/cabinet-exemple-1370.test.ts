@@ -132,6 +132,19 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
     const ab = await api('GET', `/cabinets/${cabinet}/abonnement`, associe);
     expect(JSON.stringify(ab.corps)).not.toContain('Pâtisserie El Amal');
 
+    // (1.376.1) Un trimestre de CNSS payé ne crie pas « Date limite dépassée » : sa ligne dit « Payée » (dès mai, le
+    // premier trimestre et son versement d'avril sont au livre).
+    if (M >= 5) {
+      const fiche = p.url().match(/#\/dossier\/([^/]+)/)?.[1] ?? '';
+      await p.evaluate(([h]) => { location.hash = String(h); }, [`#/dossier/${fiche}/comptabilite/paie/${A}`]);
+      await p.locator('.pa-so [data-pa-vue="cnss"]').click();
+      await p.locator('#pa-trim').selectOption('1');
+      await expect.poll(() => p.locator('#pa-cnss-livre').innerText().then(net)).toContain('(le trimestre est payé)');
+      const ligne = p.locator('.dc-echeance').first();
+      expect(net(await ligne.innerText())).toMatch(/^Payée : le versement est au livre — la date limite était le \d\d\/\d\d\/\d{4}\./);
+      expect(await ligne.getAttribute('class')).not.toContain('retard');
+    }
+
     // Le bandeau ne se pose que sur les pages de l'exemple.
     await p.evaluate(() => { location.hash = '#/dossiers'; });
     await p.waitForFunction(() => !location.hash.startsWith('#/dossier/'));

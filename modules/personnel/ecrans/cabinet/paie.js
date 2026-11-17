@@ -163,7 +163,7 @@
         ${/* La date limite par la règle des Échéances (le jour réglé dans les Réglages) : la Paie
               écrivait « le 15 » à côté d'un calendrier réglable — deux écrans, deux dates pour la
               même déclaration (10.14.0, dateLimiteSociale). */''}
-        <div class="mt">${ligneEcheanceDeclaration(dossier, `${s.annee}-${String(t * 3).padStart(2, '0')}`, null, 'cnss', 'pa-portail')}</div>
+        <div class="mt">${ligneEcheanceDeclaration(dossier, `${s.annee}-${String(t * 3).padStart(2, '0')}`, null, 'cnss', 'pa-portail', cnssPayeeAuLivre(s.livre, s.annee, t, cnss))}</div>
         ${paieCnssDuLivre(L, s.annee, t, cnss)}
         ${/* 1.344.0 — un trimestre EN COURS ne se dépose pas (la phrase du fichier le dit) : « Déposée ? Range son
               accusé » y proposait le contraire, dix lignes plus haut. */''}${trimEnCours ? '' : paieAccuseCnss(dossier, s.annee, t)}
@@ -486,6 +486,15 @@
   // trimestre font naître au compte CNSS (crédits moins contre-passations, hors règlements), contre le total à verser
   // des bulletins (deux chemins, un chiffre) ; puis ce qui a été versé après le trimestre (un règlement : une pièce
   // qui touche la trésorerie). Le compte est celui du plan du dossier (son rôle), sinon l'usage (À VÉRIFIER).
+  // (1.376.1) Le trimestre est payé quand le livre porte, le trimestre suivant, un versement au moins égal à ce qui est
+  // dû : la ligne de la date limite le lit aussi, pour ne plus crier « dépassée » au-dessus de « le trimestre est payé ».
+  function cnssPayeeAuLivre(L, annee, t, cnss) {
+    if (!L || !cnss || !(cnss.total > 0)) return false;
+    const compte = String((((L.plan || []).find(c => c.role === 'cnss')) || {}).compte || KC.COMPTES_PAIE.cnss);
+    const au = finDuMoisPaie(annee, t * 3);
+    const verse = KC.mouvementCompte(L, compte, '', finDuMoisPaie(annee, t * 3 + 3), e => !(e.lignes || []).some(l => /^5/.test(String(l.compte || ''))) || e.date <= au);
+    return verse.debit >= cnss.total - 0.0005;
+  }
   function paieCnssDuLivre(L, annee, t, cnss) {
     const compte = String((((L.plan || []).find(c => c.role === 'cnss')) || {}).compte || KC.COMPTES_PAIE.cnss);
     const tresorerie = e => (e.lignes || []).some(l => /^5/.test(String(l.compte || '')));

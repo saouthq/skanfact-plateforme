@@ -30027,6 +30027,10 @@ prouver $'revue 1.376.0 d : une retenue mensuelle plus grosse que l\'avance' mod
   $'if (v.monthly > v.amount + 0.0005) return refus(champ(\'monthly\'),' \
   $'if (v.monthly < 0) return refus(champ(\'monthly\'),' \
   $'un dossier tenu : une avance saisie, son versement écrit, re'
+prouver $'revue 1.376.1 a : un trimestre de CNSS payé crie « Date limite dépassée »' modules/socle/ecrans/cabinet/app-1.js \
+  $'const retard = !deposeeLe && !payeeAuLivre && limite < K.today();' \
+  $'const retard = !deposeeLe && limite < K.today(); payeeAuLivre = false;' \
+  $'un clic charge un dossier d\'exemple complet'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

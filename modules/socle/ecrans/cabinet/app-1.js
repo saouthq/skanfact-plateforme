@@ -9186,13 +9186,14 @@
       <select id="dc-format" aria-label="La forme d'un montant copié">${K.FORMATS_COPIE.map(f =>
         `<option value="${f.id}" ${f.id === formatCopie() ? 'selected' : ''}>${esc(f.label)}</option>`).join('')}</select>${info('dc.format')}</div>`;
   }
-  function ligneEcheanceDeclaration(dossier, periode, deposeeLe, sorte, idLien) {
+  function ligneEcheanceDeclaration(dossier, periode, deposeeLe, sorte, idLien, payeeAuLivre) {
     sorte = sorte || 'tva';
     const limite = K.dateLimiteDeclaration(S, periode, sorte, dossier);
     const portail = K.PORTAILS[sorte === 'cnss' ? 'cnss' : 'ejibaya'];
     const lien = `<a class="btn btn-sm btn-ghost" id="${esc(idLien || 'dc-portail')}" href="${esc(portail.url)}" target="_blank" rel="noopener">Ouvrir ${esc(portail.label)} ↗</a>`;
-    const retard = !deposeeLe && limite < K.today();
-    const phrase = deposeeLe ? `Déposée le ${esc(fmtJour(deposeeLe))} — la date limite était le ${esc(fmtJour(limite))}.`
+    const retard = !deposeeLe && !payeeAuLivre && limite < K.today();
+    const phrase = payeeAuLivre && !deposeeLe ? `<span class="ok-text">Payée</span> : le versement est au livre — la date limite était le ${esc(fmtJour(limite))}.`
+      : deposeeLe ? `Déposée le ${esc(fmtJour(deposeeLe))} — la date limite était le ${esc(fmtJour(limite))}.`
       : retard ? `<b>Date limite dépassée</b> : c'était le ${esc(fmtJour(limite))}.`
         : `À déposer au plus tard le <b>${esc(fmtJour(limite))}</b>.`;
     return `<div class="dc-echeance${retard ? ' retard' : ''}"><span>${phrase}</span>${lien}${info('dc.portail')}</div>`;
