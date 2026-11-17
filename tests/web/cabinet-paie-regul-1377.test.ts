@@ -214,6 +214,21 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await ouvrirUnBulletin(p);
     expect(await fenetre.locator('[name=salarieId]').inputValue()).toBe('s2');
     await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    // ── (1.377.6, CABPAIE-4) Une retenue tapée sur le bulletin : le net baisse, le brut non. La ligne le dit, et le
+    // salarié n'est pas rangé sous « Comme septembre ».
+    await p.locator('#pa-mois').selectOption('10');
+    await ouvrirUnBulletin(p);
+    await fenetre.locator('[name=salarieId]').selectOption('s2');
+    await fenetre.locator('#bf-plus-retenue').click();
+    await fenetre.locator('#bf-retenues [data-l=label]').last().fill('Opposition');
+    await fenetre.locator('#bf-retenues [data-l=amount]').last().fill('100');
+    await fenetre.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    const ligneY = p.locator('#pa-bulletins tr[data-bul]', { hasText: 'Youssef Mejri' });
+    await expect.poll(() => ligneY.locator('small').first().innerText().then(net).catch(() => '')).toBe('retenue : Opposition 100,000 DT');
+    expect(net(await p.locator('#pa-bulletins tr.cp-pa-groupe').first().innerText())).toBe('Ce qui change ce mois · 1');
+    expect(net(await p.locator('#pa-controles').evaluate((e) => e.textContent ?? ''))).toContain('✓ Écarts de plus de 5 % expliqués · Youssef Mejri − 12,1 % de net');
     expect(erreurs).toEqual([]);
   }, 120_000);
 });

@@ -30103,6 +30103,14 @@ prouver $'revue 1.377.5 a : « Pointage » coché alors qu\'il n\'est pas là' m
   $'        !P.duMois || P.pointe > 0 || P.n > 0],' \
   $'        true],' \
   $'le mois d\'un dossier tenu : établir, valider, remettre'
+prouver $'revue 1.377.6 a : une retenue tapée sur le bulletin rangée sous « Comme le mois d\'avant »' modules/personnel/ecrans/cabinet/paie.js \
+  $'(b.retenues || []).filter(x => !x.advanceId && Number(x.amount)).forEach(' \
+  $'(b.retenues || []).filter(x => false && !x.advanceId && Number(x.amount)).forEach(' \
+  $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.6 b : le contrôle des 5 % ne voit que le brut' modules/personnel/ecrans/cabinet/paie.js \
+  $'Number(a.calcul.net) > 0 ? Math.abs(Number((b.calcul || {}).net) - Number(a.calcul.net)) / Number(a.calcul.net) : 0) > 0.05);' \
+  $'0) > 0.05);' \
+  $'la sortie d\'un salarié se note avec son jour'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

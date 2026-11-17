@@ -318,8 +318,16 @@
     if (Number(b.joursAbsence) > 0) R.push(`${joursFr(b.joursAbsence)} jour${Number(b.joursAbsence) > 1 ? 's' : ''} sans solde`);
     if (b.prorata) R.push(`${b.prorata.motif || 'prorata'} · ${joursFr(b.prorata.jours)} jours sur ${joursFr(b.prorata.sur)}`);
     (b.retenues || []).filter(x => x.advanceId).forEach(x => R.push(laRetenueDAvance(L, b, x)));
+    // (1.377.6, CABPAIE-4) Une retenue ou une prime tapée sur le bulletin change le net : elle se dit, sinon le salarié
+    // se rangeait sous « Comme octobre » avec 15 % de net en moins.
+    (b.retenues || []).filter(x => !x.advanceId && Number(x.amount)).forEach(x => R.push(`retenue : ${x.label || 'Retenue'} ${money(x.amount)}`));
+    (b.primes || []).filter(x => !x.parJour && !x.hs && !/suppl|h sup/i.test(x.label || '') && Number(x.amount) && !(avant && (avant.primes || []).some(y => y.label === x.label && Number(y.amount) === Number(x.amount))))
+      .forEach(x => R.push(`${x.regulId ? '' : 'prime : '}${x.label || 'Prime'} ${money(x.amount)}`));
     if (b.correction && !b.correction.reponse) R.push('correction proposée');
-    if (!R.length && avant && Math.abs(Number(c.net) - Number((avant.calcul || {}).net)) < 0.0005) R.push(`comme ${KC.moisPaie(moisAvant)}`);
+    const dNet = avant ? KC.round3(Number(c.net) - Number((avant.calcul || {}).net)) : 0;
+    if (!R.length && avant && Math.abs(dNet) < 0.0005) R.push(`comme ${KC.moisPaie(moisAvant)}`);
+    // Un net qui bouge sans raison lue ci-dessus se dit quand même (un salaire changé, un taux) : jamais « comme ».
+    if (!R.length && avant) R.push(`net ${dNet > 0 ? '+' : '−'} ${money(Math.abs(dNet))} sur ${KC.moisPaie(moisAvant)}`);
     if (!avant) R.push('nouveau ce mois');
     return R;
   }
@@ -711,7 +719,7 @@
       ${lignes.map(x => `<tr><td>${esc(x.nom)}</td><td>${esc(x.k)}</td><td class="r nw">${x.avant == null ? '—' : esc(money(x.avant))}</td><td class="r nw">${x.apres == null ? '—' : esc(money(x.apres))}</td><td class="r nw"><b>${esc(sg(x.d))}</b></td><td class="small muted">${esc(x.src)}</td></tr>`).join('')}
       <tr class="dc-total"><td colspan="4"><b>L'écart du brut, expliqué en entier</b></td><td class="r nw"><b>${esc(sg(somme))}</b></td><td></td></tr></tbody></table></div>` : `<p class="muted">Aucune rubrique ne change d'un mois à l'autre.</p>`}
       <p class="small ${juste ? 'ok-text' : 'warn-text'}" id="pa-ecarts-juste">${juste ? `✓ Brut ${esc(mo)} − brut ${esc(ma)} = ${esc(money(brutB))} − ${esc(money(brutA))} = ${esc(sg(ecart))}, égal au millime.` : `Les lignes font ${esc(sg(somme))}, le brut a bougé de ${esc(sg(ecart))} : une rubrique n'est pas lue.`}</p>
-      <p class="small muted">Les cotisations et l'impôt suivent le brut : un écart du net qui ne vient d'aucune ligne ci-dessus serait une erreur de taux ou de barème.</p></div>`;
+      <p class="small muted">Les cotisations et l'impôt suivent le brut. Une retenue (une avance, une opposition) change le net sans toucher au brut : elle se lit sur la ligne du bulletin, dans « Le mois ».</p></div>`;
   }
   // (plateforme) 1.237.0 — le paramétrage de la paie du dossier (la maquette, paieparam) : ce qui est réglé, ce qui ne l'est
   // pas encore. Ce que SkanFact ne sait pas encore régler se dit « non réglé », jamais avec une valeur inventée.
@@ -868,10 +876,13 @@
     if (neg.length) ko('Un net négatif ou nul', neg.map(b => nom(b.salarieId)).join(', ')); else ok('Aucun net négatif ni nul', '');
     // Les écarts de plus de 5 % sur le mois d'avant : expliqués par une raison sur la ligne, ou à regarder.
     const gros = bulletins.map(b => ({ b, a: avants.find(x => x.salarieId === b.salarieId) })).filter(({ b, a }) => a && Number((a.calcul || {}).gross) > 0
-      && Math.abs(Number((b.calcul || {}).gross) - Number(a.calcul.gross)) / Number(a.calcul.gross) > 0.05);
-    const nonExpl = gros.filter(({ b, a }) => !paieCeQuiChange(L, b, a, m === 1 ? 12 : m - 1).some(r => !/^comme |^nouveau/.test(r)));
-    if (nonExpl.length) ko('Un écart de plus de 5 % sans raison', `${nonExpl.map(({ b }) => nom(b.salarieId)).join(', ')} : ni heures sup, ni absence, ni prorata ne l'expliquent.`, '<button type="button" class="btn btn-sm" data-pa-vue="ecarts">Les écarts ligne à ligne</button>');
-    else ok(gros.length ? 'Écarts de plus de 5 % expliqués' : 'Aucun écart de plus de 5 %', gros.map(({ b, a }) => `${nom(b.salarieId)} ${Number(b.calcul.gross) > Number(a.calcul.gross) ? '+' : '−'} ${String(Math.round(Math.abs(Number(b.calcul.gross) / Number(a.calcul.gross) - 1) * 1000) / 10).replace('.', ',')} %`).join(' · '));
+      && Math.max(Math.abs(Number((b.calcul || {}).gross) - Number(a.calcul.gross)) / Number(a.calcul.gross),
+        // (1.377.6, CABPAIE-4) … ou sur le NET, ce que le salarié touche : une retenue ne bouge pas le brut.
+        Number(a.calcul.net) > 0 ? Math.abs(Number((b.calcul || {}).net) - Number(a.calcul.net)) / Number(a.calcul.net) : 0) > 0.05);
+    const nonExpl = gros.filter(({ b, a }) => !paieCeQuiChange(L, b, a, m === 1 ? 12 : m - 1).some(r => !/^comme |^nouveau|^net /.test(r)));
+    if (nonExpl.length) ko('Un écart de plus de 5 % sans raison', `${nonExpl.map(({ b }) => nom(b.salarieId)).join(', ')} : ni heures sup, ni absence, ni prorata, ni prime, ni retenue ne l'expliquent.`, '<button type="button" class="btn btn-sm" data-pa-vue="ecarts">Les écarts ligne à ligne</button>');
+    else ok(gros.length ? 'Écarts de plus de 5 % expliqués' : 'Aucun écart de plus de 5 %', gros.map(({ b, a }) => { const k = Math.abs(Number(b.calcul.gross) / Number(a.calcul.gross) - 1) > 0.05 ? 'gross' : 'net';
+        return `${nom(b.salarieId)} ${Number(b.calcul[k]) > Number(a.calcul[k]) ? '+' : '−'} ${String(Math.round(Math.abs(Number(b.calcul[k]) / Number(a.calcul[k]) - 1) * 1000) / 10).replace('.', ',')} %${k === 'net' ? ' de net' : ''}`; }).join(' · '));
     if (P.mode !== 'cabinet') {
       if (P.pointe === P.duMois) ok('Pointage repris sur chaque bulletin', ''); else ko('Un mois sans pointage', `${pl(P.duMois - P.pointe, 'salarié')} sans grille : son bulletin part d'un mois complet.`);
     }

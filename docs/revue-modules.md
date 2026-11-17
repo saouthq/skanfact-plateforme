@@ -4452,3 +4452,18 @@ Elle n'est cochée que si un pointage existe, ou si les bulletins sont partis sa
 complets ») ; sinon, c'est l'étape où l'on est. Reste de CABPAIE-8, dit : une absence tapée dans le bulletin ne se pose
 pas sur la grille du pointage, et un jour pointé « C » ou « M » n'entre pas dans « Congés et avances » — trois sources
 à réunir. Essai : `cabinet-paie-hors-skanfact.test.ts`. Une preuve.
+
+## 1.377.6 — Les écarts et les contrôles de la paie voient le net (issue 10, CABPAIE-4)
+
+Un salarié dont le net baissait de 15 % à cause d'une retenue était rangé sous « Comme octobre », et le contrôle disait
+« Aucun écart de plus de 5 % » : seuls le brut, les heures sup, l'absence et l'avance étaient lus.
+
+- **La ligne du bulletin dit la retenue et la prime tapées** (« retenue : Opposition 100,000 DT », « prime : … ») ; un net
+  qui bouge sans raison lue se dit quand même (« net − 12,000 DT sur octobre »), jamais « comme octobre ».
+- **Le contrôle des 5 % juge aussi le net**, ce que le salarié touche : « Écarts de plus de 5 % expliqués · Youssef Mejri
+  − 12,1 % de net ».
+- La phrase « un écart du net… serait une erreur de taux ou de barème » est retirée : une retenue change le net sans
+  toucher au brut, et l'écran le dit.
+
+Reste de CABPAIE-4, dit : dans « Les écarts ligne à ligne », la source d'une absence ou d'une prime tapée dans le bulletin
+se dit encore « pointage » ou « fiche ». Essai : `cabinet-paie-regul-1377.test.ts`. Deux preuves.
