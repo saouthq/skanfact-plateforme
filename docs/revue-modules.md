@@ -4413,3 +4413,17 @@ façon d'imposer une régularisation reste À VÉRIFIER avec le comptable, comme
 
 Essais : `tests/web/cabinet-paie-regul-1377.test.ts` (second parcours) et `cabinet-paie-hors-skanfact.test.ts`. Quatre preuves.
 Le motif de la sortie n'est pas demandé : rien ne le lit encore (les documents de sortie le demandent eux-mêmes).
+
+## 1.377.2 — Le paramétrage de la paie, et la sortie ou la suppression d'un bien (issue 10, CABPAIE-12, 15, 18)
+
+- **Le paramétrage ne compte « à régler » que ce qui se règle ici.** « 2 réglés · 11 à régler » comptait sept choses que
+  SkanFact ne règle pas (convention, nuit, férié, maladie, ancienneté, fin d'année, grille) : elles sont dites « hors
+  SkanFact », à vérifier dans la convention ou à porter à la main sur le bulletin. Le bandeau n'accuse plus les bulletins
+  (« faux d'autant ») : il dit quoi faire.
+- **Supprimer un bien : le refus se dit avant la question.** La fenêtre promettait « c'est une fiche qu'on retire », puis
+  le geste refusait. Il se joue d'abord sur une copie du livre, par la fonction qui refusera.
+- **« Céder ou mettre au rebut… » est au menu du bien** : la sortie se cachait au bas de « Modifier la fiche ». Le geste
+  ouvre la fiche, le curseur sur la date de sortie.
+
+Reste de CABPAIE-15, dit : le prix de cession n'est toujours pas montré en produit ni en plus ou moins-value à l'écran.
+Essais : `cabinet-paie-parcours.test.ts`, `cabinet-immobilisations.test.ts`. Trois preuves.

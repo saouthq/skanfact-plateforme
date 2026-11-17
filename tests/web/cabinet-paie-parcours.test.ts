@@ -511,7 +511,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.locator('#pa-ecarts [data-pa-vue="mois"]').click();
     await p.locator('#pa-controles [data-pa-vue="param"]').click();
     await expect.poll(() => p.locator('#pa-param-conv').count()).toBe(1);
-    expect(espace(await p.locator('#pa-param').innerText())).toMatch(/\d+ réglés · \d+ à régler/);
+    // (1.377.2, CABPAIE-12) Ce que SkanFact ne règle pas ne se compte pas « à régler » ; « faux d'autant » n'accuse plus les bulletins.
+    expect(espace(await p.locator('#pa-param-qui').innerText())).toMatch(/\d+ réglés · [0-5] à régler ici · 7 que SkanFact ne règle pas encore, à vérifier dans la convention$/);
+    expect(espace(await p.locator('#pa-param').innerText())).not.toContain('faux d');
+    expect(await p.locator('#pa-param .badge', { hasText: 'hors SkanFact' }).count()).toBe(4);
     // L'année : les bulletins et le livre ; la fin de l'année.
     await p.locator('.pa-so [data-pa-vue="annee"]').click();
     expect(espace(await p.locator('#pa-livre-640').innerText())).toContain('égaux au millime');

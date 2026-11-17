@@ -11136,9 +11136,15 @@
         // (1.356.2, joué : le four repris de la fiche du client) La famille ne s'enregistre pas (1.345.0) : la fiche rouverte
         // disait « — » sous un bien repris avec sa famille, comme si elle s'était perdue. Celle du bien du client se relit.
         { icon: 'modifier', label: 'Modifier la fiche', hint: 'Valeur, durée, méthode, cession', run: () => immoForm(root, dossier, { ...f, famille: f.famille || familleDuClient(f.id) }) },
+        // (1.377.2, CABPAIE-15) La sortie d'un bien a son geste au menu : elle se cachait au bas de « Modifier la fiche ».
+        ...(f.cession && f.cession.date ? [] : [{ icon: 'extraire', label: 'Céder ou mettre au rebut…', hint: 'Sa date de sortie, et son prix s\'il est vendu', run: () => immoForm(root, dossier, { ...f, famille: f.famille || familleDuClient(f.id) }, 'cessionDate') }]),
         { sep: true },
         { icon: 'supprimer', label: 'Supprimer ce bien', hint: 'Refusé si une dotation est déjà passée en écriture', danger: true,
           run: async () => {
+            // (1.377.2, CABPAIE-18) Un refus se dit AVANT la question : la fenêtre promettait « c'est une fiche qu'on
+            // retire », puis le geste refusait. Il se joue d'abord sur une copie du livre, par la fonction qui refusera.
+            const essai = KC.supprimerImmobilisation(JSON.parse(JSON.stringify(s.livre)), id, '', 0);
+            if (!essai.ok) return void infoDialog(`« ${f.libelle} » ne se supprime pas`, essai.motif);
             const ok = await confirmDialog(`Supprimer « ${f.libelle} » ?`,
               'Le bien disparaît du tableau d\'amortissement. Les écritures déjà passées, elles, restent : c\'est une fiche qu\'on retire, pas de la comptabilité.',
               'Supprimer', true);
@@ -11197,7 +11203,7 @@
     drawLivres(root, dossier);
   }
 
-  function immoForm(root, dossier, fiche) {
+  function immoForm(root, dossier, fiche, viser) {
     const s = livresState;
     const f = fiche || {};
     const neuf = !f.id;
@@ -11266,6 +11272,8 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
         <button class="btn btn-primary" id="ok">${neuf ? 'Ajouter' : 'Enregistrer'}</button></div>`,
     (rootModal, close) => {
+      // (1.377.2) Ouverte pour la sortie du bien : le curseur va à sa date, amenée à l'écran.
+      if (viser) setTimeout(() => { const c = $(`[name=${viser}]`, rootModal); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }, 0);
       const ic = $('#im-coller', rootModal); if (ic) ic.onclick = () => { close(); collerBiensForm(root, dossier); };
       const v = n => (($(`[name=${n}]`, rootModal) || {}).value || '').trim();
       // Une date se TAPE comme partout ailleurs (« 01/03/2021 ») et se range en ISO (C-04) : le champ

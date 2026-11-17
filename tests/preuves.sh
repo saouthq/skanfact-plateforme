@@ -30075,6 +30075,18 @@ prouver $'revue 1.377.1 d : une sortie d\'avant l\'entrée acceptée' modules/pe
   $'if (x.embauche && le < x.embauche) return refus(i, `Son entrée est le' \
   $'if (x.embauche && le < \'1900\') return refus(i, `Son entrée est le' \
   $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.2 a : le paramétrage compte « à régler » ce qu\'on ne peut pas régler' modules/personnel/ecrans/cabinet/paie.js \
+  $'hors = L2.filter(x => x[4]).length,' \
+  $'hors = 0,' \
+  $'1.237.0 — l\'inventaire de la maquette'
+prouver $'revue 1.377.2 b : supprimer un bien promet, puis refuse' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (!essai.ok) return void infoDialog(' \
+  $'if (false) return void infoDialog(' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'éc'
+prouver $'revue 1.377.2 c : la sortie d\'un bien sans geste au menu' modules/socle/ecrans/cabinet/app-1.js \
+  $'famille: f.famille || familleDuClient(f.id) }, \'cessionDate\') }]),' \
+  $'famille: f.famille || familleDuClient(f.id) }, \'\') }]),' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'éc'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -110,8 +110,18 @@ describe('les immobilisations, à la souris', () => {
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await p.locator(`[data-rowmenu="IM:${bien?.id}"]`).first().click();
     await p.getByRole('menuitem').filter({ hasText: 'Supprimer ce bien' }).click();
-    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Supprimer', exact: true }).click();
-    await expect.poll(toast).toMatch(/^La dotation de 2025 est passée en écriture : supprimer la fiche laisserait une dotation sans bien\./);
+    // (1.377.2, CABPAIE-18) Le refus se dit AVANT la question : aucune fenêtre ne promet la suppression pour la refuser ensuite.
+    const refusSup = p.locator('#modal-root .modal').last();
+    await expect.poll(() => refusSup.innerText().then((t) => t.replace(/\s+/g, ' ').trim()).catch(() => '')).toMatch(/ne se supprime pas La dotation de 2025 est passée en écriture : supprimer la fiche laisserait une dotation sans bien\./);
+    expect(await refusSup.getByRole('button', { name: 'Supprimer', exact: true }).count()).toBe(0);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    // (CABPAIE-15) La sortie du bien a son geste au menu, qui ouvre la fiche le curseur sur la date de sortie.
+    await p.locator(`[data-rowmenu="IM:${bien?.id}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Céder ou mettre au rebut…' }).click();
+    await expect.poll(() => p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('cessionDate');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     expect((await biens(cafe, associe)).map((b) => b.fiche.duree)).toEqual(['5']);
     expect(erreurs).toEqual([]);
   }, 180_000);
