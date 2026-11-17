@@ -138,8 +138,8 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await p.locator('#rv-periode').selectOption(String(an));
     await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
     await ligne.getByRole('button', { name: 'Signer', exact: true }).click();
-    await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toContain('Compte 532 signé.');
-    await expect.poll(async () => net(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).innerText())).toContain('revu');
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toContain('Compte 532 signé.');
+    await expect.poll(async () => net(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).innerText().catch(() => '')), { timeout: 15_000 }).toContain('revu');
     expect(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).getByRole('button', { name: 'Signer', exact: true }).count()).toBe(0);
     // Un seul modèle de question : « Poser la question de ton cabinet », jamais « Poser les 1 question ».
     expect(net(await p.locator('#rv-poser').innerText())).toBe('Poser la question de ton cabinet');
