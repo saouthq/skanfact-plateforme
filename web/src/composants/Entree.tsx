@@ -1,7 +1,7 @@
 // L'habit de l'entrée (lot entrée, 06/10/2026 ; maquettes validées par Skander, docs/entree.md) : la marque, la page en
 // deux (la vitrine sombre et le formulaire : se connecter, créer son compte) et la page des étapes (un fond pointé, la
 // barre du haut avec le fil compte → entreprise → sécurité). Les dessins sont tracés ici, jamais venus d'une donnée.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 
 const DESSINS: Record<string, string> = {
@@ -147,6 +147,29 @@ export function VitrineDossier({ ou, cabinet }: { ou: string; cabinet: string })
         ))}
       </ol>
     </>
+  );
+}
+
+// « Besoin d'aide ? » (1.379.0, issue 4, ENTREE-3) : le lien menait à une page du site qui ne répond pas (une alerte de
+// sécurité du navigateur, puis « introuvable »). L'adresse de SkanFact se LIT à l'écran, et se copie : un lien `mailto`
+// ne fait rien chez qui n'a pas de messagerie installée.
+export const CONTACT = 'contact@skanfact.tn';
+export function LienAide() {
+  const [ouvert, setOuvert] = useState(false);
+  const [copie, setCopie] = useState(false);
+  const copier = () => { void navigator.clipboard?.writeText(CONTACT).then(() => setCopie(true)).catch(() => undefined); };
+  return (
+    <span className="ent-aide-porte">
+      <button type="button" className="ent-lien" aria-expanded={ouvert} onClick={() => setOuvert(!ouvert)}>{titre('ecran.connexion.aide')}</button>
+      {ouvert ? (
+        <span className="ent-aide-carte" role="note">
+          <b>{titre('ecran.aide.titre')}</b>
+          <span>{phrase('ecran.aide.texte')}</span>
+          <a className="ent-aide-adresse" href={`mailto:${CONTACT}`}>{CONTACT}</a>
+          <button type="button" className="ent-lien" onClick={copier}>{titre(copie ? 'ecran.aide.copiee' : 'ecran.aide.copier')}</button>
+        </span>
+      ) : null}
+    </span>
   );
 }
 

@@ -18527,7 +18527,7 @@ prouver 'un mois en cours qui propose de déclarer un mois d'\''avant le livre' 
   $': ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || \'\').slice(0, 7) <= precedent)' $': true' \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
 prouver 'l'\''alerte du 4367 sur un mois qui n'\''est pas fini' modules/socle/ecrans/cabinet/app-1.js \
-  $'const visibles = enCours && !posee ? echecs.filter(c => c.id !== \'tva-soldee\') : echecs;' $'const visibles = echecs;' \
+  $'const visibles = (enCours && !posee ? echecs.filter(c => c.id !== \'tva-soldee\') : echecs).filter(' $'const visibles = (echecs).filter(' \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
 prouver 'le nom et la date du signataire qui élargissent la colonne « Revu »' modules/socle/ecrans/cabinet/app-1.js \
   $'? \'<span class="badge b-paid">revu</span>\'' $'? \'<span class="badge b-paid">revu</span> \' + esc(c.revuPar || \'\') + \' · 21/10/2026\'' \
@@ -30343,6 +30343,47 @@ prouver $'issue 9 1.378.9 c : les lettres posées ne se voient nulle part' modul
   $'    if (true) return \'\';
     const pied = pagerBar(ls.length, lettresState, \'lettre\');' \
   $'le portefeuille compte les mois du serveur ; la grille saisit, valide'
+# ── 1.379.0 : les issues 4, 6 et 14 (entrée, Cabinet à plusieurs, visite) ───────────────────────────
+prouver $'issue 6 1.379.0 a : sur un mois au brouillard, l\'avertissement ne se lit pas au-dessus des étapes' modules/socle/ecrans/cabinet/app-1.js \
+  $'${brAvant.length ? `<div class="warn-box mb" id="dc-brouillard-avant">' \
+  $'${brAvant.length < 0 ? `<div class="warn-box mb" id="dc-brouillard-avant">' \
+  $'Consulter se relit en revenant sur la fenêtre'
+prouver $'issue 6 1.379.0 b : « Préparer » ne demande rien sur un mois au brouillard' modules/socle/ecrans/cabinet/app-1.js \
+  $'      if (brP.length && !(s.decl.posee' \
+  $'      if (false && !(s.decl.posee' \
+  $'Consulter se relit en revenant sur la fenêtre'
+prouver $'issue 6 1.379.0 c : le refus d\'un rôle du cabinet nomme les personnes de l\'entreprise' serveur/porte/porte.ts \
+  $'  if (perimetre !== null) {
+    return { ok: false, raison: \'role\', qui: [], bouton: null,
+      motif: motif(\'porte.role_refuse_cabinet\'' \
+  $'  if (perimetre === undefined) {
+    return { ok: false, raison: \'role\', qui: [], bouton: null,
+      motif: motif(\'porte.role_refuse_cabinet\'' \
+  $'jamais l\'assistant ; la porte et la base'
+prouver $'issue 6 1.379.0 d : arrêter le mandat ne laisse pas renoncer' web/public/plateforme/pont.js \
+  $'id="mandat-garder">Non, garder mon cabinet</button>\'); /** @type {HTMLElement} */ (el.querySelector(\'#mandat-garder\')).onclick = () => { void dessinerMandat(el, true); }; return;' \
+  $'id="mandat-garder" hidden>Non, garder mon cabinet</button>\'); /** @type {HTMLElement} */ (el.querySelector(\'#mandat-garder\')).onclick = () => { void dessinerMandat(el, true); }; return;' \
+  $'le client arrête le mandat après confirmation'
+prouver $'issue 14 1.379.0 e : la visite « Émettre » conclut « pas émise » d\'une facture émise' modules/socle/visites/visites.js \
+  $'mesure: () => emises(\'facture\'), but: n0 => emises(\'facture\') > n0,' \
+  $'mesure: () => emises(\'facture\'), but: n0 => emises(\'facture\') > n0 && aucuneFenetre(),' \
+  $'juge son but sur la pièce'
+prouver $'issue 4 1.379.0 f : un téléphone en lettres passe dans l\'assistant' web/public/plateforme/assistant.js \
+  $'tel.replace(/\\D/g, \'\').length < 8)) {' \
+  $'tel.replace(/\\D/g, \'\').length < 0) && false) {' \
+  $'la porte, puis l\'assistant'
+prouver $'issue 4 1.379.0 g : sans matricule, « Émettre quand même » reste le bouton principal' modules/socle/ecrans/entreprise/app-1.js \
+  $'<button class="btn${manquesFiche().length ? \'\' : \' btn-primary\'}" id="ok">' \
+  $'<button class="btn btn-primary" id="ok">' \
+  $'Samia, sans matricule ni RIB'
+prouver $'issue 4 1.379.0 h : une session fermée ramène à la connexion sans un mot' web/src/ecrans/Connexion.tsx \
+  $'{sortie ? <p id="session-finie"' \
+  $'{sortie && false ? <p id="session-finie"' \
+  $'« Besoin d\'aide ? » montre'
+prouver $'issue 4 1.379.0 i : « Besoin d\'aide ? » ne montre pas l\'adresse' web/src/composants/Entree.tsx \
+  $'<a className="ent-aide-adresse" href={`mailto:${CONTACT}`}>{CONTACT}</a>' \
+  $'<a className="ent-aide-adresse" href={`mailto:${CONTACT}`}>{\'\'}</a>' \
+  $'« Besoin d\'aide ? » montre'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

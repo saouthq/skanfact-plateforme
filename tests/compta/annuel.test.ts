@@ -133,7 +133,7 @@ describe('la liasse et l\'annuel', () => {
   it('qui peut : le propriétaire et l\'associé ; ni le collaborateur ni l\'assistant ; la porte et la base', async () => {
     const d = await dossier();
     const refus = await poser(d.ent, d.collaborateur, { tauxImpot: '25', revision: null });
-    expect([refus.statut, refus.corps.motif]).toEqual([403, 'Ton rôle (Collaborateur) ne permet pas de préparer la liasse de l\'année : ses retraitements et son taux d\'impôt. Peuvent le faire : client.']);
+    expect([refus.statut, refus.corps.motif]).toEqual([403, 'Ton rôle au cabinet (Collaborateur) ne permet pas de préparer la liasse de l\'année : ses retraitements et son taux d\'impôt. Demande-le à la personne qui tient ce dossier, ou à la direction du cabinet.']);
     expect((await poser(d.ent, d.assistant, { tauxImpot: '25', revision: null })).statut).toBe(403);
     await expect(enTantQue(pool, d.collaborateur.utilisateur, (tx) => tx.query('select compta.poser_annuel($1, 2026, \'[]\'::jsonb, 250000, null)', [d.ent])))
       .rejects.toThrow('ton rôle ne permet pas de préparer la liasse de ce dossier');

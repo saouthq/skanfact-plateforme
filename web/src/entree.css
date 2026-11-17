@@ -200,6 +200,13 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-cote-haut .etape { font-weight: 600; color: var(--e-lien); }
 .ent-cote-haut .vide { flex: 1; }
 .ent-cote-milieu { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; padding-block: 28px; }
+.ent .ent-note { margin: 0; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--e-trait); background: var(--e-doux); color: var(--e-encre); font-size: 14px; line-height: 1.45; }
+.ent-aide-porte { position: relative; display: inline-flex; }
+.ent-aide-carte {
+  position: absolute; inset-block-start: 100%; inset-inline-end: 0; z-index: 5; inline-size: min(300px, calc(100vw - 48px)); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--e-trait); border-radius: 12px; background: var(--e-papier); color: var(--e-encre); font-size: 14px; line-height: 1.45; box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+}
+.ent-aide-carte .ent-aide-adresse { font-weight: 700; color: var(--e-lien); user-select: all; }
 .ent-cote-bas { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 20px; font-size: 13px; color: var(--e-gris); }
 .ent-cote-bas .sur { display: inline-flex; align-items: center; gap: 8px; }
 .ent-cote-bas svg { width: 14px; height: 14px; flex: none; }

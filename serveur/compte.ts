@@ -23,7 +23,7 @@ const sha256 = (texte: string) => createHash('sha256').update(texte, 'utf8').dig
 const maintenantDe = (ctx: Contexte) => (ctx.maintenant ?? (() => new Date()))();
 const DUREE_ADRESSE_MINUTES = 15;
 // L'aide de SkanFact, que nomme l'e-mail d'une adresse changée.
-const AIDE = 'https://skanfact.tn/contact.html';
+const AIDE = 'contact@skanfact.tn';
 
 // `attendre` : trop d'erreurs, une attente court (429).
 export type Refuse = { ok: false; motif: Texte; champ?: string; attendre?: true };

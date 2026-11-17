@@ -265,9 +265,25 @@
           if (a.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) {
             return refuser('#ch-email', mail, 'Cette adresse n\'a pas la forme d\'une adresse e-mail (nom@domaine.tn) : corrige-la, ou laisse la case vide.');
           }
+          // (1.379.0, issue 4, ENTREE-6) « abc123 » et « -5abc » passaient, et s'imprimaient sur la facture : un téléphone est
+          // fait de chiffres (au moins huit), un capital est un montant positif. Une case vide reste permise.
+          const tel = String(f.phone.value || '').trim();
+          if (tel && (!/^[+\d][\d\s().-]*$/.test(tel) || tel.replace(/\D/g, '').length < 8)) {
+            return refuser('#ch-phone', $('#as-tel'), 'Un numéro de téléphone est fait de chiffres, huit au moins (55 123 456) : corrige-le, ou laisse la case vide.');
+          }
+          if (a.capital && !/^\d[\d\s.,]*$/.test(a.capital)) {
+            return refuser('#ch-capital', $('#as-cap'), 'Le capital est un montant en chiffres (10 000) : corrige-le, ou laisse la case vide.');
+          }
           aller(1);
         };
-        $('#as-plus-tard').onclick = () => { lireCoordonnees(); aller(1); };
+        // « Plus tard » garde ce qui est juste, et laisse tomber ce qui ne s'imprimerait pas proprement.
+        $('#as-plus-tard').onclick = () => {
+          lireCoordonnees();
+          const tel = String(f.phone.value || '').trim();
+          if (tel && (!/^[+\d][\d\s().-]*$/.test(tel) || tel.replace(/\D/g, '').length < 8)) a.phone = '';
+          if (a.capital && !/^\d[\d\s.,]*$/.test(a.capital)) a.capital = '';
+          aller(1);
+        };
       };
 
       // ── 2. Que fais-tu ? ────────────────────────────────────────────────────────────────────────────────────────

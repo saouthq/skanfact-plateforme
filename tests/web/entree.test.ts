@@ -535,4 +535,22 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(new URL(q.url()).pathname).toBe('/');
     await cx.close();
   });
+  // 1.379.0 (issue 4, ENTREE-3 et ENTREE-2).
+  it('« Besoin d\'aide ? » montre l\'adresse de SkanFact sans quitter la page ; une session fermée dit pourquoi on est dehors', async () => {
+    const p = await page();
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.connexion.titre');
+    expect(await p.locator('#session-finie').count()).toBe(0);
+    expect(await p.locator('a[href*="contact.html"]').count()).toBe(0);
+    await p.getByRole('button', { name: titre('ecran.connexion.aide'), exact: true }).click();
+    await expect.poll(() => p.locator('.ent-aide-carte').innerText()).toContain('contact@skanfact.tn');
+    expect(new URL(p.url()).origin).toBe(new URL(serveur.adresse).origin);
+    // Ce que posent les deux applications quand le serveur répond « session finie ».
+    await p.evaluate(() => sessionStorage.setItem('skanfact.sortie', '1'));
+    await p.reload();
+    await ecran(p, 'ecran.connexion.titre');
+    await expect.poll(() => p.locator('#session-finie').innerText()).toBe(phrase('ecran.connexion.session_finie'));
+    await p.screenshot({ path: path.join(PHOTOS, 'entree-session-finie.png') });
+    await p.context().close();
+  });
 });

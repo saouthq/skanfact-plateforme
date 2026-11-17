@@ -154,7 +154,7 @@ describe('la déclaration du mois', () => {
   it('qui peut : le propriétaire, l\'associé, le collaborateur si le mandat comprend les déclarations ; jamais l\'assistant ; la porte et la base', async () => {
     const d = await dossier();
     expect((await preparer(d.ent, d.assistant, '2026-03', { tvaCollectee: '1' })).corps.motif)
-      .toBe('Ton rôle (Assistant de saisie) ne permet pas de préparer la déclaration du mois, la marquer déposée et payée, en écrire l\'écriture. Peuvent le faire : client.');
+      .toBe('Ton rôle au cabinet (Assistant de saisie) ne permet pas de préparer la déclaration du mois, la marquer déposée et payée, en écrire l\'écriture. Demande-le à la personne qui tient ce dossier, ou à la direction du cabinet.');
     await expect(enTantQue(pool, d.assistant.utilisateur, (tx) => tx.query('select compta.poser_declaration($1, $2, $3::jsonb)', [d.ent, '2026-03', '{}'])))
       .rejects.toThrow('ton rôle ne permet pas de préparer les déclarations de ce dossier');
     expect((await preparer(d.ent, d.associe, '2026-03', { tvaCollectee: '1' })).statut).toBe(200);

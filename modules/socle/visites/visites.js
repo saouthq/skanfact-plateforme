@@ -892,6 +892,8 @@
     // sur une fenêtre fermée — « Annuler » la ferme aussi. Chaque visite dont la fin affirme un fait
     // (« Ta facture est émise ») le prouve par l'un d'eux ; un test le tient.
     const nbType = type => (data().documents || []).filter(d => d && d.type === type).length;
+    // La pièce ouverte (« #/doc/<id> ») est émise : son statut n'est plus « brouillon ».
+    const pieceOuverteEmise = () => { const id = (/^#\/doc\/([^/?]+)/.exec(hash()) || [])[1]; const d = id && (data().documents || []).find(x => x && x.id === decodeURIComponent(id)); return !!d && !!d.status && d.status !== 'brouillon'; };
     const emises = type => (data().documents || []).filter(d => d && d.type === type && d.status && d.status !== 'brouillon').length;
     const envois = () => (data().documents || []).reduce((n, d) => n + ((d && d.emails) || []).length, 0);
     const relancesNotees = () => (data().documents || []).reduce((n, d) => n + ((d && d.reminders) || []).length, 0);
@@ -1409,7 +1411,10 @@
       manque: { texte: 'Il te faut une facture en brouillon — transforme un devis accepté, ou crée une facture.', visite: 'devis-facture' },
       // Une facture ÉMISE de plus — pas une fenêtre ouverte : la visite finissait sur le récapitulatif,
       // et félicitait une facture restée en brouillon (10.14.1).
-      mesure: () => emises('facture'), but: n0 => emises('facture') > n0 && aucuneFenetre(),
+      // (1.379.0, issue 14, ENTSOCLE-1) Le but se lit sur la PIÈCE, pas sur les fenêtres : en ligne, le serveur répond après
+      // que le récapitulatif s'est fermé, et « l'envoyer par e-mail » ouvre une fenêtre de plus — la visite concluait « la
+      // facture n'est pas émise » d'une facture numérotée, et poussait à la réémettre.
+      mesure: () => emises('facture'), but: n0 => emises('facture') > n0,
       echec: 'La facture n\'est pas émise — c\'est « Émettre », dans le récapitulatif, qui la numérote et la fige. Elle reste en brouillon : tu peux encore tout y changer.',
       bravo: 'Ta facture est émise',
       conclusion: 'Elle a son numéro, elle compte dans ton chiffre d\'affaires et ta TVA, et elle ne se modifie plus : une erreur se corrigerait par un avoir.',
@@ -1423,7 +1428,7 @@
           texte: 'Tu facturais déjà avant SkanFact ? Ce bouton fait suivre ta dernière facture, au lieu de repartir à 001 : une série de factures doit rester continue. Sinon, laisse-le.' },
         { cible: '#modal-root .modal #ok', cote: 'dessus', faire: 'clic',
           titre: 'Émettre', texte: 'La facture reçoit son <b>numéro définitif</b>, entre dans ton chiffre d\'affaires et ta TVA du mois, et <b>ne se modifie plus</b> : une erreur se corrigerait par un avoir. « Annuler » la laisse en brouillon.',
-          action: 'Clique sur <b>« Émettre »</b>.', fait: () => aucuneFenetre(), essai: { clic: true } }
+          action: 'Clique sur <b>« Émettre »</b>.', fait: () => pieceOuverteEmise(), essai: { clic: true } }
       ]
     });
 

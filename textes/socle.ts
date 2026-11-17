@@ -108,7 +108,7 @@ declarerTextes({
   'courriel.bouton': 'Ouvrir le lien',
   'courriel.lien_secours': 'Le bouton ne s\'ouvre pas ? Copie ce lien dans ton navigateur :',
   'courriel.pied_marque': 'SkanFact — la gestion, la caisse et la comptabilité des entreprises tunisiennes.',
-  'courriel.pied_reponses': 'Cette adresse ne lit pas les réponses : pour nous écrire, passe par {site}.',
+  'courriel.pied_reponses': 'Cette adresse ne lit pas les réponses : pour nous écrire : {site}.',
   'mot_de_passe.trop_court': 'ton mot de passe doit faire au moins {min} caractères',
   'mot_de_passe.vole': 'ce mot de passe figure dans une liste de mots de passe déjà volés : choisis-en un autre',
 
@@ -116,6 +116,7 @@ declarerTextes({
   'porte.geste_inconnu': 'geste inconnu : {geste}',
   'porte.role_refuse': 'ton rôle ({roles}) ne permet pas {de:geste}',
   'porte.role_refuse_qui': 'ton rôle ({roles}) ne permet pas {de:geste}. Peuvent le faire : {noms}',
+  'porte.role_refuse_cabinet': 'ton rôle au cabinet ({roles}) ne permet pas {de:geste}. Demande-le à la personne qui tient ce dossier, ou à la direction du cabinet',
   'porte.au_cabinet': 'ton rôle ({roles}) ne permet pas {de:geste}. Avec le mandat de comptabilité, c\'est ton cabinet, {cabinet}, qui le fait',
   'porte.aucun_role': 'aucun rôle ici',
   'porte.hors_perimetre': 'le mandat de ton cabinet ne comprend pas {perimetre} : seul le propriétaire de l\'entreprise peut l\'ouvrir (ici, {geste})',

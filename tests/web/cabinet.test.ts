@@ -243,6 +243,12 @@ describe('le Cabinet, à la souris', () => {
     await expect.poll(() => e.locator('#cab-pair').innerText()).toContain('Cabinet Hannibal tient tes livres depuis le');
     await e.getByRole('button', { name: 'Arrêter le mandat…', exact: true }).click();
     expect(((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat as { statut: string }).statut).toBe('actif');
+    // (1.379.0, issue 6, CAB-13) On peut renoncer : « Non, garder mon cabinet » remet le panneau comme avant.
+    await e.getByRole('button', { name: 'Non, garder mon cabinet', exact: true }).click();
+    await e.getByRole('button', { name: 'Arrêter le mandat…', exact: true }).waitFor({ timeout: 15_000 });
+    expect(await e.getByRole('button', { name: 'Non, garder mon cabinet', exact: true }).count()).toBe(0);
+    expect(((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat as { statut: string }).statut).toBe('actif');
+    await e.getByRole('button', { name: 'Arrêter le mandat…', exact: true }).click();
     await e.getByRole('button', { name: 'Oui, arrêter : il ne verra plus mes livres', exact: true }).click();
     await e.getByRole('button', { name: 'Confier mon dossier', exact: true }).waitFor({ timeout: 15_000 });
     expect((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat).toBeNull();

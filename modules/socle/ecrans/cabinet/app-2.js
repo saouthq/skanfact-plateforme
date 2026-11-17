@@ -2479,6 +2479,14 @@
       const tete = $('#sa-tete', el);
       if (!d || !tete || !document.contains(tete) || saisieState.dossierId !== dossier.id || pieceEnCours(saisieState.piece) || gardeesE.has(dossier.id) || $('#sa-reprendre')) return;
       if (Date.now() - (b.contenu.le || 0) > 7 * 86400000) { brouillonE.effacer(dossier.id).catch(() => {}); return; }
+      // (1.379.0, issue 6, CAB-7) Le brouillon gardé d'une pièce reçue qui a été saisie depuis (face à la pièce, validée) ne
+      // se repropose pas : « Reprendre » menait à une saisie en double.
+      const dc = d.depuisClasseur;
+      if (dc && (dc.message || dc.doc)) {
+        const P = piecesSx(dossier);
+        const x = P.pret && (P.items || []).find(z => (z.p && dc.message === z.p.id) || (z.doc && dc.doc === z.doc.id));
+        if (x && x.etat && x.etat[2] !== 'traiter') { brouillonE.effacer(dossier.id).catch(() => {}); return; }
+      }
       const nl = lignesReelles(d).length;
       const ban = document.createElement('div');
       ban.className = 'bandeau info reprise'; ban.id = 'sa-reprendre'; ban.setAttribute('role', 'status');
@@ -5307,7 +5315,7 @@
       const morceaux = [aFaire ? `Importer ${pl(aFaire, 'pièce')}` : '', corriger && validees.length ? `${aFaire ? 'corriger' : 'Corriger'} ${pl(validees.length, 'validée')}` : ''].filter(Boolean);
       return morceaux.length ? morceaux.join(' et ') : validees.length ? `Corriger ${pl(validees.length, 'validée')}` : 'Rien à importer';
     };
-    modal(`<h2>${lu.fec ? 'Reprendre les écritures d\'un FEC' : 'Réimporter depuis un tableur'}</h2>
+    modal(`<h2>${lu.fec ? 'Reprendre les écritures d\'un FEC' : 'Importer depuis un tableur'}</h2>
       <p class="small muted">${esc(lu.nom)} — ${pl(a.pieces.length, 'pièce lue', 'pièces lues')}. Rien n'est encore écrit : voici ce que l'import fera.</p>
       ${lu.fec ? lu.fec.html : ''}
       <div class="imp-bilan">
@@ -7108,7 +7116,7 @@
           <td class="nw muted small">${esc(fmtJour(KC.jourDeLInstant(Date.parse(x.instant))))}</td><td>${esc(x.phrase)}</td></tr>`).join('')}</tbody></table></div>` : ''}
       <p class="muted small">Chacun entre avec <strong>son propre compte</strong> et son code : les rôles disent
       <strong>qui</strong> a validé une écriture, et évitent qu'elle le soit par quelqu'un dont ce n'est pas le travail. Un associé
-      voit tous les dossiers ; un collaborateur, ceux qu'un associé lui confie, dans la fiche du dossier, onglet <strong>Suivi</strong>.</p>`;
+      voit tous les dossiers ; un collaborateur, ceux qu'un associé lui confie, sur la fiche du dossier : <strong>Confier à…</strong>, dans « L'équipe ».</p>`;
 
     const sel = $('#eq-je-suis', box);
     if (sel) {
@@ -9685,7 +9693,9 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
         ? items.map((x, i) => `<div class="res ${i === sel ? 'sel' : ''}" data-i="${i}">
             <span class="kind">${esc(x.kind)}</span><span class="main">${esc(x.main)}</span>
             ${x.sub ? `<span class="sub">${esc(x.sub)}</span>` : ''}</div>`).join('')
-        : '<div class="res"><span class="main muted">Rien ne correspond.</span></div>';
+        // (1.379.0, issue 6, CAB-5) La palette cherche les clients et les gestes ; une pièce ou une écriture se cherche dans
+        // son dossier : l'état vide le dit, au lieu de laisser croire qu'elle n'existe pas.
+        : '<div class="res" id="pal-rien"><span class="main muted">Rien ne correspond. Une pièce ou une écriture se cherche dans son dossier : Consulter › Recherche.</span></div>';
       $$('.res[data-i]', root).forEach(el => {
         el.onclick = () => { const x = items[Number(el.dataset.i)]; close(); if (x) x.go(); };
       });

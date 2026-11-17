@@ -83,7 +83,7 @@
     }
     sansReseau = false;
     if (poste) poste.enLigne();
-    if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
+    if (r.status === 401) { try { sessionStorage.setItem('skanfact.sortie', '1'); } catch { /* sans stockage */ } location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     /** @type {any} */
     const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }

@@ -97,8 +97,20 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await envoyer([frais('m3', '1.75')]);
     await p.locator('.seg button, button').filter({ hasText: /^Déclarer et clôturer$/ }).first().click();
     const declaration = p.locator('#c-livres');
-    await expect.poll(() => declaration.innerText(), { timeout: 15_000 }).toMatch(/3 pièces encore en brouillard sur ce mois/);
+    await expect.poll(() => declaration.innerText(), { timeout: 15_000 }).toMatch(/3 pièces d[e'’][^.]* attendent encore au brouillard/);
     expect(await enTete()).toBe('Compter 3 écritures en brouillard');
+    // (1.379.0, issue 6, CAB-1) L'avertissement se lit AU-DESSUS des étapes, aucune étape n'est en vert, et « Préparer »
+    // demande d'abord : préparer quand même, aller voir le brouillard, ou renoncer.
+    expect(await p.locator('#dc-brouillard-avant').evaluate((b) => !!b.nextElementSibling?.classList.contains('dc-etapes'))).toBe(true);
+    expect(await p.locator('.dc-etapes .btn-primary').count()).toBe(0);
+    expect(await p.locator('#dc-controles').count()).toBe(0);
+    await p.locator('#dc-preparer').click();
+    const question = p.locator('#modal-root .modal').last();
+    await expect.poll(() => question.locator('h2').innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/a encore 3 pièces au brouillard$/);
+    expect(await question.locator('.modal-actions button').allInnerTexts()).toEqual(['Annuler', 'Préparer quand même', 'Voir le brouillard']);
+    await question.locator('#no').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    expect(await p.locator('#dc-preparer').innerText()).toBe('Préparer la déclaration');
 
     // 3. Dans la saisie, un mouvement qui arrive ne redessine rien sous la main (le contenu marqué reste le même).
     await p.locator('button').filter({ hasText: /^Saisir/ }).first().click();

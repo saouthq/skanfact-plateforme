@@ -135,6 +135,9 @@ describe('le lot facture, à l\'écran', () => {
     await expect.poll(avert).toContain('Ton matricule fiscal manque : il est obligatoire sur une facture en Tunisie, et s\'imprime en haut de la pièce.');
     expect(await avert()).toContain('Aucun RIB n\'est renseigné');
     expect(net(await p.locator('#modal-root #ok').innerText())).toBe('Émettre quand même');
+    // (1.379.0, issue 4, ENTREE-7) Le geste mis en avant est celui qui rend la facture conforme.
+    expect(await p.locator('#modal-root #em-fiche').evaluate((b) => b.classList.contains('btn-primary'))).toBe(true);
+    expect(await p.locator('#modal-root #ok').evaluate((b) => b.classList.contains('btn-primary'))).toBe(false);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'facture-details-1-avertissements.png') });
     await p.locator('#em-fiche').click();
     await expect.poll(() => dessus(p).locator('h2').innerText().catch(() => '')).toBe('Compléter ta fiche société');

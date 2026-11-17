@@ -94,6 +94,12 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
     }
   }
 
+  // (1.379.0, issue 6, CAB-9) Qui agit par son cabinet ne se voit pas nommer les personnes de l'ENTREPRISE (« Peuvent le
+  // faire : » suivi du nom de la cliente) : c'est au cabinet que le geste se demande, à qui tient le dossier ou à la direction.
+  if (perimetre !== null) {
+    return { ok: false, raison: 'role', qui: [], bouton: null,
+      motif: motif('porte.role_refuse_cabinet', { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`) }) };
+  }
   const quiA = await quiPeut(tx, entreprise, geste);
   const valeurs = { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`), noms: quiA.map((q) => q.nom) };
   return {

@@ -146,6 +146,17 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect((await fiche(jeton, ent))?.contenu.address ?? '').toBe('');
     await assistant(p).locator('#as-mail').fill(email);
     expect(await refus.count()).toBe(0);
+    // (1.379.0, issue 4, ENTREE-6) Un téléphone en lettres, un capital négatif : refusés sur leur case, rien ne passe.
+    await assistant(p).locator('#as-tel').fill('abc123');
+    await suite(p).click();
+    expect(net(await assistant(p).locator('#ch-phone').getByRole('alert').innerText())).toBe(net('Un numéro de téléphone est fait de chiffres, huit au moins (55 123 456) : corrige-le, ou laisse la case vide.'));
+    await ecran(p, 'Où te joindre ?');
+    await assistant(p).locator('#as-tel').fill('55 123 456');
+    await assistant(p).locator('#as-cap').fill('-5abc');
+    await suite(p).click();
+    expect(net(await assistant(p).locator('#ch-capital').getByRole('alert').innerText())).toBe(net('Le capital est un montant en chiffres (10 000) : corrige-le, ou laisse la case vide.'));
+    await ecran(p, 'Où te joindre ?');
+    await assistant(p).locator('#as-cap').fill('10000');
     await suite(p).click();
 
     // 2. Que fais-tu ? L'écran d'avant est écrit ; la page rechargée reprend ici, et « Retour » retrouve ce qui était tapé.

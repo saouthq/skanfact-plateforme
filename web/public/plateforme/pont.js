@@ -687,7 +687,7 @@
   // rien ne s'efface : la prochaine connexion réessaiera.
   /** @type {Promise<void> | null} */ let finEnCours = null;
   /** @param {any} lu */
-  const finDeSession = (lu) => (finEnCours = finEnCours || (async () => {
+  const finDeSession = (lu) => (finEnCours = finEnCours || (async () => { try { sessionStorage.setItem('skanfact.sortie', '1'); if (location.pathname.startsWith('/v10/')) sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage */ }
     if (lu && lu.effacer) {
       if ((await remettre()) === null) {
         poste.sansCopie('Cet appareil a été retiré de ton compte. Ce qu\'il avait enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
@@ -938,8 +938,8 @@
       if (m.statut === 'actif' && !b.dataset.confirme) {
         b.dataset.confirme = '1';
         b.textContent = 'Oui, arrêter : il ne verra plus mes livres';
-        refus(`${m.cabinet.nom} ne verra plus tes livres à partir d'aujourd'hui. Ce qu'il a déjà validé reste validé.`);
-        return;
+        refus(`${m.cabinet.nom} ne verra plus tes livres à partir d'aujourd'hui. Ce qu'il a déjà validé reste validé, et votre conversation reste lisible.`);
+        b.insertAdjacentHTML('afterend', '<button type="button" class="btn" id="mandat-garder">Non, garder mon cabinet</button>'); /** @type {HTMLElement} */ (el.querySelector('#mandat-garder')).onclick = () => { void dessinerMandat(el, true); }; return;
       }
       void agir(() => appel('DELETE', '/mandat'), b);
     };

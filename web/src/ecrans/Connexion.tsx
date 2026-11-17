@@ -7,7 +7,7 @@ import { nomDeCetAppareil } from '../appareil.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Case, Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineConnexion } from '../composants/Entree.tsx';
+import { Dessin, LienAide, PageDouble, VitrineConnexion } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 
@@ -32,8 +32,6 @@ export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null
 // `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
 type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; oubli: (email: string) => void; sous?: string | null; email?: string };
 const rien = () => undefined;
-// Le contact de SkanFact, sur son site.
-export const AIDE = 'https://skanfact.tn/contact.html';
 
 
 // Ce que ce serveur sait faire à l'entrée, seulement avec un relais d'e-mails : le mot de passe oublié, et l'adresse
@@ -57,6 +55,9 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
   // la première lettre tapée se perdait (la console avait la même règle depuis 1.58.0).
   const [adresseDonnee] = useState(() => email !== '');
   const [posteDUnAutre, setPosteDUnAutre] = useState(false);
+  // (1.379.0, issue 4, ENTREE-2) Une session fermée ailleurs (ou finie) ramenait ici sans un mot : la phrase reste
+  // au-dessus du formulaire tant qu'on ne s'est pas reconnecté.
+  const [sortie] = useState(() => { try { return !!sessionStorage.getItem('skanfact.sortie'); } catch { return false; } });
 
   const envoyer = () => g.geste(async () => {
     const appareil = session.appareil();
@@ -67,6 +68,7 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     const defi = defiDe(r.corps, posteDUnAutre);
+    if (r.statut < 400) try { sessionStorage.removeItem('skanfact.sortie'); } catch { /* rien à oublier */ }
     if (r.corps.etat === 'connecte' && r.corps.jeton) {
       session.ouvrir(r.corps.jeton, !posteDUnAutre);
       if (!posteDUnAutre) session.retenirAppareil(r.corps.appareil ?? null);
@@ -81,10 +83,11 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
 
   return (
     <PageDouble vitrine={<VitrineConnexion />}
-      haut={<><span className="vide" /><a className="ent-lien" href={AIDE} target="_blank" rel="noopener noreferrer">{titre('ecran.connexion.aide')}</a></>}
+      haut={<><span className="vide" /><LienAide /></>}
       bas={<span className="sur"><Dessin id="cadenas" />{phrase('ecran.connexion.chiffree')}</span>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.connexion.titre')}</h1><p>{sous ?? phrase('ecran.connexion.sous')}</p></div>
+        {sortie ? <p id="session-finie" className="ent-note" role="status">{phrase('ecran.connexion.session_finie')}</p> : null}
         <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" premier={!adresseDonnee} {...g.sur('email')} />
         <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable premier={adresseDonnee} {...g.sur('motDePasse')} />
         {options.oubli ? <div className="ent-sous-champ"><button type="button" className="ent-lien" onClick={() => oubli(email)}>{titre('ecran.connexion.oublie')}</button></div> : null}

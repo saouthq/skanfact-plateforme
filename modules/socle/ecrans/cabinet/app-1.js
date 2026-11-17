@@ -526,7 +526,9 @@
     // posée fenêtre par fenêtre manquera toujours la suivante. L'instantané se prend APRÈS le
     // montage : ce que la fenêtre préremplit n'est pas une saisie. Une fenêtre qui pose son propre
     // garde-fou garde le sien ; `garde: false` dit, en le nommant, qu'on n'en veut pas.
-    if (!(opts && 'garde' in opts) && layer.querySelector('form')) gardeAuto = suivreSaisie(layer);
+    // (1.379.0, issue 6, CAB-8) Une fenêtre où l'on ÉCRIT un texte (« Demander à Sarra », un message) n'est pas toujours un
+    // formulaire : Échap jetait la phrase tapée sans un mot. Une zone de texte suffit à poser la garde.
+    if (!(opts && 'garde' in opts) && layer.querySelector('form, textarea')) gardeAuto = suivreSaisie(layer);
     // Le focus va au premier champ de SAISIE. Il allait au premier `input, select, textarea,
     // button` : dans une confirmation, qui n'a pas de champ, c'était le bouton « Annuler ».
     const saisie = layer.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
@@ -760,6 +762,8 @@
     // La case montre donc ce que la pièce portera, pas une décimale qui disparaîtra à l'enregistrement
     // pendant que le total, juste en dessous, dit déjà 12,346.
     const txt = montantSaisi(Math.round(n * 1000) / 1000);
+    // (1.379.0, issue 6, CAB-6) Une quatrième décimale tapée ne disparaît pas en silence : l'arrondi se dit.
+    if (/[.,]\d{4,}\s*$/.test(brut) && Math.abs(n * 1000 - Math.round(n * 1000)) > 1e-6) toast(`Arrondi au millime : ${txt}.`);
     if (txt !== el.value) { el.value = txt; el.dispatchEvent(new Event('input', { bubbles: true })); }
   }
   document.addEventListener('focusout', e => { const el = e.target; if (el && el.matches && el.matches(SEL_MONTANT)) completerMontant(el); }, true);
@@ -2236,6 +2240,9 @@
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
     // (plateforme) 1.194.0 — les Priorités vivent dans le Tableau de bord : l'ancien lien y mène.
     else if (route === 'priorites') location.replace('#/production');
+    // (1.379.0, issue 6, CAB-11) « #/equipe » n'était pas une adresse : elle retombait sur « Tous les dossiers », sans un mot.
+    // Elle mène à l'équipe, là où le menu « Le cabinet › Équipe » mène déjà.
+    else if (route === 'equipe') { versReglages('pan-equipe'); return; }
     else if (route === 'pieces') drawPieces(view, arg);
     else if (route === 'production') drawTableau(view);
     else if (route === 'ecritures') drawEcritures(view);
@@ -4994,8 +5001,10 @@
     if (m === mc) return ['cours', 'en cours', false];
     if (decl && decl.deposee) return ['fait', 'déposé', false];
     const enRetard = tard.includes(m);
-    if (decl) return ['pret', 'prêt', enRetard];
+    // (1.379.0, issue 6, CAB-1) Le brouillard passe AVANT « prêt » : une déclaration préparée pendant que dix pièces du
+    // mois attendaient au brouillard faisait dire « prêt, se dépose sur e-jibaya » à un mois dont aucun chiffre n'était entré.
     if (x.br) return ['rev', 'à réviser', enRetard];
+    if (decl) return ['pret', 'prêt', enRetard];
     if (x.ecr) return ['pret', 'révisé', enRetard];
     if (!L && ecrituresConnues(d.id, m)) return brouillardsConnus(d.id, m) ? ['rev', 'à réviser', enRetard] : ['pret', 'révisé', enRetard];
     // (1.362.5) Un mois que le client a clôturé chez lui sans une écriture : rien à lui réclamer, sa déclaration se dépose quand même.
@@ -9436,7 +9445,11 @@
     const precedent = K.addMonth(d.periode, -1);
     // 1.350.0 — une écriture du mois encore au brouillard : l'étape suivante est de la VALIDER (le message qui suit sa
     // création le dit), pas de marquer déposée — le vert sautait une étape.
-    const suivante = enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter || auBrouillard) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
+    // (1.379.0, issue 6, CAB-1) Les pièces du mois encore au brouillard (hors l'écriture du mois, qui y naît) : tant qu'il
+    // en reste, aucune étape n'est verte — le geste suivant est de les valider, et l'avertissement se lit AU-DESSUS des étapes.
+    const brAvant = deposee ? [] : ((s.livre && s.livre.ecritures) || []).filter(e => e.statut === 'brouillard' && String(e.date || '').slice(0, 7) === d.periode
+      && !/^DECL-/.test(String(e.piece || '')) && e.id !== d.ecritureExistante && e.id !== d.ecritureAuBrouillard && e.piece !== d.ecritureExistante && e.piece !== d.ecritureAuBrouillard);
+    const suivante = brAvant.length ? 'brouillard' : enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter || auBrouillard) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
     const motifPerime = perime && !deposee ? `Les chiffres ont changé depuis la préparation (${KC.phraseEcartDeclaration(ecart)}) : recalcule-la avant de la déposer.` : '';
     const cls = pas => 'btn btn-sm' + (pas === suivante ? ' btn-primary' : '');
     const fait = ok => ok ? '<span class="dc-coche" aria-hidden="true">✓</span>' : '';
@@ -9476,6 +9489,7 @@
             // l'écran dit sa date limite, et que la première tirée de ce livre est celle du mois en cours.
             : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
+      ${brAvant.length ? `<div class="warn-box mb" id="dc-brouillard-avant"><b>${esc(pl(brAvant.length, 'pièce', 'pièces'))} ${esc(K.de(K.monthLabel(d.periode)))} ${brAvant.length > 1 ? 'attendent' : 'attend'} encore au brouillard.</b> ${brAvant.length > 1 ? 'Elles n\'entrent' : 'Elle n\'entre'} dans aucun chiffre de cette déclaration : valide-${brAvant.length > 1 ? 'les' : 'la'} d'abord, puis prépare. <button type="button" class="btn btn-sm btn-primary" data-vers-saisie>Voir le brouillard</button></div>` : ''}
       <div class="dc-etapes">
         ${/* (1.378.2, issue 9 CABDECLARER-37) Un mois déposé ne se recalcule pas : le bouton le dit AVANT le clic, au lieu de refuser après. */''}
         <button class="${cls('preparer')}" id="dc-preparer"${deposee ? ' disabled title="Une déclaration déposée ne se recalcule pas. Si elle était fausse, annule d\'abord le dépôt."' : ''}>${posee ? fait(true) + (deposee ? 'Préparée' : 'Préparée — recalculer') : 'Préparer la déclaration'}</button>${fleche}
@@ -9503,11 +9517,12 @@
           brouillard » laissait le débutant chercher où elle était. */''}
     ${/* (plateforme) 1.96.0 — un mois en cours (pas encore préparé) n'a pas de fin : le contrôle « TVA soldée » se tait,
           et la ligne verte ne promet pas une TVA soldée qui ne peut pas l'être encore. */''}
-    ${(() => { const visibles = enCours && !posee ? echecs.filter(c => c.id !== 'tva-soldee') : echecs; return visibles.length ? `<div class="warn-box mt" id="dc-controles">${visibles.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
+    ${(() => { const visibles = (enCours && !posee ? echecs.filter(c => c.id !== 'tva-soldee') : echecs).filter(c => !(c.id === 'brouillard' && brAvant.length)); return visibles.length || brAvant.length ? visibles.length ? `<div class="warn-box mt" id="dc-controles">${visibles.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
           ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>'
           // (1.221.0, l'épreuve d'un mois) Le compte d'attente se solde depuis la réponse du client (« Imputer le virement »,
           // dans la conversation) : la déclaration y mène, au lieu d'un avertissement sans geste.
           : c.id === 'attente' && !dossier.manual ? ' <button type="button" class="btn btn-sm" data-vers-attente>L\'imputer depuis la conversation</button>' : ''}</div>`).join('')}</div>`
+        : ''
       : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
       : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
     ${panneauFormulaire(d)}
@@ -9633,6 +9648,24 @@
     // gestes qu'il débloque vivaient deux écrans plus bas ; ils sont maintenant sur la même rangée.
     const prep = $('#dc-preparer', el);
     if (prep) prep.onclick = async () => {
+      // (1.379.0, issue 6, CAB-1) Préparer sur un mois au brouillard donnait « ce mois ne porte aucune TVA » : la question
+      // se pose avant, et le geste proposé est d'aller valider.
+      const brP = ((s.livre && s.livre.ecritures) || []).filter(e => e.statut === 'brouillard' && String(e.date || '').slice(0, 7) === s.decl.periode && !/^DECL-/.test(String(e.piece || '')));
+      if (brP.length && !(s.decl.posee && s.decl.posee.deposee && s.decl.posee.deposee.le)) {
+        // Trois sorties : aller valider (le geste mis en avant), préparer quand même (on ne bloque pas), ou renoncer.
+        const choix = await new Promise(resolve => modal(
+          `<h2>${esc(cap(K.monthLabel(s.decl.periode)))} a encore ${esc(pl(brP.length, 'pièce', 'pièces'))} au brouillard</h2>
+           <p>${brP.length > 1 ? 'Elles n\'entrent' : 'Elle n\'entre'} dans aucun chiffre : la déclaration préparée maintenant serait incomplète. Valide-${brP.length > 1 ? 'les' : 'la'} d'abord dans la Saisie.</p>
+           <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn" id="dc-quand-meme">Préparer quand même</button>
+           <button class="btn btn-primary" id="ok">Voir le brouillard</button></div>`,
+          (layer, close) => {
+            $('#no', layer).onclick = () => { close(); resolve(''); };
+            $('#dc-quand-meme', layer).onclick = () => { close(); resolve('preparer'); };
+            $('#ok', layer).onclick = () => { close(); resolve('voir'); };
+          }, () => resolve('')));
+        if (choix === 'voir') { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); return; }
+        if (choix !== 'preparer') return;
+      }
       prep.disabled = true;
       try {
         const r = await api.poserDeclaration({ dossierId: dossier.id, annee: s.annee, periode: s.decl.periode });

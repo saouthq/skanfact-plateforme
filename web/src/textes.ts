@@ -92,6 +92,11 @@ declarerTextes({
   'ecran.connexion.creer_compte': 'créer mon compte',
   'ecran.connexion.oublie': 'mot de passe oublié ?',
   'ecran.connexion.aide': 'besoin d\'aide ?',
+  'ecran.connexion.session_finie': 'ta session a été fermée : trop longtemps sans activité, ou ton mot de passe a changé sur un autre appareil. Reconnecte-toi pour reprendre où tu en étais',
+  'ecran.aide.titre': 'écris-nous',
+  'ecran.aide.texte': 'dis-nous ce qui te bloque : on te répond sous un jour ouvré',
+  'ecran.aide.copier': 'copier l\'adresse',
+  'ecran.aide.copiee': 'adresse copiée',
   'ecran.connexion.chiffree': 'connexion chiffrée : ce que tu tapes ne circule jamais en clair',
 
   'ecran.inscription.titre': 'créer ton compte',

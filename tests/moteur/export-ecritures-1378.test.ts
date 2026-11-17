@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Pack = { id: string; name: string; month: string; ouverture?: boolean };
 type Plan = { packs: Pack[]; sansPaquet: string[]; sans: { id: string; name: string }[]; exempleExclu: boolean; mois: string[] };
@@ -55,7 +56,7 @@ describe('l\'export des écritures du cabinet dit vrai', () => {
   });
 
   it('le pont lit aussi le livre des clients sans mouvement', () => {
-    const pont = fs.readFileSync('web/public/plateforme/pont-cabinet.js', 'utf8');
+    const pont = lireEcran('plateforme/pont-cabinet.js');
     expect(pont).toContain('K.packsAvecOuvertures(plan, livres).map(');
     expect(pont).toContain('[...plan.packs, ...(plan.sans || [])]');
   });

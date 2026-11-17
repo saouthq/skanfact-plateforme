@@ -1378,7 +1378,7 @@
     // ses seuls champs qui manquent à la pièce (le RIB, pour une facture qui attend un virement), puis les avertissements
     // se relisent (`opts.avertir`) et le bouton principal avec eux.
     const manquesFiche = () => (opts && opts.avertir ? C.companyGaps(company()).filter(g => !isAv || !/RIB/.test(g)) : []);
-    const avertir = l => l.length ? `<div class="warn-box mb">${l.map(w => `<div>⚠ ${h(w)}</div>`).join('')}${manquesFiche().length ? '<div class="mt"><button type="button" class="btn btn-sm" id="em-fiche">Compléter ma fiche…</button></div>' : ''}</div>` : '';
+    const avertir = l => l.length ? `<div class="warn-box mb">${l.map(w => `<div>⚠ ${h(w)}</div>`).join('')}${manquesFiche().length ? '<div class="mt"><button type="button" class="btn btn-sm btn-primary" id="em-fiche">Compléter ma fiche…</button></div>' : ''}</div>` : '';
     const libelleOk = l => `${l.length ? 'Émettre quand même' : 'Émettre'}${exporter ? ' et exporter' : ''}`;
     // (maquette « fenêtre d'émission ») Ce qui suit l'émission, coché d'avance quand c'est l'étape suivante : signer (si la
     // signature est branchée), l'envoyer (au client qui a une adresse), noter un paiement (décoché : il ne vient que s'il a
@@ -1416,7 +1416,7 @@
         ${surplus ? `<div class="warn-box mb">${numerosInsecables(surplus)}</div>` : ''}
         <div id="em-avert">${avertir(avertissements)}</div>
         ${apresPossibles.length ? `<div class="em-apres"><b>Juste après l'émission</b>${apresPossibles.map(([k, lib, sous, coche]) => `<label class="check"><input type="checkbox" data-apres="${k}"${coche ? ' checked' : ''}> ${lib} <span class="muted small">· ${sous}</span></label>`).join('')}</div>` : ''}
-        <div class="modal-actions"><button class="btn" data-close>Annuler</button>${exporter ? '<button class="btn" id="em-brouillon">Exporter le brouillon</button>' : ''}<button class="btn btn-primary" id="ok">${libelleOk(avertissements)}</button></div>`,
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button>${exporter ? '<button class="btn" id="em-brouillon">Exporter le brouillon</button>' : ''}<button class="btn${manquesFiche().length ? '' : ' btn-primary'}" id="ok">${libelleOk(avertissements)}</button></div>`,
         (root, close) => {
           $('#ok', root).onclick = () => {
             apresEmission = Object.fromEntries($$('[data-apres]', root).map(c => [c.dataset.apres, c.checked]));
@@ -1429,6 +1429,9 @@
               const l = opts.avertir();
               $('#em-avert', root).innerHTML = avertir(l);
               $('#ok', root).textContent = libelleOk(l);
+              // (1.379.0, issue 4, ENTREE-7) Tant que la fiche est incomplète, le geste mis en avant est celui qui rend
+              // la facture conforme : « Compléter ma fiche… » ; « Émettre quand même » reste possible, en second.
+              $('#ok', root).classList.toggle('btn-primary', !manquesFiche().length);
               brancherFiche();
               // (1.356.4) La pièce derrière la fenêtre relit la fiche : « Avant d'émettre » disait encore « il manque
               // l'adresse » une fois la fenêtre fermée, et l'aperçu imprimait l'en-tête d'avant.

@@ -5,9 +5,9 @@
 //   - un mois déposé dont l'écriture de déclaration manque au livre est nommé ;
 //   - un mois déposé qui n'a rien à écrire (aucune TVA) ne l'est pas.
 
-import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { ecranDeLaPlateforme } from './v10.ts';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 type Ligne = { compte: string; debit: number; credit: number; tiers?: string };
 type Ecr = { id: string; numero: number; date: string; journal: string; piece: string; libelle: string; statut: string; lignes: Ligne[] };
@@ -51,7 +51,7 @@ describe('les contrôles avant clôture regardent les déclarations comme un com
   });
 
   it('l\'écran donne la date du jour au contrôle (sans elle, le mois en cours se réclame encore)', () => {
-    const pont = fs.readFileSync('web/public/plateforme/pont-cabinet.js', 'utf8');
+    const pont = lireEcran('plateforme/pont-cabinet.js');
     expect(pont).toMatch(/controlesCloture\(livre, \{ aujourdhui: .*CabCore\.today\(\) \}\)/);
   });
 });

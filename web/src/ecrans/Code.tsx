@@ -9,7 +9,7 @@ import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin } from '../composants/Entree.tsx';
+import { Dessin, LienAide } from '../composants/Entree.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
 import { CodeCourriel, useDecompte } from './CodeCourriel.tsx';
@@ -70,6 +70,7 @@ function CodeTelephone({ defi, connecte, retour }: { defi: Exclude<Defi, { metho
         {renvoi}
         <b>{titre(secours ? 'ecran.code.retrouve' : 'ecran.code.perdu')}</b>
         <button type="button" id="code-perdu" className="ent-lien" onClick={() => { setSecours(!secours); setCode(''); }}>{titre(secours ? 'ecran.code.utiliser_telephone' : 'ecran.code.utiliser_secours')}</button>
+        <LienAide />
       </>}>
       <Champ key={secours ? 'secours' : 'telephone'} classe={`ent-code${secours ? ' secours' : ''}`} libelle={titre(secours ? 'ecran.code.champ_secours' : sms ? 'ecran.code.sms_champ' : 'ecran.code.champ')}
         aide={phrase('ecran.code.champ_aide')} valeur={code} changer={setCode} autoComplete="one-time-code" inputMode={secours ? 'text' : 'numeric'} premier

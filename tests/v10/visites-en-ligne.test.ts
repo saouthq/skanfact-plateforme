@@ -16,19 +16,21 @@ import { lireEcran } from '../../commun/assemblage.ts';
 type Etape = { cible?: unknown; titre?: string; texte?: string; facultatif?: boolean; eclairer?: unknown; liste?: string };
 type Visite = { id: string; titre?: string; etapes?: Etape[] };
 
-function charger() {
+// `etat` : les données et l'écran qu'une visite lit (1.379.0), pour jouer son but sans navigateur.
+function charger(etat: { donnees?: () => unknown; fenetre?: () => boolean; hash?: () => string } = {}) {
   const element = () => ({
     style: {}, classList: { add: () => undefined, remove: () => undefined, toggle: () => undefined, contains: () => false },
     setAttribute: () => undefined, appendChild: () => undefined, addEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [],
   });
   const document = {
     createElement: element, head: element(), body: element(), documentElement: element(),
-    addEventListener: () => undefined, removeEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [],
+    addEventListener: () => undefined, removeEventListener: () => undefined, querySelectorAll: () => [],
+    querySelector: (sel: string) => (etat.fenetre?.() && String(sel).includes('#modal-root .modal') ? element() : null),
   };
   const bac: Record<string, unknown> = {
     sessionStorage: { getItem: () => 'jeton', setItem: () => undefined, removeItem: () => undefined },
     localStorage: { getItem: () => null, setItem: () => undefined, removeItem: () => undefined },
-    location: { search: '?e=00000000-0000-4000-8000-000000000000', pathname: '/v10/', hash: '', replace: () => undefined },
+    location: { search: '?e=00000000-0000-4000-8000-000000000000', pathname: '/v10/', get hash() { return etat.hash?.() ?? ''; }, replace: () => undefined },
     URLSearchParams, document, console, navigator: { onLine: true },
     // Rien ne part ni ne s'attend : seules les définitions comptent ; le mandat (le panneau « Ton cabinet comptable »)
     // répond « aucun », pour que le panneau se dessine.
@@ -45,7 +47,7 @@ function charger() {
   for (const f of ['plateforme/pont.js', 'v10/visite.js', 'v10/visites.js']) vm.runInContext(lireEcran(f), bac, { filename: f });
   const pont = bac.skanfact as { panneauxAbsents: string[]; piecesJointes?: boolean; visitesAbsentes?: string[]; dessinerMandat: (el: unknown) => Promise<void> };
   const visites = (bac.SkanVisites as { parcours: (ctx: unknown) => Visite[] }).parcours({
-    data: () => ({}), premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
+    data: () => etat.donnees?.() ?? {}, premier: () => null, estDemo: () => false, editeur: () => false, Visite: bac.Visite, G: { INFO: {} }, chiffre: () => false,
   });
   return { pont, visites, moteur: bac.Visite as { decider: (s: Record<string, unknown>) => string | null } };
 }
@@ -223,5 +225,22 @@ describe('les visites de l\'entreprise, en ligne', () => {
       expect(v, id).toBeTruthy();
       expect(resume[id], id).toEqual({ duree: v?.duree, chapitres: chapitres(v?.etapes ?? []).length });
     }
+  });
+  // 1.379.0 (issue 14, ENTSOCLE-1) : en ligne, la facture est émise APRÈS la fermeture du récapitulatif (le serveur répond),
+  // et « l'envoyer par e-mail » ouvre une fenêtre de plus. La visite concluait « la facture n'est pas émise ».
+  it('« Émettre une facture » juge son but sur la pièce : émise, elle félicite, même si une fenêtre s\'ouvre ensuite', () => {
+    let documents = [{ id: 'f1', type: 'facture', status: 'brouillon' }];
+    let fenetre = true;
+    const v = charger({ donnees: () => ({ documents }), fenetre: () => fenetre, hash: () => '#/doc/f1' }).visites.find((x) => x.id === 'emettre') as unknown as {
+      mesure: () => number; but: (n0: number) => boolean; etapes: { fait?: () => boolean }[] };
+    const n0 = v.mesure();
+    const derniere = v.etapes.at(-1) as { fait: () => boolean };
+    // Le récapitulatif fermé, le serveur n'a pas encore répondu : ni fait, ni atteint — la visite attend, elle ne conclut pas.
+    fenetre = false;
+    expect([derniere.fait(), v.but(n0)]).toEqual([false, false]);
+    // Émise, et la fenêtre d'envoi s'ouvre : le but est atteint quand même.
+    documents = [{ id: 'f1', type: 'facture', status: 'envoyée' }];
+    fenetre = true;
+    expect([derniere.fait(), v.but(n0)]).toEqual([true, true]);
   });
 });

@@ -99,7 +99,7 @@ describe('l\'aller-retour par le tableur, à la souris', () => {
 
     // La fenêtre dit ce que l'import fera, avant d'écrire quoi que ce soit.
     const fenetre = p.locator('#modal-root .modal').first();
-    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Réimporter depuis un tableur');
+    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Importer depuis un tableur');
     const dit = await fenetre.innerText();
     expect(dit).toMatch(/livre-journal-corrige\.csv — 5 pièces lues\./);
     expect(dit).toMatch(/1 pièce nouvelle — elle entrera en brouillard\./);

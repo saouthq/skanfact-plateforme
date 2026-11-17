@@ -4614,3 +4614,45 @@ Essais : `tests/moteur/anciennete-1378.test.ts`, `tests/web/cabinet-declaration.
 
 Le serveur savait déjà lettrer et délettrer ; il manquait l'écran. Essai : `tests/web/cabinet-saisie.test.ts`.
 Trois preuves.
+
+## 1.379.0 — Les issues 4, 6 et 14 : l'entrée, le Cabinet à plusieurs, la visite qui dit vrai
+
+**Le Cabinet (issue 6).**
+- **CAB-1 (bloquant)** : une déclaration ne se prépare plus en silence sur un mois au brouillard. L'avertissement
+  (« 3 pièces d'août attendent encore au brouillard ») se lit au-dessus des étapes, aucune étape n'est en vert, et
+  « Préparer » demande d'abord : *Voir le brouillard*, *Préparer quand même* (on ne bloque pas) ou *Annuler*. Sur la
+  fiche du dossier, le brouillard passe avant « prêt » : un mois préparé dont les pièces attendent reste « à réviser ».
+- **CAB-5** : la palette vide dit où se cherchent une pièce et une écriture (Consulter › Recherche).
+- **CAB-6** : une quatrième décimale tapée ne disparaît plus en silence, l'arrondi au millime se dit.
+- **CAB-7** : le brouillon gardé d'une pièce reçue qui a été saisie depuis ne se repropose plus (« Reprendre » menait
+  à une saisie en double).
+- **CAB-8** : une fenêtre où l'on écrit un texte (« Demander à … ») demande avant de jeter la saisie.
+- **CAB-9** : le refus d'un rôle du cabinet ne nomme plus les personnes de l'entreprise cliente ; il renvoie à la
+  personne qui tient le dossier ou à la direction du cabinet.
+- **CAB-11** : `#/equipe` mène à l'équipe ; la phrase qui citait l'onglet « Suivi » (disparu) est corrigée.
+- **CAB-13** : côté client, « Arrêter le mandat… » offre « Non, garder mon cabinet ».
+- **CAB-22** : « Importer depuis un tableur » (le titre disait « Réimporter » dès le premier import).
+- Déjà faits depuis la revue (1.371 → 1.378) : CAB-2, CAB-3, CAB-4, CAB-12.
+
+**L'entrée (issue 4).**
+- **ENTREE-3 (bloquant)** : « Besoin d'aide ? » ne quitte plus SkanFact vers une page morte : il montre l'adresse
+  `contact@skanfact.tn`, qui se copie. Il est aussi sur l'écran du code. Le pied des e-mails et l'e-mail « adresse
+  changée » donnent la même adresse.
+- **ENTREE-2 (bloquant, première moitié)** : une session fermée (ailleurs, ou finie) dit pourquoi on est dehors, et
+  la page où l'on était se rouvre après la reconnexion. Garder la saisie en cours reste à faire.
+- **ENTREE-6** : un téléphone en lettres ou un capital négatif sont refusés sur leur case dans l'assistant.
+- **ENTREE-7** : sans matricule, le bouton mis en avant est « Compléter ma fiche… » ; « Émettre quand même » reste
+  possible, en second.
+- ENTREE-4 était réparé depuis la 1.373.0.
+
+**Les visites (issue 14).**
+- **ENTSOCLE-1** : la visite « Émettre une facture » juge son but sur la pièce. En ligne, la facture est émise après
+  la fermeture du récapitulatif, et l'envoi par e-mail ouvre une fenêtre de plus : la visite concluait « la facture
+  n'est pas émise » d'une facture numérotée.
+
+Trouvé en passant : deux essais de la 1.378.5 et de la 1.378.6 lisaient `pont-cabinet.js` en direct (ils passent par
+`lireEcran`), et `pont.js` revient à sa limite de lignes.
+
+Essais : `tests/web/entree.test.ts`, `assistant.test.ts`, `facture-details.test.ts`, `cabinet-livre-a-jour.test.ts`,
+`cabinet.test.ts`, `tests/v10/visites-en-ligne.test.ts`, `tests/compta/declaration.test.ts`, `annuel.test.ts`.
+Neuf preuves.

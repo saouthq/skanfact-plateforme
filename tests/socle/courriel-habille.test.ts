@@ -11,11 +11,11 @@ import '../../serveur/messagerie/textes.ts';
 import { factice, rendre, t, texteFrancais } from '../../textes/index.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
-const CONTACT = 'https://skanfact.tn/contact.html';
+const CONTACT = 'mailto:contact@skanfact.tn';
 const LIEN = 'https://app.exemple.tn/?reinitialiser=Abc_123-x';
 
 // Les neuf e-mails du serveur, tels que les envois les rendent (les valeurs sont des exemples).
-const VALEURS = { code: '482915', minutes: 30, lien: LIEN, adresse: 'https://app.exemple.tn', aide: CONTACT };
+const VALEURS = { code: '482915', minutes: 30, lien: LIEN, adresse: 'https://app.exemple.tn', aide: 'contact@skanfact.tn' };
 const ENVOIS: { cle: string; bouton?: string }[] = [
   { cle: 'connexion.oubli_texte', bouton: 'connexion.oubli_bouton' },
   { cle: 'connexion.courriel_inscription' },
@@ -115,7 +115,7 @@ describe('les e-mails habillés', () => {
     const c: Courriel = { a: 'karim@exemple.tn', objet: 'Objet', texte: rendre(t('connexion.oubli_texte', VALEURS), 'factice'), langue: 'factice' };
     const vu = visible(habiller(c));
     for (const cle of ['courriel.pied_marque', 'courriel.lien_secours', 'courriel.bouton']) expect(vu, cle).toContain(aplatir(rendre(t(cle), 'factice')));
-    expect(vu).toContain(aplatir(rendre(t('courriel.pied_reponses', { site: 'skanfact.tn' }), 'factice')));
+    expect(vu).toContain(aplatir(rendre(t('courriel.pied_reponses', { site: 'contact@skanfact.tn' }), 'factice')));
     expect(vu).not.toContain('la caisse et la comptabilité');
     expect(factice(texteFrancais('courriel.pied_marque') ?? '')).not.toBe(texteFrancais('courriel.pied_marque'));
   });
@@ -126,7 +126,7 @@ describe('les e-mails habillés', () => {
     const textes = source.replace(/<!--[\s\S]*?-->/g, '').replace(/<style>[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, '\n')
       .replace(/\{\{[a-z_]+\}\}/g, '\n').split('\n').map((s) => s.replace(/&nbsp;/g, ' ').trim()).filter(Boolean);
     expect(textes.filter((s) => /\p{L}{2,}[ ’']\p{L}{2,}/u.test(s))).toEqual([]);
-    expect(textes.sort()).toEqual(['S', 'SkanFact', 'skanfact.tn']);
+    expect(textes.sort()).toEqual(['S', 'SkanFact', 'contact@skanfact.tn']);
   });
 
   it('chaque envoi du serveur donne sa langue, et nomme son bouton dès que son texte porte un lien', () => {
