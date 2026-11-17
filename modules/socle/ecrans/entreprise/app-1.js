@@ -1463,7 +1463,7 @@
     const co = company();
     const manqueNom = !(co.name || '').trim();
     const manqueMf = !(co.matricule || '').trim() || !C.matriculeBienForme(co.matricule);
-    const manqueRib = pourFacture && C.ribAttendu(co) && (!(co.rib || '').trim() || !C.verifRib(co.rib).ok);
+    const manqueRib = pourFacture && (C.ribAttendu(co) || /virement|transfer/i.test(String(co.paymentTerms || ''))) && (!(co.rib || '').trim() || !C.verifRib(co.rib).ok);
     // (1.356.4) L'adresse compte dans ce qui manque (`companyGaps`) : « Compléter ma fiche… » s'ouvrait alors sur une
     // fenêtre sans aucune case. Elle a la sienne ; on peut la laisser vide (on prévient, on ne bloque pas).
     const manqueAdresse = !String(co.address || '').trim();
@@ -5011,7 +5011,7 @@
     if (closedBlock(doc.date, 'Ce document')) return;
     const titreP = C.titreDePiece(doc, company());
     const nomP = doc.number ? `la pièce ${doc.number}` : `ce brouillon ${deNom(titreP.charAt(0).toLowerCase() + titreP.slice(1))}`;
-    if (!await confirmDialog(`Supprimer ${nomP} ?${doc.number ? ' Le numéro ne sera pas réutilisé.' : ''}${quoi}`, 'Supprimer', true)) return;
+    if (!await confirmDialog(`Supprimer ${nomP} ?${doc.number ? ' Le numéro ne sera pas réutilisé.' : ''}${doc.type === 'devis' && doc.number && doc.status !== 'brouillon' ? ' Le client l\'a déjà reçu.' : ''}${quoi}`, 'Supprimer', true)) return;
     forget('documents', doc.id, docLabel(doc));
     data.documents = data.documents.filter(d => d.id !== doc.id); save(true); apres();
   }
@@ -6184,7 +6184,10 @@
       && (doc.lines || []).some(l => { const it = C.itemOfLine(l, data); return it && it.serialized; });
     const issuedDeposits = isQ && !isNew ? data.documents.filter(d => d.type === 'facture' && d.deposit && d.deposit.quoteId === doc.id && d.status !== 'brouillon') : [];
 
-    const invoiceItems = () => data.documents.filter(d => d.type === 'facture' && d.status !== 'brouillon' && d.number).sort(byNumberDesc).map(d => ({
+    let lignesReprises = '', objetRepris = '', creditCombo = null;
+    // (1.379.6, issue 15 V-2) Un avoir dont le client est choisi ne propose que SES factures : la liste montrait celles de
+    // tous les clients, et l'avoir d'un client pouvait corriger la facture d'un autre. Sans client, toutes (la facture le pose).
+    const invoiceItems = () => data.documents.filter(d => d.type === 'facture' && d.status !== 'brouillon' && d.number && (!doc.clientId || d.clientId === doc.clientId || d.id === doc.creditOf)).sort(byNumberDesc).map(d => ({
       v: d.id, label: d.number, sub: nomClientPiece(d) + (d.subject ? ' — ' + d.subject : ''),
       right: C.money(C.computeTotals(d, company()).netToPay, docCur(d)),
       text: `${d.number} ${nomClientPiece(d)} ${d.subject || ''}`
@@ -6353,7 +6356,10 @@
       if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
         const sr = Number(bridge.seuilRetenue()) || 0;
         const corrigee = isAv && doc.creditOf ? docById(doc.creditOf) : null;
-        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+        // (1.379.6, issue 15 V-1) Une facture émise sans son seuil (née d'un contrat ou d'un lot) se juge avec le seuil du
+        // jour, comme le serveur l'a jugée : sinon l'écran lui prêtait une retenue, et son avoir était refusé à l'émission.
+        const jugee = corrigee && (corrigee.seuilRetenue == null || corrigee.seuilRetenue === '') && sr > 0 ? { ...corrigee, seuilRetenue: sr } : corrigee;
+        if (jugee && Number(C.computeTotals(jugee, company()).withholding) > 0) doc.seuilRetenue = 0;
         else if (sr > 0) doc.seuilRetenue = sr;
       }
       if (!figee && fabrique && bridge.tauxFodec) { const tf = Number(bridge.tauxFodec()) || 0; if (tf > 0) doc.fodecRate = tf; else delete doc.fodecRate; }
@@ -7939,6 +7945,7 @@
           projectCombo.setItems(items);
           if (doc.projectId && !items.some(x => x.v === doc.projectId)) { doc.projectId = ''; projectCombo.setValue('', true); }
         }
+        if (creditCombo && creditCombo.setItems) creditCombo.setItems(invoiceItems());
         majFicheClient();
         drawLines();
       }
@@ -7953,12 +7960,17 @@
         // (plateforme, lot débutant 2) Un avoir neuf qui choisit sa facture n'en reprenait ni les lignes ni l'objet : on
         // retapait à la main ce qu'on annulait (vu à la souris). Il les reprend comme « Créer un avoir… » sur la facture
         // (`creditDraftFrom`) — seulement tant qu'il n'a rien de saisi : une ligne tapée ne s'écrase jamais.
-        if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {
+        // (1.379.6, issue 15 V-2) Changer de facture gardait les lignes et l'objet de la première : tant qu'ils sont restés
+        // tels que repris (rien de retouché), ils suivent la nouvelle facture.
+        const intactes = !!lignesReprises && JSON.stringify(doc.lines) === lignesReprises;
+        if (inv && !figee && (intactes || !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice)))) {
           const modele = creditDraftFrom(inv);
+          if (intactes && doc.subject === objetRepris) doc.subject = '';
           doc.lines = modele.lines; doc.discountRate = modele.discountRate; doc.withholdingRate = modele.withholdingRate;
           const remise = $('input[name=discountRate]', head); if (remise) remise.value = modele.discountRate;
           const retenue = $('select[name=withholdingRate]', head); if (retenue) retenue.innerHTML = withholdingOptions(modele.withholdingRate);
-          if (!String(doc.subject || '').trim()) { doc.subject = modele.subject; const objet = $('input[name=subject]', head); if (objet) objet.value = modele.subject; }
+          if (!String(doc.subject || '').trim()) { doc.subject = modele.subject; objetRepris = modele.subject; const objet = $('input[name=subject]', head); if (objet) objet.value = modele.subject; }
+          lignesReprises = JSON.stringify(doc.lines);
           drawLines();
           toast(`Les lignes de ${inv.number} sont reprises : retire ou baisse ce que cet avoir n'annule pas.`);
         }
@@ -8095,7 +8107,7 @@
     };
     if (!charte && $('#cl-edit', head)) $('#cl-edit', head).onclick = ouvrirFicheClient;
     majFicheClient();
-    bindCombo($('[data-combo=creditOf]', head), { items: invoiceItems(), placeholder: '— Facture concernée —' });
+    creditCombo = bindCombo($('[data-combo=creditOf]', head), { items: invoiceItems(), placeholder: '— Facture concernée —' });
     function affaireLue() {
       const pr = doc.projectId ? projectById(doc.projectId) : null;
       return `<span id="lp-aff-v">${pr ? `<b>${h(pr.name)}</b>` : '<span class="muted">Aucune</span>'}</span> · <button type="button" class="lien-fl" id="lp-aff-b" data-etq="affaire" aria-haspopup="dialog" aria-expanded="false">${pr ? 'Changer' : 'Ranger dans une affaire'}</button><small class="muted"> · ne s'imprime pas</small>`;
@@ -8815,7 +8827,10 @@
       // Un restaurant ou un salon encaissent sur place : leur répéter à chaque facture qu'il manque
       // un RIB, c'est un avertissement qu'ils ne peuvent pas satisfaire — et on cesse de lire les
       // avertissements qu'on ne peut pas satisfaire.
-      if (isInv && C.ribAttendu(co) && !(co.rib || '').trim()) w.push('Aucun RIB n\'est renseigné : le client ne saura pas où virer le paiement.');
+      // (1.379.6, issue 15 V-9) Un métier qui encaisse sur place n'est pas réclamé… sauf quand la facture IMPRIME « Paiement
+      // par virement bancaire » : la phrase promettait un virement sans dire où, et rien ne le disait avant d'émettre.
+      const ditVirement = /virement|transfer/i.test(String((doc.lang === 'en' ? co.paymentTermsEn : co.paymentTerms) || ''));
+      if (isInv && !(co.rib || '').trim() && (C.ribAttendu(co) || ditVirement)) w.push(C.ribAttendu(co) ? 'Aucun RIB n\'est renseigné : le client ne saura pas où virer le paiement.' : 'La facture imprime « paiement par virement » sans RIB : ajoute ton RIB dans ta fiche, ou change la phrase des conditions de paiement (Réglages).');
       // Un RIB présent mais faux (rapport QA, 10.12.0) : il s'imprime dans le bloc « Règlement », et
       // un virement vers un compte qui n'existe pas revient des jours plus tard, ou ne revient pas.
       if (isInv && (co.rib || '').trim() && !C.verifRib(co.rib).ok) w.push(`Le RIB de ta fiche société semble faux — ${C.verifRib(co.rib).raison} Il s'imprime sur la facture : un virement vers un compte qui n'existe pas n'arrive jamais (Paramètres → Mon entreprise).`);
@@ -9438,7 +9453,7 @@
       }
       a.push({ titre: 'La pièce' });
       if (!emise) a.push({ icon: 'loupe', label: 'Aperçu en grand', hint: 'tel que le client le recevra', note: 'Ctrl P', run: () => apercuPleinEcran() });
-      a.push({ icon: 'pdf', label: 'PDF', hint: annulee ? 'avec la mention « annulée »' : emise ? 'tel que le client le reçoit' : 'marqué « brouillon » tant qu\'elle n\'est pas émise', run: parBouton('pdf') });
+      a.push({ icon: 'pdf', label: 'PDF', hint: annulee ? 'avec la mention « annulée »' : emise || (isQ && doc.status !== 'brouillon') ? 'tel que le client le reçoit' : isQ ? 'marqué « brouillon » tant qu\'il n\'est pas envoyé' : 'marqué « brouillon » tant qu\'elle n\'est pas émise', run: parBouton('pdf') });
       if ($('#dup')) a.push({ icon: 'copier', label: annulee ? 'Dupliquer en brouillon' : 'Dupliquer', hint: annulee ? 'pour refacturer, avec un nouveau numéro' : emise ? 'un brouillon, mêmes lignes' : 'un autre brouillon, mêmes lignes', run: parBouton('dup') });
       if ($('#as-template') && !annulee) a.push({ icon: 'etoile', label: 'Enregistrer comme modèle', hint: emise ? '' : 'pour les prochaines pièces', run: parBouton('as-template') });
       if (!emise && isInv && $('#make-recurring')) a.push({ icon: 'contrat', label: 'Rendre récurrente', hint: 'un contrat qui la refait chaque mois', run: parBouton('make-recurring') });
@@ -9457,7 +9472,11 @@
         a.push({ icon: 'facture', label: 'Créer un avoir', hint: peutCorriger ? 'corrige une partie' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? avoirSur(doc) : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
         a.push({ icon: 'non', label: 'Avoir total', hint: peutCorriger ? 'neutralise toute la facture' : 'propriétaire ou administrateur', off: !peutCorriger, run: () => peutCorriger ? avoirSur(doc, true) : toast('Un avoir se fait par le propriétaire ou un administrateur : demande-le-lui.', true) });
       }
-      if ($('#del')) { a.push({ sep: true }); a.push({ icon: 'supprimer', label: isNew ? 'Abandonner ce brouillon' : 'Supprimer le brouillon', hint: 'il n\'a pas de numéro : rien ne manque à la série', danger: true, run: parBouton('del') }); }
+      if ($('#del')) { a.push({ sep: true });
+        // (1.379.6, issue 15 V-8) Les phrases suivent l'état : un devis envoyé n'est pas « un brouillon sans numéro ».
+        const parti = isQ && !isNew && doc.status !== 'brouillon';
+        a.push({ icon: 'supprimer', label: isNew ? 'Abandonner ce brouillon' : parti ? 'Supprimer ce devis envoyé' : 'Supprimer le brouillon',
+          hint: parti ? 'le client l\'a reçu ; son numéro ne sera pas réutilisé' : doc.number ? 'son numéro ne sera pas réutilisé' : 'il n\'a pas de numéro : rien ne manque à la série', danger: true, run: parBouton('del') }); }
       RowMenu.ouvrir(bouton, a, { titre: doc.number || (isNew ? title : `${title}${doc.clientId ? ' · ' + ((clientById(doc.clientId) || {}).name || '') : ''}`), classe: 'gestes-menu', label: 'Tous les gestes de la pièce' });
     }
     // (plateforme, 1.166.1) Le bouton ouvre le menu de la charte : c'est lui qui dit s'il est ouvert (la liste cachée reste
@@ -10354,6 +10373,9 @@
     // l'annonce du solde, rapport QA E-02).
     const cl = clientById(quote.clientId);
     if (cl) inv.applyStamp = !cl.stampExempt;
+    // (1.379.6, issue 15 V-7) L'échéance de la facture tirée d'un devis suit le délai de la fiche du client, comme la facture
+    // tapée (1.362.0) : la pharmacie à 45 jours recevait son acompte et son solde à 30.
+    if (cl && inv.date) inv.dueDate = C.echeancePour(inv.date, cl, company());
     // (1.356.5) Le seuil de la retenue (`retenue.seuil`, lu au serveur) se pose ICI aussi, comme l'éditeur le pose sur un
     // brouillon de facture : sans lui, « Si le devis devient une facture » retenait 1 % d'un devis sous le seuil, et
     // l'acompte s'annonçait « 382,704 DT » pour une facture qui en fera 386,560. L'annonce et la pièce, un constructeur (E-02).
@@ -11491,7 +11513,7 @@
     }
 
     function tableau(l, toutes) {
-      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun client ne correspond à « ${h(s.q)} »` : 'Aucun client ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LC_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && peutEcrire ? `<button type="button" class="btn btn-primary" id="lc-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
+      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun client ne correspond à « ${h(s.q)} »` : 'Aucun client ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LC_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && peutEcrire ? `<button type="button" class="btn${s.f ? '' : ' btn-primary'}" id="lc-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn${s.f && s.q ? ' btn-primary' : ''}" id="lf-tout-revoir">${s.f && s.q ? 'Chercher dans tous les clients' : 'Tout revoir'}</button></span></div>`;
       const sorted = s.sort ? applySort(l, cols, s.sort) : l.slice().sort((a, b) => a.c.name.localeCompare(b.c.name, 'fr'));
       const paged = paginate(sorted, s);
       const somme = f => C.round3(sorted.reduce((a, r) => a + f(r), 0));
@@ -11552,7 +11574,8 @@
       $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
       const toutRevoir = () => { Object.assign(s, { q: '', f: '', page: 1, cur: -1 }); draw(); };
       if ($('#reset-f')) $('#reset-f').onclick = toutRevoir;
-      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = toutRevoir;
+      // (1.379.6, issue 15 V-6) Dans une vue restée active, on cherche d'abord partout : « Créer » fabriquait un doublon.
+      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = () => { if (s.f && s.q) { Object.assign(s, { f: '', page: 1, cur: -1 }); draw(); } else toutRevoir(); };
       if ($('#lc-creer')) $('#lc-creer').onclick = () => clientForm(null, () => render(true), { name: s.q.replace(/^./, x => x.toUpperCase()) });
       $$('tr.clickable[data-cid]', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button, input, a, label')) return; navigate('#/client/' + tr.dataset.cid); });
       $$('.lc-carte', w).forEach(b => b.onclick = () => navigate('#/client/' + b.dataset.cid));
@@ -15939,7 +15962,7 @@
     }
 
     function tableau(l, tout) {
-      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun fournisseur ne correspond à « ${h(s.q)} »` : 'Aucun fournisseur ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LFO_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && !roleLit ? `<button type="button" class="btn btn-primary" id="lfo-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
+      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun fournisseur ne correspond à « ${h(s.q)} »` : 'Aucun fournisseur ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LFO_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && !roleLit ? `<button type="button" class="btn${s.f ? '' : ' btn-primary'}" id="lfo-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn${s.f && s.q ? ' btn-primary' : ''}" id="lf-tout-revoir">${s.f && s.q ? 'Chercher dans tous les fournisseurs' : 'Tout revoir'}</button></span></div>`;
       const sorted = s.sort ? applySort(l, cols, s.sort) : l.slice().sort((a, b) => a.f.name.localeCompare(b.f.name, 'fr'));
       const paged = paginate(sorted, s);
       const somme = fn => C.round3(sorted.reduce((a, r) => a + fn(r), 0));
@@ -16007,7 +16030,8 @@
       $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
       const toutRevoir = () => { Object.assign(s, { q: '', f: '', page: 1, cur: -1 }); draw(); };
       if ($('#reset-f')) $('#reset-f').onclick = toutRevoir;
-      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = toutRevoir;
+      // (1.379.6, issue 15 V-6) Dans une vue restée active, on cherche d'abord partout : « Créer » fabriquait un doublon.
+      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = () => { if (s.f && s.q) { Object.assign(s, { f: '', page: 1, cur: -1 }); draw(); } else toutRevoir(); };
       if ($('#lfo-creer')) $('#lfo-creer').onclick = () => supplierForm(null, () => render(true), { name: s.q.replace(/^./, x => x.toUpperCase()) });
       $$('tr.clickable[data-sid]', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button, input, a, label')) return; navigate('#/fournisseur/' + tr.dataset.sid); });
       $$('.lc-carte', w).forEach(b => b.onclick = () => navigate('#/fournisseur/' + b.dataset.sid));

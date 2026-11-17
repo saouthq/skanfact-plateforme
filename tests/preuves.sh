@@ -9450,10 +9450,10 @@ prouver "l'essai ouvert en choisissant dans la liste que l'étape éclaire" web/
   "    if (!e || estFaire(e) || !ouvreEssai(t) || dansSaCase(e, t)) return;" "    if (!e || estFaire(e) || !ouvreEssai(t)) return;" \
   "$KN2"
 prouver "l'avoir neuf qui ne reprend pas les lignes de sa facture" modules/socle/ecrans/entreprise/app-1.js \
-  "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (false) {" \
+  "if (inv && !figee && (intactes || !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice)))) {" "if (false) {" \
   "$KN3"
 prouver "l'avoir qui écrase une ligne déjà tapée en choisissant sa facture" modules/socle/ecrans/entreprise/app-1.js \
-  "if (inv && !figee && !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice))) {" "if (inv && !figee) {" \
+  "if (inv && !figee && (intactes || !doc.lines.some(l => String(l.label || '').trim() || Number(l.unitPrice)))) {" "if (inv && !figee) {" \
   "$KN3"
 prouver "le bandeau d'une facture émise qui sort de l'écran" web/public/v10/style.css \
   ".colle-bulle > * { white-space: normal; }" "" \
@@ -28187,7 +28187,7 @@ prouver 'hotel 1.356.5 i : « Créer l'\''article » chez qui vend des prestatio
 # (1.356.6) Bout en bout 9 : l'avoir partiel sur une facture qui porte sa retenue.
 PS13566='l'\''avoir suit la retenue de sa facture, à l'\''écran et au serveur'
 prouver 'avoir 1.356.6 a : l'\''avoir partiel tombe sous le seuil à l'\''écran, sans sa part de retenue' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
+  '        if (jugee && Number(C.computeTotals(jugee, company()).withholding) > 0) doc.seuilRetenue = 0;
         else if (sr > 0) doc.seuilRetenue = sr;' '        if (sr > 0) doc.seuilRetenue = sr;' \
   "$PS13566"
 prouver 'avoir 1.356.6 b : le serveur juge le seuil sur l'\''avoir, pas sur sa facture' 'serveur/ventes/pieces.ts' \
@@ -30444,6 +30444,14 @@ prouver $'un texte manquant qui fait tomber le registre' web/console/src/ecrans/
   $'(r.valeurLue.connue ? sansTomber(() => titre(`${K}.r.nom.${cleDeRegle(r)}`), r.code) : r.code);' \
   $'(r.valeurLue.connue ? titre(`${K}.r.nom.${cleDeRegle(r)}`) : r.code);' \
   $'un texte qui manque montre le code de la règle'
+prouver $'V-1 1.379.6 a : le serveur ne garde plus son seuil de retenue sur la pièce' serveur/v10/dossier.ts \
+  $'...(seuilLu ? { seuilRetenue: Number(seuilLu.valeur) / 1000 } : {}),' \
+  $'' \
+  $'une facture sous le seuil, émise sans seuil posé par l\'écran, le garde ; le refus d\'écart écrit « 1073,190 »'
+prouver $'V-1 1.379.6 b : le refus d\'écart écrit ses montants avec un point' serveur/v10/dossier.ts \
+  $'const dit = (m: string) => `${m.replace(\'.\', \',\')} ' \
+  $'const dit = (m: string) => `${m} ' \
+  $'une facture sous le seuil, émise sans seuil posé par l\'écran, le garde ; le refus d\'écart écrit « 1073,190 »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

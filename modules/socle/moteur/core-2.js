@@ -3717,7 +3717,8 @@
     const days = delaiJours(targetType === 'devis' ? company.quoteValidityDays : company.paymentTermsDays, 30);
     const out = {
       ...copy, id: uid(), type: targetType, number: '', status: 'brouillon', date,
-      dueDate: ['facture', 'proforma', 'devis'].includes(targetType) ? addDays(date, Number(days) || 30) : '',
+      // (1.379.6, issue 15 V-7) Une facture ou une proforma prend le délai de la fiche du client, s'il en a un.
+      dueDate: ['facture', 'proforma'].includes(targetType) && client ? echeancePour(date, client, company) : ['facture', 'proforma', 'devis'].includes(targetType) ? addDays(date, Number(days) || 30) : '',
       createdAt: Date.now(), payments: [],
       applyStamp: targetType === 'facture' && !(client && client.stampExempt),
       withholdingRate: !PORTE_RETENUE.includes(targetType) ? 0

@@ -4733,3 +4733,25 @@ d'accord ; le test du code demandé par un cabinet couvre de nouveau l'exemple, 
 - Le rouge de GitHub sur la 1.379.4 : un import devenu inutile dans le test de l'entrée du Cabinet (lint).
 
 Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de la session).
+
+## 1.379.6 — l'avoir d'une facture à retenue (issue 15, V-1)
+
+- **Le bloquant** : un avoir sur une facture à retenue était refusé (« 210.987 à l'écran, 214.200 au serveur »). La facture
+  avait été émise sans que son seuil de retenue soit gardé sur la pièce : l'écran lui prêtait une retenue que le serveur
+  n'avait pas scellée, et l'avoir suivait l'écran.
+- Le serveur garde maintenant sur la pièce le seuil qu'il vient d'appliquer ; l'écran juge une facture d'avant avec le seuil
+  du jour, comme le serveur.
+- Le refus d'écart écrit ses montants comme l'écran : « 210,987 DT ».
+- À VÉRIFIER : une facture d'avant, sous le seuil et sans seuil gardé, affiche encore sa retenue à l'écran (son avoir, lui, passe).
+- **V-2** : un avoir dont le client est choisi ne propose plus que les factures de ce client ; changer de facture reprend
+  les lignes et l'objet de la nouvelle tant que rien n'a été retouché. À VÉRIFIER : pas encore rejoué à la souris avec deux clients.
+- **V-9** : une facture qui imprime « paiement par virement » sans RIB le dit avant d'émettre, même pour un métier qui
+  encaisse sur place ; « Compléter ma fiche… » propose alors le RIB.
+- **V-8** : le menu d'un devis envoyé dit « Supprimer ce devis envoyé — le client l'a reçu », et son PDF n'est plus dit
+  « brouillon ». La suppression reste possible (on ne bloque pas) : À VÉRIFIER si un geste « Annuler ce devis » est préférable.
+- **V-6** : dans une vue restée active, le geste principal d'une recherche vide est « Chercher dans tous les clients »
+  (ou fournisseurs) ; « Créer » passe au second plan, pour ne pas fabriquer un doublon.
+- Ces trois-là n'ont pas encore leur test propre ni leur preuve (les tests existants des écrans passent).
+- **V-7** : la facture tirée d'un devis (totale, acompte, solde, « Transformer ») prend le délai de paiement de la fiche du client.
+- **Rouges GitHub de la 1.379.5 réparés** : deux phrases de test (« Ton rôle au cabinet… »), le test des clients qui dépendait
+  du jour du mois, et le poids de la première ouverture (le dessin des codes QR se charge à la demande, docs/leger.md L13).

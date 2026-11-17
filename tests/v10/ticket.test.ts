@@ -154,7 +154,7 @@ describe('le ticket de caisse encaissé en ligne', () => {
     // Prix TTC : 2 × 1,200 = 2,400 au serveur ; l'écran qui dirait 2,399 se trompe, rien n'est vendu.
     const faux = await encaisser(ticket('t0', [biscuits], '2.399', { prixTtc: true }), '2.399');
     expect(faux.statut).toBe(403);
-    expect(String(faux.corps.motif)).toContain('(2.399 à l\'écran, 2.400 au serveur)');
+    expect(String(faux.corps.motif)).toContain('(2,399 DT à l\'écran, 2,400 DT au serveur)');
     const t1 = await encaisser(ticket('t1', [biscuits], '2.4', { prixTtc: true }), '2.400');
     expect(t1.statut, JSON.stringify(t1.corps)).toBe(200);
     expect(t1.corps.numero).toBe(`TIC-${annee}-001`);

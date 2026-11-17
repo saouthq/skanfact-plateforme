@@ -232,6 +232,15 @@ GitHub a mesuré S1 à **1 301 Ko** sur la 1.360.1, et la 1.361.0 et la 1.362.0 
 - **Mesuré** : S1 **1 292 Ko en 14,3 s** (1 293 Ko avec la copie gardée ; 1 302 Ko avant) ; S2 7 Ko en 1,7 s.
 - **La marge est de 8 Ko** : la prochaine version qui ajoute du code au premier écran se mesure avant d'être envoyée.
 
+## L13 : le dessin des codes QR à la demande (17/11/2026, 1.379.6)
+
+GitHub a mesuré S1 à **1 301 Ko** sur la 1.379.5 (1 303 Ko avec la 1.379.6). On prend le levier gardé en réserve :
+
+- **`tiers/qrcode.js`** (10 Ko) ne part plus avec la page de l'entreprise. `qr.js` le charge (`SkanQr.charger`) dans deux
+  cas : une pièce du dossier porte un QR de la TTN (à l'ouverture), ou l'on pose une application d'authentification
+  (`compte.js`, le QR paraît dès que le dessin est là ; la clé à taper est toujours affichée).
+- Le Cabinet et l'espace client le chargent encore avec leur page.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

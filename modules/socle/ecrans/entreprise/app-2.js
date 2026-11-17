@@ -11120,6 +11120,8 @@
     security.encrypted = !!(loaded && loaded.encrypted);
     if (loaded && loaded.locked) raw = await showLockScreen();
     data = migrate(raw);
+    // (1.379.6, docs/leger.md L13) Le dessin des codes QR ne se charge que si une pièce porte un QR de la TTN.
+    if (window.SkanQr && window.SkanQr.charger && (data.documents || []).some(d => d && d.ttn && d.ttn.reference)) window.SkanQr.charger();
     if (raw && (raw.version || 1) < 3) save(true); // données migrées vers le nouveau format : on enregistre tout de suite
     // Le jeu d'exemple se refait tout seul quand l'application a changé de version, ou quand on a
     // changé de mois (9.4.2) : personne ne pense à l'effacer puis à le recharger, et un exemple

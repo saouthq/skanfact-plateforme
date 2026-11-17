@@ -20,6 +20,7 @@ import { REGLEMENTS_VENTES, tenirReglements } from '../reglements.ts';
 import { annoncerReglements, resteAvant } from '../ventes/annonces.ts';
 import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
+import { regle } from '../regles.ts';
 import { controlerCommandes, controlerEncours, controlerReceptions, controlerRemise } from './accords.ts';
 import { archiveVisible, mesRoles, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
@@ -514,7 +515,17 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // Deux chemins, un chiffre : le net à payer que l'écran de la v10 a montré doit être celui que le
   // serveur scelle. Sinon rien n'est émis (et aucun numéro n'est pris : tout s'annule).
   const serveur = versTexte(r.totaux.netAPayer, r.devise.decimales);
-  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw new Refus('v10.ecart_montant', { valeurs: { ecran: demande.netAPayer, serveur } });
+  // (1.379.6, issue 15 V-1) Les deux montants du refus se lisent comme sur l'écran : « 210,987 DT », jamais « 210.987 ».
+  const dit = (m: string) => `${m.replace('.', ',')} ${r.devise.code === 'TND' ? 'DT' : r.devise.code}`;
+  if (demande.netAPayer !== null && serveur !== demande.netAPayer) throw new Refus('v10.ecart_montant', { valeurs: { ecran: dit(demande.netAPayer), serveur: dit(serveur) } });
+  // (1.379.6, issue 15 V-1) Le seuil de retenue que le serveur vient d'appliquer est gardé SUR la pièce du dossier quand
+  // l'écran ne l'y avait pas posé (une facture née d'un contrat, d'un lot, ou ouverte avant que les règles soient lues) :
+  // sans lui, l'écran montrait une retenue que le serveur n'a pas scellée, et l'avoir de cette facture était refusé
+  // (« 210,987 à l'écran, 214,200 au serveur »).
+  const sansSeuil = doc.seuilRetenue === undefined || doc.seuilRetenue === null || doc.seuilRetenue === '';
+  const horsTimbre = r.totaux.netHT + r.totaux.fodec + r.totaux.totalTVA;
+  const sousLeSeuil = sansSeuil && (type === 'facture' || type === 'avoir') && Number(nombreEnTexte(doc.withholdingRate ?? 0)) > 0 && r.totaux.retenue === 0n && horsTimbre > 0n;
+  const seuilLu = sousLeSeuil ? await regle(tx, entreprise, 'retenue.seuil', String(doc.date ?? '')) : null;
 
   // 5. La pièce du dossier devient émise, avec le numéro du serveur.
   // L'instant de l'émission (`issuedTs`), la v10 le pose elle-même juste après, comme avant.
@@ -531,6 +542,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     return doc.export === true && Number(nombreEnTexte(figee.vatRate)) !== 0 ? { ...figee, vatRate: 0 } : figee;
   });
   const contenu = { ...doc, ...(Array.isArray(doc.lines) ? { lines: lignesFigees } : {}), number: r.numero, status: STATUT_EMISE[type], stampFee: enNombreV10(versTexte(r.totaux.timbreBase, 3)),
+    ...(seuilLu ? { seuilRetenue: Number(seuilLu.valeur) / 1000 } : {}),
     // La pièce émise avec un accord porte les deux noms (03 D11).
     ...(accord ? { accordEncours: accord } : {}), ...(accordRemise ? { accordRemise } : {}) };
   // 6. Le fichier de la facture électronique, écrit maintenant et gardé (jamais réécrit) ; ses montants

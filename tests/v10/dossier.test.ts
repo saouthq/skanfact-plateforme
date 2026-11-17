@@ -142,7 +142,7 @@ describe('le dossier v10 tenu par le serveur', () => {
     // un autre chiffre (1 073,180) : refusé, rien d'émis, aucun numéro pris.
     const ecart = await emettre('1073.180', 1);
     expect(ecart).toMatchObject({ statut: 403 });
-    expect(String(ecart.corps.motif)).toContain('1073.180 à l\'écran, 1073.190 au serveur');
+    expect(String(ecart.corps.motif)).toContain('1073,180 DT à l\'écran, 1073,190 DT au serveur');
     expect((await admin.query('select count(*)::int n from ventes.piece where entreprise = $1', [e.ent])).rows[0].n).toBe(0);
     const ok = await emettre('1073.190', 1);
     expect(ok).toMatchObject({ statut: 200, corps: { numero: 'FAC-2026-001', revision: 2, contenu: { number: 'FAC-2026-001', status: 'envoyée', stampFee: 1 } } });
@@ -429,7 +429,7 @@ describe('le dossier v10 tenu par le serveur', () => {
     const emettre = (id: string, regle: object, net: string, rang: number) => appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: piece(id, regle), client: client.contenu, revision: 1, rang, netAPayer: net });
     await e.envoyer([{ collection: 'documents', cle: 'g2', rang: 0, revision: null, contenu: piece('g2', { calcul: 2 }) }, { collection: 'documents', cle: 'g1', rang: 1, revision: null, contenu: piece('g1', {}) }]);
     // Règle 2 : 5,050 de HT net, 0,960 de TVA (19 % de 5,050), 1 de timbre. La règle de la v10 dirait 7,050 : refusé.
-    expect((await emettre('g2', { calcul: 2 }, '7.050', 0)).corps.motif).toMatch(/7\.010/);
+    expect((await emettre('g2', { calcul: 2 }, '7.050', 0)).corps.motif).toMatch(/7,010 DT/);
     const r2 = await emettre('g2', { calcul: 2 }, '7.010', 0);
     expect(r2.statut).toBe(200);
     // Une pièce d'avant (sans règle) : la TVA arrondie ligne à ligne, comme la v10 l'a toujours émise.

@@ -245,7 +245,11 @@ describe('les clients 1.309.0 : leurs fiches et leurs comptes', () => {
     await agee.waitFor({ timeout: 15_000 });
     const rangee = async (tiers: string) => (await agee.locator('tbody tr').filter({ hasText: tiers }).first().evaluate((tr) => [...tr.children].map((td) => (td.textContent || '').replace(/\s+/g, ' ').trim())));
     // Pas encore échu · 1 à 30 · 31 à 60 · 61 à 90 · plus de 90 · total. L'avoir d'aujourd'hui se déduit du « pas encore échu ».
-    expect(await rangee('Bâtir Plus SARL')).toEqual(['Bâtir Plus SARL', '2 124,555 DT', '5 558,467 DT', '', '', '', '7 683,022 DT']);
+    // (1.379.6) L'avoir se déduit de la tranche de SA facture : selon le jour du mois où le test tourne, elle est « pas encore
+    // échue » ou « 1 à 30 jours ». Les deux partages sont justes ; le total et les tranches vides ne bougent pas.
+    const batir = await rangee('Bâtir Plus SARL');
+    expect([['2 124,555 DT', '5 558,467 DT'], ['2 317,930 DT', '5 365,092 DT']]).toContainEqual(batir.slice(1, 3));
+    expect([batir[0], ...batir.slice(3)]).toEqual(['Bâtir Plus SARL', '', '', '', '7 683,022 DT']);
     expect(await rangee('Atelier Provence SARL')).toEqual(['Atelier Provence SARL', '2 848,505 DT', '', '', '', '', '2 848,505 DT']);
     expect(await rangee('Hôtel Marhaba')).toEqual(['Hôtel Marhaba', '', '', '', '', '1 064,860 DT', '1 064,860 DT']);
     await c.screenshot({ path: path.join(PHOTOS, 'clients-1309-h-agee.png') });

@@ -25,8 +25,19 @@
     }
     return '';
   }
+  // (1.379.6, docs/leger.md L13) Le dessin des codes QR (10 Ko) ne part plus avec la page de l'entreprise : il se charge
+  // à la première pièce qui porte un QR de la TTN, ou à la pose d'une application d'authentification (compte.js).
+  const ici = /** @type {HTMLScriptElement | null} */ (document.currentScript);
+  /** @type {Promise<void> | null} */
+  let enCours = null;
+  const charger = () => typeof w.qrcode === 'function' ? Promise.resolve() : (enCours = enCours || new Promise((ok) => {
+    const s = document.createElement('script');
+    s.src = ici && ici.src ? ici.src.replace(/plateforme\/qr\.js.*$/, 'tiers/qrcode.js') : '../tiers/qrcode.js';
+    s.onload = () => ok(); s.onerror = () => { enCours = null; ok(); };
+    document.head.appendChild(s);
+  }));
   // Le moteur se branche dès qu'il est là (l'application le charge après ce fichier, l'espace client avant).
   const brancher = () => { if (w.SkanCore) w.SkanCore.qrImage = qrImage; };
-  w.SkanQr = { qrImage, brancher };
+  w.SkanQr = { qrImage, brancher, charger };
   brancher();
 })();

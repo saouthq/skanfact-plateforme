@@ -131,7 +131,7 @@ describe('les écritures par tableur', () => {
     const corrigee = od('2026-04-05', 'OD-9', [['6132', '550,750', ''], ['532', '', '550,750']]);
     const corriger = (p: Personne, id: string, corps: unknown) => appeler('POST', `/entreprises/${d.ent}/compta/ecritures/${id}/corriger`, p.jeton, corps);
 
-    expect((await corriger(d.assistant, v, { date: '2026-04-30', ecriture: corrigee })).corps.motif).toMatch(/^Ton rôle \(Assistant de saisie\) ne permet pas de valider/);
+    expect((await corriger(d.assistant, v, { date: '2026-04-30', ecriture: corrigee })).corps.motif).toMatch(/^Ton rôle au cabinet \(Assistant de saisie\) ne permet pas de valider/);
     const r = await corriger(d.collaborateur, v, { date: '2026-04-30', ecriture: corrigee });
     expect(r.statut, JSON.stringify(r.corps)).toBe(201);
     expect(r.corps.miroir).toMatchObject({ date: '2026-04-30' });

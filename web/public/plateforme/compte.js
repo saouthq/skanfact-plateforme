@@ -364,6 +364,8 @@
         <p class="small cpt-alerte" role="alert"></p>`;
         const dire = (/** @type {string} */ t) => { const a = racine.querySelector('[role=alert]'); if (a) a.textContent = t; };
         brancherSecours(racine, r.codesDeSecours, dire);
+        // (1.379.6, docs/leger.md L13) Le dessin des codes QR se charge à cette étape, s'il n'est pas déjà là.
+        if (typeof w.qrcode !== 'function' && w.SkanQr && w.SkanQr.charger) w.SkanQr.charger().then(() => { const z = racine.querySelector('.cpt-qr-image'); if (z && !z.innerHTML) z.innerHTML = qr(r.adresseApplication); });
         /** @type {HTMLElement} */ (racine.querySelector('#cpt-copier-cle')).onclick = async () => { dire(await copier(r.cle) ? 'Clé copiée.' : 'Ton navigateur refuse la copie : tape-la à la main.'); };
         /** @type {HTMLElement} */ (racine.querySelector('[data-close-code]')).onclick = () => fermer();
         surClic(racine, '#cpt-ok', async () => {
