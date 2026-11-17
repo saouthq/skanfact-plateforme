@@ -569,9 +569,10 @@ describe('les cabinets', () => {
     const f = await appeler('GET', `/console/cabinets/${cabinet}`, jS);
     expect(f.statut).toBe(200);
     // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes, son abonnement (0172 : ce
-    // qu'il paie, compté, jamais le nom d'un dossier) ; rien d'autre.
+    // qu'il paie, compté, jamais le nom d'un dossier ; 0220 : ce que la console lui a posé, ses règles, les gestes
+    // possibles et leur histoire) ; rien d'autre.
     expect(Object.keys(f.corps).sort()).toEqual(['abonnement', 'aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
-    expect(Object.keys(f.corps.abonnement as object).sort()).toEqual(['depuis', 'etat', 'factures', 'payants', 'payeJusquAu', 'prochaine', 'refus', 'tenus']);
+    expect(Object.keys(f.corps.abonnement as object).sort()).toEqual(['depuis', 'etat', 'factures', 'faveur', 'gestes', 'histoire', 'payants', 'payeJusquAu', 'prochaine', 'refus', 'regles', 'tenus']);
     expect(Object.keys((f.corps.collaborateurs as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
     expect(f.corps.comptes).toEqual(ligne?.comptes);
     const dossiers = f.corps.dossiers as { place: string; mandat: { statut: string } | null; entreprise: { id: string; raisonSociale: string; etat: unknown } }[];

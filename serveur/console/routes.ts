@@ -87,6 +87,9 @@ import './textes.ts';
 const uuid = z.string().uuid();
 const REGLES_BRANCHEES = new Set(REGLES.filter((r) => r.branchee).map((r) => r.id));
 const motifGeste = z.string().trim().min(3, 'console.motif_requis').max(500);
+// Les gestes de la console sur l'abonnement d'un cabinet (0220) : la liste que la base connaît.
+const GESTES_CABINET = ['gratuits', 'gratuits-retirer', 'offrir', 'retirer-offert', 'delai', 'reporter', 'reporter-retirer', 'suspendre', 'reprendre',
+  'prix', 'prix-retirer', 'plafond', 'plafond-retirer'] as const;
 // L'instant d'une version lue (l'audit 1.42.0, A03), tel que la base l'a rendu : on le lui rend tel quel.
 const instantLu = z.string().max(40).refine((x) => Number.isFinite(Date.parse(x)));
 const LIMITE_MAX = 200;
@@ -2058,6 +2061,31 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       await transaction(tx).query('select plateforme.console_retirer_regle_cabinet($1, $2::date, $3, $4, $5::date)',
         [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
+    },
+  });
+  // Un geste sur l'abonnement d'UN cabinet (1.380.0 ; 0220) : ses dossiers gratuits, l'offert, un délai, un report, la
+  // suspension, son prix et son plafond. La direction seule ; la base vérifie tout et écrit le journal. Un nombre de
+  // dossiers se tape en entier, un montant en dinars, une date de fin se choisit au calendrier (facultative pour les
+  // gratuits et l'offert).
+  ajouter({
+    methode: 'POST', chemin: '/console/cabinets/:id/abonnement', geste: 'console.abonnement.gerer',
+    corps: z.object({ geste: z.enum(GESTES_CABINET), valeur: z.string().max(40).optional(), jusquAu: z.string().max(10).optional(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const instant = maintenant();
+      let valeur: bigint | null = null;
+      if (corps.geste === 'gratuits' || corps.geste === 'prix' || corps.geste === 'plafond') {
+        const argent = corps.geste !== 'gratuits';
+        const v = (corps.valeur ?? '').replace(/\s/g, '');
+        valeur = argent ? prixTape(v) : /^\d{1,4}$/.test(v) ? BigInt(v) : null;
+        if (valeur === null || (argent && valeur <= 0n)) return refusDuChamp('valeur', argent ? 'console.reglages.prix_illisible' : 'console.reglages.nombre_illisible');
+      }
+      const jusquAu = corps.jusquAu?.trim() || null;
+      if (jusquAu !== null && (!/^\d{4}-\d{2}-\d{2}$/.test(jusquAu) || !jourExiste(jusquAu))) return refusDuChamp('jusquAu', 'console.reglages.jour_illisible');
+      const etat = await lireJson(transaction(tx), 'select plateforme.console_geste_cabinet($1, $2, $3::bigint, $4::date, $5, $6, $7::date) v',
+        [id, corps.geste, valeur === null ? null : valeur.toString(), jusquAu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true, etat } };
     },
   });
   // L'essai, la grâce ou les relances (0104) : une règle nouvelle, qui vaut dès aujourd'hui. La base vérifie les bornes.

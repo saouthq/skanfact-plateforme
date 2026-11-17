@@ -7,9 +7,9 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, puceDe, type Etat, type Faits } from '../abonnement.ts';
 import { montant } from '../argent.ts';
-import { useLecture } from '../contexte.ts';
+import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
-import { Alerte, Avatar, Bouton, feuilleter, Icone, Lien, maj, Puce, useFeuillets, Vide } from '../ui.tsx';
+import { Alerte, Avatar, Bouton, Champ, Dialogue, feuilleter, Icone, Lien, maj, Puce, toast, useFeuillets, Vide, Zone } from '../ui.tsx';
 import { PLACES, type Place } from './Cabinets.tsx';
 
 type Mandat = { statut: 'propose' | 'actif'; debut: string } | null;
@@ -21,10 +21,20 @@ type Collaborateur = { nom: string; email: string; roles: string[]; depuis: stri
 // Son abonnement (lot 3 ; 0172, docs/abonnement.md C22), pour la direction et le support (la technique ne le lit pas) :
 // l'état, ses dossiers tenus et payants, la prochaine facture (le calcul de la facture), ses factures, et le refus de la
 // période qui court. Les montants en millimes (texte).
-type EtatCabinet = { etat: 'gratuit' | 'a_facturer' | 'a_payer' | 'actif' | 'lecture_seule'; echeance?: string; lectureSeuleLe?: string | null; jusquAu?: string; depuis?: string };
+type EtatCabinet = { etat: 'gratuit' | 'a_facturer' | 'a_payer' | 'actif' | 'lecture_seule'; echeance?: string; lectureSeuleLe?: string | null; jusquAu?: string; depuis?: string;
+  raison?: 'suspendu'; offert?: boolean; reporteAu?: string };
+// Ce que la console a posé pour CE cabinet (1.380.0 ; 0220), et les gestes que le rôle de qui regarde peut faire.
+export const GESTES_CABINET = ['gratuits', 'gratuits-retirer', 'offrir', 'retirer-offert', 'delai', 'reporter', 'reporter-retirer', 'suspendre', 'reprendre',
+  'prix', 'prix-retirer', 'plafond', 'plafond-retirer'] as const;
+export type GesteCabinet = typeof GESTES_CABINET[number];
+type Faveur = { gratuits?: number; gratuitsJusquAu?: string; offert?: boolean; offertJusquAu?: string; delaiJusquAu?: string; sansFactureAvant?: string;
+  suspenduLe?: string; prixHt?: string; plafondHt?: string };
+type ReglesCab = { gratuits: number | null; prixHt: string | null; plafondHt: string | null; gratuitsDeTous: number | null; prixDeTousHt: string | null; plafondDeTousHt: string | null };
+type GesteFait = { le: string; geste: string; motif: string; qui: string | null };
 type FactureCabinet = { debut: string; fin: string; echeance: string; montantHt: string; numero: string | null; net: string | null; reste: string | null; payeeLe: string | null; dossiers: number; rattrapes: number };
 type AbonnementCabinet = { etat: EtatCabinet; depuis: string | null; payeJusquAu: string | null; tenus: number; payants: number;
-  prochaine: { debut: string; totalHt: string; plafonne: boolean } | null; factures: FactureCabinet[]; refus: string | null };
+  prochaine: { debut: string; totalHt: string; plafonne: boolean } | null; factures: FactureCabinet[]; refus: string | null;
+  faveur?: Faveur; regles?: ReglesCab; gestes?: GesteCabinet[]; histoire?: GesteFait[] };
 type Donnees = { aujourdhui: string; id: string; nom: string; creeLe: string; collaborateurs: Collaborateur[]; dossiers: Dossier[]; comptes: Record<Place, number>;
   abonnement?: AbonnementCabinet | null };
 // Des millimes (« 60000 ») en dinars (« 60.000 ») pour `montant`, sans passer par un nombre à virgule.
@@ -136,7 +146,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
         </div>
         <div className="c-bandeau-paie">
           {a ? <>
-            <b>{phrase(`${K}.ab.ligne.${a.etat.etat}`, { echeance: jourCourt(a.etat.echeance ?? ''), depuis: jourCourt(a.etat.depuis ?? ''), jusquAu: jourCourt(a.etat.jusquAu ?? '') })}</b>
+            <b>{phrase(`${K}.ab.ligne.${a.etat.raison === 'suspendu' ? 'suspendu' : a.etat.offert ? 'offert' : a.etat.etat}`, { echeance: jourCourt(a.etat.echeance ?? ''), depuis: jourCourt(a.etat.depuis ?? ''), jusquAu: jourCourt(a.etat.jusquAu ?? '') })}</b>
             <span>{phrase(`${K}.ab.sous`, { payants: selon(a.payants, `${K}.ab.payants`), tenus: selon(a.tenus, `${K}.ab.tenus`) })}</span>
           </> : <>
             <b>{phrase(`${K}.paie_ligne`)}</b>
@@ -160,7 +170,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
             {blocPlace('tenu')}
           </div>
           {parPlace('en_attente').length ? blocPlace('en_attente', true) : null}
-          {a ? <SonAbonnement a={a} aujourdhui={c.aujourdhui} /> : null}
+          {a ? <SonAbonnement a={a} aujourdhui={c.aujourdhui} cabinet={c.id} nom={c.nom} relire={relire} /> : null}
           <div className="c-note c-note-titree">
             <Icone nom="cache" />
             <div><b>{titre(`${K}.jamais_titre`)}</b><span>{phrase(`${K}.contenu`)}</span></div>
@@ -299,8 +309,47 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
 
 // Son abonnement, sur l'aperçu : la prochaine facture, ses factures (la plus récente d'abord) et le refus de la période
 // qui court. Les dossiers se comptent, ils ne se nomment pas (la facture non plus).
-function SonAbonnement({ a, aujourdhui }: { a: AbonnementCabinet; aujourdhui: string }) {
+function SonAbonnement({ a, aujourdhui, cabinet, nom, relire }: { a: AbonnementCabinet; aujourdhui: string; cabinet: string; nom: string; relire: () => void }) {
+  const [geste, setGeste] = useState<GesteCabinet | null>(null);
+  const f = a.faveur ?? {}, r = a.regles ?? null, gestes = a.gestes ?? [];
+  // Ce qu'il a reçu, une ligne par faveur qui court ; rien : il suit la règle de tout le monde.
+  const recu: string[] = [
+    ...(f.suspenduLe ? [phrase(`${K}.fv.suspendu`, { le: jourCourt(f.suspenduLe) })] : []),
+    ...(f.offert ? [phrase(f.offertJusquAu ? `${K}.fv.offert_jusqu` : `${K}.fv.offert`, { le: jourCourt(f.offertJusquAu ?? '') })] : []),
+    ...(f.gratuits !== undefined ? [phrase(f.gratuitsJusquAu ? `${K}.fv.gratuits_jusqu` : `${K}.fv.gratuits`, { n: String(f.gratuits), le: jourCourt(f.gratuitsJusquAu ?? ''), tous: String(r?.gratuitsDeTous ?? '—') })] : []),
+    ...(f.delaiJusquAu ? [phrase(`${K}.fv.delai`, { le: jourCourt(f.delaiJusquAu) })] : []),
+    ...(f.sansFactureAvant ? [phrase(`${K}.fv.reporte`, { le: jourCourt(f.sansFactureAvant) })] : []),
+    ...(f.prixHt ? [phrase(`${K}.fv.prix`, { montant: montant(enDinars(f.prixHt)), tous: r?.prixDeTousHt ? montant(enDinars(r.prixDeTousHt)) : '—' })] : []),
+    ...(f.plafondHt ? [phrase(`${K}.fv.plafond`, { montant: montant(enDinars(f.plafondHt)), tous: r?.plafondDeTousHt ? montant(enDinars(r.plafondDeTousHt)) : '—' })] : []),
+  ];
   return (
+    <>
+    {a.gestes ? (
+      <section className="c-carte c-cab-place c-cab-place-large c-cab-faveur" aria-labelledby="cab-faveur">
+        <div className="c-cab-place-tete">
+          <h2 id="cab-faveur">{titre(`${K}.fv.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.fv.sous`, { gratuits: String(r?.gratuits ?? '—'), prix: r?.prixHt ? montant(enDinars(r.prixHt)) : '—' })}</p>
+        </div>
+        {recu.length ? <ul className="c-cab-lignes c-cab-faveurs">{recu.map((t) => <li key={t}><span data-donnee>{t}</span></li>)}</ul>
+          : <p className="c-cab-place-vide">{phrase(`${K}.fv.rien`)}</p>}
+        {gestes.length ? (
+          <div className="c-cab-gestes" role="group" aria-label={titre(`${K}.fv.gestes`)}>
+            {gestes.map((g) => <Bouton key={g} petit ton={g === 'suspendre' ? 'danger' : 'secondaire'} onClick={() => setGeste(g)}>{titre(`${K}.gc.${g}.bouton`)}</Bouton>)}
+          </div>
+        ) : <p className="c-cab-place-vide">{phrase(`${K}.fv.direction`)}</p>}
+        {a.histoire?.length ? (
+          <ul className="c-cab-lignes c-cab-histoire">
+            {a.histoire.map((h) => (
+              <li key={`${h.le}${h.geste}`}>
+                <span><b>{maj(dire(`console.ecran.journal.g.${h.geste.replaceAll('-', '_')}`))}</b>{' '}<span className="c-sous" data-donnee>« {h.motif} »</span></span>
+                <span className="c-cab-ligne-droite"><span data-donnee>{h.qui ?? '—'}</span><span>{jourCourt(jourDe(h.le))}</span></span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+    ) : null}
+    {geste ? <FenetreGeste geste={geste} cabinet={cabinet} nom={nom} a={a} aujourdhui={aujourdhui} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
     <section className="c-carte c-cab-place c-cab-place-large c-cab-abonnement" aria-labelledby="cab-abonnement">
       <div className="c-cab-place-tete">
         <h2 id="cab-abonnement">{titre(`${K}.ab.titre`)}</h2>
@@ -330,5 +379,73 @@ function SonAbonnement({ a, aujourdhui }: { a: AbonnementCabinet; aujourdhui: st
         </ul>
       ) : <p className="c-cab-place-vide">{phrase(`${K}.ab.aucune`)}</p>}
     </section>
+    </>
+  );
+}
+
+// Un geste sur l'abonnement de ce cabinet : ce qu'il change (dit avant), sa valeur ou sa date quand il en demande, et le
+// motif. La base vérifie tout ; un refus se lit dans la fenêtre.
+const AVEC_VALEUR: readonly GesteCabinet[] = ['gratuits', 'prix', 'plafond'];
+const AVEC_DATE: readonly GesteCabinet[] = ['gratuits', 'offrir', 'delai', 'reporter'];
+const DATE_OBLIGEE: readonly GesteCabinet[] = ['delai', 'reporter'];
+function FenetreGeste({ geste, cabinet, nom, a, aujourdhui, fermer, fait }: { geste: GesteCabinet; cabinet: string; nom: string; a: AbonnementCabinet; aujourdhui: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [valeur, setValeur] = useState('');
+  const [date, setDate] = useState('');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const G = `${K}.gc.${geste}`;
+  const veutValeur = AVEC_VALEUR.includes(geste), veutDate = AVEC_DATE.includes(geste), argent = geste === 'prix' || geste === 'plafond';
+  const demain = (() => { const d = new Date(`${aujourdhui}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10); })();
+  const refuser = (champ: string, cle: string) => { setRefus(phrase(cle)); setFaute((x) => ({ champ, n: (x?.n ?? 0) + 1 })); };
+  const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
+  const faire = () => {
+    const v = valeur.replace(/\s/g, '');
+    if (veutValeur && !(argent ? /^\d{1,9}([.,]\d{1,3})?$/.test(v) && Number(v.replace(',', '.')) > 0 : /^\d{1,4}$/.test(v))) { refuser('valeur', `${K}.gc.illisible.${argent ? 'argent' : 'nombre'}`); return; }
+    if (veutDate && DATE_OBLIGEE.includes(geste) && !date) { refuser('date', `${K}.gc.date_requise`); return; }
+    if (veutDate && date && date < demain) { refuser('date', `${K}.gc.date_passee`); return; }
+    if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', `/console/cabinets/${encodeURIComponent(cabinet)}/abonnement`,
+          { geste, ...(veutValeur ? { valeur: v } : {}), ...(veutDate && date ? { jusquAu: date } : {}), motif: motif.trim() });
+        if (!r) return;
+        if (r.statut === 200) { toast(phrase(`${G}.fait`, { nom })); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const tous = a.regles;
+  const avant = geste === 'gratuits' ? String(tous?.gratuitsDeTous ?? '—') : geste === 'prix' ? (tous?.prixDeTousHt ? montant(enDinars(tous.prixDeTousHt)) : '—')
+    : geste === 'plafond' ? (tous?.plafondDeTousHt ? montant(enDinars(tous.plafondDeTousHt)) : '—') : '';
+  return (
+    <Dialogue titre={titre(`${G}.titre`)} sous={nom} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton={geste === 'suspendre' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>{titre(`${G}.ok`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>
+          <li>{phrase(`${G}.dit`)}</li>
+          <li>{phrase(`${K}.gc.facture_emise`)}</li>
+        </ul>
+      </div>
+      {veutValeur || veutDate ? (
+        <div className="c-rg-dates">
+          {veutValeur ? <Champ libelle={titre(`${G}.valeur`)} inputMode={argent ? 'decimal' : 'numeric'} autoComplete="off" valeur={valeur} changer={setValeur} premier
+            {...fauteDe('valeur')} aide={phrase(`${K}.gc.valeur_aide`, { avant })} /> : null}
+          {veutDate ? <Champ libelle={titre(DATE_OBLIGEE.includes(geste) ? `${K}.gc.date` : `${K}.gc.date_facultative`)} type="date" min={demain} valeur={date} changer={setDate}
+            premier={!veutValeur} {...fauteDe('date')} aide={phrase(DATE_OBLIGEE.includes(geste) ? `${G}.date_aide` : `${K}.gc.date_aide`)} /> : null}
+        </div>
+      ) : null}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.gc.motif_aide`)} valeur={motif} changer={setMotif} premier={!veutValeur && !veutDate} {...fauteDe('motif')} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
   );
 }

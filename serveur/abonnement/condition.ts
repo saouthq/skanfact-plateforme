@@ -126,8 +126,10 @@ export async function refuserSiLectureSeule(tx: Transaction, entreprise: string,
 // jamais touchés. Tout se lit, s'imprime, s'exporte : une lecture ne passe jamais ici.
 export const OUVERT_DOSSIER_TENU_BLOQUE: ReadonlySet<string> = new Set(['messagerie.ecrire', 'support.ecrire', 'socle.sauvegardes.demander']);
 export async function refusDuDossierTenu(tx: Transaction, entreprise: string, jour = aujourdhuiATunis()): Promise<{ motif: Texte; bouton: string } | null> {
-  const depuis = (await tx.query('select plateforme.dossier_tenu_bloque_depuis($1, $2::date) d', [entreprise, jour])).rows[0]?.d as string | null | undefined;
-  return depuis ? { motif: motif('abonnement.cabinet.lecture_seule', { depuis: jourEnFrancais(depuis) }), bouton: 'compte.cabinet.gerer' } : null;
+  // (1.380.0 ; 0220) Un cabinet que SkanFact a suspendu ne se voit pas dire « règle ta facture ».
+  const b = (await tx.query('select plateforme.dossier_tenu_bloque($1, $2::date) b', [entreprise, jour])).rows[0]?.b as { depuis: string; raison?: string } | null | undefined;
+  if (!b) return null;
+  return { motif: motif(b.raison === 'suspendu' ? 'abonnement.cabinet.suspendu' : 'abonnement.cabinet.lecture_seule', { depuis: jourEnFrancais(b.depuis) }), bouton: 'compte.cabinet.gerer' };
 }
 
 // Branchée une fois, par l'application (serveur/app.ts) : tout serveur la porte.

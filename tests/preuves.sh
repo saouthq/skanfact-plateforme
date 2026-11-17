@@ -1849,10 +1849,10 @@ prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
-prouver "un dossier tenu créé par un collaborateur" base/migrations/0172_abonnement_cabinet.sql \
+prouver "un dossier tenu créé par un collaborateur" base/migrations/0220_gestes_cabinet.sql \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
   "$CT"
-prouver "un dossier tenu sans tout son périmètre" base/migrations/0172_abonnement_cabinet.sql \
+prouver "un dossier tenu sans tout son périmètre" base/migrations/0220_gestes_cabinet.sql \
   "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
   "$CT"
 prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
@@ -3347,7 +3347,7 @@ prouver "un dossier renommé hors du portefeuille" $M33 \
 prouver "un matricule déjà pris, renommé sans un mot" $M33 \
   "  perform socle.exiger_matricule_libre(p_matricule, p_entreprise);" "" \
   "$NT1"
-prouver "un matricule déjà pris, créé sans un mot" base/migrations/0172_abonnement_cabinet.sql \
+prouver "un matricule déjà pris, créé sans un mot" base/migrations/0220_gestes_cabinet.sql \
   "  perform socle.exiger_matricule_libre(p_matricule, null);" "" \
   "$NT1"
 prouver "son propre matricule compté comme déjà pris" $M33 \
@@ -19562,12 +19562,14 @@ T120L="sans paiement après l'échéance et la grâce : les payants en lecture s
 T120J="un dossier que son client rejoint ne compte plus ; seul un associé lit l'abonnement"
 T120C="la console : les règles des cabinets se préparent et se retirent, la fiche dit l'abonnement, « À décider » la facture qui ne s'est pas faite"
 W120="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
-prouver 'abo 120 : le troisième dossier déjà payant' base/migrations/0214_dossier_exemple.sql \
-  "d.rang > coalesce(plateforme.regle_cabinet_du_jour('gratuits'" "d.rang >= coalesce(plateforme.regle_cabinet_du_jour('gratuits'" \
+prouver 'abo 120 : le troisième dossier déjà payant' base/migrations/0220_gestes_cabinet.sql \
+  "d.rang > coalesce(plateforme.regle_du_cabinet(p_cabinet, 'gratuits'" "d.rang >= coalesce(plateforme.regle_du_cabinet(p_cabinet, 'gratuits'" \
   "$T120A"
-prouver 'abo 120 : l'\''abonnement qui ne commence pas au premier dossier payant' $AM120 \
-  "    insert into plateforme.abonnement_cabinet (cabinet, depuis) values (p_cabinet, v_jour);" "    null;" \
-  "$T120A"
+# (1.380.0) L'abonnement commence aussi au tour de facturation (0220, cabinets_a_facturer) : la ligne de
+# creer_dossier_tenu n'est plus seule à le poser, et la retirer ne fait plus tomber un test. La preuve vise le tour.
+prouver 'abo 120 : l'\''abonnement qui ne commence pas au premier dossier payant' base/migrations/0220_gestes_cabinet.sql \
+  "       and exists (select 1 from plateforme.dossiers_du_cabinet(c.cabinet, p_jour) d where d.payant)" "       and false" \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
 prouver 'abo 120 : la facture du cabinet laissée en brouillon' $AC120 \
   "  const r = await emettreDepuisV10(tx, editeur, utilisateur, { document: ecrite.contenu, client, revision: Number(ecrite.revision), rang: null, netAPayer: null });
   return String(r.numero);" "  return cle;" \
@@ -19581,23 +19583,23 @@ prouver 'abo 120 : la facture payée qui ne paie pas l'\''année' serveur/v10/do
 prouver 'abo 120 : la facture du cabinet annoncée à personne' $AM120 \
   "where m.organisation = d.cabinet and m.actif and 'supervision' = any(m.roles)) end)" "where m.organisation = d.cabinet and m.actif and 'proprietaire' = any(m.roles)) end)" \
   "$T120A"
-prouver 'abo 120 : le rattrapage oublié' $AM120 \
+prouver 'abo 120 : le rattrapage oublié' base/migrations/0220_gestes_cabinet.sql \
   "      v_ratt_ht := v_ratt_ht + v_m;" "      v_ratt_ht := v_ratt_ht;" \
   "$T120R"
-prouver 'abo 120 : le rattrapage compté sur toute l'\''année' $AM120 \
+prouver 'abo 120 : le rattrapage compté sur toute l'\''année' base/migrations/0220_gestes_cabinet.sql \
   "      v_jours := v_prev_fin - greatest(d.cree, v_prev_debut, v_a.depuis) + 1;" "      v_jours := v_sur;" \
   "$T120R"
-prouver 'abo 120 : le plafond oublié' $AM120 \
+prouver 'abo 120 : le plafond oublié' base/migrations/0220_gestes_cabinet.sql \
   "    'totalHt', (case when v_plafond is not null and v_brut > v_plafond then v_plafond else v_brut end)::text," "    'totalHt', v_brut::text," \
   "$T120P"
 prouver 'abo 120 : la lecture seule qui ne ferme rien' serveur/abonnement/condition.ts \
-  "  const depuis = (await tx.query('select plateforme.dossier_tenu_bloque_depuis(\$1, \$2::date) d', [entreprise, jour])).rows[0]?.d as string | null | undefined;" "  const depuis = null as string | null | undefined;" \
+  "  const b = (await tx.query('select plateforme.dossier_tenu_bloque(\$1, \$2::date) b', [entreprise, jour])).rows[0]?.b as { depuis: string; raison?: string } | null | undefined;" "  const b = null as { depuis: string; raison?: string } | null | undefined;" \
   "$T120L"
 prouver 'abo 120 : la messagerie fermée avec le dossier' serveur/abonnement/condition.ts \
   "new Set(['messagerie.ecrire', 'support.ecrire', 'socle.sauvegardes.demander']);" "new Set(['support.ecrire', 'socle.sauvegardes.demander']);" \
   "$T120L"
-prouver 'abo 120 : la création ouverte en lecture seule' $AM120 \
-  "  if plateforme.etat_cabinet(p_cabinet, v_jour) ->> 'etat' = 'lecture_seule' then" "  if false then" \
+prouver 'abo 120 : la création ouverte en lecture seule' base/migrations/0220_gestes_cabinet.sql \
+  "  if v_etat ->> 'etat' = 'lecture_seule' then" "  if false then" \
   "$T120L"
 prouver 'abo 120 : un collaborateur qui lit l'\''abonnement' $AM120 \
   "  if socle.moi() is null or socle.ma_cle() is not null or not socle.suis_associe(p_cabinet) then" "  if socle.moi() is null or socle.ma_cle() is not null then" \
@@ -29701,7 +29703,7 @@ prouver $'import 1.369.0 g : une année importée ne se valide que journal par j
   $'lotsBl.length > 99 && !lotsBl.some(l => l.n >= n)' \
   $'une balance de fin d\'année se reprend par ses soldes, le résultat au compte 13, les sous-comptes gardent leur nom, l\'année d\'avant s\'ouvre, et un journal importé se valide d\'un geste'
 # (1.370.0) Le dossier d'exemple du cabinet : le serveur (0214), le remplissage par les gestes du Cabinet, l'écran.
-prouver $'exemple 1.370.0 a : le dossier d\'exemple compte dans l\'abonnement du cabinet' base/migrations/0214_dossier_exemple.sql \
+prouver $'exemple 1.370.0 a : le dossier d\'exemple compte dans l\'abonnement du cabinet' base/migrations/0220_gestes_cabinet.sql \
   $'where e.tenue_par = p_cabinet and e.active and not e.exemple' \
   $'where e.tenue_par = p_cabinet and e.active' \
   $'un associé le charge : un dossier tenu marqué « exemple », un seul à la fois, hors abonnement ; il se retire avec ses livres et se recharge'
@@ -29972,7 +29974,7 @@ prouver $'revue 1.374.0 f : le prix sous le tableau, hors de vue' modules/socle/
   $'if (prix && zone.firstElementChild) zone.insertAdjacentHTML(\'beforeend\',' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 prouver $'revue 1.374.0 g : l\'abonnement dit autre chose au menu qu\'au panneau' web/public/plateforme/abonnement-cabinet.js \
-  $'e.etat === \'gratuit\' ? \'Gratuit : rien à régler\' : \'\';' \
+  $'e.etat === \'gratuit\' ? (e.offert ? \'Abonnement offert\' : \'Gratuit : rien à régler\') : \'\';' \
   $'e.etat === \'gratuit\' ? \'\' : \'\';' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 prouver $'revue 1.374.0 h : la visite de la fiche ouvre l\'ancien écran' modules/socle/visites/cabvisites.js \
@@ -30452,6 +30454,32 @@ prouver $'V-1 1.379.6 b : le refus d\'écart écrit ses montants avec un point' 
   $'const dit = (m: string) => `${m.replace(\'.\', \',\')} ' \
   $'const dit = (m: string) => `${m} ' \
   $'une facture sous le seuil, émise sans seuil posé par l\'écran, le garde ; le refus d\'écart écrit « 1073,190 »'
+# (1.380.0 ; 0220) Les gestes de la console sur l'abonnement d'UN cabinet.
+prouver $'gestes cabinet a : ses dossiers gratuits ignorés' base/migrations/0220_gestes_cabinet.sql \
+  $'and d.rang > coalesce(plateforme.regle_du_cabinet(p_cabinet, \'gratuits\', p_jour), 9223372036854775807)' \
+  $'and d.rang > coalesce(plateforme.regle_cabinet_du_jour(\'gratuits\', p_jour), 9223372036854775807)' \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+prouver $'gestes cabinet b : un cabinet suspendu écrit toujours' base/migrations/0220_gestes_cabinet.sql \
+  $'(d.payant or s ->> \'raison\' = \'suspendu\')\n              then jsonb_build_object' \
+  $'d.payant\n              then jsonb_build_object' \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+prouver $'gestes cabinet c : un geste sans motif' base/migrations/0220_gestes_cabinet.sql \
+  $'  if length(btrim(coalesce(p_motif, \'\'))) < 3 then perform socle.refus(\'un geste sur l\'\'abonnement d\'\'un cabinet demande son motif (trois caractères au moins)\'); end if;' \
+  $'' \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+prouver $'gestes cabinet d : une facture reportée part quand même' base/migrations/0220_gestes_cabinet.sql \
+  $'     and not exists (select 1 from plateforme.faveur_cabinet f where f.cabinet = x.cabinet and f.sans_facture_avant > p_jour)\n' \
+  $'' \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+prouver $'gestes cabinet e : le délai ne repousse rien' base/migrations/0220_gestes_cabinet.sql \
+  $'greatest(v_dues.echeance + v_grace, coalesce(v_f.delai_jusqu_au, v_dues.echeance + v_grace)) end;' \
+  $'v_dues.echeance + v_grace end;' \
+  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+prouver $'gestes cabinet f : la fiche ne se relit pas après le geste' web/console/src/ecrans/Cabinet.tsx \
+  $'fait={() => { setGeste(null); relire(); }}' \
+  $'fait={() => { setGeste(null); }}' \
+  $'la fiche d\'un cabinet : la direction lui donne dix dossiers gratuits, puis le suspend et le reprend ; le support lit sans geste'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

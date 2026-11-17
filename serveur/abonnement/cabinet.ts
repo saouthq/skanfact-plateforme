@@ -141,6 +141,8 @@ type Lu = {
   dossiers: { id: string; nom: string; payant: boolean }[]; abonnes: number;
   prochaine: CalculCabinet | null; prochainDossier: { rang: number; payant: boolean; prixHt: string | null; abonne: boolean };
   factures: { entreprise: unknown; client: unknown; pieces: PieceLue[] } | null; paiement: boolean;
+  // (0220) Ce que la console a posé pour ce cabinet : seulement ce que l'associé a besoin de lire.
+  faveur?: { gratuits?: number; gratuitsJusquAu?: string; offert?: boolean; offertJusquAu?: string };
 };
 const enDinars = (v: string | null | undefined) => (v === null || v === undefined ? null : versTexte(millimes(v), 3));
 const calculEnDinars = (c: CalculCabinet | null) => (c ? {
@@ -171,6 +173,7 @@ export function routesAbonnementCabinet(ctx: Contexte): Route<never>[] {
           pieces: lu.factures.pieces.map((p) => ({ ...vueDePiece(p, lu.paiement, jour), periode: (p as unknown as { periode?: unknown }).periode ?? null })),
         } : null,
         enLigne: lu.paiement,
+        faveur: { gratuits: lu.faveur?.gratuits, gratuitsJusquAu: lu.faveur?.gratuitsJusquAu, offert: lu.faveur?.offert, offertJusquAu: lu.faveur?.offertJusquAu },
       } };
     },
   });

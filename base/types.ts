@@ -890,6 +890,19 @@ export interface BaseDeDonnees {
     vide: Generated<boolean>;
     motif: string;
   };
+  'plateforme.faveur_cabinet': {
+    cabinet: string;
+    gratuits: bigint | null;
+    gratuits_jusqu_au: string | null;
+    offert: Generated<boolean>;
+    offert_jusqu_au: string | null;
+    delai_jusqu_au: string | null;
+    sans_facture_avant: string | null;
+    suspendu_le: string | null;
+    prix_dossier: bigint | null;
+    plafond: bigint | null;
+    maj_le: Generated<Date>;
+  };
   'plateforme.geste_console': {
     id: Generated<string>;
     le: Generated<Date>;
@@ -902,6 +915,7 @@ export interface BaseDeDonnees {
     motif: string;
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
+    cabinet: string | null;
   };
   'plateforme.groupe': {
     id: Generated<string>;

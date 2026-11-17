@@ -864,6 +864,56 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  // (1.380.0 ; 0220) Demandé par Skander le 17/11/2026 : les gestes sur l'abonnement d'UN cabinet, à la souris.
+  it('la fiche d\'un cabinet : la direction lui donne dix dossiers gratuits, puis le suspend et le reprend ; le support lit sans geste', async () => {
+    const { associe, cab } = await cabinetSeul('Cabinet de l\'Alpha Console');
+    for (const nom of ['Alpha A', 'Alpha B', 'Alpha C', 'Alpha D']) exiger(await api('POST', `/cabinets/${String(cab.id)}/dossiers`, associe, { raisonSociale: nom }), 201);
+    const p = await ouvrir(await jetonConsole(direction), `#/cabinets/${String(cab.id)}`);
+    const carte = p.locator('section[aria-labelledby="cab-faveur"]');
+    await expect.poll(() => carte.count(), { timeout: 15_000 }).toBe(1);
+    expect(net(await carte.locator('.c-cab-place-vide').first().innerText())).toBe('Rien de particulier : il suit la règle de tout le monde.');
+    expect(net(await p.locator('.c-bandeau-paie span').innerText())).toContain('Un dossier payant sur 4 dossiers tenus');
+    // Dix dossiers gratuits : la fenêtre dit ce que le geste change, refuse un nombre illisible et un motif absent.
+    await cliquer(carte.getByRole('button', { name: 'Dossiers gratuits…', exact: true }));
+    const fenetre = p.getByRole('dialog');
+    await expect.poll(() => fenetre.count()).toBe(1);
+    expect(net(await fenetre.innerText())).toContain('Une facture déjà émise ne change pas : le geste vaut pour la suite.');
+    expect(net(await fenetre.innerText())).toContain('Pour tout le monde aujourd\'hui : 3');
+    await fenetre.getByLabel('Dossiers gratuits', { exact: true }).fill('dix');
+    await cliquer(fenetre.getByRole('button', { name: 'Changer', exact: true }));
+    await expect.poll(() => fenetre.getByRole('alert').innerText().then(net).catch(() => '')).toContain('Le nombre s\'écrit en chiffres');
+    await fenetre.getByLabel('Dossiers gratuits', { exact: true }).fill('10');
+    await cliquer(fenetre.getByRole('button', { name: 'Changer', exact: true }));
+    await expect.poll(() => fenetre.getByRole('alert').innerText().then(net).catch(() => '')).toContain('Le motif demande trois caractères au moins');
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Alpha test : dix dossiers');
+    await cliquer(fenetre.getByRole('button', { name: 'Changer', exact: true }));
+    await expect.poll(() => fenetre.count(), { timeout: 15_000 }).toBe(0);
+    // La fiche se relit : ce qu'il a reçu, plus aucun dossier payant, le geste et son motif, et « Revenir aux gratuits de tous ».
+    await expect.poll(() => carte.locator('.c-cab-faveurs li').first().innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('10 dossiers gratuits, sans date de fin (tout le monde : 3).');
+    expect(net(await p.locator('.c-bandeau-paie span').innerText())).toContain('Aucun dossier payant sur 4 dossiers tenus');
+    expect(net(await carte.locator('.c-cab-histoire li').first().innerText())).toContain('« Alpha test : dix dossiers »');
+    expect(await carte.getByRole('button', { name: 'Revenir aux gratuits de tous', exact: true }).count()).toBe(1);
+    expect((await admin.query('select gratuits from plateforme.faveur_cabinet where cabinet = $1', [String(cab.id)])).rows[0].gratuits).toBe(10n);
+    // Suspendre (le bouton du danger), puis reprendre : le bandeau le dit, le bouton change.
+    await cliquer(carte.getByRole('button', { name: 'Suspendre', exact: true }));
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Essai de la suspension');
+    await cliquer(fenetre.getByRole('button', { name: 'Suspendre', exact: true }));
+    await expect.poll(() => p.locator('.c-bandeau-paie b').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Suspendu : dossiers tenus en lecture seule depuis le');
+    await cliquer(carte.getByRole('button', { name: 'Reprendre', exact: true }));
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Essai fini');
+    await cliquer(fenetre.getByRole('button', { name: 'Reprendre', exact: true }));
+    await expect.poll(() => carte.getByRole('button', { name: 'Suspendre', exact: true }).count(), { timeout: 15_000 }).toBe(1);
+    await fermer(p);
+    // Le support lit la même carte, sans aucun geste.
+    const q = await ouvrir(await jetonConsole(support), `#/cabinets/${String(cab.id)}`);
+    const lue = q.locator('section[aria-labelledby="cab-faveur"]');
+    await expect.poll(() => lue.count(), { timeout: 15_000 }).toBe(1);
+    expect(await lue.locator('.c-cab-gestes button').count()).toBe(0);
+    expect(net(await lue.innerText())).toContain('Les gestes sur l\'abonnement d\'un cabinet sont réservés à la direction.');
+    await fermer(q);
+  }, 120_000);
+
   it('le service des écrans de l\'application ne garde jamais la console', async () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     const p = await cx.newPage();

@@ -3333,3 +3333,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-eq-membres td[data-libelle] > *, .c-al-t-regles td[data-libelle] > *, .c-al-t-histoire td[data-libelle] > * { grid-column: 2; justify-self: start; }
   .c-eq-membres tbody tr:hover td, .c-al-t-regles tbody tr:hover td, .c-al-t-histoire tbody tr:hover td { background: transparent; }
 }
+
+/* (1.380.0) Les gestes sur l'abonnement d'un cabinet : une rangée de boutons qui passe à la ligne, sous ce qu'il a reçu. */
+.c-cab-gestes { display: flex; flex-wrap: wrap; gap: 8px; padding: 14px 24px 18px; border-top: 1px solid var(--c-trait); }
+.c-cab-histoire li { align-items: flex-start; }

@@ -6,6 +6,7 @@ declarerTextes({
   // L'abonnement des cabinets (1.120.0 ; 0172 ; docs/abonnement.md C22).
   'abonnement.cabinet.lecture_seule': 'ce dossier est en lecture seule depuis le {depuis} : la facture de l\'abonnement de ton cabinet attend son paiement. Tout se lit, s\'imprime et s\'exporte. Un associé la règle dans les Réglages du Cabinet (Mon cabinet, Ton abonnement), et tout se rouvre',
   'abonnement.cabinet.sans_prix': 'le prix d\'un dossier tenu n\'est pas réglé pour cette période : la console doit le poser',
+  'abonnement.cabinet.suspendu': 'ce dossier est en lecture seule depuis le {depuis} : SkanFact a suspendu l\'abonnement de ton cabinet. Tout se lit, s\'imprime et s\'exporte ; écris au support pour le rouvrir',
   'abonnement.cabinet.rien_a_facturer': 'rien à facturer : plus aucun dossier tenu payant ni rattrapage',
   'abonnement.cabinet.facture.objet': 'Abonnement cabinet SkanFact du {du} au {au}',
   'abonnement.cabinet.facture.dossiers': 'Dossiers tenus au-delà des {gratuits} gratuits',

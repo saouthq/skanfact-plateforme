@@ -63,6 +63,9 @@ describe('les gestes du journal de la console', () => {
   for (const g of ['clients.exporte', 'journal.exporte']) gestes.add(g);
   // L'attente de la technique (0115) se pose ou se lève : « support.technique » ou « support.technique_levee ».
   for (const g of ['support.technique', 'support.technique_levee']) gestes.add(g);
+  // Les gestes sur l'abonnement d'un cabinet (0220) se calculent aussi : la liste que la route accepte.
+  for (const g of ['gratuits', 'gratuits-retirer', 'offrir', 'retirer-offert', 'delai', 'reporter', 'reporter-retirer', 'suspendre', 'reprendre',
+    'prix', 'prix-retirer', 'plafond', 'plafond-retirer']) gestes.add(`abonnement.cabinet-${g}`);
 
   it('la lecture des migrations trouve les gestes (un instrument qui ne lit rien ne prouve rien)', () => {
     expect(gestes.size).toBeGreaterThanOrEqual(20);
@@ -79,7 +82,9 @@ describe('les gestes du journal de la console', () => {
       // Et l'attente de la technique (0115), posée ou levée.
       expect.stringMatching(/^0115_suivi\.sql : case when p_attend then 'support\.technique' else 'support\.technique_levee' end$/),
       // Et la même redéfinie en 0121 : ce qu'une période payée d'avance change attend son jour (l'audit C01).
-      expect.stringMatching(/^0121_droits_a_leur_date\.sql : 'abonnement\.' \|\| p_geste$/)]);
+      expect.stringMatching(/^0121_droits_a_leur_date\.sql : 'abonnement\.' \|\| p_geste$/),
+      // Et les gestes sur l'abonnement d'UN cabinet (0220) : « abonnement.cabinet- » suivi du geste.
+      expect.stringMatching(/^0220_gestes_cabinet\.sql : 'abonnement\.cabinet-' \|\| p_geste$/)]);
   });
 
   it('chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue', () => {

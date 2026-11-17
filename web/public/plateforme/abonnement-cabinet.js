@@ -36,14 +36,15 @@
   // Combien de dossiers la liste montre avant « Voir les autres » (une liste qu'on nomme se pagine).
   const PAGE = 12;
 
-  /** @typedef {{ etat: 'gratuit' | 'a_facturer' | 'a_payer' | 'actif' | 'lecture_seule', echeance?: string, lectureSeuleLe?: string | null, jusquAu?: string, depuis?: string }} Etat */
+  /** @typedef {{ etat: 'gratuit' | 'a_facturer' | 'a_payer' | 'actif' | 'lecture_seule', echeance?: string, lectureSeuleLe?: string | null, jusquAu?: string, depuis?: string, raison?: string, offert?: boolean, reporteAu?: string }} Etat */
   /** @typedef {{ debut: string, fin: string, echeance: string, prixHt: string | null, plafondHt: string | null, gratuits: number | null, dossiers: number, dossiersHt: string | null,
    *   rattrapages: { du: string, au: string, jours: number, sur: number, montantHt: string | null }[], brutHt: string | null, totalHt: string | null, plafonne: boolean }} Calcul */
   /** @typedef {{ aujourdhui: string, etat: Etat, depuis: string | null, payeJusquAu: string | null,
    *   regles: { prixHt: string | null, gratuits: number | null, plafondHt: string | null, delai: number | null, grace: number | null },
    *   dossiers: { id: string, nom: string, payant: boolean }[], abonnes: number, prochaine: Calcul | null,
    *   prochainDossier: { rang: number, payant: boolean, prixHt: string | null, abonne: boolean },
-   *   factures: { entreprise: any, client: any, pieces: any[] } | null, enLigne: boolean }} Lu */
+   *   factures: { entreprise: any, client: any, pieces: any[] } | null, enLigne: boolean,
+   *   faveur?: { gratuits?: number, gratuitsJusquAu?: string, offert?: boolean, offertJusquAu?: string } }} Lu */
   /** @typedef {{ appel: (methode: string, chemin: string, corps?: unknown) => Promise<any>, cabinet: string }} Outils */
 
   // La pastille du haut du Cabinet (`#lic-banner`) : elle ne parle que quand il y a quelque chose à faire.
@@ -51,11 +52,13 @@
   function pastille(e) {
     if (!e) return { show: false, ton: '', texte: '' };
     // (1.122.0) Une ligne courte au pied du menu (elle tenait sur trois lignes, recette du 23/10/2026) ; le panneau dit le reste.
+    // (1.380.0) SkanFact a suspendu le cabinet : ce n'est pas une facture à régler.
+    if (e.etat === 'lecture_seule' && e.raison === 'suspendu') return { show: true, ton: 'alerte', texte: 'Cabinet suspendu : lecture seule' };
     if (e.etat === 'lecture_seule') return { show: true, ton: 'alerte', texte: 'Dossiers payants en lecture seule' };
     if (e.etat === 'a_payer') return { show: true, ton: 'attire', texte: `Facture à régler avant le ${jour(e.echeance)}` };
     // (1.374.0) Un seul état, lu par les trois endroits (le panneau, le menu du compte, le téléphone) : ils disaient
     // « Facture en préparation », « Rien à régler pour l'instant » et « À jour » au même moment (issue 12).
-    const court = e.etat === 'a_facturer' ? 'Facture en préparation' : e.etat === 'actif' ? `Payé jusqu'au ${jour(e.jusquAu)}` : e.etat === 'gratuit' ? 'Gratuit : rien à régler' : '';
+    const court = e.etat === 'a_facturer' ? 'Facture en préparation' : e.etat === 'actif' ? `Payé jusqu'au ${jour(e.jusquAu)}` : e.etat === 'gratuit' ? (e.offert ? 'Abonnement offert' : 'Gratuit : rien à régler') : '';
     return { show: false, ton: '', texte: '', court };
   }
 
@@ -80,7 +83,7 @@
     const lecture = /lecture seule/i.test(p.texte);
     const dessin = lecture ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>' : '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/>';
     el.innerHTML = `<span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${dessin}</svg></span>`
-      + `<span class="lib"><span class="abo-t">${esc(p.texte)}</span><small>${lecture ? 'Règle la facture du cabinet' : 'Abonnement du cabinet'}</small></span>`
+      + `<span class="lib"><span class="abo-t">${esc(p.texte)}</span><small>${/suspendu/i.test(p.texte) ? 'Écris au support' : lecture ? 'Règle la facture du cabinet' : 'Abonnement du cabinet'}</small></span>`
       + '<span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>';
     el.dataset.tip = p.texte;
     if (w.SkanBarre) w.SkanBarre.apresCompte();
@@ -92,6 +95,16 @@
     const e = a.etat, r = a.regles;
     const payants = a.dossiers.filter((d) => d.payant).length;
     const gratuits = typeof r.gratuits === 'number' ? r.gratuits : null;
+    // (1.380.0) Ce que SkanFact a posé pour ce cabinet (la console) : la suspension, l'offert, ses gratuits à lui.
+    const f = a.faveur || {};
+    if (e.etat === 'lecture_seule' && e.raison === 'suspendu') {
+      return { ton: 'alerte', pastille: 'Suspendu', titre: `SkanFact a suspendu ton cabinet le ${jour(e.depuis)}`,
+        texte: 'Tes dossiers tenus se lisent, s\'impriment et s\'exportent, mais rien ne s\'y écrit et tu ne peux pas en créer. Écris au support pour le rouvrir.' };
+    }
+    if (e.etat === 'gratuit' && e.offert) {
+      return { ton: 'calme', pastille: 'Offert', titre: f.offertJusquAu ? `Ton abonnement est offert jusqu'au ${jour(f.offertJusquAu)}` : 'Ton abonnement est offert',
+        texte: `SkanFact t'offre l'abonnement du cabinet : tu tiens autant de dossiers que tu veux, sans rien payer${f.offertJusquAu ? `. Après le ${jour(f.offertJusquAu)}, les dossiers au-delà de tes gratuits se paieront` : ''}.` };
+    }
     if (e.etat === 'lecture_seule') {
       return { ton: 'alerte', pastille: 'Lecture seule', titre: `Tes dossiers payants sont en lecture seule depuis le ${jour(e.depuis)}`,
         texte: `La facture de l'abonnement n'est pas réglée : son échéance était le ${jour(e.echeance)}. ${payants > 1 ? `Tes ${payants} dossiers payants se lisent, s'impriment et s'exportent` : 'Ton dossier payant se lit, s\'imprime et s\'exporte'}, et tu parles toujours à tes clients ; ${gratuits && gratuits > 1 ? `tes ${gratuits} dossiers gratuits restent ouverts` : gratuits === 1 ? 'ton dossier gratuit reste ouvert' : 'les dossiers gratuits restent ouverts'}. Règle la facture : tout se rouvre aussitôt.` };
@@ -110,10 +123,15 @@
         texte: `${a.prochaine && a.prochaine.totalHt ? `Elle sera de ${montant(a.prochaine.totalHt)} HT pour ${pl(payants, 'dossier payant', 'dossiers payants')}${a.prochaine.echeance ? `, à régler avant le ${jour(a.prochaine.echeance)}` : ''}. ` : ''}Elle arrive ici, dans « Tes factures », et un e-mail te prévient.` };
     }
     const n = a.dossiers.length;
+    const offerts = typeof f.gratuits === 'number' ? ` SkanFact t'a donné ${pl(f.gratuits, 'dossier gratuit', 'dossiers gratuits')}${f.gratuitsJusquAu ? ` jusqu'au ${jour(f.gratuitsJusquAu)}` : ''}.` : '';
+    if (e.reporteAu) {
+      return { ton: 'calme', pastille: 'Gratuit', titre: `Rien à régler avant le ${jour(e.reporteAu)}`,
+        texte: `SkanFact a reporté ta prochaine facture : elle partira le ${jour(e.reporteAu)}, pour ${pl(payants, 'dossier payant', 'dossiers payants')}.` };
+    }
     return { ton: 'calme', pastille: 'Gratuit', titre: gratuits === null ? 'Rien à payer aujourd\'hui' : `${pl(n, 'dossier tenu', 'dossiers tenus')} sur ${gratuits} gratuits`,
       texte: gratuits === null ? 'Tes dossiers tenus ne se paient pas.'
-        : n < gratuits ? `Encore ${pl(gratuits - n, 'dossier gratuit')} avant le premier qui se paie. Tes clients abonnés à SkanFact, eux, ne comptent jamais.`
-          : 'Le prochain dossier tenu se paie : l\'abonnement du cabinet commencera ce jour-là. Tes clients abonnés à SkanFact, eux, ne comptent jamais.' };
+        : n < gratuits ? `Encore ${pl(gratuits - n, 'dossier gratuit', 'dossiers gratuits')} avant le premier qui se paie. Tes clients abonnés à SkanFact, eux, ne comptent jamais.${offerts}`
+          : `Le prochain dossier tenu se paie : l'abonnement du cabinet commencera ce jour-là. Tes clients abonnés à SkanFact, eux, ne comptent jamais.${offerts}` };
   }
 
   // Comment ça marche : les règles du jour, en phrases (rien d'inventé : une règle inconnue ne se dit pas).

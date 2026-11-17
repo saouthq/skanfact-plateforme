@@ -308,4 +308,97 @@ describe('l\'abonnement d\'un cabinet', () => {
     expect(accueil.corps.decider).toEqual(expect.arrayContaining([expect.objectContaining({ sorte: 'facture_cabinet', cabinet: { id: autre.id, nom: 'Cabinet du Refus' }, debut: jour, motif: 'La fiche de SkanFact est incomplète.' })]));
     await admin.query('delete from plateforme.facture_cabinet_refus where cabinet = $1', [autre.id]);
   });
+  // (1.380.0 ; 0220) Demandé par Skander le 17/11/2026 : ouvrir plus de dossiers à UN cabinet sans changer la règle de tous.
+  it('la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres', async () => {
+    const c = await cabinet('Cabinet de l\'Alpha'), temoin = await cabinet('Cabinet Témoin');
+    const geste = (corps: Corps) => appeler('POST', `/console/cabinets/${c.id}/abonnement`, amira.console, corps);
+    const fiche = async () => (await appeler('GET', `/console/cabinets/${c.id}`, amira.console)).corps.abonnement as
+      { etat: Corps; payants: number; faveur: Corps; regles: Corps; gestes: string[]; histoire: { geste: string; motif: string }[] };
+    // Avant tout geste : la règle de tout le monde, et les gestes de la direction.
+    let f = await fiche();
+    expect(f.faveur).toEqual({});
+    expect(f.regles).toMatchObject({ gratuits: 3, gratuitsDeTous: 3, prixHt: '60000' });
+    expect(f.gestes).toEqual(['gratuits', 'offrir', 'reporter', 'suspendre', 'prix', 'plafond']);
+    // Un refus nomme son champ ; un motif est obligatoire ; une date passée se refuse.
+    expect((await geste({ geste: 'gratuits', valeur: 'dix', motif: 'Alpha test' })).corps).toMatchObject({ champ: 'valeur' });
+    expect((await geste({ geste: 'gratuits', valeur: '10', motif: 'x' })).statut).toBe(400);
+    expect((await geste({ geste: 'offrir', jusquAu: jour, motif: 'Alpha test' })).statut).toBe(403);
+    expect((await geste({ geste: 'delai', jusquAu: plusJours(jour, 30), motif: 'Alpha test' })).statut).toBe(403);
+    // Dix dossiers gratuits pour lui : cinq dossiers tenus, aucun payant, aucune facture.
+    expect((await geste({ geste: 'gratuits', valeur: '10', motif: 'Alpha test : dix dossiers' })).statut).toBe(200);
+    for (const nom of ['Alpha Un', 'Alpha Deux', 'Alpha Trois', 'Alpha Quatre', 'Alpha Cinq']) expect((await creer(c, nom)).statut).toBe(201);
+    let a = await sonAbonnement(c) as Abo & { regles: Corps; faveur: Corps };
+    expect(a.etat).toEqual({ etat: 'gratuit' });
+    expect(a.dossiers.map((d) => d.payant)).toEqual([false, false, false, false, false]);
+    expect(a.prochainDossier).toMatchObject({ rang: 6, payant: false });
+    expect(a.regles).toMatchObject({ gratuits: 10 });
+    expect(a.faveur).toMatchObject({ gratuits: 10 });
+    expect(await facturerLesCabinets(ctx, { cabinet: c.id })).toEqual({ periodes: 0, emises: 0, vides: 0, refusees: 0 });
+    expect(await sesFactures(c)).toEqual([]);
+    // Le cabinet d'à côté garde la règle de tout le monde : son quatrième dossier se paie.
+    for (const nom of ['Témoin Un', 'Témoin Deux', 'Témoin Trois', 'Témoin Quatre']) expect((await creer(temoin, nom)).statut).toBe(201);
+    expect((await sonAbonnement(temoin)).dossiers.map((d) => d.payant)).toEqual([false, false, false, true]);
+    await attendreLaFacture(temoin);
+    // Revenir à la règle de tous : ses deux derniers dossiers deviennent payants, et la facture part (120 DT HT) —
+    // l'abonnement commence ce jour-là, sans qu'un dossier ait été créé.
+    expect((await geste({ geste: 'gratuits-retirer', motif: 'Fin de l\'alpha' })).statut).toBe(200);
+    a = await sonAbonnement(c) as typeof a;
+    expect(a.etat).toEqual({ etat: 'a_facturer' });
+    expect(a.dossiers.map((d) => d.payant)).toEqual([false, false, false, true, true]);
+    // Reportée : rien ne part avant la date, et l'état le dit ; le report annulé, elle part.
+    expect((await geste({ geste: 'reporter', jusquAu: plusJours(jour, 20), motif: 'On attend son accord' })).statut).toBe(200);
+    expect(await facturerLesCabinets(ctx, { cabinet: c.id })).toEqual({ periodes: 0, emises: 0, vides: 0, refusees: 0 });
+    expect((await sonAbonnement(c)).etat).toEqual({ etat: 'gratuit', reporteAu: plusJours(jour, 20) });
+    expect((await geste({ geste: 'reporter-retirer', motif: 'Accord reçu' })).statut).toBe(200);
+    expect(await facturerLesCabinets(ctx, { cabinet: c.id })).toMatchObject({ periodes: 1, emises: 1 });
+    expect(await sesFactures(c)).toEqual([expect.objectContaining({ debut: jour, montant_ht: 120000n, n: 2 })]);
+    // Un délai : la facture attend ; pas de lecture seule avant la date choisie (sans lui : l'échéance et la grâce).
+    await admin.query('update plateforme.facture_cabinet set echeance = $2 where cabinet = $1', [c.id, plusJours(jour, -10)]);
+    expect((await sonAbonnement(c)).etat).toMatchObject({ etat: 'lecture_seule', depuis: plusJours(jour, -2) });
+    expect((await geste({ geste: 'delai', jusquAu: plusJours(jour, 30), motif: 'Il paie à la fin du mois' })).statut).toBe(200);
+    expect((await sonAbonnement(c)).etat).toMatchObject({ etat: 'a_payer', lectureSeuleLe: plusJours(jour, 31), delaiJusquAu: plusJours(jour, 30) });
+    // Suspendu : TOUS ses dossiers tenus en lecture seule (les gratuits aussi), la création refusée en le disant ; repris, tout se rouvre.
+    const ids = (await sonAbonnement(c)).dossiers.map((d) => d.id);
+    const qui = { utilisateur: c.associe.utilisateur };
+    const saisir = (ent: string) => enTantQue(pool, c.associe.utilisateur, (tx) => peut(tx, qui, ent, 'compta.ecritures.saisir', true));
+    expect((await saisir(ids[0] ?? '')).ok).toBe(true);
+    expect((await geste({ geste: 'suspendre', motif: 'Essai de la suspension' })).statut).toBe(200);
+    expect((await sonAbonnement(c)).etat).toEqual({ etat: 'lecture_seule', depuis: jour, raison: 'suspendu' });
+    const bloque = await saisir(ids[0] ?? '');
+    expect(bloque).toMatchObject({ ok: false, raison: 'condition' });
+    expect(JSON.stringify(bloque)).toContain('SkanFact a suspendu');
+    const refus = await creer(c, 'Un de trop');
+    expect(refus.statut).toBe(403);
+    expect(refus.motif).toMatch(/suspendu/);
+    expect((await fiche()).gestes).toContain('reprendre');
+    expect((await geste({ geste: 'suspendre', motif: 'Deux fois' })).statut).toBe(403);
+    expect((await geste({ geste: 'reprendre', motif: 'Essai fini' })).statut).toBe(200);
+    expect((await saisir(ids[0] ?? '')).ok).toBe(true);
+    // Offert : plus aucun dossier payant, sans limite ; retiré, les payants reviennent.
+    expect((await geste({ geste: 'offrir', jusquAu: plusJours(jour, 90), motif: 'Trois mois offerts' })).statut).toBe(200);
+    a = await sonAbonnement(c) as typeof a;
+    expect(a.etat).toEqual({ etat: 'gratuit', offert: true, offertJusquAu: plusJours(jour, 90) });
+    expect(a.dossiers.every((d) => !d.payant)).toBe(true);
+    expect(a.prochainDossier).toMatchObject({ payant: false });
+    expect((await saisir(ids[4] ?? '')).ok).toBe(true);
+    expect((await geste({ geste: 'retirer-offert', motif: 'Fin de l\'offert' })).statut).toBe(200);
+    expect((await sonAbonnement(c)).dossiers.map((d) => d.payant)).toEqual([false, false, false, true, true]);
+    // Son prix et son plafond, tapés en dinars : la prochaine facture les compte ; le témoin garde les siens.
+    expect((await geste({ geste: 'prix', valeur: '45', motif: 'Prix de lancement' })).statut).toBe(200);
+    expect((await geste({ geste: 'plafond', valeur: '80,500', motif: 'Plafond de lancement' })).statut).toBe(200);
+    expect((await sonAbonnement(c)).prochaine).toMatchObject({ prixHt: '45.000', brutHt: '90.000', totalHt: '80.500', plafonne: true });
+    expect((await sonAbonnement(temoin)).prochaine).toMatchObject({ prixHt: '60.000', totalHt: '60.000' });
+    expect((await geste({ geste: 'plafond-retirer', motif: 'Essai fini' })).statut).toBe(200);
+    expect((await geste({ geste: 'prix-retirer', motif: 'Essai fini' })).statut).toBe(200);
+    expect((await sonAbonnement(c)).prochaine).toMatchObject({ prixHt: '60.000', totalHt: '120.000' });
+    // La fiche de la console dit ce qui reste posé (le délai), et l'histoire des gestes avec leur motif ; le journal aussi.
+    f = await fiche();
+    expect(f.faveur).toEqual({ delaiJusquAu: plusJours(jour, 30) });
+    expect(f.histoire[0]).toMatchObject({ geste: 'abonnement.cabinet-prix-retirer', motif: 'Essai fini' });
+    expect(f.histoire.map((h) => h.geste)).toContain('abonnement.cabinet-gratuits');
+    expect((await admin.query("select count(*)::int n from plateforme.geste_console where cabinet = $1 and geste like 'abonnement.cabinet-%'", [c.id])).rows[0].n).toBe(13);
+    // Seul un membre de l'équipe pose un geste : l'associé du cabinet ne s'offre rien.
+    expect((await appeler('POST', `/console/cabinets/${c.id}/abonnement`, c.associe.jeton, { geste: 'offrir', motif: 'Pour moi' })).statut).toBeGreaterThanOrEqual(401);
+    expect((await sonAbonnement(c)).etat).toMatchObject({ etat: 'a_payer' });
+  });
 });

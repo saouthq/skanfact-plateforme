@@ -4790,3 +4790,45 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
 - La recherche du tableau de bord, du portefeuille, des pièces reçues et des relances trouve « Hôtel » en tapant « hotel ».
 - « Retirer l'exemple » du bandeau pose la même question que celui des Réglages.
 - Pas de test neuf pour ces trois points (tests des écrans touchés rejoués, verts) : à couvrir avec le reste de l'issue 12.
+
+## 1.380.0 — La console agit sur l'abonnement d'UN cabinet (demandé par Skander le 17/11/2026)
+
+Jusqu'ici la console ne faisait que LIRE l'abonnement d'un cabinet, et tout se réglait pour tous les cabinets à la
+fois (Réglages, « L'abonnement des cabinets »). Un comptable commence l'alpha test : il faut pouvoir lui ouvrir plus de
+dossiers sans changer la règle de tout le monde. Migration `0220_gestes_cabinet.sql`.
+
+Sur la fiche d'un cabinet, une carte « Ce que ce cabinet a reçu » : ce qui est posé pour lui, les gestes, et
+l'histoire des gestes (qui, quand, le motif). La direction seule agit ; le support lit.
+
+| Geste | Ce qu'il fait |
+|---|---|
+| Dossiers gratuits… | un nombre à lui (0 à 9999), jusqu'à une date ou sans fin, à la place des 3 de tout le monde |
+| Revenir aux gratuits de tous | il reprend la règle ; ce qui dépasse devient payant et se facture |
+| Offrir l'abonnement… / Retirer l'offert | aucun dossier payant, sans limite ; jusqu'à une date ou jusqu'au retrait |
+| Accorder un délai… | pas de lecture seule avant la date choisie ; la facture reste due |
+| Reporter la prochaine facture… / Annuler le report | aucune nouvelle facture avant la date |
+| Suspendre / Reprendre | TOUS ses dossiers tenus en lecture seule, création fermée ; tout se lit et s'exporte |
+| Prix par dossier… / Plafond annuel… (et leur retour) | son prix et son plafond, à la place de ceux de tout le monde |
+
+Règles tenues :
+
+- Chaque geste demande un motif, et s'écrit au journal de la console (« abonnement.cabinet-… », colonne `cabinet`).
+- Une facture déjà émise ne change jamais : un geste vaut pour la suite (la fenêtre le dit avant).
+- Un cabinet dont des dossiers deviennent payants sans dossier créé (ses gratuits ont pris fin, l'offert est retiré)
+  commence son abonnement ce jour-là : sans cela il n'aurait jamais été facturé.
+- Une période notée « rien à facturer » se retente dès qu'un dossier payant existe.
+- Le cabinet lit le résultat dans « Ton abonnement » : « Ton abonnement est offert », « SkanFact t'a donné 10 dossiers
+  gratuits », « SkanFact a suspendu ton cabinet » (et non « règle ta facture »). Il ne lit jamais le motif.
+- Les autres cabinets ne bougent pas (le test tient un cabinet témoin).
+
+À VÉRIFIER avec Skander :
+
+- l'offert l'emporte sur une facture impayée : un cabinet offert n'est jamais en lecture seule, même avec une vieille
+  facture due (elle reste due, à régler ou à annuler par un avoir) ;
+- « Reporter » retarde la facture, il ne l'offre pas : à la date, la facture de la période en cours part entière ;
+- « Suspendre » ferme aussi les dossiers gratuits (c'est une sanction, pas un impayé) ;
+- seul le rôle « direction » agit ; le support lit.
+
+Tests : `tests/abonnement/abonnement-cabinet.test.ts` (les treize gestes par l'API, un cabinet témoin),
+`tests/web/console.test.ts` (à la souris : dix dossiers gratuits, suspendre, reprendre, le support sans geste ; rendu
+clair, sombre, téléphone). Six preuves « gestes cabinet a…f ».
