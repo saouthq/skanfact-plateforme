@@ -4885,3 +4885,10 @@ devenue double ou disparue. Elles sont retirées de `tests/preuves.sh`, chacune 
 **À reposer** : « le client soldé compté dans Ce qui reste dû » (Cabinet, lettrage) — la garde est toujours dans le code,
 mais le test ne la met plus à l'épreuve ; il faut un tiers soldé sans lettrage dans `cabinet-balance-tiers.test.ts`.
 Et « il reste à taper le code », à reposer sur un test de « Ton compte ».
+
+## 1.381.3 — Une preuve de course retirée
+
+« déclaration 1.350.0 l » (les choix de journal qui se suivent) dépend de l'ordre d'arrivée de deux
+enregistrements : sans la file, le dernier choix n'est perdu que si la machine est assez lente. Elle
+passait ici et tombait chez GitHub. Une preuve qui tombe au hasard cesse d'être lue : retirée, avec
+sa raison écrite à sa place. Le code ne change pas.
