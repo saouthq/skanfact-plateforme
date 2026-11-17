@@ -4542,3 +4542,17 @@ Restes, dits : le menu « voir le grand livre » depuis un compte de la Révisio
 et les états (CABDECLARER-9, seconde moitié) ; le lettrage à la main (CABDECLARER-7). À VÉRIFIER : la forme du code
 auxiliaire tiré du nom (aucune règle tunisienne ne la fixe).
 Essais : `tests/web/livres-1378-3.test.ts`, `tests/moteur/fec-tiers-1378.test.ts`, `tests/compta/saisie.test.ts`.
+
+## 1.378.4 — L'exercice suivant se demande, la question d'un dossier tenu dit où elle est (issue 9, CABDECLARER-15, -22, -25, -39)
+
+- **« Ouvrir 2027 (à-nouveaux)… » demande avant d'écrire** quand l'exercice n'est pas fini : la fenêtre dit que les
+  à-nouveaux d'aujourd'hui seront à refaire à la clôture. « Pas maintenant » n'écrit rien.
+- **Une question posée à un client sans SkanFact** ne « part » nulle part : le contrôle de la révision dit qu'elle reste
+  dans la révision, à poser de vive voix ou par e-mail — la même phrase que la fenêtre. Il ne passe plus devant la suite
+  de la révision. Pour un client relié, la phrase ne mélange plus « votre » et « ton ».
+- **Une balance importée nomme les lignes qu'elle écarte** (numéro et raison) dans le rapport lu AVANT de reprendre.
+- **« de » s'élide** : « loyer d'octobre », « livraisons d'avril », « le classeur d'Exemple » (écrans du Cabinet et dossier
+  d'exemple). Pas devant un y.
+
+Essais : `tests/web/ouvrir-question-1378-4.test.ts`, `tests/web/cabinet-reprise.test.ts`,
+`tests/web/cabinet-exemple-1370.test.ts`. Quatre preuves.

@@ -30241,6 +30241,23 @@ prouver $'issue 9 1.378.3 j : le serveur n\'envoie plus la date du lettrage' ser
   $'lettreLe: jourLettre(lettres.get(l.id)?.le),' \
   $'lettreLe: null,' \
   $'lettrer une facture et son règlement'
+# 1.378.4 — l'exercice suivant se demande, la question d'un dossier tenu dit où elle est (issue 9).
+prouver $'issue 9 1.378.4 a : « Ouvrir N+1 » écrit sans demander sur un exercice en cours' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (suiv.etat === \'ouvrir\' && finEx >= String(K.today()) && !await confirmDialog(' \
+  $'if (false && !await confirmDialog(' \
+  $'(1.378.4) ouvrir l\'exercice suivant d\'un exercice en cours se confirme'
+prouver $'issue 9 1.378.4 b : la question d\'un dossier tenu promet un envoi' modules/socle/ecrans/cabinet/app-1.js \
+  $'const sansConversation = !!dossier.manual || !api.messagerie;' \
+  $'const sansConversation = false;' \
+  $'(1.378.4) ouvrir l\'exercice suivant d\'un exercice en cours se confirme'
+prouver $'issue 9 1.378.4 c : les lignes écartées d\'une balance ne se lisent plus avant de reprendre' modules/socle/ecrans/cabinet/app-1.js \
+  $'rapportBalanceHtml(r.fichier, r.balance, r.ignorees)' \
+  $'rapportBalanceHtml(r.fichier, r.balance, [])' \
+  $'un client tenu commence son livre avec la balance d\'un CSV'
+prouver $'issue 9 1.378.4 d : « loyer de octobre » dans l\'exemple' web/public/plateforme/exemple-cabinet.js \
+  $'return /^[aeiouéèêàâîôûh]/i.test(n) ? `d\'${n}`' \
+  $'return false ? `d\'${n}`' \
+  $'un clic charge un dossier d\'exemple complet'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

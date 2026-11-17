@@ -70,7 +70,10 @@ describe('la reprise d\'un client, à la souris', () => {
     // refusé montre son refus. On accepte le rapport quand c'est lui qui s'ouvre.
     const accepter = p.getByRole('button', { name: 'Reprendre ces soldes', exact: true });
     await expect.poll(async () => (await accepter.count()) + (await p.locator('#modal-root .modal').count() > 1 ? 1 : 0), { timeout: 10_000 }).toBeGreaterThan(0);
+    // (1.378.4) Le rapport se relit avant d'être accepté : il nomme les lignes écartées.
+    const rapport = await p.locator('#modal-root .modal').last().innerText();
     if (await accepter.count()) await accepter.click();
+    return rapport;
   };
 
   it('un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste', async () => {
@@ -116,7 +119,7 @@ describe('la reprise d\'un client, à la souris', () => {
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Commencer le livre de Café des Arts');
     // Sa balance d'ouverture, telle que son ancien logiciel l'exporte : un titre, une ligne qui n'est pas
     // un compte (ignorée, et dite), un total général dessous (laissé de côté).
-    await choisir(p, 'balance-2025.csv', Buffer.from([
+    const rapportBalance = await choisir(p, 'balance-2025.csv', Buffer.from([
       'Balance générale au 31/12/2025',
       'Compte;Intitulé;Solde débiteur;Solde créditeur',
       '101;Capital social;;20 000,000',
@@ -129,8 +132,9 @@ describe('la reprise d\'un client, à la souris', () => {
       'Total général;;24 525,625;24 525,625',
     ].join('\r\n'), 'utf8'));
     // La ligne ignorée se dit, avec son numéro dans le fichier.
-    await expect.poll(() => p.locator('#modal-root').innerText()).toMatch(/Lignes ignorées[\s\S]*Ligne 9 : « ABC » n.est pas un numéro de compte/);
-    await fermerLaFenetreDuDessus();
+    // (1.378.4, issue 9 CABDECLARER-25) Dans le rapport lu AVANT de reprendre — « la liste suit », et rien ne suivait.
+    expect(rapportBalance.replace(/\s+/g, ' ')).toMatch(/Une ligne du fichier n.est pas un compte, et ne sera pas reprise : Ligne 9 : « ABC » n.est pas un numéro de compte/);
+    expect(await p.locator('#modal-root .modal').count()).toBe(1);
     await expect.poll(() => fenetre.locator('#rf-lignes tr').count()).toBe(6);
     await expect.poll(() => ecart.innerText()).toMatch(/^Équilibrée : 24\s525,625 de chaque côté\.$/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-1-csv.png') });

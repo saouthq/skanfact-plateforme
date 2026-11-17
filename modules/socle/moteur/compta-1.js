@@ -6175,7 +6175,7 @@
     const qs = questionsOuvertes(livre, { periode });
     const aEnvoyer = qs.filter(q => !(q.envois || []).length).length;
     const enAttente = qs.length - aEnvoyer;
-    if (aEnvoyer) c.push({ id: 'questions', gravite: 'attention', envoyer: true, texte: `${plFr(aEnvoyer, 'question au client n\'est pas encore partie', 'questions au client ne sont pas encore parties')} : ${aEnvoyer > 1 ? 'elles attendent, prêtes,' : 'elle attend, prête,'} dans votre conversation et ${aEnvoyer > 1 ? 'partiront' : 'partira'} avec ton prochain message, ou d'un clic ici.` });
+    if (aEnvoyer) c.push({ id: 'questions', gravite: 'attention', envoyer: true, texte: `${plFr(aEnvoyer, 'question au client n\'est pas encore partie', 'questions au client ne sont pas encore parties')} : ${aEnvoyer > 1 ? 'elles attendent, prêtes,' : 'elle attend, prête,'} dans ta conversation avec le client et ${aEnvoyer > 1 ? 'partiront' : 'partira'} avec ton prochain message, ou tout de suite par le bouton d'envoi.` });
     if (enAttente) c.push({ id: 'questions-attente', gravite: 'attention', texte: `${plFr(enAttente, 'question au client attend sa réponse', 'questions au client attendent leur réponse')}.` });
     return c;
   }

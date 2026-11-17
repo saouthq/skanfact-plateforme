@@ -2206,7 +2206,7 @@
         <label class="check" style="align-self:end" id="dp-salaire"><input type="checkbox" name="withSalary"> Mentionner le salaire ${info('pa.docSalaire')}</label>
       </form>
       <p class="small muted" id="dp-desc"></p>
-      ${dossier.gerant ? '' : `<div class="warn-box mb" id="dp-gerant">Le document dira « Je soussigné » <b>sans nom</b> : le gérant de ${esc(dossier.name)} n'est pas sur la fiche du dossier. <button type="button" class="btn btn-sm" id="dp-gerant-go">Renseigner le gérant…</button></div>`}
+      ${dossier.gerant ? '' : `<div class="warn-box mb" id="dp-gerant">Le document dira « Je soussigné » <b>sans nom</b> : le gérant ${esc(deFr(dossier.name))} n'est pas sur la fiche du dossier. <button type="button" class="btn btn-sm" id="dp-gerant-go">Renseigner le gérant…</button></div>`}
       ${e.gender ? '' : `<div class="warn-box mb" id="dp-civ">Le document parlera de ${esc(x.nom)} au masculin, sans « Madame » ni « Monsieur » : sa civilité n'est pas renseignée. <button type="button" class="btn btn-sm" id="dp-civ-go">Renseigner sa civilité…</button></div>`}
       <div class="panel" id="dp-solde" hidden><h2>Solde de tout compte (DT)</h2>
         <p class="small muted mb">Ce qui reste dû au salarié à son départ. Les montants sont à toi : SkanFact propose l'indemnité de congés non pris, sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>

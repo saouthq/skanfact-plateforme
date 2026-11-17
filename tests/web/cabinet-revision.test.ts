@@ -172,7 +172,7 @@ describe('la révision et les questions au client, à la souris', () => {
     await expect.poll(toast, APRES_LE_SERVEUR).toBe('Gardée : 1 question prête pour Menuiserie Ben Salah. Elle partira avec ton prochain message.');
     await expect.poll(async () => (await questions(associe)).map((q) => [q.statut, q.compte, q.attendu, q.objet.includes('471')])).toEqual([['ouverte', '471', 'piece', true]]);
     expect(await questions(client)).toEqual([]);
-    await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\squestion au client n.est pas encore partie : elle attend, prête, dans votre conversation/);
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\squestion au client n.est pas encore partie : elle attend, prête, dans ta conversation avec le client/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-revision-1-question.png') });
 
     // ── L'envoyer d'ici, d'un clic : le client la lit ; sa réponse revient sur l'écran du cabinet ────────────────────────

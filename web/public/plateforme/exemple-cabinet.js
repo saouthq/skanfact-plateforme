@@ -16,6 +16,7 @@
   const finDuMois = (/** @type {number} */ a, /** @type {number} */ m) => new Date(Date.UTC(a, m, 0)).getUTCDate();
   const jour = (/** @type {number} */ a, /** @type {number} */ m, /** @type {number} */ j) => `${a}-${deux(m)}-${deux(Math.min(j, finDuMois(a, m)))}`;
   const NOMS_MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const deMois = (/** @type {number} */ m) => { const n = NOMS_MOIS[m - 1] || ''; return /^[aeiouéèêàâîôûh]/i.test(n) ? `d'${n}` : `de ${n}`; }; // (1.378.4) « loyer d'octobre »
   const HOTEL = 'Hôtel Dar Jerba', CAFE = 'Café Jasmin', MINOTERIE = 'Minoterie du Cap Bon', BAILLEUR = 'SCI El Menzah', STEG = 'STEG';
   // Les taux sont ceux d'un exemple (19 % partout) : ils montrent une TVA à payer chaque mois, pas une règle fiscale.
   const TVA = 0.19;
@@ -36,12 +37,12 @@
       piece(j, 'VT', `Z-${mm}${deux(j)}`, `Ventes au comptoir · ${j === 15 ? 'du 1er au 15' : `du 16 au ${j}`}`, [{ c: '54', d: ttc }, { c: '701', k: h }, { c: '4367', k: ttc - h }]);
     }
     const hotel = 2_140_000 + rang * 38_000, cafe = 486_000 + rang * 9_000;
-    piece(20, 'VT', `FV-${a}-${mm}1`, `${HOTEL} · gâteaux et viennoiseries de ${NOMS_MOIS[m - 1]}`, [{ c: '411', t: HOTEL, d: hotel }, { c: '701', k: ht(hotel, TVA) }, { c: '4367', k: hotel - ht(hotel, TVA) }]);
-    piece(25, 'VT', `FV-${a}-${mm}2`, `${CAFE} · livraisons de ${NOMS_MOIS[m - 1]}`, [{ c: '411', t: CAFE, d: cafe }, { c: '701', k: ht(cafe, TVA) }, { c: '4367', k: cafe - ht(cafe, TVA) }]);
+    piece(20, 'VT', `FV-${a}-${mm}1`, `${HOTEL} · gâteaux et viennoiseries ${deMois(m)}`, [{ c: '411', t: HOTEL, d: hotel }, { c: '701', k: ht(hotel, TVA) }, { c: '4367', k: hotel - ht(hotel, TVA) }]);
+    piece(25, 'VT', `FV-${a}-${mm}2`, `${CAFE} · livraisons ${deMois(m)}`, [{ c: '411', t: CAFE, d: cafe }, { c: '701', k: ht(cafe, TVA) }, { c: '4367', k: cafe - ht(cafe, TVA) }]);
     // Les achats : la farine (payée le mois d'après), le loyer et l'électricité (payés dans le mois).
     const farine = 8_330_000 + rang * 95_200, loyer = 1_428_000, steg = 618_800 + (m % 4) * 35_700;
     piece(6, 'AC', `FA-${mm}06`, `${MINOTERIE} · farine, beurre et sucre`, [{ c: '601', d: ht(farine, TVA) }, { c: '4366', d: farine - ht(farine, TVA) }, { c: '401', t: MINOTERIE, k: farine }]);
-    piece(2, 'AC', `LOY-${mm}`, `${BAILLEUR} · loyer de ${NOMS_MOIS[m - 1]}`, [{ c: '613', d: ht(loyer, TVA) }, { c: '4366', d: loyer - ht(loyer, TVA) }, { c: '401', t: BAILLEUR, k: loyer }]);
+    piece(2, 'AC', `LOY-${mm}`, `${BAILLEUR} · loyer ${deMois(m)}`, [{ c: '613', d: ht(loyer, TVA) }, { c: '4366', d: loyer - ht(loyer, TVA) }, { c: '401', t: BAILLEUR, k: loyer }]);
     piece(18, 'AC', `STEG-${mm}`, `${STEG} · électricité et gaz`, [{ c: '606', d: ht(steg, TVA) }, { c: '4366', d: steg - ht(steg, TVA) }, { c: '401', t: STEG, k: steg }]);
     // La banque : les espèces versées, le loyer et l'électricité payés, l'échéance de l'emprunt, les frais.
     const comptoir = 13_800_000 + rang * 190_000;
@@ -102,7 +103,7 @@
         await api.pointerDeclaration({ dossierId: id, annee: a, periode, quoi: 'payee', valeur: { le: jour(sa, sm, 25) } });
         // Ce que l'écriture du mois laisse à payer à l'État part de la banque le 25 du mois d'après.
         const ligne = e && e.livre ? ((e.livre.ecritures || []).find((/** @type {any} */ x) => x.id === e.id) || { lignes: [] }).lignes.find((/** @type {any} */ l) => l.compte === '4365' && Number(l.credit) > 0) : null;
-        return ligne ? { date: jour(sa, sm, 25), journal: 'BQ', piece: `TVA-${deux(m)}`, libelle: `Télépaiement TVA de ${NOMS_MOIS[m - 1]}`,
+        return ligne ? { date: jour(sa, sm, 25), journal: 'BQ', piece: `TVA-${deux(m)}`, libelle: `Télépaiement TVA ${deMois(m)}`,
           lignes: [{ compte: '4365', tiers: '', libelle: '', debit: dt(Number(ligne.credit) * 1000), credit: '' }, { compte: '532', tiers: '', libelle: '', debit: '', credit: dt(Number(ligne.credit) * 1000) }] } : null;
       };
 
@@ -124,7 +125,7 @@
         dire(`L'exercice ${Y1} : ${NOMS_MOIS[m - 1]}…`);
         const mois = piecesDuMois(Y1, m, rang);
         const pieces = [...mois.pieces, ...(avant ? reglementsDuMois(Y1, m, avant, undefined, ancien) : []), ...(tva ? [tva] : []),
-          { date: jour(Y1, m, 31), journal: 'PAIE', piece: `PAIE-${deux(m)}`, libelle: `Salaires de ${NOMS_MOIS[m - 1]} · 3 salariés`, lignes: [{ compte: '640', tiers: '', libelle: '', debit: dt(salairesY1), credit: '' }, { compte: '425', tiers: '', libelle: '', debit: '', credit: dt(salairesY1) }] },
+          { date: jour(Y1, m, 31), journal: 'PAIE', piece: `PAIE-${deux(m)}`, libelle: `Salaires ${deMois(m)} · 3 salariés`, lignes: [{ compte: '640', tiers: '', libelle: '', debit: dt(salairesY1), credit: '' }, { compte: '425', tiers: '', libelle: '', debit: '', credit: dt(salairesY1) }] },
           { date: jour(Y1, m, 31), journal: 'BQ', piece: `VIR-SAL-${deux(m)}`, libelle: 'VIR salaires', lignes: [{ compte: '425', tiers: '', libelle: '', debit: dt(salairesY1), credit: '' }, { compte: '532', tiers: '', libelle: '', debit: '', credit: dt(salairesY1) }] }];
         await ecrire(pieces);
         await validerLeMois(Y1, m);
@@ -184,7 +185,7 @@
         const credits = (/** @type {RegExp} */ comptes) => Math.round(1000 * (livre.ecritures || []).filter((/** @type {any} */ e) => e.journal === 'PAIE' && String(e.date).slice(0, 7) === `${A}-${deux(m)}`)
           .reduce((/** @type {number} */ t, /** @type {any} */ e) => t + e.lignes.filter((/** @type {any} */ l) => comptes.test(String(l.compte))).reduce((/** @type {number} */ u, /** @type {any} */ l) => u + (Number(l.credit) || 0), 0), 0));
         const comptesDe = (/** @type {RegExp} */ comptes) => [...new Set((livre.ecritures || []).filter((/** @type {any} */ e) => e.journal === 'PAIE').flatMap((/** @type {any} */ e) => e.lignes.map((/** @type {any} */ l) => String(l.compte))).filter((/** @type {string} */ c) => comptes.test(c)))];
-        for (const c of comptesDe(/^43[23]/)) { const n = credits(new RegExp(`^${c}$`)); if (n > 0) aPayer.push(bq(jour(sa, sm, 25), `${/^432/.test(c) ? 'IRPP' : 'TFP'}-${deux(m)}`, `Télépaiement ${/^432/.test(c) ? 'retenues sur salaires' : 'TFP et FOPROLOS'} de ${NOMS_MOIS[m - 1]}`, c, n)); }
+        for (const c of comptesDe(/^43[23]/)) { const n = credits(new RegExp(`^${c}$`)); if (n > 0) aPayer.push(bq(jour(sa, sm, 25), `${/^432/.test(c) ? 'IRPP' : 'TFP'}-${deux(m)}`, `Télépaiement ${/^432/.test(c) ? 'retenues sur salaires' : 'TFP et FOPROLOS'} ${deMois(m)}`, c, n)); }
         cnssDuTrimestre += credits(/^453/);
         if (m % 3 === 0 && cnssDuTrimestre > 0) { aPayer.push(bq(jour(sa, sm, 15), `CNSS-T${m / 3}`, `CNSS du ${m / 3}${m === 3 ? 'er' : 'e'} trimestre`, comptesDe(/^453/)[0] || '4531', cnssDuTrimestre)); cnssDuTrimestre = 0; }
         if (m < M - 1) { const t = await declarer(A, m); if (t) aPayer.push(t); } else await valider(dernier);
@@ -199,7 +200,7 @@
           .reduce((/** @type {number} */ t, /** @type {any} */ e) => t + e.lignes.filter((/** @type {any} */ l) => String(l.compte) === '532').reduce((/** @type {number} */ u, /** @type {any} */ l) => u + (Number(l.debit) || 0) - (Number(l.credit) || 0), 0), 0));
         for (const [m, rapproche] of /** @type {[number, boolean][]} */ ([[M - 2, true], [M - 1, false]])) {
           if (m < 1) continue;
-          dire(`La banque : le relevé de ${NOMS_MOIS[m - 1]}…`);
+          dire(`La banque : le relevé ${deMois(m)}…`);
           const lignes = mouvements(m);
           // Le relevé du mois dernier porte ce que le livre n'a pas encore : des agios, à écrire depuis la ligne.
           if (!rapproche) lignes.push({ date: jour(A, m, 30), libelle: 'AGIOS DEBITEURS 3E TRIMESTRE', reference: '', montant: -18_400 });

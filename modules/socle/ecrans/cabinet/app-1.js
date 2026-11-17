@@ -1806,8 +1806,8 @@
     if (nP) l.push({ titre: 'Bien reçu, merci', sous: `${pl(nP, 'pièce reçue', 'pièces reçues')}`, texte: `${bonjour}bien reçu ${nP > 1 ? `vos ${nP} pièces` : 'votre pièce'}, merci ! Je m'en occupe.` });
     const dc = declarationConnue(d.id, mp);
     const tard = retard.get(d.name) || [];
-    if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp))}`, texte: `${bonjour}votre déclaration de ${moisLong(mp)} est prête : je la dépose avant le ${jjmm(limiteDe(mp))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
-    else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces de ${moisLong(mp)}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
+    if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp))}`, texte: `${bonjour}votre déclaration ${deFr(moisLong(mp))} est prête : je la dépose avant le ${jjmm(limiteDe(mp))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
+    else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces ${deFr(moisLong(mp))}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
     if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations de ${tard.map(moisLong).join(' et ')} sont` : `la déclaration de ${moisLong(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
     return l.slice(0, 2);
   }
@@ -4547,7 +4547,7 @@
         <td class="cd-ct"><span class="cd-ct-i"><span><b>${esc(d.contact || '—')}</b><small>${esc(d.fonction || d.phone || d.email || '')}</small></span>${nl}</span></td>
         ${dir ? `<td class="r"><span class="num${d.demo && honFiche(d) ? ' muted" title="Dossier d\'exemple : hors des totaux du cabinet' : ''}">${honFiche(d) ? esc(dtCd(honFiche(d))) : '—'}</span></td>` : ''}
         <td>${lienCd(d)}</td>
-        <td class="lf-act">${relancer}${vite}<span class="tb-mw"><button type="button" class="btn ico" data-cd-menu="${esc(d.id)}" aria-label="Les gestes de ${esc(d.name)}" aria-haspopup="menu" aria-expanded="${st.menu === d.id}">${CD_IC.trois}</button>${st.menu === d.id ? menuLigneCd(x) : ''}</span></td></tr>`;
+        <td class="lf-act">${relancer}${vite}<span class="tb-mw"><button type="button" class="btn ico" data-cd-menu="${esc(d.id)}" aria-label="Les gestes ${esc(deFr(d.name))}" aria-haspopup="menu" aria-expanded="${st.menu === d.id}">${CD_IC.trois}</button>${st.menu === d.id ? menuLigneCd(x) : ''}</span></td></tr>`;
     };
     // La carte d'un client au téléphone : son nom, ses messages non lus, son mois, son contact, qui le suit, ses honoraires.
     const carte = x => {
@@ -5410,6 +5410,9 @@
   const compteRoleCl = (livre, role) => (((livre && livre.plan) || []).find(c => c.role === role) || {}).compte || (KC.COMPTES_FISCAUX || {})[role] || '';
   // (1.378.3, issue 9 CABDECLARER-9) Un export dit son NOM et où il est : « Fichier enregistré. » laissait chercher
   // lequel, parmi les téléchargements du jour.
+  // (1.378.4, issue 9 CABDECLARER-39) « de » s'élide devant une voyelle : « loyer d'octobre », « le classeur d'Exemple ».
+  // Pas devant un y (« de Youssef ») ; le h est pris muet (« d'Hôtel »), le cas courant des raisons sociales.
+  const deFr = nom => (/^[aeiouéèêàâîôûh]/i.test(String(nom || '').normalize('NFC')) ? `d'${nom}` : `de ${nom}`);
   const fichierDit = r => (r && r.path ? `Fichier enregistré dans tes téléchargements : ${r.path}` : 'Fichier enregistré.');
   const nomCompteCl = (livre, c, l) => (l && l.tiers && /^4[01]/.test(String(c))) ? l.tiers : ((((livre && livre.plan) || []).find(x => x.compte === String(c)) || {}).libelle || (l && l.libelle) || '');
   const quiCl = id => { if (!id) return 'le cabinet'; const c = (S.collaborateurs || []).find(x => x.id === id || x.utilisateur === id); return c ? String(c.nom || '').split(' ')[0] : 'le cabinet'; };
@@ -5888,7 +5891,7 @@
   function fenLireCl(d, x, apres) {
     const qui = prenomCl(d.contact) || 'Le client';
     modal(`<div class="tb-rel-t"><span class="cd-ic cl-ia-fond">${CL_IC.ia}</span><span><h2 id="lu-t">Lire ${esc(nomFichierCl(x))} avec l'IA</h2><small>${esc(d.name)} · le fournisseur, le numéro, la date et le total</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
-      <ul class="cl-dep-l"><li>${CL_IC.ok}<span><b>Ce qui part :</b> le fichier, rien d'autre, chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>. Ni le nom de ${esc(d.name)}, ni celui du cabinet.</span></li>
+      <ul class="cl-dep-l"><li>${CL_IC.ok}<span><b>Ce qui part :</b> le fichier, rien d'autre, chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>. Ni le nom ${esc(deFr(d.name))}, ni celui du cabinet.</span></li>
         <li>${CL_IC.ok}<span><b>Ce qui revient :</b> le fournisseur, le numéro, la date et le total, gardés pour le cabinet. Rien ne se saisit sans toi : tu vérifies sur la pièce.</span></li>
         <li>${CL_IC.ok}<span>${esc(qui)} a laissé la lecture de ses pièces ouverte dans ses réglages, et peut la couper à tout moment.</span></li></ul>
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary cl-ia-btn" id="ok">${CL_IC.ia}Lire la pièce</button></div>`,
@@ -5995,7 +5998,7 @@
       .sort((a, b) => (a.k === x.jumelle ? -1 : b.k === x.jumelle ? 1 : 0) || proche(a) - proche(b)).slice(0, 12);
     modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.pdf}</span><span><h2 id="db-t">${esc(nomFichierCl(x))} est en double de quelle pièce ?</h2><small>Elle sort du compte ${esc(deMois(x.mois))} sans être effacée ; l'autre reste</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       ${cands.length ? `<ul class="cl-dp-l">${cands.map((c, i) => `<li><span class="cl-l-i ${c.photo ? 'photo' : 'pdf'}">${CL_IC[c.photo ? 'photo' : 'pdf']}</span><span><b>${esc(c.titre)}</b><small>${esc([cap(moisLong(c.mois)), c.num, c.montant ? `${dtCd(c.montant)} DT` : '', c.etat[1]].filter(Boolean).join(' · '))}</small></span><span class="cl-dp-ou"><button type="button" class="btn btn-sm${i === 0 && c.k === x.jumelle ? ' btn-primary' : ''}" data-j="${i}">C'est la même</button></span></li>`).join('')}</ul>`
-        : `<p class="muted">Aucune autre pièce de ${esc(moisLong(x.mois))} ni de ses voisins.</p>`}
+        : `<p class="muted">Aucune autre pièce ${esc(deFr(moisLong(x.mois)))} ni de ses voisins.</p>`}
       <div class="modal-actions"><button type="button" class="btn-lien" id="db-sans">Marquer en double sans la nommer</button><button type="button" class="btn" data-close>Annuler</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('tb-fen', 'cd-fen');
@@ -6159,7 +6162,7 @@
     const prends = { pieces: true, fec: true, index: true, decl: true };
     const QUOI = [['tout', 'Tout le dossier'], ['annee', `L'exercice ${annee}`], ['mois', `${cap(moisLong(mois))} ${mois.slice(0, 4)}`], ['permanent', 'Le dossier permanent']];
     const choisis = () => quoi === 'permanent' ? [] : items.filter(x => (x.p || x.doc) && x.etat[1] !== 'en double' && (quoi !== 'mois' || x.mois === mois));
-    modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.bas}</span><span><h2 id="ex-t">Exporter le classeur de ${esc(d.name)}</h2><small>Pour un contrôle fiscal, la banque, un autre cabinet ou tes archives</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+    modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.bas}</span><span><h2 id="ex-t">Exporter le classeur ${esc(deFr(d.name))}</h2><small>Pour un contrôle fiscal, la banque, un autre cabinet ou tes archives</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       <span class="field">Quoi</span><div class="tb-rel-q" role="group" aria-label="Quoi" id="ex-q">${QUOI.map(([k, n]) => `<button type="button" aria-pressed="${k === quoi}" data-q="${k}">${esc(n)}</button>`).join('')}</div>
       <div class="cd-cbs" id="ex-c">${[['pieces', 'Les pièces, rangées comme ici', `${annee} › ${mois.slice(5, 7)} ${cap(moisLong(mois))} › Achats › la pièce`], ['fec', 'Le fichier des écritures (FEC)', 'le format qu\'un vérificateur demande (À VÉRIFIER pour la Tunisie)'], ['index', 'Un index en PDF', 'chaque pièce, son écriture, sa déclaration'], ['decl', 'Les déclarations et leurs accusés', 'le formulaire, l\'accusé, le paiement']].map(([k, b, s]) => `<label class="cd-cb on"><input type="checkbox" data-c="${k}" checked><span><b>${esc(b)}</b><small>${esc(s)}</small></span></label>`).join('')}</div>
       <div id="ex-recents"></div>
@@ -6632,7 +6635,7 @@
       const dejaDemande = t => demandes.some(x => x.texte === t);
       const restent = PROP.filter(([t]) => !dejaDemande(t));
       clState.coches = clState.coches && clState.coches.id === d.id ? clState.coches : { id: d.id, non: new Set() };
-      milieu = `<div class="cl-res cl-res-bv"><div class="cl-res-m bv" aria-hidden="true">${CL_IC.classeur}</div><div class="cl-res-t"><b>Le classeur de ${esc(d.name)} s'ouvre</b><span>Ses pièces arriveront ici, rangées mois par mois, dès que ${esc(qui)} les enregistre dans SkanFact ou te les envoie. Il reste à réunir son dossier permanent : une seule demande, ${esc(qui)} répond à mesure qu'il envoie.</span></div></div>
+      milieu = `<div class="cl-res cl-res-bv"><div class="cl-res-m bv" aria-hidden="true">${CL_IC.classeur}</div><div class="cl-res-t"><b>Le classeur ${esc(deFr(d.name))} s'ouvre</b><span>Ses pièces arriveront ici, rangées mois par mois, dès que ${esc(qui)} les enregistre dans SkanFact ou te les envoie. Il reste à réunir son dossier permanent : une seule demande, ${esc(qui)} répond à mesure qu'il envoie.</span></div></div>
         <section class="cl-sec"><h3>Le dossier permanent<span>${restent.length ? `${restent.length} à demander` : 'demandé'}</span><small>proposés d'après sa fiche${d.forme ? ` (${esc(d.forme)})` : ''} : décoche ce qui ne sert pas</small></h3><ul class="cl-ls">${PROP.map(([t, s], i) => `<li class="cl-l cl-trou"><label class="cl-cb"><input type="checkbox" data-cl-prop="${i}"${dejaDemande(t) ? ' disabled checked' : clState.coches.non.has(i) ? '' : ' checked'} aria-label="${esc(t)}"></label><span class="cl-l-t"><b>${esc(t)}</b><small>${esc(s)}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ${dejaDemande(t) ? 'ambre' : 'gris'}">${dejaDemande(t) ? 'demandée' : 'à demander'}</span></span></li>`).join('')}</ul>
           ${restent.length ? `<div class="cl-sec-a"><button type="button" class="btn btn-primary btn-sm" id="cl-prop"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Demander les ${restent.length - [...clState.coches.non].filter(i => restent.includes(PROP[i])).length} pièces à ${esc(qui)}</button><span class="tb-rel-res">une demande groupée, dans votre conversation</span></div>` : ''}</section>
         <section class="cl-sec"><h3>Du côté du cabinet<span>2</span><small>ce que le cabinet range lui-même dans le dossier permanent</small></h3><ul class="cl-ls">
@@ -6640,7 +6643,7 @@
           <li class="cl-l"><span class="cl-l-i contrat">${CL_IC.contrat}</span><span class="cl-l-t"><b>La lettre à l'ancien comptable</b><small>l'usage de la profession avant de reprendre un dossier (À VÉRIFIER)</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st gris">à écrire</span></span></li></ul></section>`;
       clState.propositions = PROP;
     } else if (nouveau) {
-      milieu = `<div class="cl-res cl-res-ok cl-res-bv"><div class="cl-res-m" aria-hidden="true">${CL_IC.classeur}</div><div class="cl-res-t"><b>Le classeur de ${esc(d.name)} s'ouvre</b><span>Tenu au cabinet : chaque écriture que tu saisis, et chaque pièce que tu déposes, s'y range, mois par mois.</span></div></div>`;
+      milieu = `<div class="cl-res cl-res-ok cl-res-bv"><div class="cl-res-m" aria-hidden="true">${CL_IC.classeur}</div><div class="cl-res-t"><b>Le classeur ${esc(deFr(d.name))} s'ouvre</b><span>Tenu au cabinet : chaque écriture que tu saisis, et chaque pièce que tu déposes, s'y range, mois par mois.</span></div></div>`;
     } else if (clState.vue === 'annee') {
       const dt = declsAn.filter(([, v]) => !/cnss/i.test(v.type)), dc = declsAn.filter(([, v]) => /cnss/i.test(v.type));
       const sommeD = l => l.reduce((t, [, v]) => t + (v.montant || 0), 0);
@@ -7348,7 +7351,7 @@
         ? `<div class="warn-box mb"><strong>Au moins un paquet de ce client contient un fichier que son manifeste n'annonce pas ${info('p.intrus')}</strong>
            Personne ne l'a vérifié et il ne compte pas dans les pièces intactes. Ouvre-le seulement si tu sais d'où il vient. ${onglet !== 'paquets' ? '<button class="btn btn-sm" data-vers="paquets">Voir les paquets</button>' : ''}</div>` : ''}
 
-      ${enCompta ? '' : `<div class="tabs" id="d-tabs" role="tablist" aria-label="La fiche de ${esc(dossier.name)}">
+      ${enCompta ? '' : `<div class="tabs" id="d-tabs" role="tablist" aria-label="La fiche ${esc(deFr(dossier.name))}">
         ${ongletBtn('suivi', 'Suivi', row.missingCount)}
         ${ongletBtn('comptabilite', 'Comptabilité' + pointSale(dossier.id), 0)}
         ${ongletBtn('paquets', 'Paquets', packs.length)}
@@ -7626,7 +7629,7 @@
     // entreprise. Le geste destructif y porte enfin son nom, et vit tout en bas, après un trait.
     const supprimerPaquet = async (p) => {
       const ok = await confirmDialog('Supprimer ce paquet ?',
-        `<p>Le paquet <strong>${esc(p.label)}</strong> de ${esc(dossier.name)} sera effacé de ton disque, et ce mois redeviendra « manquant » pour ce client.</p>
+        `<p>Le paquet <strong>${esc(p.label)}</strong> ${esc(deFr(dossier.name))} sera effacé de ton disque, et ce mois redeviendra « manquant » pour ce client.</p>
          <p class="muted small">Une sauvegarde est prise juste avant. À réserver à un paquet arrivé par erreur.</p>
          ${backupInfo && backupInfo.external && backupInfo.external.dir ? '<p class="muted small">La copie externe n\'est pas touchée : une sauvegarde qui efface ce que tu effaces n\'en est plus une. Va l\'y supprimer à la main si c\'est ce que tu veux.</p>' : ''}`, 'Supprimer', true);
       if (!ok) return;
@@ -7767,7 +7770,7 @@
   }
 
   // (1.369.0) Le rapport d'une balance lue dans un tableur (jumeau de celui du FEC, plateforme/fec.js).
-  function rapportBalanceHtml(fichier, b) {
+  function rapportBalanceHtml(fichier, b, ignorees) { // (1.378.4, CABDECLARER-25) les lignes écartées se lisent AVANT de reprendre
     const ligne = (x, y) => `<tr><td>${x}</td><td class="r nw">${y}</td></tr>`;
     return `<p class="small muted">« ${esc(fichier)} », lu sur cet ordinateur : <b>rien n'est encore repris</b>.</p>
       <table class="list compact" id="bal-rapport"><tbody>
@@ -7781,7 +7784,7 @@
       </tbody></table>
       ${b.ecart ? `<p class="small err-inline mt" id="bal-ecart">Cette balance ne s’équilibre pas : il y a ${esc(montant(Math.abs(b.ecart)))} de plus au ${b.ecart > 0 ? 'débit' : 'crédit'}. Tu peux la reprendre et corriger la ligne en cause dans la fenêtre ; le livre ne se crée qu’une fois l’écart à zéro.</p>`
     : '<p class="small ligne-ok mt" id="bal-ok"><span aria-hidden="true">✓</span> Elle s’équilibre : le débit égale le crédit.</p>'}
-      ${b.ignorees ? `<p class="small muted">${b.ignorees > 1 ? `${b.ignorees} lignes du fichier ne sont pas des comptes` : 'Une ligne du fichier n’est pas un compte'} : la liste suit.</p>` : ''}
+      ${b.ignorees ? `<p class="small err-inline" id="bal-ignorees">${b.ignorees > 1 ? `${b.ignorees} lignes du fichier ne sont pas des comptes, et ne seront pas reprises` : 'Une ligne du fichier n’est pas un compte, et ne sera pas reprise'} :</p><ul class="small" id="bal-ignorees-liste">${(ignorees || []).slice(0, 8).map(x => `<li>Ligne ${esc(String(x.ligne))} : ${esc(x.motif)}</li>`).join('')}${(ignorees || []).length > 8 ? `<li>… et ${esc(pl((ignorees || []).length - 8, 'autre', 'autres'))}</li>` : ''}</ul>` : ''}
       ${b.gestion ? '<p class="small muted">Une balance de fin d’exercice porte encore ses charges et ses produits : ils n’ouvrent pas l’exercice suivant, c’est leur résultat qui se reporte (À VÉRIFIER : le compte, si le résultat est déjà affecté).</p>' : ''}
       <p class="small muted">Ces lignes remplacent la balance de la fenêtre : relis-les, corrige-les si besoin, puis crée le livre.</p>`;
   }
@@ -8183,10 +8186,10 @@
             if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
             // (1.369.0) Une balance lue dans un tableur a son rapport aussi : ce que le fichier porte, ce qui est repris
             // (les soldes, le résultat des classes 6 et 7 au compte 13), ce qui ne l'est pas — lu avant que la balance change.
-            if (r.balance && !(await confirmDialog('Reprendre les soldes de cette balance ?', rapportBalanceHtml(r.fichier, r.balance), 'Reprendre ces soldes'))) return;
+            if (r.balance && !(await confirmDialog('Reprendre les soldes de cette balance ?', rapportBalanceHtml(r.fichier, r.balance, r.ignorees), 'Reprendre ces soldes'))) return;
             lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers || '', debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
             redessine();
-            if (r.ignorees.length) await infoDialog('Lignes ignorées', r.ignorees.map(x => `Ligne ${x.ligne} : ${x.motif}`).join('\n'));
+            if (r.ignorees.length && !r.balance) await infoDialog('Lignes ignorées', r.ignorees.map(x => `Ligne ${x.ligne} : ${x.motif}`).join('\n'));
           } catch (e) { await infoDialog('Import impossible', plainError(e)); }
         };
         $('#ok', rootModal).onclick = async () => {
@@ -10025,6 +10028,12 @@
         await ouvrirExercice(root, dossier, String(Number(s.annee) + 1), 'journal');
         return;
       }
+      // (1.378.4, issue 9 CABDECLARER-15) Le bouton finit par « … » : il demande avant d'agir. Sur un exercice qui n'est pas
+      // fini, les à-nouveaux posés aujourd'hui seront à refaire à la clôture — on le dit AVANT de les écrire.
+      const finEx = String(((s.livre || {}).exercice || {}).au || `${s.annee}-12-31`);
+      if (suiv.etat === 'ouvrir' && finEx >= String(K.today()) && !await confirmDialog(`Ouvrir ${Number(s.annee) + 1} dès maintenant ?`,
+        `<p id="cl-suivant-avant">L'exercice ${esc(String(s.annee))} n'est pas fini (il va jusqu'au ${esc(fmtJour(finEx))}) : les à-nouveaux posés aujourd'hui reprennent ses soldes <b>d'aujourd'hui</b>. Ils se poseront au brouillard, et seront à refaire une fois ${esc(String(s.annee))} clôturé — le même bouton s'en charge.</p>`,
+        `Ouvrir ${Number(s.annee) + 1}`, false, 'Pas maintenant')) return;
       su.disabled = true;
       try {
         const r = await api.ouvrirSuivant({ dossierId: dossier.id, annee: s.annee });
@@ -10406,7 +10415,13 @@
     // U-13 — l'orange pour ce qui demande un geste (un brouillard à valider, une note à lever, une
     // question qui attend). « 19 comptes ne sont pas signés » est l'état de DÉPART d'une révision,
     // et l'avancement le dit déjà en tête des feuilles : il ne se répète pas en alerte.
-    const controles = r.controles || [];
+    // (1.378.4, issue 9 CABDECLARER-22) Un dossier tenu sans SkanFact n'a pas de conversation : sa question ne « part » nulle
+    // part. Le contrôle disait « elle attend dans votre conversation et partira… d'un clic ici », à l'inverse de la phrase lue
+    // en la posant. Une seule phrase, la vraie : elle reste dans la révision, à poser de vive voix ou par e-mail.
+    const sansConversation = !!dossier.manual || !api.messagerie;
+    const controles = (r.controles || []).map(c => (c.envoyer && sansConversation
+      ? { ...c, envoyer: false, gravite: 'info', texte: `${pl(parseInt(c.texte, 10) || 1, 'question posée', 'questions posées')} : ce dossier n'a pas SkanFact, ${(parseInt(c.texte, 10) || 1) > 1 ? 'elles restent' : 'elle reste'} dans ta révision. Pose-${(parseInt(c.texte, 10) || 1) > 1 ? 'les' : 'la'} de vive voix ou par e-mail, puis note la réponse ici.` }
+      : c));
     // 10.13.0 (U-11, test humain du pont) — une question posée et pas encore partie passe AVANT la
     // suite de la révision : le client a besoin de temps pour répondre, chaque jour compte.
     const aEnvoyer = controles.some(c => c.envoyer);

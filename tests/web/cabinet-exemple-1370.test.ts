@@ -92,12 +92,14 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
       const pont = (window as unknown as { cabinet: { state(): Promise<{ dossiers: { id: string; demo?: boolean; name: string; manual?: boolean }[] }>; livre(id: string, an: string): Promise<{ livre: Record<string, unknown> }> } }).cabinet;
       const d = (await pont.state()).dossiers.filter((x) => x.demo);
       const de = async (an: number) => {
-        const l = (await pont.livre(String(d[0]?.id), String(an))).livre as { exercice: { clos: boolean }; ecritures: { date: string; statut: string; journal: string; lignes: { compte: string; debit: number; credit: number }[] }[];
+        const l = (await pont.livre(String(d[0]?.id), String(an))).livre as { exercice: { clos: boolean }; ecritures: { date: string; statut: string; journal: string; libelle?: string; lignes: { compte: string; debit: number; credit: number }[] }[];
           declarations: { periode: string; deposee?: unknown; payee?: unknown }[]; releves: { lignes: { rapprochement: { ecritureId?: string } }[] }[]; immobilisations: unknown[]; inventaires: unknown[]; bulletins: unknown[]; salaries: unknown[] };
         return { clos: l.exercice.clos, n: l.ecritures.length, brouillards: l.ecritures.filter((e) => e.statut === 'brouillard').map((e) => e.date.slice(0, 7)),
           desequilibrees: l.ecritures.filter((e) => Math.abs(e.lignes.reduce((t, x) => t + (Number(x.debit) || 0) - (Number(x.credit) || 0), 0)) > 0.0005).length,
           deposees: l.declarations.filter((x) => x.deposee && x.payee).map((x) => x.periode).sort(), declarations: l.declarations.map((x) => x.periode).sort(),
           releves: l.releves.map((r) => [r.lignes.length, r.lignes.filter((x) => x.rapprochement.ecritureId).length]), immobilisations: l.immobilisations.length, inventaires: l.inventaires.length,
+          // (1.378.4, issue 9 CABDECLARER-39) « loyer d'octobre », jamais « loyer de octobre ».
+          malElides: l.ecritures.filter((e) => / de (avril|août|octobre)/.test(e.libelle ?? '')).length, elides: l.ecritures.filter((e) => / d'(avril|août|octobre)/.test(e.libelle ?? '')).length,
           bulletins: l.bulletins.length, salaries: l.salaries.length, dotation: l.ecritures.some((e) => e.lignes.some((x) => String(x.compte).startsWith('681'))), paie: l.ecritures.filter((e) => e.journal === 'PAIE').length };
       };
       return { dossiers: d.map((x) => [x.name, x.manual]), avant: await de(Number(a) - 1), cours: await de(Number(a)) };
@@ -106,6 +108,7 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
     const mois = (a: number, m: number) => `${a}-${String(m).padStart(2, '0')}`;
     // L'exercice d'avant : complet, déclaré douze mois, inventorié, amorti, clôturé ; rien au brouillard.
     expect(lu.avant.clos).toBe(true);
+    expect([lu.avant.malElides, lu.avant.elides > 5]).toEqual([0, true]);
     expect(lu.avant.n).toBeGreaterThan(200);
     expect(lu.avant.brouillards).toEqual([]);
     expect(lu.avant.deposees).toEqual(Array.from({ length: 12 }, (_, i) => mois(A - 1, i + 1)));
