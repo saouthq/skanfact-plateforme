@@ -4771,3 +4771,9 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
 - Le refus d'une fenêtre (un paiement trop grand, une date d'acceptation avant le devis…) s'écrit sous le champ en faute et
   y reste jusqu'à la correction ; le message du bas de l'écran s'effaçait avant d'être lu.
 - Reste de V-12 : prévenir du trop-perçu dès la frappe, et proposer « garder en avance du client ».
+
+## 1.379.9 — Les relances : un report ne se pose pas dans le passé (issue 15, V-15)
+
+- « Ne pas relancer avant le… » refuse une date passée ou d'aujourd'hui, en le disant (elle était acceptée, puis changée
+  en silence). « Relancer par e-mail » s'écrit comme partout.
+- Reste de V-15 : la colonne « Retard » qui porte le ton à venir, et la page encore dans l'ancienne présentation.

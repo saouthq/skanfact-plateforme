@@ -14398,6 +14398,7 @@
       (root, close) => { $('#ok', root).onclick = () => {
         const v = formValues($('#tf', root));
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
+        if (v.remindAfter && v.remindAfter <= C.today()) return refus($('[name=remindAfter]', root), 'Choisis une date à venir, ou laisse la case vide.');
         const s = docById(d.id);
         s.reminders = s.reminders || [];
         s.reminders.push({ date: v.date, level: Number(v.level) || item.level, channel: 'tel', note: v.note || '' });
@@ -14415,6 +14416,8 @@
       (root, close) => {
         $('#ok', root).onclick = () => {
           const v = formValues($('#sf2', root)); if (!v.remindAfter) return refus($('[name=remindAfter]', root), 'Choisis une date.');
+          // (1.379.9, issue 15 V-15) Une date passée était acceptée, puis changée en silence (« on te la remontre le… »).
+          if (v.remindAfter <= C.today()) return refus($('[name=remindAfter]', root), 'Choisis une date à venir : aujourd\'hui ou avant, la facture reviendrait tout de suite dans la liste.');
           docById(d.id).remindAfter = v.remindAfter; save(true); close(); toast('Relance reportée au ' + C.fmtDate(v.remindAfter)); if (done) done();
         };
         if ($('#clear', root)) $('#clear', root).onclick = () => { delete docById(d.id).remindAfter; save(true); close(); toast('Report retiré'); if (done) done(); };
@@ -14687,7 +14690,7 @@
         </tbody></table>${pagerBar(soonPage.pg, { noun: 'facture' })}</div>` : ''}
         ${quotes.length ? `<div id="r-devis"><div class="section-head"><h2>Devis sans réponse ${info('rel.quotes')}</h2></div><table class="list compact"><thead><tr><th>Devis</th><th>Client</th><th>Envoyé il y a</th><th>Validité</th><th class="r">Montant</th><th></th></tr></thead><tbody>
           ${quotesPage.rows.map(d => `<tr><td><strong><a href="#/doc/${d.id}">${h(d.number)}</a></strong><div class="small muted">${h(d.subject || '')}</div></td><td>${h(nomClientPiece(d))}</td><td>${pl(C.daysBetween(d.date, C.today()), 'jour')}</td><td>${effStatus(d) === 'expiré' ? '<span class="badge expiré">expiré</span>' : C.fmtDate(d.dueDate)}</td><td class="r">${C.money(C.computeTotals(d, company()).totalTTC, docCur(d))}</td>
-            <td class="actions"><button class="btn btn-sm" data-qrem="${d.id}">Relancer par email</button></td></tr>`).join('')}
+            <td class="actions"><button class="btn btn-sm" data-qrem="${d.id}">Relancer par e-mail</button></td></tr>`).join('')}
         </tbody></table>${pagerBar(quotesPage.pg, { noun: 'devis', pluriel: 'devis' })}</div>` : ''}
         <p class="small muted mt">Niveaux : rappel amical jusqu'à 15 jours, relance jusqu'à 45 jours, dernière relance au-delà. Textes modifiables dans Paramètres → Envois.</p>`;
       const find = id => all.find(x => x.doc.id === id);
