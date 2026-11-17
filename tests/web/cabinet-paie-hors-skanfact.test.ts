@@ -122,8 +122,25 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     // (1.271.0) Le jour se choisit : aujourd'hui par défaut, ici le dernier jour du mois.
     const fen = p.locator('#modal-root .modal').last();
     expect(await fen.locator('#pa-paye-le').inputValue()).toBe(jour.split('-').reverse().join('/'));
+    // (1.376.0) Un jour d'avant le mois payé, ou pas encore arrivé, se refuse sur son champ : rien ne s'écrit.
+    await fen.locator('#pa-paye-le').fill('01/01/2020');
+    await fen.locator('#pa-paye-ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Le 01\/01\/2020 est avant le mois d.octobre : un salaire ne se paie pas avant son mois\./);
+    expect(await fen.locator('#pa-paye-le').getAttribute('aria-invalid')).toBe('true');
+    await fen.locator('#pa-paye-le').fill('31/12/2099');
+    await fen.locator('#pa-paye-ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Le 31\/12\/2099 n'est pas encore arrivé/);
+    expect((await bulletins()).filter((b) => b.paidDate).length).toBe(0);
     await fen.locator('#pa-paye-le').fill('31/10/2025');
     await fen.locator('#pa-paye-ok').click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === '2025-10-31').length).toBe(2);
+    // Noté par erreur : « Annuler » du message efface le jour du paiement, et le geste revient.
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/2 salaires notés payés le 31\/10\/2025\./);
+    await p.locator('#toast').getByRole('button', { name: 'Annuler' }).click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate).length, { timeout: 10_000 }).toBe(0);
+    await p.locator('#pa-noter-payes').click();
+    await p.locator('#modal-root .modal').last().locator('#pa-paye-le').fill('31/10/2025');
+    await p.locator('#modal-root .modal').last().locator('#pa-paye-ok').click();
     await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === '2025-10-31').length).toBe(2);
     await expect.poll(salaires).toContain('payés, notés au cabinet');
     expect(await p.locator('#pa-noter-payes').count()).toBe(0);

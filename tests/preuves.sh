@@ -24061,7 +24061,7 @@ prouver 'paie 1.271 f : le cabinet ne voit pas le « Pourquoi ? » du client' mo
   'pq = (tm && tm.motifs && tm.motifs[String(j.jour)]) || '\'''\'', dit' 'pq = '\'''\'', dit' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'paie 1.271 g : le jour choisi du « payé le » ignoré' modules/personnel/ecrans/cabinet/paie.js \
-  'marquer(noter, B.map(b => b.id), { paidDate: le },' 'marquer(noter, B.map(b => b.id), { paidDate: aujourdhui() },' \
+  'poser(le).then(r => {' 'poser(aujourdhui()).then(r => {' \
   'le mois d'\''un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
 # ── 1.272.0 : GitHub vert (le cadenas d'une vue, une accolade en trop) ──
 prouver 'GitHub 1.272 a : la vue fermée par l'"'"'offre sans son cadenas' modules/socle/ecrans/entreprise/app-1.js \
@@ -30011,6 +30011,22 @@ prouver $'revue 1.375.2 a : la barre d\'onglets collante de la comptabilité san
   $'padding: 6px 0 0; border: 0; border-radius: 0; background: var(--sb-fond); box-shadow: none; }' \
   $'padding: 6px 0 0; border: 0; border-radius: 0; background: none; box-shadow: none; }' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.376.0 a : un salaire noté payé avant son mois' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (le < `${s.annee}-${String(s.paieMois).padStart(2, \'0\')}-01`) return refus(' \
+  $'if (le < \'0000\') return refus(' \
+  $'le mois d\'un dossier tenu : établir, valider, remettre'
+prouver $'revue 1.376.0 b : un salaire noté payé à une date pas encore arrivée' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (le > aujourdhui()) return refus(i, `Le ${fmtJour(le)} n\'est pas encore arrivé' \
+  $'if (le > \'9999\') return refus(i, `Le ${fmtJour(le)} n\'est pas encore arrivé' \
+  $'le mois d\'un dossier tenu : établir, valider, remettre'
+prouver $'revue 1.376.0 c : « Annuler » du paiement des salaires n\'efface rien' modules/personnel/ecrans/cabinet/paie.js \
+  $'async () => { s.livre = (await poser(\'\')).livre; redraw(); });' \
+  $'async () => { s.livre = (await poser(le)).livre; redraw(); });' \
+  $'le mois d\'un dossier tenu : établir, valider, remettre'
+prouver $'revue 1.376.0 d : une retenue mensuelle plus grosse que l\'avance' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (v.monthly > v.amount + 0.0005) return refus(champ(\'monthly\'),' \
+  $'if (v.monthly < 0) return refus(champ(\'monthly\'),' \
+  $'un dossier tenu : une avance saisie, son versement écrit, re'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

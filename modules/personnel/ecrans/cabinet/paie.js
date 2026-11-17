@@ -1388,9 +1388,19 @@
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pa-paye-ok">Noter payé${B.length > 1 ? 's' : ''}</button></div>`, (layer, close) => {
         $('#pa-paye-ok', layer).onclick = () => {
           const i = $('#pa-paye-le', layer), tape = String((i || {}).value || '').trim(), le = tape ? K.dateTapee(tape, s.annee) : '';
-          if (!le) { if (i) i.focus(); toast(tape ? `« ${tape} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.` : 'Dis le jour où il a payé.', 'error'); return; }
+          if (!le) return refus(i, tape ? `« ${tape} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.` : 'Dis le jour où il a payé.');
+          // (1.376.0) Le jour du paiement devient la date de l'écriture de banque : avant le mois payé, ou pas encore
+          // arrivé, il se refuse sur son champ (« 01/01/2020 » passait, et l'écriture tombait à une autre date — issue 10).
+          if (le < `${s.annee}-${String(s.paieMois).padStart(2, '0')}-01`) return refus(i, `Le ${fmtJour(le)} est avant le mois ${mo()} : un salaire ne se paie pas avant son mois. Écris le jour où il a été payé.`);
+          if (le > aujourdhui()) return refus(i, `Le ${fmtJour(le)} n'est pas encore arrivé : note le paiement le jour où il est fait.`);
           close();
-          marquer(noter, B.map(b => b.id), { paidDate: le }, `${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} le ${fmtJour(le)}.`);
+          // Noté par erreur, il se défait du message : « Annuler » efface le jour du paiement, et son écriture avec lui.
+          const ids = B.map(b => b.id), poser = paidDate => api.marquerBulletins({ dossierId: dossier.id, annee: s.annee, ids, champs: { paidDate } });
+          noter.disabled = true;
+          poser(le).then(r => {
+            s.livre = r.livre; redraw();
+            toastUndo(`${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} le ${fmtJour(le)}.`, async () => { s.livre = (await poser('')).livre; redraw(); });
+          }, err => { toast(plainError(err), 'error'); noter.disabled = false; });
         };
       });
     };
@@ -2008,6 +2018,8 @@
         if (!(v.amount > 0)) return refus(champ('amount'), 'Indique le montant avancé.');
         if (!(v.monthly > 0)) return refus(champ('monthly'), 'Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
         if (v.amount < deja - 0.0005) return refus(champ('amount'), `${money(deja)} ont déjà été retenus sur des bulletins : le montant avancé ne descend pas en dessous.`);
+        // (1.376.0) Une retenue plus grosse que l'avance retiendrait plus que ce qui a été prêté (issue 10).
+        if (v.monthly > v.amount + 0.0005) return refus(champ('monthly'), `La retenue mensuelle (${money(v.monthly)}) dépasse l'avance (${money(v.amount)}) : elle ne peut pas retenir plus que ce qui a été avancé.`);
         const ok = $('#ok', layer);
         ok.disabled = true;
         try {

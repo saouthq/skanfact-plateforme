@@ -4346,3 +4346,16 @@ geste (les deux appels existaient déjà, rien de neuf ne part au serveur). Preu
 Dans la comptabilité d'un dossier, la barre « Saisir · Consulter · Déclarer » reste collée en haut quand on descend
 dans un long journal ; la charte lui avait retiré son fond, et les lignes se lisaient à travers (issue 11, point 14).
 Elle porte le fond de la page. Preuve « revue 1.375.2 a ».
+
+## 1.376.0 — La revue « paie, immobilisations, inventaire » : le paiement des salaires, l'avance
+
+Une autre session a revu la paie, les immobilisations et l'inventaire du Cabinet (issue 10, 37 constats). Premier lot :
+
+- **« Noter les salaires payés »** (bloquant) : « 01/01/2020 » passait, et l'écriture de banque tombait à une autre
+  date. Le jour du paiement se refuse sur son champ s'il est avant le mois payé ou pas encore arrivé ; noté par
+  erreur, il se défait d'« Annuler » dans le message (le jour s'efface, son écriture avec lui).
+- **Avance sur salaire** : une retenue mensuelle plus grosse que l'avance se refuse sur son champ.
+
+Reste de l'issue 10, à faire : l'absence posée après la validation (bloquant, demande un geste de régularisation),
+les retenues au compte du personnel (avis du métier, À VÉRIFIER), le lot de bulletins, les immobilisations au niveau
+de la paie. Quatre preuves « revue 1.376.0 a…d ».

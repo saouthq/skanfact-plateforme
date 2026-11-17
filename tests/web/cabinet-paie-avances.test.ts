@@ -142,6 +142,11 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     await fenetre.locator('[name=monthly]').fill('');
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
+    // (1.376.0) Une retenue plus grosse que l'avance se refuse sur son champ.
+    await fenetre.locator('[name=monthly]').fill('1 500');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toMatch(/^La retenue mensuelle \(1\s500,000\sDT\) dépasse l'avance \(1\s000,750\sDT\) : elle ne peut pas retenir plus que ce qui a été avancé\.$/);
+    expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('monthly');
     await fenetre.locator('[name=monthly]').fill('300,125');
     // Quatre mois (trois de 300,125, puis 100,375) ; la part du net, celle que dit le net lui-même ; trois lignes au plus.
     await expect.poll(annonce).toMatch(/^Remboursée en 4 mois à 300,125 DT par bulletin — [\d,]+ % du net habituel de Salarié Numéro Un \([\d ]+,\d{3} DT\)\.$/);
