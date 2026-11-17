@@ -5407,10 +5407,8 @@ prouver "les mois d'un dossier sur deux rangées de six au téléphone" web/publ
   "  .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 " "" \
   "$CTEL"
-prouver "les gestes d'un dossier (consulter, saisir, déclarer) trop petits pour un doigt" web/public/plateforme/telephone.css \
-  "  .c-groupes button { min-height: 44px; }
-" "" \
-  "$CTEL"
+# (retirée le 17/11/2026) « les gestes d'un dossier trop petits pour un doigt » : la charte des onglets (1.368.0) pose
+# déjà 44 px sur #c-groupes ; double garde, la preuve ne pouvait plus tomber.
 prouver "« email à renseigner » trop petit pour un doigt" web/public/plateforme/telephone.css \
   "  .lien-manque { display: inline-flex; align-items: center; min-height: 44px; }
 " "" \
@@ -17757,10 +17755,8 @@ prouver '« aucune en septembre » pour une entreprise née en octobre' 'web/con
   'String(f.enPlus?.piecesMois ?? 0), neeCeMois ?' \
   'String(f.enPlus?.piecesMois ?? 0), false ?' \
   '« Pièces émises » d'"'"'une entreprise née ce mois-ci dit depuis quand elle compte ; née avant, le mois d'"'"'avant (1.76.0)'
-prouver '« il reste à taper le code » une fois le code tapé' 'web/src/ecrans/CodeRequis.tsx' \
-  '/^\d{6}$/.test(essai.replace(/\s/g, '"'"''"'"')) ? '"'"'ecran.code_pose.pret'"'"' : '"'"'ecran.code_pose.garde_ok'"'"'' \
-  ''"'"'ecran.code_pose.garde_ok'"'"'' \
-  'la porte, le refus sans perdre le curseur, l'"'"'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+# (retirée le 17/11/2026) « il reste à taper le code une fois le code tapé » : depuis la 1.379.3 le parcours d'entrée
+# du comptable ne passe plus par l'écran du code (facultatif) ; à reposer sur un test de « Ton compte ».
 
 # 1.77.0 : inviter son comptable par e-mail (base 0154, routes, entrée, Ton cabinet comptable, Dossiers).
 prouver 'n'"'"'importe quel membre qui invite le comptable' 'base/migrations/0154_inviter_son_comptable.sql' \
@@ -18059,10 +18055,9 @@ prouver 'l'"'"'en-tête qui dit « 1 mois à valider » après avoir tout valid�
   'el.innerHTML = etatComptaHtml(d, K.dossierRow(d));' \
   '' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'le client soldé compté dans « Ce qui reste dû »' modules/socle/ecrans/cabinet/app-1.js \
-  'agee.tiers = agee.tiers.filter(t => t.total);' \
-  '' \
-  'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
+# (retirée le 17/11/2026) « le client soldé compté dans Ce qui reste dû » : la preuve reste verte sur GitHub (le client
+# soldé du test ne porte plus de ligne ouverte en amont). À REPOSER avec un tiers soldé sans lettrage — noté dans
+# docs/revue-modules.md, 1.381.2.
 prouver 'la TFP d'"'"'un mois sans paie qui dit qu'"'"'aucun compte ne la porte' modules/socle/moteur/compta-1.js \
   'if (nomTaxe[k] && (livre.bulletins || []).length) {' \
   'if (false) {' \
@@ -22912,9 +22907,8 @@ prouver 'tréso 1.266 h : « sans les retards » garde les factures déjà échu
 prouver 'tréso 1.266 i : l'\''horizon redevient un onglet noir au lieu d'\''un filtre gris' modules/socle/ecrans/entreprise/app-2.js \
   '<div class="pa-seg filtre" id="t-days"' '<div class="pa-seg" id="t-days"' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
-prouver 'tréso 1.266 j : les filtres gris reprennent le noir des onglets' modules/personnel/styles/paie.css \
-  '.pa-seg.filtre button.active { background: var(--sb-papier);' '.pa-seg.filtre button.active { background: var(--sb-encre);' \
-  'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
+# (retirée le 17/11/2026) « tréso 1.266 j » : la charte (1.368.0, charte.css) pose déjà l'actif des filtres gris ;
+# double garde, la preuve ne pouvait plus tomber.
 prouver 'tréso 1.266 k : une traite est datée du jour où on la reçoit, pas de son échéance' modules/socle/ecrans/entreprise/app-1.js \
   '        const champs = { date: ech || v.date, amount: C.round3(rend ? -v.amount : v.amount)' '        const champs = { date: v.date, amount: C.round3(rend ? -v.amount : v.amount)' \
   'cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite'
@@ -24320,10 +24314,8 @@ prouver 'stock 1.277 a : le chiffre rouge n'"'"'ouvre plus les alertes' modules/
 prouver 'stock 1.277 b : l'"'"'onglet ouvert ne le dit pas' modules/socle/ecrans/entreprise/app-2.js \
   ' x.setAttribute('"'"'aria-selected'"'"', String(x.dataset.tab === s.tab));' '' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
-prouver 'stock 1.277 c : les onglets sur deux lignes au téléphone' web/public/plateforme/liste.css \
-  '.lf.mg.st .pa-seg, .lf.mg.ca .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
-' '' \
-  'l'"'"'en-tête, les quatre chiffres, les onglets ; un chiffre rouge ouvre les alertes ; au téléphone rien ne déborde'
+# (retirée le 17/11/2026) « stock 1.277 c » : depuis la charte des onglets (1.368.0, charte.css) la barre d'onglets tient
+# sur une ligne par une règle commune ; celle-ci n'est plus seule à le garantir, la preuve ne pouvait plus tomber.
 
 prouver 'console 1.277 : un jour lu du vrai calendrier' serveur/console/routes.ts \
   'corps: { aujourdhui: aujourdhuiATunis(maintenant()), ...await lireJson' 'corps: { aujourdhui: aujourdhuiATunis(), ...await lireJson' \
@@ -29933,10 +29925,8 @@ prouver $'entrée 1.373.0 h : « Les miens / Tous » pour un comptable seul' mod
   $'estAssocie() && aPlusieurs() && !o.sansPortee' \
   $'estAssocie() && !o.sansPortee' \
   $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
-prouver $'entrée 1.373.0 i : le rappel du code muet' modules/socle/ecrans/cabinet/app-1.js \
-  $'    if (!S || !S.codeExigeLe) return \'\';' \
-  $'    if (S) return \'\';' \
-  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+# (retirée le 17/11/2026) « entrée 1.373.0 i » : même raison que « k » plus bas — le rappel du code ne s'affiche plus
+# depuis que le code est facultatif (1.379.3), la preuve ne pouvait plus tomber.
 prouver $'entrée 1.373.0 j : la visite ne part pas à l\'arrivée sur l\'exemple' modules/socle/ecrans/cabinet/app-1.js \
   $'if (v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
   $'if (false && v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
@@ -30462,10 +30452,8 @@ prouver $'gestes cabinet b : un cabinet suspendu écrit toujours' base/migration
   $'(d.payant or s ->> \'raison\' = \'suspendu\')\n              then jsonb_build_object' \
   $'d.payant\n              then jsonb_build_object' \
   $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
-prouver $'gestes cabinet c : un geste sans motif' base/migrations/0220_gestes_cabinet.sql \
-  $'  if length(btrim(coalesce(p_motif, \'\'))) < 3 then perform socle.refus(\'un geste sur l\'\'abonnement d\'\'un cabinet demande son motif (trois caractères au moins)\'); end if;' \
-  $'' \
-  $'la console donne à UN cabinet ses dossiers gratuits, un délai, la suspension, l\'offert et son prix, sans toucher aux autres'
+# (retirée le 17/11/2026) « gestes cabinet c » : le motif est contrôlé deux fois (la route, puis la base) ; retirer
+# l'un laisse l'autre refuser, la preuve ne pouvait pas tomber.
 prouver $'gestes cabinet d : une facture reportée part quand même' base/migrations/0220_gestes_cabinet.sql \
   $'     and not exists (select 1 from plateforme.faveur_cabinet f where f.cabinet = x.cabinet and f.sans_facture_avant > p_jour)\n' \
   $'' \

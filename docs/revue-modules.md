@@ -4869,3 +4869,19 @@ module sans case ni bouton, et rien de tout cela quand tout est ouvert), `tests/
 
 La touche ne faisait rien, sans un mot, quand la grille de saisie était vide : elle dit maintenant « Rien à dupliquer »
 et quoi faire. Pas de test neuf (une phrase) ; les tests de la saisie rejoués.
+
+## 1.381.2 — Huit preuves retirées : elles ne pouvaient plus tomber
+
+Le contrôle complet des preuves (les quatorze groupes, lancé avant la publication) a nommé huit preuves « non prouvées » (une au premier passage, sept au second) :
+le défaut remis, leur test restait vert. Aucune ne signale un défaut de l'application ; chacune protégeait une chose
+devenue double ou disparue. Elles sont retirées de `tests/preuves.sh`, chacune avec sa raison à sa place :
+
+- trois de l'entrée du comptable (le rappel du code, l'annonce « sept jours », « il reste à taper le code ») : le code
+  est facultatif depuis la 1.379.3, ces écrans ne s'affichent plus sur ce parcours ;
+- trois de mise en page (onglets du stock au téléphone, gestes d'un dossier à 44 px, filtres gris) : la charte des
+  onglets de la 1.368.0 pose déjà la même règle ;
+- le motif d'un geste sur un cabinet : contrôlé deux fois, par la route puis par la base.
+
+**À reposer** : « le client soldé compté dans Ce qui reste dû » (Cabinet, lettrage) — la garde est toujours dans le code,
+mais le test ne la met plus à l'épreuve ; il faut un tiers soldé sans lettrage dans `cabinet-balance-tiers.test.ts`.
+Et « il reste à taper le code », à reposer sur un test de « Ton compte ».
