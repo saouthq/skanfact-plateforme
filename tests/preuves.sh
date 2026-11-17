@@ -30294,6 +30294,22 @@ prouver $'issue 9 1.378.6 f : une année sans livre se lit comme un exercice' mo
   $'? `${y} — à ouvrir` : String(y);' \
   $'? String(y) : String(y);' \
   $'un client tenu commence son livre avec la balance d\'un CSV'
+prouver $'issue 9 1.378.7 a : les pièces d\'une case sans leur taxe' modules/socle/moteur/compta-1.js \
+  $'montant: compte ? som(k => k.startsWith(compte), rc[1]) : null };' \
+  $'montant: null };' \
+  $'la TVA collectée : la base et la taxe de chaque pièce'
+prouver $'issue 9 1.378.7 b : un total affiché qui ne retombe pas sur la case' modules/socle/moteur/compta-1.js \
+  $'const juste = montant != null && c && c.montant != null && Math.abs(round3(montant - c.montant)) < 0.0005;' \
+  $'const juste = montant != null;' \
+  $'un total qui ne retombe pas sur la case ne s\'affiche pas'
+prouver $'issue 9 1.378.7 c : « Les paquets reçus » encore au menu, la liste sans colonnes' modules/socle/ecrans/cabinet/app-1.js \
+  $'${avecBase ? \'<th class="r nw">Base HT</th>\' : \'\'}' \
+  $'' \
+  $'l\'écran pose les colonnes et le pied'
+prouver $'issue 9 1.378.7 d : le pied des pièces d\'une case absent' modules/socle/ecrans/cabinet/app-1.js \
+  $'${d.juste ? `<tfoot><tr><td colspan="4">Total · ' \
+  $'${false ? `<tfoot><tr><td colspan="4">Total · ' \
+  $'un dossier plein : la recherche, les pièces d\'une case'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

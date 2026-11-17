@@ -7657,7 +7657,7 @@
             row.missingCount ? { icon: 'email', label: 'Relancer le client', hint: pl(row.missingCount, 'mois manquant', 'mois manquants'), run: () => writeRelance(row) } : null,
             // (1.372.0) Un client tenu au cabinet n'envoie rien : ni « mois reçus », ni « paquets reçus » dans son menu.
             { icon: 'horloge', label: 'Le suivi du dossier', hint: dossier.manual ? 'Ses mois, la révision, l\'équipe' : 'Les mois reçus, les relances, l\'équipe', run: () => versOnglet('suivi') },
-            packs.length && !dossier.manual ? { icon: 'dossier', label: 'Les paquets reçus', hint: pl(packs.length, 'paquet'), run: () => versOnglet('paquets') } : null,
+            // (1.378.7 ; issue 9, CABDECLARER-21) « Les paquets reçus » : un écran d'avant, sorti du menu. Les mois du client se lisent sur sa fiche.
             { sep: true },
             // Sur la Banque, les gestes du relevé ouvert.
             ...(livresState.onglet === 'banque' && banqueState.gestesReleve ? [...banqueState.gestesReleve(), { sep: true }] : [])] : []),
@@ -9481,16 +9481,21 @@
       : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
       : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
     ${panneauFormulaire(d)}
-    ${declState.ouverte && d.cases[declState.ouverte] ? panneauPieces(d.cases[declState.ouverte], LIBELLE_CASE[declState.ouverte]) : ''}`;
+    ${declState.ouverte && d.cases[declState.ouverte] ? panneauPieces(d.cases[declState.ouverte], LIBELLE_CASE[declState.ouverte], declState.ouverte) : ''}`;
   }
 
-  const panneauPieces = (c, titre) => `<div class="panel mt" id="dc-pieces"><h2>${esc(titre)} — les pièces</h2>
-    <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Journal</th><th class="nw">Pièce</th><th>Libellé</th></tr></thead>
-    <tbody>${(pagerBar((c.ecritures || []).length, livresState, 'pièce'), paginate(c.ecritures || [], livresState)).map(id => {
-      const e = ecritureDuLivre(livresState.livre, id);
-      return e ? `<tr><td class="nw">${esc(fmtJour(e.date))}</td><td class="nw">${esc(e.journal)}</td>
-        <td class="nw">${esc(e.piece)}</td><td class="tronq lg" title="${esc(e.libelle)}">${esc(e.libelle)}</td></tr>` : '';
-    }).join('')}</tbody></table></div>${pagerBar((c.ecritures || []).length, livresState, 'pièce')}</div>`;
+  // (1.378.7 ; issue 9, CABDECLARER-23) Chaque pièce porte ce qu'elle met dans la case (et sa base hors taxes pour la
+  // TVA) ; le pied porte la case entière, pas la page — et seulement quand la somme des pièces retombe dessus.
+  const panneauPieces = (c, titre, cle) => {
+    const d = KC.piecesDeCase(livresState.livre, cle, c);
+    const avecBase = d.lignes.some(l => l.base != null), avecMontant = d.lignes.some(l => l.montant != null);
+    const nb = v => (v == null ? '—' : esc(montant(v)));
+    return `<div class="panel mt" id="dc-pieces"><h2>${esc(titre)} — les pièces</h2>
+    <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Journal</th><th class="nw">Pièce</th><th>Libellé</th>${avecBase ? '<th class="r nw">Base HT</th>' : ''}${avecMontant ? `<th class="r nw">${esc(titre)}</th>` : ''}</tr></thead>
+    <tbody>${(pagerBar(d.lignes.length, livresState, 'pièce'), paginate(d.lignes, livresState)).map(e => `<tr data-ecr="${esc(e.id)}"><td class="nw">${esc(fmtJour(e.date))}</td><td class="nw">${esc(e.journal)}</td>
+        <td class="nw">${esc(e.piece)}</td><td class="tronq lg" title="${esc(e.libelle)}">${esc(e.libelle)}</td>${avecBase ? `<td class="r nw num">${nb(e.base)}</td>` : ''}${avecMontant ? `<td class="r nw num">${nb(e.montant)}</td>` : ''}</tr>`).join('')}</tbody>
+    ${d.juste ? `<tfoot><tr><td colspan="4">Total · ${esc(pl(d.lignes.length, 'pièce'))}</td>${avecBase ? `<td class="r nw num">${nb(d.base)}</td>` : ''}<td class="r nw num"><b>${nb(d.montant)}</b></td></tr></tfoot>` : ''}</table></div>${pagerBar(d.lignes.length, livresState, 'pièce')}</div>`;
+  };
 
   // Le mois proposé : le DERNIER qui porte des écritures, pas janvier. Un comptable ouvre cet
   // écran pour le mois qu'il vient de saisir ; le faire commencer au premier mois de l'exercice
@@ -9553,6 +9558,8 @@
     if (s.decl.erreur) return;
     declState.mois = veut;
     bindPager(el, () => { pageFocus = 'dc-pieces'; drawLivres(root, dossier); }, s);
+    // (1.378.7) Une pièce de la liste s'ouvre entière, comme une ligne du journal.
+    $$('#dc-pieces tr[data-ecr]', el).forEach(tr => { tr.onclick = () => { if (s.livre) voirEcriture(ecritureDuLivre(s.livre, tr.dataset.ecr)); }; });
     const m = $('#dc-mois', el);
     // 1.350.0 — le mois de la déclaration et celui de la frise sont le même mois : choisir l'un pose l'autre.
     // La barre « Période » vit au-dessus de l'écran des livres : c'est la page qui se redessine, et elle relit la déclaration.

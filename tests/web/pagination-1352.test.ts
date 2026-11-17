@@ -106,6 +106,9 @@ describe('la pagination dans toutes les listes du Cabinet (1.352.0)', () => {
     await p.locator('[data-cases]').filter({ hasText: '205 écritures' }).first().click();
     await expect.poll(() => p.locator('#dc-pieces tbody tr').count()).toBe(25);
     expect(await pied('#dc-pieces')).toBe('1–25 sur 205 pièces');
+    // (1.378.7 ; issue 9, CABDECLARER-23) Chaque pièce porte son montant, et le pied la case entière — pas la page.
+    expect(await p.locator('#dc-pieces tbody tr').first().locator('td.num').last().innerText()).toMatch(/^\d[\d\s]*,\d{3}$/);
+    expect((await p.locator('#dc-pieces tfoot').innerText()).replace(/\s+/g, ' ')).toMatch(/^Total · 205 pièces /);
     await p.locator('#dc-pieces #pg-next').click();
     await expect.poll(() => pied('#dc-pieces')).toBe('26–50 sur 205 pièces');
 

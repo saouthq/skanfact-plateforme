@@ -3458,6 +3458,31 @@
   const caseDe = (montant, ecritures) => ({ montant: round3(montant), ecritures: ecritures || [] });
   const caseInconnue = motif => ({ montant: null, ecritures: [], motif });
 
+  // (1.378.7 ; issue 9, CABDECLARER-23) « D'où ça vient » listait les pièces d'une case sans un montant : on ne pouvait
+  // pas recompter la TVA due. Chaque pièce porte ce qu'elle met dans la case (le mouvement du compte de la case) et,
+  // pour la TVA, sa base hors taxes ; le total ne se rend que s'il retombe sur la case (une égalité se vérifie avant
+  // de s'afficher).
+  const ROLE_CASE = { tvaCollectee: ['tvaCollectee', 1], tvaDeductible: ['tvaDeductible', -1], timbre: ['timbre', 1],
+    retenuesOperees: ['rsOperee', 1], retenuesSubies: ['rsSubie', -1], irpp: ['irpp', 1], fodec: ['fodec', 1] };
+  function piecesDeCase(livre, cle, c) {
+    const rc = ROLE_CASE[cle];
+    const compte = rc ? txt(compteDuRole(livre, rc[0])) : '';
+    const index = new Map(((livre && livre.ecritures) || []).map(e => [e.id, e]));
+    const lignes = ((c && c.ecritures) || []).map(id => {
+      const e = index.get(id);
+      if (!e) return null;
+      const som = (garde, sens) => round3((e.lignes || []).filter(l => garde(txt(l.compte)))
+        .reduce((t, l) => t + sens * ((Number(l.credit) || 0) - (Number(l.debit) || 0)), 0));
+      return { id, date: e.date, journal: e.journal, piece: e.piece, libelle: e.libelle,
+        base: cle === 'tvaCollectee' ? som(k => /^7/.test(k), 1) : cle === 'tvaDeductible' ? som(k => /^[236]/.test(k), -1) : null,
+        montant: compte ? som(k => k.startsWith(compte), rc[1]) : null };
+    }).filter(Boolean);
+    const tot = k => (lignes.some(l => l[k] != null) ? round3(lignes.reduce((t, l) => t + (l[k] || 0), 0)) : null);
+    const montant = tot('montant');
+    const juste = montant != null && c && c.montant != null && Math.abs(round3(montant - c.montant)) < 0.0005;
+    return { lignes, base: juste ? tot('base') : null, montant: juste ? montant : null, juste };
+  }
+
   // La déclaration d'une période, DÉDUITE des écritures validées. Rien ne se saisit : un chiffre
   // saisi à côté d'un livre est un chiffre qui finira par le contredire.
   function declarationMensuelle(livre, periode, opts) {

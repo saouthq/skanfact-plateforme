@@ -4582,3 +4582,13 @@ Essai : `tests/moteur/controles-cloture-1378.test.ts`. Trois preuves.
 Essais : `tests/moteur/export-ecritures-1378.test.ts`, `tests/moteur/a-verifier-lecteur-1378.test.ts`,
 `tests/web/cabinet-ecritures.test.ts`, `tests/web/cabinet-reprise.test.ts`, `tests/web/cabinet-exemple-1370.test.ts`.
 Six preuves.
+
+## 1.378.7 — Les pièces d'une case disent leurs montants (issue 9, CABDECLARER-21, -23)
+
+- **« D'où ça vient »** : sous une case de la déclaration, chaque pièce porte ce qu'elle met dans la case — et, pour la
+  TVA, sa base hors taxes. Le pied porte la case entière (pas la page), et seulement quand la somme des pièces retombe
+  sur la case. Une pièce de la liste s'ouvre entière d'un clic, comme une ligne du journal.
+- **« Les paquets reçus »** quitte le menu « ⋯ » de la fiche : c'était un écran d'avant ; les mois du client se lisent
+  sur sa fiche.
+
+Essais : `tests/moteur/pieces-de-case-1378.test.ts`, `tests/web/pagination-1352.test.ts`. Quatre preuves.

@@ -150,7 +150,7 @@
     etatImmobilisations, aReclamerImmobilisations, immobilisationsACreer, biensDuClient, bienDuClientPourLaLigne, ficheARattacher, ficheDuClient, ecrituresImmobilisations, entreesManquantes, noterEcritureImmo,
     inventaireValide, lignesInventaireDepuisTexte, totalInventaire, poserInventaire, variationDeStock, ecritureFacturesNonParvenues, ecritureProvisionCreance, ecritureProvisionGaranties,
     // La clôture d'exercice (9.8.0)
-    GUIDES_INVENTAIRE, controlesCloture, soldesDepuisOuverture, soldesRepris,
+    GUIDES_INVENTAIRE, controlesCloture, piecesDeCase, soldesDepuisOuverture, soldesRepris,
     cloturerExercice, rouvrirExercice, noterDossierCloture, anouveauxDe, ecritureAnouveaux, extournesDe,
     FIGE_A_LA_CLOTURE, empreinteFigee, refusExerciceClos,
     biensAReprendre, salariesAReprendre, reporterBiens, reporterSalaries, ouvrirExerciceSuivant,
