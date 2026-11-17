@@ -577,6 +577,33 @@
     });
   }
 
+  // (1.378.2, issue 9 CABDECLARER-11) « Marquer déposée » et « Marquer payée » demandent la DATE réelle (aujourd'hui proposé)
+  // et, pour le dépôt, le numéro de l'accusé. Rend { le, reference } ou null si l'on renonce.
+  function fenPointerDeclaration(quoi, periode, defaut) {
+    const depot = quoi === 'deposee', aujourdhui = K.today();
+    return new Promise(resolve => {
+      modal(
+        `<h2>${depot ? `La déclaration de ${esc(K.monthLabel(periode))} est déposée ?` : `La déclaration de ${esc(K.monthLabel(periode))} est payée ?`}</h2>
+         <p class="small muted">${depot ? 'C\'est un pense-bête : SkanFact ne dépose rien sur le portail. Note la date du dépôt et, si tu l\'as, le numéro de l\'accusé.' : 'Note la date du paiement, telle qu\'elle figure sur le relevé ou le reçu.'}</p>
+         <label class="field">${depot ? 'Déposée le' : 'Payée le'}<input type="date" id="pd-le" value="${esc(defaut)}" max="${esc(aujourdhui)}"></label>
+         ${depot ? '<label class="field">Numéro de l\'accusé <span class="small muted">(facultatif)</span><input type="text" id="pd-ref" maxlength="80" autocomplete="off"></label>' : ''}
+         <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">${depot ? 'Marquer déposée' : 'Marquer payée'}</button></div>`,
+        (layer, close) => {
+          $('#no', layer).onclick = () => { close(); resolve(null); };
+          $('#ok', layer).onclick = () => {
+            const le = $('#pd-le', layer).value;
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(le)) return refus($('#pd-le', layer), 'Choisis la date.');
+            if (le > aujourdhui) return refus($('#pd-le', layer), `Une déclaration ne se note pas ${depot ? 'déposée' : 'payée'} à une date à venir.`);
+            if (le < `${periode}-01`) return refus($('#pd-le', layer), `La déclaration de ${K.monthLabel(periode)} ne peut pas être ${depot ? 'déposée' : 'payée'} avant le mois qu'elle déclare.`);
+            const reference = depot ? $('#pd-ref', layer).value.trim() : '';
+            close(); resolve({ le, ...(reference ? { reference } : {}) });
+          };
+        },
+        () => resolve(null)
+      );
+    });
+  }
+
   // Un compte rendu qu'on ferme, sans question. Il porte souvent plusieurs lignes et des chiffres
   // qu'on relit : `pre-wrap` garde les retours et l'alignement, là où un `<p>` collerait tout.
   function infoDialog(title, body, okLabel) {
@@ -9384,7 +9411,8 @@
             : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
       <div class="dc-etapes">
-        <button class="${cls('preparer')}" id="dc-preparer">${posee ? fait(true) + 'Préparée — recalculer' : 'Préparer la déclaration'}</button>${fleche}
+        ${/* (1.378.2, issue 9 CABDECLARER-37) Un mois déposé ne se recalcule pas : le bouton le dit AVANT le clic, au lieu de refuser après. */''}
+        <button class="${cls('preparer')}" id="dc-preparer"${deposee ? ' disabled title="Une déclaration déposée ne se recalcule pas. Si elle était fausse, annule d\'abord le dépôt."' : ''}>${posee ? fait(true) + (deposee ? 'Préparée' : 'Préparée — recalculer') : 'Préparer la déclaration'}</button>${fleche}
         <button class="${cls('ecriture')}" id="dc-ecriture" ${!posee || rien || (ecrite && !aCompleter && !auBrouillard) ? 'disabled' : ''}
           title="${!posee ? 'Prépare la déclaration d\'abord.' : rien ? esc(KC.MOTIF_RIEN_A_ECRIRE) : aCompleter ? 'Une pièce est arrivée après l\'écriture du mois : le complément pose ce qui lui manque, en brouillard.' : ecrite ? 'Elle existe déjà : la refaire compterait la TVA du mois deux fois.' : ''}">${
           rien ? 'Aucune écriture à passer' : aCompleter ? 'Écrire le complément' : auBrouillard ? (complementAuBrouillard ? 'Valider le complément' : 'Valider l\'écriture du mois') : ecrite ? fait(true) + 'Écriture du mois passée' : 'Écrire l\'écriture du mois'}</button>${fleche}
@@ -9572,12 +9600,21 @@
             'Voir le brouillard')) { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }
           return;
         }
+        // (1.378.2, issue 9 CABDECLARER-11) Annuler un dépôt se confirme : un clic l'effaçait, et le paiement noté avec lui.
+        const lePaiement = quoi === 'deposee' && posee && posee.payee && posee.payee.le;
+        if (actif && !(await confirmDialog(`Annuler le ${quoi === 'deposee' ? 'dépôt' : 'paiement'} de ${K.monthLabel(s.decl.periode)} ?`,
+          `<p>${quoi === 'deposee' ? `Le dépôt noté le ${esc(fmtJourCourt(String(actif).slice(0, 10)))} s'efface${lePaiement ? `, <b>et le paiement noté le ${esc(fmtJourCourt(String(lePaiement).slice(0, 10)))} avec lui</b> : on ne paie pas ce qu'on n'a pas déposé` : ''}.` : `Le paiement noté le ${esc(fmtJourCourt(String(actif).slice(0, 10)))} s'efface ; le dépôt reste.`} Rien ne change sur le portail ni dans le livre : c'est le pense-bête qui s'efface.</p>`,
+          quoi === 'deposee' ? 'Annuler le dépôt' : 'Annuler le paiement', true, 'Garder'))) return;
+        // Et le dépôt se note à SA date, avec le numéro de son accusé : la date du jour d'office était fausse dès le lendemain.
+        const defaut = (quoi === 'payee' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today();
+        const saisi = actif ? null : await fenPointerDeclaration(quoi, s.decl.periode, defaut);
+        if (!actif && !saisi) return;
         try {
           const r = await api.pointerDeclaration({
             dossierId: dossier.id, annee: s.annee, periode: s.decl.periode, quoi,
             // (1.357.9) Payée à la date du DERNIER versement du client (la part paie, la TVA) : la déclaration est réglée quand
             // tout ce qu'elle fait verser l'est.
-            valeur: actif ? null : { le: (quoi === 'payee' && [(paiementClientDe(s.livre, s.decl.periode) || {}).date, ...versementsTvaClientDe(s.livre, s.decl.periode).map(e => e.date)].filter(Boolean).map(String).sort().pop()) || K.today() }
+            valeur: actif ? null : saisi
           });
           s.livre = r.livre; s.cloture = null;
           toast(actif

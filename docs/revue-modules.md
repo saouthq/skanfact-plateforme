@@ -4508,3 +4508,13 @@ attendait trente secondes, le temps qu'un rafraîchissement de fond redessine la
 Restes de CABDECLARER-4, dits : l'index en PDF de l'export (qui peut manquer sans que le compte rendu le dise), le compte
 d'écritures annoncé par la fenêtre (brouillards compris), et les deux FEC qui ne nomment pas le tiers de la même façon.
 Essais : `tests/web/declaration-1350.test.ts`, `tests/web/revision-1348.test.ts`. Sept preuves.
+
+## 1.378.2 — Le dépôt se note à sa date, et ne s'annule plus d'un clic (issue 9, CABDECLARER-11 et -37)
+
+- **« Marquer déposée » ouvre une fenêtre** : la date réelle du dépôt (aujourd'hui proposé, jamais une date à venir ni
+  d'avant le mois déclaré) et le numéro de l'accusé, facultatif. « Marquer payée » demande la date du paiement.
+- **Annuler un dépôt se confirme**, et la question dit que le paiement noté part avec lui. « Garder » ne touche à rien.
+- **Un mois déposé ne propose plus « recalculer »** : le bouton est éteint et dit pourquoi, au lieu de refuser après le clic.
+
+Reste de CABDECLARER-11, dit : glisser le fichier de l'accusé dans la même fenêtre (il se dépose aujourd'hui dans le
+classeur). Essai : `tests/web/cabinet-declaration.test.ts`. Cinq preuves.

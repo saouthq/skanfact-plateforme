@@ -149,6 +149,7 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     await p.locator('#dc-preparer').click();
     await expect.poll(toast).toBe('Déclaration préparée.');
     await p.locator('#dc-deposee').click();
+    await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toMatch(/^Notée déposée/);
     // Le mois proposé est devenu mars ; l'écran, lui, reste sur février, où « Marquer payée » attend.
     await expect.poll(() => p.locator('#dc-deposee').innerText()).toMatch(/^✓?\s*Déposée le /);
@@ -167,6 +168,7 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     await p.locator('#dc-payee').waitFor({ timeout: 15_000 });
     if (await p.locator('#dc-mois').inputValue() !== '2026-02') await p.locator('#dc-mois').selectOption('2026-02');
     await p.locator('#dc-payee').click();
+    await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toMatch(/payée/i);
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}`);
     await expect.poll(tuile, { timeout: 15_000 }).toMatch(/2 déclarations déposées · 1 notée payée · sans la CNSS$/i);

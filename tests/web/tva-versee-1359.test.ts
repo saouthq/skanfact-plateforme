@@ -176,6 +176,7 @@ describe('bout en bout 17 : la TVA déclarée par le cabinet, versée par l\'ent
       .toMatch(new RegExp(`a versé la TVA du mois le ${aujourdhui.replace(/\//g, '\\/')} : 96,000( DT)? — son versement attend au brouillard de la banque\\. « Marquer payée » le note à cette date\\.$`));
     await photo(q, '4-cabinet');
     await q.locator('#dc-payee').click();
+    await q.locator('#modal-root #ok').click();
     await expect.poll(async () => net(await q.locator('#dc-payee').innerText()), { timeout: 15_000 }).toContain(`Payée le ${aujourdhui}`);
     expect(await q.locator('#dc-client-tva').count()).toBe(0);
     expect(erreurs).toEqual([]);

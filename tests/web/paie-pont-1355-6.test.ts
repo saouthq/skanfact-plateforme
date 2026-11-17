@@ -194,12 +194,14 @@ describe('la paie confiée au cabinet, et sa déclaration du mois, des deux côt
     await expect.poll(async () => espace(await q.locator('#dc-client-paye').innerText().catch(() => '')), { timeout: 15_000 })
       .toMatch(new RegExp(`a payé la part paie le ${fr(payeLe).replace(/\//g, '\\/')} : .+ — son paiement attend au brouillard de la banque`));
     await q.locator('#dc-payee').click();
+    await q.locator('#modal-root #ok').click();
     await expect.poll(async () => espace(await q.locator('#dc-payee').innerText()), { timeout: 15_000 }).toContain(`Payée le ${fr(payeLe)}`);
     // L'en-tête suit le geste : annuler le dépôt (et avec lui le paiement) le fait redire « à déposer », sans recharger.
     // (Le reposer depuis l'écran attend ici l'écriture de paie encore au brouillard : « un mois déposé ne bouge plus ».)
     const nom = MOIS[m - 1] as string;
     expect(espace(await q.locator('#d-etat').innerText())).not.toContain(nom);
     await q.locator('#dc-deposee').click();
+    await q.locator('#modal-root #ok').click();
     await expect.poll(async () => espace(await q.locator('#d-etat').innerText()), { timeout: 15_000 }).toContain(nom);
     expect(erreurs).toEqual([]);
   }, 240_000);

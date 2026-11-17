@@ -201,14 +201,28 @@ describe('la déclaration du mois, à la souris', () => {
     await expect.poll(toast).toBe('DECL-2026-03-C1 validée : elle solde la TVA du mois. Il reste à la déposer sur le portail.');
     await expect.poll(() => p.locator('#dc-ecriture').innerText()).toMatch(/Écriture du mois passée/);
     await p.locator('#dc-deposee').click();
+    // (1.378.2) La fenêtre demande la date du dépôt (aujourd'hui proposé) et le numéro de l'accusé.
+    await expect.poll(() => p.locator('#modal-root .modal').innerText()).toMatch(/^La déclaration de mars 2026 est déposée \?/);
+    await p.locator('#pd-ref').fill('ACC-2026-0331');
+    await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toBe('Notée déposée — c\'est un pense-bête, pas un accusé de réception.');
     await expect.poll(async () => (await declarations(cafe, associe))[0]?.deposee.le).toBe(aujourdhui);
+    // (1.378.2, issue 9 CABDECLARER-37) Déposé, le mois ne se recalcule plus : le bouton est éteint et ne le propose pas.
+    await expect.poll(() => p.locator('#dc-preparer').isDisabled()).toBe(true);
+    expect(await p.locator('#dc-preparer').innerText()).not.toMatch(/recalculer/);
     await p.locator('#dc-payee').click();
+    await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toBe('Notée payée.');
     await expect.poll(async () => (await declarations(cafe, associe))[0]?.payee.le).toBe(aujourdhui);
     await expect.poll(() => p.locator('.dc-etapes').innerText()).toMatch(/Payée le/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-declaration-3-payee.png') });
     await p.locator('#dc-deposee').click();
+    // (1.378.2, issue 9 CABDECLARER-11) Annuler demande d'abord, et dit que le paiement part avec le dépôt ; « Garder » ne touche à rien.
+    await expect.poll(() => p.locator('#modal-root .modal').innerText()).toMatch(/^Annuler le dépôt de mars 2026 \?[\s\S]*et le paiement noté le \d{2}\/\d{2}\/\d{4} avec lui/);
+    await p.locator('#modal-root #no').click();
+    expect((await declarations(cafe, associe))[0]?.deposee).toMatchObject({ le: aujourdhui, reference: 'ACC-2026-0331' });
+    await p.locator('#dc-deposee').click();
+    await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toBe('Dépôt et paiement annulés : on ne paie pas ce qu\'on n\'a pas déposé.');
     d = (await declarations(cafe, associe))[0];
     expect([d?.deposee.le, d?.payee.le]).toEqual(['', '']);

@@ -30180,6 +30180,26 @@ prouver $'issue 9 1.378.1 g : l\'à-nouveau compté en mouvement dans la révisi
   $'      if (l.date < du || l.journal === \'AN\') ouverture[l.account]' \
   $'      if (l.date < du) ouverture[l.account]' \
   $'chaque compte dans son cycle, la table d\'avant suivie, le sens du compte'
+prouver $'issue 9 1.378.2 a : annuler un dépôt d\'un clic, sans question' modules/socle/ecrans/cabinet/app-1.js \
+  $'        if (actif && !(await confirmDialog(`Annuler le' \
+  $'        if (false && actif && !(await confirmDialog(`Annuler le' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
+prouver $'issue 9 1.378.2 b : le dépôt noté à la date du jour, sans fenêtre' modules/socle/ecrans/cabinet/app-1.js \
+  $'const saisi = actif ? null : await fenPointerDeclaration(quoi, s.decl.periode, defaut);' \
+  $'const saisi = actif ? null : { le: defaut };' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
+prouver $'issue 9 1.378.2 c : le numéro de l\'accusé perdu' modules/socle/ecrans/cabinet/app-1.js \
+  $'close(); resolve({ le, ...(reference ? { reference } : {}) });' \
+  $'close(); resolve({ le });' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
+prouver $'issue 9 1.378.2 d : l\'annulation tait que le paiement part avec le dépôt' modules/socle/ecrans/cabinet/app-1.js \
+  $'const lePaiement = quoi === \'deposee\' && posee && posee.payee && posee.payee.le;' \
+  $'const lePaiement = \'\';' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
+prouver $'issue 9 1.378.2 e : « recalculer » reste offert sur un mois déposé' modules/socle/ecrans/cabinet/app-1.js \
+  $'id="dc-preparer"${deposee ? \' disabled title=' \
+  $'id="dc-preparer"${false ? \' disabled title=' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
