@@ -30258,6 +30258,18 @@ prouver $'issue 9 1.378.4 d : « loyer de octobre » dans l\'exemple' web/public
   $'return /^[aeiouéèêàâîôûh]/i.test(n) ? `d\'${n}`' \
   $'return false ? `d\'${n}`' \
   $'un clic charge un dossier d\'exemple complet'
+prouver $'issue 9 1.378.5 a : le mois en cours réclamé avant la clôture' modules/socle/moteur/compta-1.js \
+  $'!declarees.has(m) && !(moisEnCours && m >= moisEnCours)' \
+  $'!declarees.has(m)' \
+  $'le mois en cours ne se réclame pas ; un mois fini sans déclaration, si'
+prouver $'issue 9 1.378.5 b : un mois déposé sans son écriture passe pour « rien à signaler »' modules/socle/moteur/compta-1.js \
+  $'ok: !perimees.length && !sansEcriture.length,' \
+  $'ok: !perimees.length,' \
+  $'un mois déposé sans son écriture de déclaration est nommé'
+prouver $'issue 9 1.378.5 c : l\'écran ne donne pas la date du jour au contrôle' web/public/plateforme/pont-cabinet.js \
+  $'KC.controlesCloture(livre, { aujourdhui: /** @type {any} */ (window).CabCore.today() })' \
+  $'KC.controlesCloture(livre)' \
+  $'l\'écran donne la date du jour au contrôle'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

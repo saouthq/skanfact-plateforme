@@ -4556,3 +4556,12 @@ Essais : `tests/web/livres-1378-3.test.ts`, `tests/moteur/fec-tiers-1378.test.ts
 
 Essais : `tests/web/ouvrir-question-1378-4.test.ts`, `tests/web/cabinet-reprise.test.ts`,
 `tests/web/cabinet-exemple-1370.test.ts`. Quatre preuves.
+
+## 1.378.5 — Avant la clôture, les déclarations se lisent comme un comptable (issue 9, CABDECLARER-24)
+
+- **Le mois en cours ne se réclame plus** : « 1 mois sans déclaration préparée (novembre) » s'affichait le 16 novembre.
+  Un mois se réclame une fois fini.
+- **Un mois déposé dont l'écriture de déclaration manque au livre est nommé** (« octobre 2026… Écris-la dans l'onglet
+  Déclaration ») ; le contrôle disait « rien à signaler ». Un mois déposé sans TVA à écrire n'est pas réclamé.
+
+Essai : `tests/moteur/controles-cloture-1378.test.ts`. Trois preuves.

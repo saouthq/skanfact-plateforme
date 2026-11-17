@@ -2444,7 +2444,7 @@
       const ouv = KC.soldesDepuisOuverture(livre);
       const libelle = (/** @type {string} */ c) => ((livre.plan || []).find((/** @type {any} */ p) => p.compte === c) || {}).libelle || KC.libelleDuPlan(c) || '';
       return {
-        exercice: livre.exercice, controles: KC.controlesCloture(livre), etats: KC.etatsDepuisLignes(lignes, ouv, { libelle }),
+        exercice: livre.exercice, controles: KC.controlesCloture(livre, { aujourdhui: /** @type {any} */ (window).CabCore.today() }), etats: KC.etatsDepuisLignes(lignes, ouv, { libelle }),
         sig: KC.sigDepuisLignes(lignes, ouv, { libelle }), anouveaux: KC.anouveauxDe(livre), extournes: KC.extournesDe(livre, Number(o.annee) + 1),
         guides: KC.GUIDES_INVENTAIRE, suivant: KC.etatExerciceSuivant(livre, suivant),
       };

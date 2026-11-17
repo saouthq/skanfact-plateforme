@@ -4830,7 +4830,11 @@
     // voyait réclamer la TVA de janvier pour sa seule balance d'ouverture — le néant, encore (6.8.0).
     const moisAvecEcritures = [...new Set((livre.ecritures || []).filter(e => dedans(e) && e.journal !== 'AN').map(e => String(e.date).slice(0, 7)))].sort();
     const declarees = new Set((livre.declarations || []).map(d => d.periode));
-    const sansDecl = moisAvecEcritures.filter(m => !declarees.has(m));
+    // (1.378.5, issue 9 CABDECLARER-24) Le mois en cours ne se réclame pas — le commentaire le disait, le code non :
+    // le 16 novembre, « 1 mois sans déclaration préparée (novembre) » sur un mois qui n'est pas fini. L'appelant
+    // donne le jour ; sans lui (un essai du moteur), rien n'est écarté.
+    const moisEnCours = String(o.aujourdhui || '').slice(0, 7);
+    const sansDecl = moisAvecEcritures.filter(m => !declarees.has(m) && !(moisEnCours && m >= moisEnCours));
     out.push({
       id: 'tva', ok: !sansDecl.length,
       detail: sansDecl.length
@@ -4854,10 +4858,17 @@
       .filter(x => x.ecart.length)
       .sort((a, b) => String(a.dd.periode).localeCompare(String(b.dd.periode)));
     const deposees = perimees.filter(x => x.deposee), preparees = perimees.filter(x => !x.deposee);
+    // (1.378.5, CABDECLARER-24) Un mois DÉPOSÉ dont l'écriture de déclaration n'est pas au livre : le compte de TVA
+    // collectée reste chargé, et ce contrôle disait « rien à signaler ». Il se nomme, mois par mois.
+    const sansEcriture = (livre.declarations || [])
+      .filter(dd => dd && dd.type === 'mensuelle' && dd.deposee && dd.deposee.le && dd.periode >= String(du).slice(0, 7) && dd.periode <= String(au).slice(0, 7))
+      .filter(dd => { try { const c = declarationMensuelle(livre, dd.periode); return !c.ecritureExistante && !c.rienAEcrire; } catch (_) { return false; } })
+      .map(dd => dd.periode).sort();
     const moisDe = xs => xs.slice(0, 3).map(x => `${fmtMois(x.dd.periode)} (${phraseEcartDeclaration(x.ecart.slice(0, 1))})`).join(', ') + (xs.length > 3 ? '…' : '');
     out.push({
-      id: 'declarations', ok: !perimees.length,
+      id: 'declarations', ok: !perimees.length && !sansEcriture.length,
       detail: [
+        sansEcriture.length ? `${plFr(sansEcriture.length, 'mois déposé n\'a pas son écriture de déclaration', 'mois déposés n\'ont pas leur écriture de déclaration')} au livre : ${sansEcriture.slice(0, 4).map(fmtMois).join(', ')}${sansEcriture.length > 4 ? '…' : ''}. Écris-la dans l'onglet Déclaration.` : '',
         deposees.length ? `${plFr(deposees.length, 'déclaration déposée ne correspond', 'déclarations déposées ne correspondent')} plus au livre : ${moisDe(deposees)}. Une déclaration rectificative est à déposer — À VÉRIFIER avec le client.` : '',
         preparees.length ? `${plFr(preparees.length, 'déclaration préparée est périmée', 'déclarations préparées sont périmées')} : ${moisDe(preparees)}. Refais-les dans l'onglet Déclaration.` : ''
       ].filter(Boolean).join(' ')
