@@ -880,8 +880,18 @@
       .reduce((a, r) => a + r.rappelDe.filter(x => x && x.mois === ym).reduce((t, x) => t + (Number(x.brut) || 0), 0), 0);
     return round3(Number(c1.gross) - Number(c0.gross) - round3(deja));
   }
+  // (1.377.0, CABPAIE-1) Ce qu'un pointage changé APRÈS la validation laisse à régulariser : le brut que le bulletin aurait
+  // eu avec les absences et les heures du pointage (`reprise` : ce que rend `pointageSurBulletin`), moins celui qu'il a eu,
+  // moins ce que des régularisations ont déjà porté pour ce bulletin (`deBulletin`). Négatif : une absence non payée arrivée
+  // après coup. Le bulletin validé, lui, ne bouge pas.
+  function ecartDePointage(employee, slip, reprise, settings) {
+    const e = employee || {}, p = slip || {};
+    const de = (abs, primes) => Number(computePayslip(e, { year: p.year, month: p.month, gross: p.gross, workedDays: p.workedDays, absentDays: abs, bonuses: primes || [], deductions: [], prorata: p.prorata || null }, settings).gross) || 0;
+    const deja = (Array.isArray(e.regularisations) ? e.regularisations : []).filter(r => r && p.id && r.deBulletin === p.id).reduce((a, r) => a + (Number(r.amount) || 0), 0);
+    return round3(de(reprise.absentDays, reprise.bonuses) - de(p.absentDays, p.bonuses) - round3(deja));
+  }
   // Rendues par le moteur (1.276.1) sans que le socle les nomme.
-  Object.assign(ajoutsDesModules, { heuresDuMoisDe, ecartDeRappel });
+  Object.assign(ajoutsDesModules, { heuresDuMoisDe, ecartDeRappel, ecartDePointage });
   function brutDuMois(employee, year, month) {
     const e = employee || {}, L = Array.isArray(e.salaires) ? e.salaires.filter(x => x && /^\d{4}-\d{2}$/.test(x.des)).slice().sort((a, b) => a.des.localeCompare(b.des)) : [];
     if (!L.length) return round3(Number(e.grossSalary) || 0);
@@ -1032,7 +1042,10 @@
       // (plateforme) 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les
       // reprend. Une ligne sans nom ni montant ne se garde pas.
       primes: (Array.isArray(e.primes) ? e.primes : []).filter(p => p && (String(p.label || '').trim() || Number(p.amount) > 0))
-        .map(p => ({ label: String(p.label || '').trim() || 'Prime', amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, parJour: !!p.parJour }))
+        .map(p => ({ label: String(p.label || '').trim() || 'Prime', amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, parJour: !!p.parJour })),
+      // (1.377.0, CABPAIE-1) Ses régularisations (celles de l'entreprise, 1.230.0 : { id, pourMois 'AAAA-MM', label, amount
+      // signé, taxable, deBulletin, le }) : le Cabinet les jetait, donc ne pouvait rien porter sur un mois suivant.
+      regularisations: (Array.isArray(e.regularisations) ? e.regularisations : []).filter(r => r && r.id && /^\d{4}-\d{2}$/.test(String(r.pourMois)) && Number(r.amount))
     };
   }
 
@@ -1087,7 +1100,8 @@
   // le Cabinet garde en réécrivant le bulletin du SkanFact de son client : une prime d'heures supplémentaires (sa
   // majoration, ses heures : le journal la range dans sa colonne, et reprendre le pointage la remplace au lieu de
   // l'ajouter une seconde fois), une prime au jour (son montant d'un mois plein, ses jours payés, ceux du mois).
-  const MARQUES_DE_PRIME = ['hs', 'heures', 'parJour', 'mensuel', 'jours', 'sur'];
+  // (1.377.0) `regulId` : la ligne d'une régularisation garde le lien vers elle (ce qui est repris se lit sur le bulletin).
+  const MARQUES_DE_PRIME = ['hs', 'heures', 'parJour', 'mensuel', 'jours', 'sur', 'regulId'];
   const marquesDePrime = p => Object.fromEntries(MARQUES_DE_PRIME.filter(k => p && p[k] != null && p[k] !== '').map(k => [k, p[k]]));
   // Le prorata d'une entrée ou d'une sortie que porte le bulletin (1.62.0), tant que son brut est celui que le prorata
   // a calculé : retouché à la main, il n'est plus proratisé (la règle de l'entreprise).
@@ -1109,7 +1123,7 @@
     return saisiePaieValide({
       year: Number(x.annee), month: Number(x.mois),
       gross: x.brut, workedDays: x.joursTravailles, absentDays: x.joursAbsence,
-      bonuses: (x.primes || []).map(p => ({ label: p.label, amount: p.amount, taxable: p.taxable !== false })),
+      bonuses: (x.primes || []).map(p => ({ label: p.label, amount: p.amount, taxable: p.taxable !== false, ...(p.regulId ? { regulId: p.regulId } : {}) })),
       deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount })),
       prorata: prorataDuBulletin(x)
     }, { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat }, baremesPaie(baremes));
@@ -1131,7 +1145,8 @@
     if (absence > ouvrables) {
       return { ok: false, motif: `${plFr(absence, 'jour')} d'absence pour ${plFr(ouvrables, 'jour ouvrable', 'jours ouvrables')} dans le mois : une absence ne retient pas plus que le mois entier.` };
     }
-    if ((i.bonuses || []).concat(i.deductions || []).some(p => !(Number(p && p.amount) >= 0))) {
+    // (1.377.0) La ligne d'une RÉGULARISATION (`regulId`) est signée par nature : un trop-perçu se reprend en négatif.
+    if ((i.bonuses || []).concat(i.deductions || []).some(p => !(Number(p && p.amount) >= 0) && !(p && p.regulId && Number.isFinite(Number(p.amount))))) {
       return { ok: false, motif: 'Une prime ou une retenue se saisit en positif : c\'est sa ligne qui dit dans quel sens elle joue.' };
     }
     // Et le calcul lui-même : une retenue plus grosse que le salaire rend un net négatif, que rien

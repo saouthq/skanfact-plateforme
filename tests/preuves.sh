@@ -17239,10 +17239,10 @@ prouver 'la date proposée avant l'"'"'entrée du salarié' modules/personnel/ec
 prouver 'le brouillard qui ne compte pas le versement d'"'"'une avance' modules/personnel/ecrans/cabinet/paie.js \
   '          s.livre = r.livre;
           close();
-          toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
+          toast(`L'"'"'avance ${deNom(sal.nom)} est enregistrée.`);' \
   '          Object.assign(L, { avances: r.livre.avances, remboursements: r.livre.remboursements });
           close();
-          toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
+          toast(`L'"'"'avance ${deNom(sal.nom)} est enregistrée.`);' \
   'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
 prouver 'une avance de l'"'"'entreprise déjà retenue qui change de salarié' modules/personnel/ecrans/entreprise/paie.js \
   'if (retenu && v.employeeId !== a.employeeId) return refus(' \
@@ -27389,7 +27389,7 @@ prouver 'paie 1.344.0 b : un 640 dans un mois qui a ses bulletins passe pour une
   ": m.aDesBulletins ? 'ecart' : e.source === 'skanfact'" ": e.source === 'skanfact'" \
   "$PA1344"
 prouver 'paie 1.344.0 c : « la fiche de Amira »' modules/personnel/ecrans/cabinet/paie.js \
-  "  const deNom = nom => (/^[aeiouyhâàéèêîôû]/i.test(String(nom || '')) ? 'd\\'' : 'de ') + nom;" "  const deNom = nom => 'de ' + nom;" \
+  "  const deNom = nom => (/^[aeiouhâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\\'' : 'de ') + nom;" "  const deNom = nom => 'de ' + nom;" \
   "$PA1344"
 prouver 'paie 1.344.0 d : deux lignes et deux boutons pour la même fiche' modules/personnel/ecrans/cabinet/paie.js \
   'f.avertissements.filter(a => !(dejaVus && dejaVus.has(a.salarieId))).forEach(a => {' 'f.avertissements.forEach(a => {' \
@@ -30031,6 +30031,34 @@ prouver $'revue 1.376.1 a : un trimestre de CNSS payé crie « Date limite dépa
   $'const retard = !deposeeLe && !payeeAuLivre && limite < K.today();' \
   $'const retard = !deposeeLe && limite < K.today(); payeeAuLivre = false;' \
   $'un clic charge un dossier d\'exemple complet'
+prouver $'revue 1.377.0 a : le Cabinet jette les régularisations d\'un salarié en le lisant' web/public/plateforme/pont-cabinet.js \
+  $'regularisations: Array.isArray(e.regularisations) ? e.regularisations : [],' \
+  $'regularisations: [],' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 b : le moteur jette les régularisations de la fiche' modules/personnel/moteur/compta-paie.js \
+  $'regularisations: (Array.isArray(e.regularisations) ? e.regularisations : [])' \
+  $'regularisations: ([])' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 c : la ligne d\'une régularisation refusée parce qu\'elle est négative' modules/personnel/moteur/compta-paie.js \
+  $' && !(p && p.regulId && Number.isFinite(Number(p.amount)))' \
+  $' && true' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 d : l\'absence d\'un mois validé annoncée « réduite au prorata »' modules/personnel/ecrans/cabinet/paie.js \
+  $': dejaValide(v) ? \'\' : \'Non payée : le brut' \
+  $': false ? \'\' : \'Non payée : le brut' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 e : « retirée du salaire » dite d\'une absence jamais retenue' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (A && A.reste < 0) return \'<span class="warn-text" data-cg-regul>' \
+  $'if (A && A.reste > 0) return \'<span class="warn-text" data-cg-regul>' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 f : sans pointage, l\'absence d\'après validation n\'est vue de personne' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (pm && Number(pm.absences) > avant) r =' \
+  $'if (pm && Number(pm.absences) < avant) r =' \
+  $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.0 g : « L\'absence de Amel »' modules/personnel/ecrans/cabinet/paie.js \
+  $'/^[aeiouhâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
+  $'/^[zâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
+  $'une absence sans solde posée après la validation'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

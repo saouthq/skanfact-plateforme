@@ -772,7 +772,7 @@
     // 1.237.0 — son RIB, que l'écran ne montre que masqué (« ··· 0918 »), et le mode de paiement de sa fiche.
     rib: e.iban || '', methode: e.method || '',
     // 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les reprend.
-    primes: Array.isArray(e.primes) ? e.primes : [],
+    primes: Array.isArray(e.primes) ? e.primes : [], regularisations: Array.isArray(e.regularisations) ? e.regularisations : [],
   });
   /** @param {any} s @param {any} avant */
   const employeDe = (s, avant) => {
@@ -786,7 +786,7 @@
       contract: s.contrat, hireDate: s.embauche, endDate: s.sortie, grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants,
       active: s.actif !== false, notes: s.note,
       // 1.68.0 — ses primes de chaque mois, dans la forme de l'entreprise.
-      primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),
+      primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []), ...(Array.isArray(s.regularisations) ? { regularisations: s.regularisations } : {}),
     };
   };
   /** @param {any} p @param {string | null} ecritureId */

@@ -4373,3 +4373,30 @@ causes, dans le test seul : il n'avait pas de limite à lui depuis qu'il a grand
 piégeait elle-même — un D arrivé volet fermé compte pour une frappe (règle de la 1.374.0 : les raccourcis se taisent
 une seconde), et le N suivant, rappuyé trop tôt, était avalé à chaque tour. Le test laisse passer ce silence, et porte
 60 secondes. Le produit ne change pas.
+
+## 1.377.0 — Une absence arrivée après la validation se régularise (issue 10, CABPAIE-1)
+
+Le blocage de la revue de la paie du Cabinet : une absence sans solde posée APRÈS la validation du mois était dite
+« retirée du salaire » et n'était jamais retenue, ni sur le mois validé (normal : il ne bouge plus), ni sur le suivant.
+
+- **Le moteur de régularisation de l'entreprise (1.230.0) arrive au Cabinet.** La fiche d'un salarié garde ses
+  `regularisations` (le pont et le moteur les jetaient en lisant la fiche) ; le bulletin du mois visé les propose de
+  lui-même, comme l'échéance d'une avance. Leur ligne est signée par nature : le garde-fou « une prime se saisit en
+  positif » la laisse passer, elle seule.
+- **Le mois validé nomme la vraie différence et son montant** : « 0 jour non payé au bulletin, 1 dans « Congés et
+  absences » — à retenir : 50,000 DT de brut », avec le geste **« Régulariser sur novembre »** (le premier mois où le
+  salarié n'a pas encore de bulletin). Une question dit avant ce que le bulletin suivant proposera. « Annuler » la défait
+  tant qu'aucun bulletin ne l'a reprise. Régularisé, le bandeau passe au gris et le dit.
+- **Sans pointage enregistré, l'absence compte quand même** : le bandeau ne parlait que si la grille du mois avait été
+  pointée ; une absence posée dans « Congés et absences » n'était alors vue de personne.
+- **Le pointage se relit au salaire du bulletin**, pas à celui de la fiche d'aujourd'hui : une augmentation d'après la
+  validation se disait « pas les mêmes heures supplémentaires ».
+- **La fenêtre de l'absence le dit AVANT d'enregistrer** (« le bulletin d'octobre est déjà validé : il ne bouge pas… »),
+  le message d'après le redit, et la liste écrit « pas retenue : à régulariser », puis « régularisée sur novembre » —
+  jamais « retirée du salaire » tant que rien n'est retenu.
+- **Élisions (CABPAIE-26)** : « l'absence d'Amel », « l'avance d'Hédi », « la fiche de Youssef » (le y ne s'élide pas).
+
+Limites, dites : le geste n'existe que pour un dossier tenu au cabinet (pour un client sur SkanFact, la régularisation se
+fait dans son SkanFact, et le bandeau le dit) ; la retenue réduit le brut du mois suivant, imposable et cotisable — la
+façon d'imposer une régularisation reste À VÉRIFIER avec le comptable, comme pour un rappel. Essai :
+`tests/web/cabinet-paie-regul-1377.test.ts` (écran et serveur, 1 300 DT sur 26 jours : 50,000 DT le jour). Sept preuves.
