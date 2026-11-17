@@ -1399,7 +1399,8 @@
       // branché, ou tant que personne n'est désigné pour signer, la case cochée d'avance ouvrait une fenêtre qui répondait
       // « rien n'a été signé ». On ne propose pas un geste qui sera refusé ; il reste dans le menu de la pièce.
       bridge.signerPiece && !C.estDemo(data) && !(bridge.signaturePrete && bridge.signaturePrete() === false) ? ['signer', 'Signer par DigiGo', 'puis elle part à El Fatoora', true] : null,
-      ccl && ccl.email ? ['envoyer', 'L\'envoyer par e-mail', h(ccl.email), true] : null,
+      // (1.379.10, issue 15 V-14) Une adresse qui n'en a pas la forme n'est pas proposée à l'envoi (même contrôle que la fenêtre d'envoi).
+      ccl && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(ccl.email || '').trim()) ? ['envoyer', 'L\'envoyer par e-mail', h(ccl.email), true] : null,
       isInvE ? ['payer', 'Ouvrir l\'enregistrement d\'un paiement', 's\'il a déjà payé', false] : null,
     ].filter(Boolean) : [];
     return new Promise(resolve => {
@@ -13613,7 +13614,7 @@
     const charteM = doc.type === 'facture' || doc.type === 'avoir' || doc.type === 'devis';
     const factureM = doc.type === 'facture' || doc.type === 'avoir';
     const relanceM = /^relance\d$/.test(kind);
-    const adresses = [...new Set([client.email, ...(String(client.email2 || '').split(/[,;\s]+/))].map(x => String(x || '').trim()).filter(x => /@/.test(x)))];
+    const adresses = [...new Set([client.email, ...(String(client.email2 || '').split(/[,;\s]+/))].map(x => String(x || '').trim()).filter(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))];
     const moi = String((company() || {}).email || '').trim();
     const etatTtn = factureM && bridge.etatsTtnDe ? ((await bridge.etatsTtnDe([doc.id]).catch(() => ({})))[doc.id] || null) : null;
     const pasSignee = factureM && C.isLocked(doc) && !C.estDemo(data) && etatTtn && etatTtn.etat === 'a_signer';
@@ -13690,13 +13691,18 @@
           if (v.attach) attachment = await bridge.exportPdfSilent(C.documentHtml(telle, client, company(), { stampText: stampFor(telle) }), docFileName(telle));
           const corps = lien && v.lien ? await bridge.ajouterLien(doc, 'email', v.body, (doc.lang || client.lang || company().defaultLang) === 'en', C.estLiberal(company())) : v.body;
           await bridge.composeMail({ to: v.to, ...(v.cc ? { cc: v.cc } : {}), subject: v.subject, body: corps, attachment, mode: modeEnvoi() });
+          // (1.379.10, issue 15 V-14) La fiche n'avait pas d'adresse valable : celle qu'on vient de taper y est gardée, pour
+          // ne pas être redemandée au prochain envoi.
+          const fiche = client && client.id ? clientById(client.id) : null;
+          const gardee = fiche && !adresses.length && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v.to).split(',')[0].trim()) ? String(v.to).split(',')[0].trim() : '';
+          if (gardee) { fiche.email = gardee; save(true); }
           // (plateforme, lot débutant) Un lien de messagerie ne dit pas si une messagerie s'est ouverte : sur un poste sans
           // logiciel de messagerie (Gmail dans le navigateur), rien ne s'ouvrait, et la pièce passait pourtant « envoyée ».
           // Le message se copie, et l'envoi ne se note que sur « Je l'ai envoyé ».
           $('.modal', root).innerHTML = `<h2>Le message est-il parti ?</h2>
             <p>Ta messagerie a dû s'ouvrir avec le message prêt : relis-le et clique sur Envoyer. <b>Si rien ne s'est ouvert</b> (Gmail ou Outlook dans le navigateur), copie l'objet et le message, et colle-les dans un nouvel e-mail à <b>${h(v.to)}</b>.</p>
             <div class="inline mt"><button class="btn" id="mf-copier-adresse">Copier l'adresse</button><button class="btn" id="mf-copier">Copier l'objet et le message</button></div>
-            <p class="small muted mt">SkanFact ne voit pas ta messagerie : dis-lui quand le message est parti.${passe ? ' La pièce passera alors « envoyée ».' : ''}</p>
+            <p class="small muted mt">SkanFact ne voit pas ta messagerie : dis-lui quand le message est parti.${passe ? ' La pièce passera alors « envoyée ».' : ''}${gardee ? ` L'adresse ${h(gardee)} est gardée sur la fiche du client.` : ''}</p>
             <div class="modal-actions"><button class="btn" id="mf-pas-envoye">Pas encore</button><button class="btn btn-primary" id="mf-envoye">Je l'ai envoyé</button></div>`;
           $('#mf-copier-adresse', root).onclick = () => copierTexte(v.to, 'Adresse copiée');
           $('#mf-copier', root).onclick = () => copierTexte(`${v.subject}\n\n${corps}`, 'Objet et message copiés : colle-les dans un nouvel e-mail');
