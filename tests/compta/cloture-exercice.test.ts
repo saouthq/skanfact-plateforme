@@ -167,7 +167,7 @@ describe('la clôture de l\'exercice', () => {
     const refus = await cloturer(d.ent, d.collaborateur, 2025);
     expect(refus.statut).toBe(403);
     // La porte le dit (et la base refuse aussi, juste en dessous).
-    expect(String(refus.corps.motif)).toMatch(/^Ton rôle \(Collaborateur\) ne permet pas de clôturer l'exercice/);
+    expect(String(refus.corps.motif)).toMatch(/^Ton rôle au cabinet \(Collaborateur\) ne permet pas de clôturer l'exercice/);
     await expect(enTantQue(pool, d.collaborateur.utilisateur, (tx) => tx.query('select compta.cloturer_exercice($1, 2025)', [d.ent])))
       .rejects.toThrow('au cabinet, clôturer ou rouvrir un exercice revient à l\'associé');
     expect((await cloturer(d.ent, d.assistant, 2025)).statut).toBe(403);
