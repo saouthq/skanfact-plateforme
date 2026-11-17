@@ -41,5 +41,8 @@
 
 /* (1.378.3, issue 9 CABDECLARER-6) Une ligne des livres s'ouvre : le compte d'une balance mène à son grand livre,
    une ligne du journal, du grand livre ou de la recherche à son écriture entière. La main le dit. */
+/* (1.378.9) Le lettrage à la main : la colonne des cases, étroite ; la barre sous les pièces d'un tiers. */
+.lt-c { width: 28px; }
+.lt-barre { margin-block-start: 8px; }
 tr[data-ecr], tr[data-gl-compte] { cursor: pointer; }
 tr[data-ecr]:hover td, tr[data-gl-compte]:hover td { background: var(--accent-soft, var(--info-soft)); }

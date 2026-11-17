@@ -169,6 +169,40 @@ describe('la saisie du Cabinet, à la souris', () => {
       .toEqual(['A', 'A']);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-4-lettrage.png') });
 
+    // (1.378.9 ; issue 9, CABDECLARER-7) Lettrer à la main : deux pièces cochées se lettrent quand leur somme fait zéro,
+    // la barre dit l'écart sinon ; les lettres posées se voient, et une lettre se retire.
+    const f13 = await saisir({ date: '2026-08-07', journal: 'VT', piece: 'F-13', libelle: 'Facture F-13', lignes: [{ compte: '411', debit: '500' }, { compte: '706', credit: '500' }] });
+    const f14 = await saisir({ date: '2026-08-08', journal: 'VT', piece: 'F-14', libelle: 'Facture F-14', lignes: [{ compte: '411', debit: '800' }, { compte: '706', credit: '800' }] });
+    const v14 = await saisir({ date: '2026-08-28', journal: 'BQ', piece: 'VIR-14', libelle: 'Virement reçu', lignes: [{ compte: '532', debit: '800' }, { compte: '411', credit: '800' }] });
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [f13, f14, v14] })).statut).toBe(200);
+    const lettres14 = async () => (await livres(ent, associe)).filter((e) => [f14, v14].includes(e.id)).flatMap((e) => e.lignes).filter((l) => l.compte === '411').map((l) => l.lettre || '');
+    await aller(`#/dossier/${ent}/comptabilite/lettrage/2026`);
+    const barre = p.locator('.lt-barre').first();
+    await p.locator(`.lt-coche[data-lt="${f13}"]`).check();
+    await p.locator(`.lt-coche[data-lt="${v14}"]`).check();
+    await expect.poll(() => barre.locator('.lt-dit').innerText()).toBe('2 pièces cochées : écart de 300,000 — la somme doit faire zéro pour lettrer.');
+    expect(await barre.locator('[data-lt-go]').isDisabled()).toBe(true);
+    await p.locator(`.lt-coche[data-lt="${f13}"]`).uncheck();
+    await p.locator(`.lt-coche[data-lt="${f14}"]`).check();
+    await expect.poll(() => barre.locator('.lt-dit').innerText()).toBe('2 pièces cochées : elles se soldent.');
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-4b-lettrage-main.png') });
+    await barre.locator('[data-lt-go]').click();
+    await expect.poll(async () => { const ls = await lettres14(); return ls.length === 2 && !!ls[0] && ls[0] === ls[1]; }, { timeout: 10_000 }).toBe(true);
+    const lettre = (await lettres14())[0];
+    await expect.poll(() => p.locator('#toast').innerText()).toBe(`Lettre ${lettre} posée sur 2 pièces.`);
+    // F-13 reste ouverte ; F-14 et son virement ne le sont plus.
+    await expect.poll(() => p.locator(`.lt-coche[data-lt="${f14}"]`).count()).toBe(0);
+    expect(await p.locator(`.lt-coche[data-lt="${f13}"]`).count()).toBe(1);
+    // Les lettres posées : A (l'automatique) et celle-ci, avec leurs pièces et leur montant ; celle-ci se retire.
+    await p.locator('#lv-lettres summary').click();
+    const ligneLettre = p.locator('#lv-lettres tbody tr').filter({ hasText: 'VIR-14' });
+    expect((await ligneLettre.innerText()).replace(/\s+/g, ' ')).toMatch(new RegExp(`^${lettre} .*F-14 · VIR-14 800,000 Délettrer$`));
+    expect(await p.locator('#lv-lettres tbody tr').count()).toBe(2);
+    await ligneLettre.getByRole('button', { name: 'Délettrer' }).click();
+    await expect.poll(lettres14, { timeout: 10_000 }).toEqual(['', '']);
+    await expect.poll(() => p.locator('#toast').innerText()).toBe(`Lettre ${lettre} retirée : ses pièces sont de nouveau ouvertes.`);
+    await expect.poll(() => p.locator(`.lt-coche[data-lt="${f14}"]`).count()).toBe(1);
+
     // Deux chemins, un chiffre : la balance de l'écran (les écritures validées, comme la v10) est celle
     // du serveur, compte par compte, une fois août validé (l'achat du client était au brouillard).
     expect((await api('POST', `/entreprises/${ent}/compta/valider`, associe, { jusqua: '2026-08-31' })).statut).toBe(200);

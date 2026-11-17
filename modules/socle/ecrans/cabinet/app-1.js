@@ -9173,6 +9173,29 @@
     return KC.balanceAuxiliaireDepuisLignes(lignes, KC.collectifsDeTiers(s.livre, role), { avant: (s.periode || {}).avant || [] });
   }
 
+  // (1.378.9 ; issue 9, CABDECLARER-7) Les lettres posées sur le compte : on ne pouvait ni en voir une, ni la retirer —
+  // les pièces lettrées disparaissaient. Chaque lettre dit ses pièces et son montant, et se retire d'un bouton.
+  const lettresState = { page: 1, size: 25 };
+  function lettresDuCompte(livre, prefixe) {
+    return ((livre && livre.lettrages) || []).filter(g => String(g.compte || '').startsWith(prefixe)).map(g => {
+      const ecr = (g.ecritures || []).map(id => ecritureDuLivre(livre, id)).filter(Boolean);
+      const lignes = ecr.flatMap(e => (e.lignes || []).filter(x => String(x.compte || '').startsWith(prefixe) && String(x.lettre || '') === String(g.lettre)));
+      return { lettre: String(g.lettre), le: String(g.le || '').slice(0, 10), pieces: ecr.map(e => e.piece || '—'),
+        tiers: (lignes.find(x => x.tiers) || {}).tiers || '', montant: lignes.reduce((t, x) => t + (Number(x.debit) || 0), 0) };
+    }).sort((a, b) => b.le.localeCompare(a.le) || a.lettre.localeCompare(b.lettre));
+  }
+  function lettresHtml(s, prefixe) {
+    if (!s.livre) return '';
+    const ls = lettresDuCompte(s.livre, prefixe);
+    if (!ls.length) return '';
+    const pied = pagerBar(ls.length, lettresState, 'lettre');
+    return `<details class="panel mt" id="lv-lettres"${lettresState.ouvert ? ' open' : ''}><summary><b>${pl(ls.length, 'lettre posée', 'lettres posées')}</b> <span class="muted small">— les voir, en retirer une</span></summary>
+      <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Lettre</th><th class="nw">Posée le</th><th>Tiers</th><th>Pièces</th><th class="r nw">Montant</th><th></th></tr></thead>
+      <tbody>${paginate(ls, lettresState).map(g => `<tr><td class="nw"><b>${esc(g.lettre)}</b></td><td class="nw">${g.le ? esc(fmtJour(g.le)) : '—'}</td>
+        <td class="tronq" title="${esc(g.tiers)}">${esc(g.tiers || '—')}</td><td>${esc(g.pieces.join(' · '))}</td>
+        <td class="r nw num">${esc(montant(g.montant))}</td>
+        <td class="r nw"><button type="button" class="btn btn-sm" data-delettrer="${esc(g.lettre)}" title="Retirer la lettre ${esc(g.lettre)} : ses pièces redeviennent ouvertes">Délettrer</button></td></tr>`).join('')}</tbody></table></div>${pied}</details>`;
+  }
   function vueLettrage(lignes) {
     const s = livresState;
     // Le compte par défaut est le COLLECTIF CLIENTS, pas « toute la classe 4 » : les comptes de TVA
@@ -9205,6 +9228,8 @@
     agee.tiers = agee.tiers.filter(t => t.total);
     // Les tiers OUVERTS sont la réponse ; les soldés tiennent sur une ligne dépliable (T-14).
     const ouverts = l.rows.filter(r => r.ouverts.length), soldes = l.rows.filter(r => !r.ouverts.length);
+    // (1.378.9 ; issue 9, CABDECLARER-7) Lettrer à la main : seulement sur un livre (une pièce a son écriture).
+    const aLaMain = !!s.livre;
     // (1.347.0) Chaque compte porte son nom, et le 411 n'y paraît qu'une fois (« Clients (411) », puis « 411 » nu, juste
     // dessous) : un numéro seul ne dit pas lequel est celui des fournisseurs.
     const nomC = nomDeCompte();
@@ -9237,13 +9262,16 @@
         <summary class="gl-tete"><span class="gl-nom">${esc(r.tiers)} <span class="muted small">${esc(r.account)}</span></span>
           <span class="gl-chiffres"><span class="muted gl-mv">${pl(r.ouverts.length, 'pièce ouverte', 'pièces ouvertes')}</span>
             <strong class="gl-m gl-solde">${motReste} ${esc(m(r.reste))}</strong></span></summary>
-        <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Pièce</th><th class="nw">Date</th>
+        <div class="scroll-x"><table class="list compact"><thead><tr>${aLaMain ? '<th class="lt-c" aria-label="Cocher pour lettrer"></th>' : ''}<th class="nw">Pièce</th><th class="nw">Date</th>
           <th class="r nw">Débit</th><th class="r nw">Crédit</th><th class="r nw">Reste</th><th></th></tr></thead>
         <tbody>${r.ouverts.map(o => `<tr>
+          ${aLaMain ? `<td class="lt-c">${o.ecritureId ? `<input type="checkbox" class="lt-coche" data-lt="${esc(o.ecritureId)}" data-reste="${esc(String(o.reste))}" aria-label="Cocher ${esc(o.piece)} pour la lettrer">` : ''}</td>` : ''}
           <td class="nw">${esc(o.piece)}${o.retard ? ' <span class="badge b-late">en retard</span>' : ''}</td>
           <td class="nw">${esc(fmtJour(o.date))}</td>
           <td class="r nw">${o.debit ? esc(money(o.debit)) : ''}</td><td class="r nw">${o.credit ? esc(money(o.credit)) : ''}</td>
-          <td class="r nw">${esc(m(o.reste))}</td>${rowMenuCell(o.ecritureId ? 'E:' + o.ecritureId : o.piece + '|' + (o.mois || ''))}</tr>`).join('')}</tbody></table></div></details>`).join(''))(paginate(ouverts, s))}
+          <td class="r nw">${esc(m(o.reste))}</td>${rowMenuCell(o.ecritureId ? 'E:' + o.ecritureId : o.piece + '|' + (o.mois || ''))}</tr>`).join('')}</tbody></table></div>
+        ${aLaMain && r.ouverts.length > 1 ? `<div class="modal-actions lt-barre" data-compte="${esc(r.account)}"><span class="small muted lt-dit">Coche les pièces qui se soldent entre elles, puis lettre-les.</span><span class="grow"></span><button type="button" class="btn btn-sm" data-lt-go disabled>Lettrer la sélection</button></div>` : ''}</details>`).join(''))(paginate(ouverts, s))}
+      ${lettresHtml(s, prefixe)}
       ${soldes.length ? `<details class="mt" id="lv-soldes"><summary>${pl(soldes.length, 'tiers entièrement lettré', 'tiers entièrement lettrés')} — ${pl(soldes.reduce((a, r) => a + r.lettrees, 0), 'pièce soldée', 'pièces soldées')}</summary>
         <ul class="small">${soldes.map(r => `<li>${esc(r.tiers)} <span class="muted">${esc(r.account)} · ${pl(r.lettrees, 'pièce soldée', 'pièces soldées')}</span></li>`).join('')}</ul></details>` : ''}
       ${!ouverts.length && !soldes.length ? '<div class="empty mini">Aucune pièce sur ce compte pour cette période.</div>' : ''}`;

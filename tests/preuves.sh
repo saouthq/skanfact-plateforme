@@ -30329,6 +30329,20 @@ prouver $'issue 9 1.378.8 d : un règlement partiel soldé au hasard' modules/so
   $'.sort((x, y) => (y.echeance || \'\').localeCompare(x.echeance || \'\')).forEach(l => {
         const pris' \
   $'un règlement partiel entame la plus ancienne'
+prouver $'issue 9 1.378.9 a : des pièces qui ne se soldent pas se lettrent quand même' modules/socle/ecrans/cabinet/app-2.js \
+  $'const pret = coches.length > 1 && somme === 0;' \
+  $'const pret = coches.length > 1;' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide'
+prouver $'issue 9 1.378.9 b : une lettre posée ne se retire pas' modules/socle/ecrans/cabinet/app-2.js \
+  $'delettrer: true, lettre: b.dataset.delettrer' \
+  $'delettrer: false, lettre: b.dataset.delettrer' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide'
+prouver $'issue 9 1.378.9 c : les lettres posées ne se voient nulle part' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (!ls.length) return \'\';
+    const pied = pagerBar(ls.length, lettresState, \'lettre\');' \
+  $'    if (true) return \'\';
+    const pied = pagerBar(ls.length, lettresState, \'lettre\');' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

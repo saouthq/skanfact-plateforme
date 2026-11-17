@@ -5120,6 +5120,45 @@
     };
     // L'export porte sur `lignes` — la sélection entière, jamais la page affichée.
     bindPager(el, redraw, s);
+    // (1.378.9 ; issue 9, CABDECLARER-7) Lettrer à la main : les pièces cochées d'un tiers se lettrent quand leur somme
+    // fait zéro ; sinon la barre dit l'écart, et le bouton reste éteint. Une lettre posée se retire (« Délettrer »).
+    $$('.lt-tiers', el).forEach(bloc => {
+      const barre = $('.lt-barre', bloc); if (!barre) return;
+      const go = $('[data-lt-go]', barre), dit = $('.lt-dit', barre);
+      const juger = () => {
+        const coches = $$('.lt-coche:checked', bloc);
+        const somme = Math.round(coches.reduce((t, c) => t + (Number(c.dataset.reste) || 0), 0) * 1000) / 1000;
+        const pret = coches.length > 1 && somme === 0;
+        go.disabled = !pret; go.classList.toggle('btn-primary', pret);
+        dit.textContent = coches.length < 2 ? 'Coche les pièces qui se soldent entre elles, puis lettre-les.'
+          : pret ? `${pl(coches.length, 'pièce cochée', 'pièces cochées')} : elles se soldent.`
+            : `${pl(coches.length, 'pièce cochée', 'pièces cochées')} : écart de ${montant(Math.abs(somme))} — la somme doit faire zéro pour lettrer.`;
+      };
+      $$('.lt-coche', bloc).forEach(c => { c.onchange = juger; });
+      go.onclick = async () => {
+        const ids = $$('.lt-coche:checked', bloc).map(c => c.dataset.lt);
+        go.disabled = true;
+        try {
+          const r = await api.lettrer({ dossierId: dossier.id, annee: s.annee, compte: barre.dataset.compte, ids });
+          s.livre = r.livre;
+          toast(`Lettre ${r.lettre || ''} posée sur ${pl(ids.length, 'pièce')}.`.replace('  ', ' '));
+          redraw();
+        } catch (e) { toast(plainError(e), 'error'); juger(); }
+      };
+    });
+    const lts = $('#lv-lettres', el);
+    if (lts) {
+      lts.ontoggle = () => { lettresState.ouvert = lts.open; };
+      bindPager(lts, redraw, lettresState);
+      $$('[data-delettrer]', lts).forEach(b => { b.onclick = async () => {
+        b.disabled = true;
+        try {
+          s.livre = (await api.lettrer({ dossierId: dossier.id, annee: s.annee, delettrer: true, lettre: b.dataset.delettrer })).livre;
+          toast(`Lettre ${b.dataset.delettrer} retirée : ses pièces sont de nouveau ouvertes.`);
+          redraw();
+        } catch (e) { toast(plainError(e), 'error'); b.disabled = false; }
+      }; });
+    }
     // « Ouvrir la pièce dans le paquet » : seulement si on sait DANS QUEL paquet elle vit.
     bindRowMenus(el, cle => {
       // Les exports de la barre (H3) : la MÊME table que les lignes — une seconde table sur cette

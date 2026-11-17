@@ -4603,3 +4603,14 @@ Essais : `tests/moteur/pieces-de-case-1378.test.ts`, `tests/web/pagination-1352.
   février réglée en juin ne paraît plus « à plus de 90 jours ».
 
 Essais : `tests/moteur/anciennete-1378.test.ts`, `tests/web/cabinet-declaration.test.ts`. Quatre preuves.
+
+## 1.378.9 — Lettrer à la main, voir les lettres, en retirer une (issue 9, CABDECLARER-7)
+
+- **Lettrer à la main** : sur l'écran de lettrage, chaque pièce ouverte d'un tiers se coche ; la barre dit « 2 pièces
+  cochées : elles se soldent » et le bouton « Lettrer la sélection » s'allume — ou elle dit l'écart, et le bouton
+  reste éteint (la somme doit faire zéro).
+- **Les lettres posées** se voient (lettre, date, tiers, pièces, montant), page par page, et chacune se retire par
+  « Délettrer » : ses pièces redeviennent ouvertes.
+
+Le serveur savait déjà lettrer et délettrer ; il manquait l'écran. Essai : `tests/web/cabinet-saisie.test.ts`.
+Trois preuves.
