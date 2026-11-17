@@ -88,6 +88,8 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(net(await p.locator('#pa-qui').innerText())).toBe('2 salariés · tenue au cabinet');
     expect(await principal()).toEqual(['pa-bulletin Établir les bulletins : 2 à faire…']);
     expect(net(await p.locator('#pa-frise').innerText())).toContain('à saisir au cabinet, ou des mois complets');
+    // (1.377.5, CABPAIE-8) Sans pointage ni bulletin, l'étape « Pointage » n'est pas cochée : elle est celle où l'on est.
+    expect(net(await p.locator('#pa-frise li').first().innerText())).toBe('1 Pointage à saisir au cabinet, ou des mois complets');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-hors-1-mois.png'), fullPage: true });
     // ── Établir les deux bulletins, puis les valider : aucun accord n'est attendu ───────────────────────────────
     const fenetre = p.locator('#modal-root .modal').last();
@@ -103,6 +105,8 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     }
     await expect.poll(async () => (await bulletins()).length).toBe(2);
     await expect.poll(principal).toEqual(['pa-valider-bul Valider les 2 bulletins']);
+    // Les bulletins partis sans pointage : l'étape est passée, et le dit.
+    expect(net(await p.locator('#pa-frise li').first().innerText())).toBe('✓ Pointage sans pointage : des mois complets');
     expect(await p.locator('#pa-envoyer, #pa-attente').count()).toBe(0);
     // Avant la validation, aucun salaire ne se note payé : le bouton n'est pas là, et le pont le refuse en le disant.
     expect(await p.locator('#pa-noter-payes').count()).toBe(0);

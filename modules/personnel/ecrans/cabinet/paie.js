@@ -355,7 +355,10 @@
     const ecart = (a, b0) => (avants.length ? `${a - b0 >= 0 ? '+' : '−'} ${money(Math.abs(KC.round3(a - b0)))} sur ${KC.moisPaie(moisAvant)}` : '');
     // La frise : cinq étapes, la date de chacune, celle où l'on est.
     const E = [
-      ['Pointage', !P.duMois ? 'personne en poste ce mois' : P.ptValide && P.pointe === P.duMois ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.duMois ? 'les' : `${P.pointe} sur`} ${pl(P.duMois, 'salarié')} pointé${P.duMois > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`, true],
+      ['Pointage', !P.duMois ? 'personne en poste ce mois' : P.ptValide && P.pointe === P.duMois ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.duMois ? 'les' : `${P.pointe} sur`} ${pl(P.duMois, 'salarié')} pointé${P.duMois > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.n ? 'sans pointage : des mois complets' : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`,
+        // (1.377.5, CABPAIE-8) L'étape ne se coche que si elle est passée : un pointage est là, ou les bulletins sont
+        // partis sans lui. Elle était toujours cochée, au-dessus de « Le pointage n'est pas encore là ».
+        !P.duMois || P.pointe > 0 || P.n > 0],
       ['Bulletins', !P.n ? (P.manquants ? `${P.manquants} à faire` : 'aucun à faire') : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
         : P.valides ? `${pl(P.n, 'validé', 'validés')} le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
           : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${pl(P.n, 'préparé', 'préparés')}${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],

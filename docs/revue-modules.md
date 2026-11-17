@@ -4444,3 +4444,11 @@ L'échéancier d'une avance comptait comme remboursé un mois dont le bulletin e
 mois, un premier mois déjà validé, et il ne restait que 200 planifiés. Une échéance oubliée se dit toujours (« pas
 retenu »), mais ne rembourse rien : les retenues à venir vont jusqu'au bout de l'avance. (La mensualité plus grosse que
 l'avance est refusée depuis la 1.376.0.) Essai : `cabinet-paie-parcours.test.ts`. Une preuve.
+
+## 1.377.5 — La frise du mois ne coche « Pointage » que s'il est passé (issue 10, CABPAIE-8)
+
+La première étape de la frise de la paie était toujours cochée en vert, au-dessus de « Le pointage n'est pas encore là ».
+Elle n'est cochée que si un pointage existe, ou si les bulletins sont partis sans lui (« sans pointage : des mois
+complets ») ; sinon, c'est l'étape où l'on est. Reste de CABPAIE-8, dit : une absence tapée dans le bulletin ne se pose
+pas sur la grille du pointage, et un jour pointé « C » ou « M » n'entre pas dans « Congés et avances » — trois sources
+à réunir. Essai : `cabinet-paie-hors-skanfact.test.ts`. Une preuve.

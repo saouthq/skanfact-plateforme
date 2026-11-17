@@ -30099,6 +30099,10 @@ prouver $'revue 1.377.4 a : une échéance d\'avance oubliée comptée comme rem
   $'if (!oubli) reste = KC.round3(reste - x);' \
   $'if (true) reste = KC.round3(reste - x);' \
   $'1.237.0 — l\'inventaire de la maquette'
+prouver $'revue 1.377.5 a : « Pointage » coché alors qu\'il n\'est pas là' modules/personnel/ecrans/cabinet/paie.js \
+  $'        !P.duMois || P.pointe > 0 || P.n > 0],' \
+  $'        true],' \
+  $'le mois d\'un dossier tenu : établir, valider, remettre'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
