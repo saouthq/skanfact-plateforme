@@ -4365,3 +4365,11 @@ de la paie. Quatre preuves « revue 1.376.0 a…d ».
 Dans la Paie › CNSS du trimestre, la ligne de la date limite disait en rouge « Date limite dépassée » deux lignes au-dessus
 de « le trimestre est payé » (issue 10, point 11). Quand le livre porte, le trimestre suivant, un versement au moins égal
 à ce qui est dû, la ligne dit « Payée : le versement est au livre ». Preuve « revue 1.376.1 a » (sur le dossier d'exemple).
+
+## 1.376.2 — Le rouge GitHub de la 1.374.0 : le test de la barre du Cabinet
+
+Sur la machine de GitHub (Node 24), le test « au bureau » de la barre du Cabinet dépassait ses 20 secondes. Deux
+causes, dans le test seul : il n'avait pas de limite à lui depuis qu'il a grandi, et sa boucle « N puis D » se
+piégeait elle-même — un D arrivé volet fermé compte pour une frappe (règle de la 1.374.0 : les raccourcis se taisent
+une seconde), et le N suivant, rappuyé trop tôt, était avalé à chaque tour. Le test laisse passer ce silence, et porte
+60 secondes. Le produit ne change pas.

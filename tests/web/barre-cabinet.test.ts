@@ -247,7 +247,9 @@ describe('la barre du Cabinet, à la souris', () => {
     const demande = p.locator('#modal-root .modal').filter({ has: p.locator('#dm-piece') });
     await expect.poll(async () => {
       if (!(await demande.count())) {
-        if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
+        // (1.376.2, GitHub Node 24 sur 1.374.0) Un D arrivé volet fermé compte pour une frappe : les raccourcis se
+        // taisent une seconde. On laisse passer ce silence avant de rappuyer N, sinon N est avalé à chaque tour.
+        if (!(await p.locator('.sb-creer').isVisible())) { await p.waitForTimeout(1100); await p.keyboard.press('n'); }
         await p.locator('.sb-creer [data-touche="D"]').waitFor({ timeout: 3_000 }).catch(() => {});
         await p.waitForTimeout(600);
         await p.keyboard.press('d');
@@ -264,7 +266,7 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('[data-msg-demande-txt]').first().inputValue(), { timeout: 15_000 }).toBe('le relevé bancaire d\'octobre');
     await p.screenshot({ path: path.join(PHOTOS, 'barre-cabinet-2.png') });
     expect(erreurs).toEqual([]);
-  });
+  }, 60_000);
 
   it('les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier', async () => {
     const { associe, cab, boulangerie, cafe } = await unCabinet();
