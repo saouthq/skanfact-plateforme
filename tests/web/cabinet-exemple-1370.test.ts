@@ -83,6 +83,8 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
     await p.locator('#demo-banner').waitFor({ timeout: 30_000 });
     expect(net(await p.locator('#demo-banner').innerText())).toContain('Dossier d\'exemple');
     expect(p.url()).toMatch(/#\/dossier\//);
+    // (1.378.6 ; issue 9, CABDECLARER-19) Les tuiles comptent les brouillards, la balance non : la fiche le dit.
+    await expect.poll(async () => net(await p.locator('.fd-ch-t').filter({ hasText: /Chiffre d'affaires/i }).innerText().catch(() => '')), { timeout: 30_000 }).toMatch(/lu dans ses livres · \d+ brouillards? compris/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-exemple-2-dossier.png') });
 
     // Les livres, lus par le pont (ce que l'écran lit).

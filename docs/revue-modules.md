@@ -4565,3 +4565,20 @@ Essais : `tests/web/ouvrir-question-1378-4.test.ts`, `tests/web/cabinet-reprise.
   Déclaration ») ; le contrôle disait « rien à signaler ». Un mois déposé sans TVA à écrire n'est pas réclamé.
 
 Essai : `tests/moteur/controles-cloture-1378.test.ts`. Trois preuves.
+
+## 1.378.6 — L'export des écritures dit vrai, la fiche dit ses brouillards (issue 9, CABDECLARER-17, -19, -20, -28)
+
+- **Export des écritures du cabinet** : le compte rendu compte des clients (« Clients : 11 » pour un client et onze
+  mois) ; la balance d'ouverture d'un client sans mouvement part dans le fichier comme les à-nouveaux des autres ; le
+  dossier d'exemple n'y entre plus dès qu'un vrai client a des écritures (seul, il sert à essayer, et la page le dit) ;
+  la page porte le nom du menu, et la carte dit « Clients dans le fichier ».
+- **La fiche dit ses brouillards** : « lu dans ses livres · 9 brouillards compris », sur le chiffre d'affaires et la
+  banque — ses chiffres se retrouvent dans la balance en cochant la case.
+- **Une année proposée sans livre** se lit « 2024 — à ouvrir » ; son écran dit quels livres le dossier a, ramène au
+  dernier d'un bouton, et la barre ne parle plus du livre d'une autre année. (Dossiers tenus au cabinet.)
+- **« À VÉRIFIER avec le comptable »** ne s'affiche plus au comptable : dans le Cabinet, la mention renvoie aux textes
+  en vigueur ; dans l'application du client, rien ne change.
+
+Essais : `tests/moteur/export-ecritures-1378.test.ts`, `tests/moteur/a-verifier-lecteur-1378.test.ts`,
+`tests/web/cabinet-ecritures.test.ts`, `tests/web/cabinet-reprise.test.ts`, `tests/web/cabinet-exemple-1370.test.ts`.
+Six preuves.

@@ -119,7 +119,8 @@ describe('tout importer le premier jour au Cabinet (1.369.0)', () => {
     // L'année d'avant le premier exercice reste offerte.
     const annees = await p.locator('#lv-annee option').allInnerTexts();
     const an = Number(annees[0]);
-    expect(annees).toContain(String(an - 1));
+    // (1.378.6) L'année d'avant n'a pas de livre : elle se propose, et le dit.
+    expect(annees).toContain(`${an - 1} — à ouvrir`);
 
     // Un journal sorti d'un tableur (deux journaux, deux mois : quatre lots) se valide d'un geste.
     await aller(`#/dossier/${ent}/comptabilite/journal`);

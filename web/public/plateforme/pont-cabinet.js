@@ -1632,14 +1632,13 @@
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
       const plan = K.ecrituresPlan(await construireEtat(), o);
       if (!plan.packs.length) throw new Error('Aucune écriture sur cette période.');
-      const du = `${plan.mois[0]}-01`;
-      const fin = String(plan.mois.at(-1));
+      const du = `${plan.mois[0]}-01`, fin = String(plan.mois.at(-1));
       const au = new Date(Date.UTC(Number(fin.slice(0, 4)), Number(fin.slice(5, 7)), 0)).toISOString().slice(0, 10);
       /** @type {Map<string, any[]>} */ const livres = new Map();
-      for (const id of new Set(plan.packs.map((/** @type {any} */ p) => p.id))) livres.set(id, await ecrituresDe(id, du, au));
+      for (const id of new Set([...plan.packs, ...(plan.sans || [])].map((/** @type {any} */ p) => p.id))) livres.set(id, await ecrituresDe(id, du, au));
       const tete = ['N°', 'Date', 'Journal', 'Pièce', 'Compte', 'Tiers', 'Libellé', 'Débit', 'Crédit', 'Lettrage', 'État'];
       const etatDe = (/** @type {any} */ e) => (e.statut !== 'validee' ? 'brouillard' : e.contrepassee ? 'contre-passée' : 'validée');
-      const sources = plan.packs.map((/** @type {any} */ p) => {
+      const sources = K.packsAvecOuvertures(plan, livres).map((/** @type {any} */ p) => {
         const lignes = (livres.get(p.id) || []).filter((e) => String(e.date).startsWith(p.month)).flatMap((e) => e.lignes.map((/** @type {any} */ l) => K.toCsvLine([
           e.chaine ?? '', K.csvDate(e.date), e.journal, e.piece || '', l.compte, l.tiers || '', l.libelle || e.libelle,
           K.csvMontant(nombre(l.debit)), K.csvMontant(nombre(l.credit)), l.lettre || '', etatDe(e)])));

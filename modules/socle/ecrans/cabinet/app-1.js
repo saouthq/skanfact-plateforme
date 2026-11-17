@@ -4931,12 +4931,18 @@
     const parMois = {};
     const m0 = m => (parMois[m] = parMois[m] || { ca: 0, ecr: 0, br: 0, banque: 0 });
     let banque = 0, attente = 0, attenteLignes = 0, derniere = '', lignesVente = 0, lignesBanque = 0;
+    // (1.378.6 ; issue 9, CABDECLARER-19) Les tuiles comptent les brouillards, la balance non : la fiche le dit, avec
+    // leur nombre, pour que ses chiffres se retrouvent dans la balance (« Compter les écritures en brouillard »).
+    let brVente = 0, brBanque = 0;
     for (const e of (livre && livre.ecritures) || []) {
       if (e.statut === 'contrepassee') continue;
       const x = m0(String(e.date).slice(0, 7));
       if (e.journal !== 'AN') x.ecr++;
       if (e.statut === 'brouillard') x.br++;
       if (String(e.date) > derniere) derniere = String(e.date);
+      const br = e.statut === 'brouillard';
+      if (br && (e.lignes || []).some(l => /^70/.test(String(l.compte || '')))) brVente++;
+      if (br && (e.lignes || []).some(l => /^532/.test(String(l.compte || '')))) brBanque++;
       for (const l of e.lignes || []) {
         const c = String(l.compte || ''), d = Number(l.debit) || 0, k = Number(l.credit) || 0;
         if (/^70/.test(c)) { x.ca += k - d; lignesVente++; }
@@ -4963,7 +4969,7 @@
     // (1.371.0) Ce que « Par où commencer » coche : le livre existe-t-il, ses soldes repris, ses salariés, ses biens.
     const debut = { existe: !!livre, soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ((livre && livre.ecritures) || []).some(e => e.journal === 'AN' && e.statut !== 'contrepassee'),
       salaries: ((livre && livre.salaries) || []).length, biens: ((livre && livre.immobilisations) || []).length };
-    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut };
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque };
   }
   async function chargerLivreFd(d, annee) {
     const cle = `${d.id}:${annee}`;
@@ -5071,12 +5077,13 @@
     const nDecl = deposees.length, nPayees = deposees.filter(v => v.payee).length;
     const tile = (lab, val, sous, ton = '') => `<div class="fd-ch-t ${ton}"><span class="fd-ch-l">${lab}</span><b>${val}</b><small>${sous}</small></div>`;
     const dtFd = v => `${esc(dtCd(v))} <i>DT</i>`;
+    const brDit = n => (n ? ` · ${pl(n, 'brouillard compris', 'brouillards compris')}` : '');
     const chiffres = refus ? `<div class="panel fd-ch-err" role="status"><b>Ses livres n'ont pas pu se lire</b><span>${esc(refus)} Rien n'est perdu : la page se remplit dès que la lecture réussit.</span><button type="button" class="btn btn-sm" id="fd-relire"${hors ? ' disabled' : ''}>Réessayer</button></div>`
       : !L ? '<div class="fd-ch fd-ch-sq" aria-busy="true"><i></i><i></i><i></i><i></i></div>'
         : `<div class="fd-ch" role="group" aria-label="En un coup d'œil">
-          ${L.lignesVente ? tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses livres`) : tile(`Chiffre d'affaires ${annee}`, '—', 'aucune vente dans ses livres')}
+          ${L.lignesVente ? tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses livres${brDit(L.brVente)}`) : tile(`Chiffre d'affaires ${annee}`, '—', 'aucune vente dans ses livres')}
           ${tile(`Déclaré à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')}${nDecl ? ` · ${nPayees === nDecl ? (nDecl > 1 ? 'toutes notées payées' : 'notée payée') : nPayees ? `${nPayees} ${nPayees > 1 ? 'notées payées' : 'notée payée'}` : 'aucune notée payée'}` : ''} · sans la CNSS`, 'ok')}
-          ${tile(`Banque${L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé', L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
+          ${tile(`Banque${L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', (L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé') + brDit(L.brBanque), L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
           ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
 
     // La révision du dernier mois, point par point.
@@ -7817,6 +7824,12 @@
     if (connues.length && d.dossier && d.dossier.manual && premier && /-01-01$/.test(String(premier.du || ''))) set.add(String(Number(connues[0]) - 1));
     return [...set].filter(y => /^\d{4}$/.test(y)).sort().reverse();
   }
+  // (1.378.6 ; issue 9, CABDECLARER-20) Une année proposée sans livre ne se lit pas comme un exercice : elle dit
+  // « à ouvrir ». Tant que le dossier n'a aucun exercice, rien à distinguer.
+  function libAnnee(y) {
+    const ex = ((livresState.data || {}).exercices || []);
+    return ex.length && !ex.some(x => String(x.annee) === String(y)) ? `${y} — à ouvrir` : String(y);
+  }
   function exerciceConnu(annee, du) {
     const d = livresState.data;
     if (!d || d.erreur) return;
@@ -7829,10 +7842,10 @@
     const sel = $('#lv-annee', root) || $('#lv-annee');
     if (!sel) return;
     const ans = anneesDuDossier();
-    const cle = ans.join(',');
+    const cle = ans.map(libAnnee).join(',');
     if (!(sel.dataset.ans === cle && sel.value === String(livresState.annee))) {
       sel.dataset.ans = cle;
-      sel.innerHTML = ans.map(y => `<option value="${esc(y)}" ${String(livresState.annee) === y ? 'selected' : ''}>${esc(y)}</option>`).join('');
+      sel.innerHTML = ans.map(y => `<option value="${esc(y)}" ${String(livresState.annee) === y ? 'selected' : ''}>${esc(libAnnee(y))}</option>`).join('');
     }
     // Et les MOIS : un dossier tenu à la main n'a aucun paquet, donc « Un mois » ne proposait rien.
     // Avec un livre, les douze mois de CHAQUE exercice connu s'ajoutent à ceux des paquets : choisir
@@ -8568,7 +8581,19 @@
     // aussi être repris. Le geste est le même : poser l'exercice et, s'il y en a une, sa balance
     // d'ouverture — vide pour un client qui commence.
     if (s.data.aucunPaquet && s.livreEtat === 'absent') {
-      el.innerHTML = `<div class="info-box mb"><b>${dossier.manual
+      // (1.378.6 ; issue 9, CABDECLARER-20) La barre gardait « Le livre de 2026 · 221 écritures validées » au-dessus d'une
+      // année qui n'a pas de livre ; et l'écran parlait d'un client « qui démarre » à un dossier qui a déjà ses livres.
+      // Pour un dossier tenu au cabinet : un client sur SkanFact garde sa phrase (ses pièces arriveront d'elles-mêmes).
+      const autres = !dossier.manual ? [] : (s.data.exercices || []).map(x => String(x.annee)).filter(y => y !== String(s.annee)).sort();
+      const barreAbs = $('#c-livre-etat', root) || $('#c-livre-etat');
+      if (barreAbs) barreAbs.innerHTML = `<b>${esc(s.annee)} n'a pas encore de livre</b>`;
+      el.innerHTML = autres.length ? `<div class="info-box mb" id="lv-sans-livre"><b>${esc(s.annee)} n'a pas de livre.</b>
+          Les livres de ce dossier : ${esc(autres.join(', '))}. Pour reprendre ${esc(s.annee)} ici (sa balance ou son fichier
+          d'écritures, pour comparer et pour la liasse), ouvre cet exercice ; sinon, reviens à ses livres.</div>
+        <div class="modal-actions mb">
+          <button class="btn" id="lv-reprendre">Commencer le livre de ${esc(s.annee)}…</button>
+          <button class="btn btn-primary" id="lv-revenir">Revenir à ${esc(autres[autres.length - 1])}</button>
+        </div>` : `<div class="info-box mb"><b>${dossier.manual
         ? 'Ce client n\'utilise pas SkanFact : sa comptabilité se tient ici, à la main.'
         : 'Aucune écriture pour l\'instant.'}</b>
           Commence son livre de ${esc(s.annee)} : tu poses son exercice et, s'il en a une, sa balance d'ouverture
@@ -8580,6 +8605,7 @@
         </div>`;
       const b = $('#lv-ecrire', el); if (b) b.onclick = () => writeRelance(K.dossierRow(dossier));
       const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
+      const rv = $('#lv-revenir', el); if (rv) rv.onclick = () => { const an = $('#lv-annee'); if (an) { an.value = autres[autres.length - 1]; an.dispatchEvent(new Event('change', { bubbles: true })); } };
       return;
     }
     if (s.data.aucunPaquet && !s.livre) {

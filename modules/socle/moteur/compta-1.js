@@ -3340,11 +3340,15 @@
   // Les cases dont la RÈGLE n'est pas connue, et ce qu'on répond à leur place. Elles existent dans
   // l'objet — les taire ferait croire qu'elles n'existent pas — mais elles valent `null` et portent
   // la raison. Le jour où le comptable tranche, on remplace le motif par un calcul.
+  // (1.378.6 ; issue 9, CABDECLARER-28) « À VÉRIFIER avec le comptable » s'affichait… au comptable, dans le Cabinet.
+  // La mention suit le lecteur : chez lui, elle renvoie aux textes ; dans l'application du client, à son comptable.
+  const A_VERIFIER = (typeof location !== 'undefined' && /\/cabinet\//.test(String(location.pathname || '')))
+    ? 'À VÉRIFIER dans les textes en vigueur' : 'À VÉRIFIER avec le comptable';
   const CASES_A_VERIFIER = {
-    tfp: 'La taxe de formation professionnelle se calcule sur la masse salariale ; aucun compte du plan de ce dossier ne la porte, et le taux dépend du secteur. À VÉRIFIER avec le comptable.',
-    foprolos: 'Le FOPROLOS se calcule sur la masse salariale ; aucun compte du plan ne le porte. À VÉRIFIER avec le comptable.',
-    tcl: 'La taxe sur les établissements : ni l\'assiette ni le taux ne sont établis ici. À VÉRIFIER avec le comptable.',
-    acomptes: 'Les acomptes provisionnels dépendent de l\'impôt de l\'exercice précédent, que ce livre ne porte pas. À VÉRIFIER avec le comptable.'
+    tfp: 'La taxe de formation professionnelle se calcule sur la masse salariale ; aucun compte du plan de ce dossier ne la porte, et le taux dépend du secteur. ' + A_VERIFIER + '.',
+    foprolos: 'Le FOPROLOS se calcule sur la masse salariale ; aucun compte du plan ne le porte. ' + A_VERIFIER + '.',
+    tcl: 'La taxe sur les établissements : ni l\'assiette ni le taux ne sont établis ici. ' + A_VERIFIER + '.',
+    acomptes: 'Les acomptes provisionnels dépendent de l\'impôt de l\'exercice précédent, que ce livre ne porte pas. ' + A_VERIFIER + '.'
   };
 
   // Reconnaître l'écriture de DÉCLARATION à sa forme, jamais à son libellé : elle touche le compte
@@ -3537,7 +3541,7 @@
       timbre: caseDe(timbre.v, timbre.e),
       // La FODEC n'entre pas dans le total à décaisser de l'écriture du mois : elle se verse depuis son propre compte, comme
       // la TFP. Sa ligne du formulaire, son taux et son versement sont À VÉRIFIER avec le comptable.
-      fodec: { ...caseDe(fodec.v, fodec.e), horsTotal: 'Non compris dans le total à décaisser — À VÉRIFIER avec le comptable : la ligne du formulaire et le versement de la FODEC.' },
+      fodec: { ...caseDe(fodec.v, fodec.e), horsTotal: 'Non compris dans le total à décaisser — ' + A_VERIFIER + ' : la ligne du formulaire et le versement de la FODEC.' },
       retenuesOperees: caseDe(rsOp.v, rsOp.e),
       // Une somme qu'on RÉCUPÈRE, jamais qu'on paie : rangée après le total, sans ce mot, elle se
       // lisait comme une ligne oubliée du total (T-16).
@@ -3548,7 +3552,7 @@
       // fait rien » (9.1.1). Ce qui était faux, c'était de ne pas le DIRE : un total posé au bas
       // d'une colonne se lit comme la somme de la colonne (9.4.5). Le champ `horsTotal` porte la
       // raison, et l'écran l'affiche à côté de la ligne.
-      irpp: { ...caseDe(irpp.v, irpp.e), horsTotal: 'Non compris dans le total à décaisser — À VÉRIFIER avec le comptable : selon le régime, l\'IRPP retenu se reverse avec cette déclaration ou à part.' },
+      irpp: { ...caseDe(irpp.v, irpp.e), horsTotal: 'Non compris dans le total à décaisser — ' + A_VERIFIER + ' : selon le régime, l\'IRPP retenu se reverse avec cette déclaration ou à part.' },
       // Le total NOMME ce qu'il additionne (`composantes`) : c'est ce qui permet à l'écran de
       // l'écrire dans le libellé, et à un test de refuser une composante ajoutée sans son nom.
       aDecaisser: { ...caseDe(round3(Math.max(0, net) + timbre.v + rsOp.v), []), composantes: ['netAPayer', 'timbre', 'retenuesOperees'] }
@@ -3583,7 +3587,7 @@
         if (bulletinsEcrits.length) {
           cases[k] = {
             ...caseDe(bulletinsEcrits.reduce((s, b) => s + (Number((b.calcul || {})[k]) || 0), 0), [...new Set(bulletinsEcrits.map(b => b.ecritureId))]),
-            horsTotal: `Lu sur ${plFr(bulletinsEcrits.length, 'bulletin')} du mois, au taux figé sur chacun. Non compris dans le total à décaisser — À VÉRIFIER avec le comptable : le taux dépend du secteur, et le versement suit cette déclaration ou non selon le régime.`
+            horsTotal: `Lu sur ${plFr(bulletinsEcrits.length, 'bulletin')} du mois, au taux figé sur chacun. Non compris dans le total à décaisser — ${A_VERIFIER} : le taux dépend du secteur, et le versement suit cette déclaration ou non selon le régime.`
           };
           return;
         }
@@ -3595,7 +3599,7 @@
         const porte = retenuDuMois(livre, cTfp, du, au, horsMois);
         if (porte.v) {
           cases[k] = caseInconnue(k === 'tfp'
-            ? `Le compte ${cTfp} porte ${fmtMontant(porte.v, 'DT')} ce mois-ci, TFP et FOPROLOS ENSEMBLE : leur répartition ne s'invente pas, elle se lit sur les bulletins du client. À VÉRIFIER avec le comptable.`
+            ? `Le compte ${cTfp} porte ${fmtMontant(porte.v, 'DT')} ce mois-ci, TFP et FOPROLOS ENSEMBLE : leur répartition ne s'invente pas, elle se lit sur les bulletins du client. ${A_VERIFIER}.`
             : `Porté avec la TFP sur le compte ${cTfp} : voir la ligne au-dessus.`);
           return;
         }
@@ -3655,7 +3659,7 @@
     { id: 'timbre', titre: 'Droit de timbre', ar: 'معلوم الطابع الجبائي' },
     { id: 'tcl', titre: 'Taxes des collectivités locales', ar: 'المعاليم الراجعة للجماعات المحلية' }
   ];
-  const MOTIF_TCL = 'La taxe sur les établissements (TCL) : 0,2 % du chiffre d\'affaires local brut, 0,1 % à l\'export — ou 25 % de l\'impôt sur le revenu ou sur les sociétés, selon la catégorie de l\'entreprise (formulaire 2026). La catégorie se choisit : rien ne la dit dans ce livre. À VÉRIFIER avec le comptable.';
+  const MOTIF_TCL = 'La taxe sur les établissements (TCL) : 0,2 % du chiffre d\'affaires local brut, 0,1 % à l\'export — ou 25 % de l\'impôt sur le revenu ou sur les sociétés, selon la catégorie de l\'entreprise (formulaire 2026). La catégorie se choisit : rien ne la dit dans ce livre. ' + A_VERIFIER + '.';
   function formulaireMensuel(livre, decl) {
     if (!decl || !decl.ok || !decl.cases) return null;
     const c = decl.cases;
@@ -3725,7 +3729,7 @@
     if (avecFodec) {
       rubriques.splice(rubriques.findIndex(r => r.id === 'timbre'), 0, { id: 'fodec', titre: 'FODEC', ar: '', lignes: [
         ligne({ cle: 'fodec', libelle: 'FODEC sur les ventes de produits fabriqués', montant: m('fodec'), source: 'fodec',
-          note: 'La ligne du formulaire et le taux sont À VÉRIFIER avec le comptable.' })] });
+          note: 'La ligne du formulaire et le taux sont ' + A_VERIFIER + '.' })] });
     }
 
     // Le récapitulatif : une ligne par taxe, comme la dernière page du formulaire. Ce qui ne se

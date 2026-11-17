@@ -78,7 +78,10 @@ describe('la page Écritures, à la souris', () => {
     const vue = () => p.locator('#view').innerText();
     await expect.poll(vue).toMatch(/1\smois est à valider[\s\S]*Garage du Port[\s\S]*Des écritures y sont encore au brouillard/);
     // (1.341.0) Le client sans écriture est dit par ce qui l'attend : tenu au cabinet, c'est à toi de saisir.
-    expect(await vue()).toMatch(/1\sclient n'a aucune écriture sur cette période\s:\s+Tenu au cabinet, à saisir par toi\s:\s+Librairie Sans Rien/);
+    expect(await vue()).toMatch(/1\sclient n'a aucun mouvement sur cette période\s:\s+Tenu au cabinet, à saisir par toi\s:\s+Librairie Sans Rien/);
+    // (1.378.6) La page porte le nom du menu, et la carte compte les clients du fichier.
+    expect(await p.locator('#view h1').first().innerText()).toBe('Export des écritures');
+    expect(await p.locator('.stat', { hasText: 'Clients dans le fichier' }).innerText()).toMatch(/2\s+1\sautre sans mouvement/i);
     expect(await p.locator('.stat', { hasText: 'Mois de livres' }).locator('.val').innerText()).toBe('2');
     expect(await vue()).not.toMatch(/paquet/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-ecritures-1-page.png') });
@@ -108,6 +111,8 @@ describe('la page Écritures, à la souris', () => {
       'Garage du Port;;2026-03;OD-7', 'Garage du Port;;2026-03;OD-7',
       'Café des Arts;2468024B/A/M/000;2026-04;OD-2', 'Café des Arts;2468024B/A/M/000;2026-04;OD-2',
     ]);
+    // (1.378.6 ; issue 9, CABDECLARER-17) Deux clients sur trois mois de livres : « Clients : 2 », pas 3.
+    await expect.poll(() => p.locator('#modal-root .modal').first().locator('.kv').innerText()).toMatch(/Clients\s+2\s/);
     await p.locator('#modal-root .modal').first().getByRole('button', { name: 'Fermer' }).click();
 
     // La visite revient dans « Me guider ».

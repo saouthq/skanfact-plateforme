@@ -1573,7 +1573,7 @@
         : '<div class="empty mini">Aucune règle encore : « Nouvelle règle », ou en écrivant une ligne du relevé (« Proposer ce compte aux lignes qui contiennent… »).</div>'}
       <p class="bqr-pied">Une règle propose ; elle n'écrit jamais sans toi. Ses lignes arrivent « À traiter » avec la règle dite, et tu valides. Quand deux règles prennent la même ligne, la plus précise passe d'abord (le mot le plus long, puis le sens, puis le montant) et la page le dit avant d'enregistrer. « A servi » compte les lignes des relevés de ce dossier qu'elle prend.</p>
       <h3 class="bq-st2">Les taux de retenue à la source</h3>
-      <p class="small muted">Une ligne qui paie une facture moins sa retenue se reconnaît à ces taux, au millime près (« net de sa retenue »). Sans taux, rien ne se reconnaît ainsi : la ligne reste un écart. <b>À VÉRIFIER</b> avec le comptable : les taux en vigueur et leur assiette.</p>
+      <p class="small muted">Une ligne qui paie une facture moins sa retenue se reconnaît à ces taux, au millime près (« net de sa retenue »). Sans taux, rien ne se reconnaît ainsi : la ligne reste un écart. <b>À VÉRIFIER</b> dans les textes : les taux en vigueur et leur assiette.</p>
       ${lect ? `<p>${tauxRetenueBq().length ? esc(tauxRetenueBq().map(t => String(t).replace('.', ',') + ' %').join(', ')) : 'aucun taux'}</p>` : `<div class="bq-taux"><label class="field">${lbl('Taux, en %', 'bq.taux')}<input id="bq-taux" inputmode="decimal" placeholder="par exemple 1,5 ; 3" value="${esc(tauxRetenueBq().map(t => String(t).replace('.', ',')).join(' ; '))}"></label>
         <button type="button" class="btn btn-sm" id="bq-taux-ok">Retenir ces taux</button></div>`}</div>`;
   }
@@ -6800,14 +6800,17 @@
 
   function moisDisponibles() {
     const s = new Set();
-    (S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));
+    // (1.378.6) Les mois de l'exemple ne se proposent que s'il est seul : dès qu'un vrai client a des écritures, l'export
+    // ne porte plus que les vrais (K.ecrituresPlan), et proposer un mois de l'exemple ouvrirait sur un fichier vide.
+    const vrais = (S.dossiers || []).some(d => !d.demo && !d.archived && (d.packs || []).length);
+    (S.dossiers || []).filter(d => !(d.demo && vrais)).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));
     return [...s].sort();
   }
 
   function drawEcritures(view) {
     const mois = moisDisponibles();
     if (!mois.length) {
-      view.innerHTML = `<div class="page-head"><h1>Écritures</h1></div>
+      view.innerHTML = `<div class="page-head"><h1>Export des écritures</h1></div>
         <div class="panel"><h2>Rien à regrouper pour l'instant</h2>
           <p>Dès qu'un de tes clients aura une écriture dans ses livres, tu pourras sortir d'ici <strong>toutes les écritures
           du mois, tous clients confondus</strong>, dans un seul fichier à importer dans ton logiciel.</p>
@@ -6844,7 +6847,7 @@
     const opts = m => mois.map(x => `<option value="${esc(x)}" ${m === x ? 'selected' : ''}>${esc(K.monthLabel(x))}</option>`).join('');
 
     view.innerHTML = `
-      <div class="page-head"><h1>Écritures</h1></div>
+      <div class="page-head"><h1>Export des écritures</h1></div>
       <p class="muted small mb">Un seul fichier CSV, toutes les écritures de la période, avec le client et le mois devant chaque ligne —
       à importer dans ton logiciel au lieu de ressaisir. ${info('e.import')}</p>
       ${/* 10.10.0 (C-07) — ce regroupement lit les PAQUETS reçus. Un client hors SkanFact n'en
@@ -6861,8 +6864,8 @@
         <div class="stats mt">
           <div class="stat"><div class="lbl">Mois de livres</div><div class="val">${plan.packs.length}</div>
             <div class="sub">${plan.mois.length ? `sur ${pl(plan.mois.length, 'mois', 'mois')}` : 'aucun'}</div></div>
-          <div class="stat"><div class="lbl">Clients</div><div class="val">${new Set(plan.packs.map(p => p.id)).size}</div>
-            <div class="sub">${plan.sansPaquet.length ? `${plan.sansPaquet.length} sans écriture` : 'tous ont des écritures'}</div></div>
+          <div class="stat"><div class="lbl">Clients dans le fichier</div><div class="val">${new Set(plan.packs.map(p => p.id)).size}</div>
+            <div class="sub">${plan.sansPaquet.length ? `${pl(plan.sansPaquet.length, 'autre')} sans mouvement` : 'tous ont des écritures'}</div></div>
           <div class="stat"><div class="lbl">À valider</div><div class="val ${plan.provisoires.length ? 'due' : 'ok'}">${plan.provisoires.length}</div>
             <div class="sub">${plan.provisoires.length ? 'chiffres susceptibles de bouger' : 'tout est validé'}</div></div>
           <div class="stat"><div class="lbl">Période</div><div class="val" style="font-size:16px">${esc(plan.mois.length ? (plan.mois.length > 1 ? K.monthLabel(plan.mois[0]) + ' → ' + K.monthLabel(plan.mois[plan.mois.length - 1]) : K.monthLabel(plan.mois[0])) : '—')}</div></div>
@@ -6871,7 +6874,8 @@
         ${plan.provisoires.length ? `<div class="warn-box mt">${info('e.provisoire')} <strong>${pl(plan.provisoires.length, 'mois')} ${provPlus ? 'sont' : 'est'} à valider</strong> :
           ${esc(plan.provisoires.slice(0, 6).join(' · '))}${plan.provisoires.length > 6 ? ' …' : ''}.
           Des écritures y sont encore au brouillard : les chiffres peuvent encore changer. ${provPlus ? 'Ils sont quand même exportés' : 'Il est quand même exporté'}.</div>` : ''}
-        ${sansP.length ? `<p class="small mt">${info('e.manquants')} <span class="${aRel.length && !finEnCours ? 'err-inline' : ''}">${pl(sansP.length, 'client')} n'${sansP.length > 1 ? 'ont' : 'a'} aucune écriture sur cette période</span> :</p><ul class="small" style="margin:4px 0 0;padding-inline-start:22px">${sansLi}</ul>` : ''}
+        ${sansP.length ? `<p class="small mt">${info('e.manquants')} <span class="${aRel.length && !finEnCours ? 'err-inline' : ''}">${pl(sansP.length, 'client')} n'${sansP.length > 1 ? 'ont' : 'a'} aucun mouvement sur cette période</span> :</p><ul class="small" style="margin:4px 0 0;padding-inline-start:22px">${sansLi}</ul><p class="small muted" id="e-ouverture">Une balance d'ouverture, s'il en a une sur la période, part quand même dans le fichier.</p>` : ''}
+        ${plan.exempleExclu ? `<p class="small muted mt" id="e-exemple">Le dossier d'exemple n'entre pas dans ce fichier : il est fait pour ton logiciel, avec tes vrais clients.</p>` : (S.dossiers || []).some(d => d.demo && plan.packs.some(p => p.id === d.id)) ? `<p class="small muted mt" id="e-exemple">Seul le dossier d'exemple a des écritures : ce fichier sert à essayer l'import dans ton logiciel.</p>` : ''}
 
         <div class="modal-actions">
           <button class="btn btn-primary" id="e-go" ${plan.packs.length ? '' : 'disabled'}>Exporter les écritures…</button>

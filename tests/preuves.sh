@@ -2520,10 +2520,10 @@ prouver "le plan qui attend encore un fichier reçu" $CCC \
   "      const dans = (d.packs || []).filter(p => (!du || (p.month >= du && p.month <= au)))" "      const dans = (d.packs || []).filter(p => p.path && (!du || (p.month >= du && p.month <= au)))" \
   "$WE1"
 prouver "un client hors SkanFact sans écriture tu" $CCC \
-  "      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }" "      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) sansPaquet.push(d.name); return; }" \
+  "      if (!dans.length) { if (!d.archived && !d.demo) { sansPaquet.push(d.name);" "      if (!dans.length) { if (!d.manual && !d.archived && !d.demo) { sansPaquet.push(d.name);" \
   "$WE1"
 prouver "les mois proposés qui attendent un fichier reçu" modules/socle/ecrans/cabinet/app-2.js \
-  "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));" "(S.dossiers || []).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));" \
+  "(S.dossiers || []).filter(d => !(d.demo && vrais)).forEach(d => (d.packs || []).forEach(p => { s.add(p.month); }));" "(S.dossiers || []).filter(d => !(d.demo && vrais)).forEach(d => (d.packs || []).forEach(p => { if (p.path) s.add(p.month); }));" \
   "$WE1"
 prouver "la visite de l'export encore absente" $PC \
   "  const VISITES_PAS_ENCORE = [
@@ -30270,6 +30270,30 @@ prouver $'issue 9 1.378.5 c : l\'écran ne donne pas la date du jour au contrôl
   $'KC.controlesCloture(livre, { aujourdhui: /** @type {any} */ (window).CabCore.today() })' \
   $'KC.controlesCloture(livre)' \
   $'l\'écran donne la date du jour au contrôle'
+prouver $'issue 9 1.378.6 a : « À VÉRIFIER avec le comptable » dit au comptable' modules/socle/moteur/compta-1.js \
+  $'? \'À VÉRIFIER dans les textes en vigueur\' : \'À VÉRIFIER avec le comptable\';' \
+  $'? \'À VÉRIFIER avec le comptable\' : \'À VÉRIFIER avec le comptable\';' \
+  $'dans le Cabinet, elle renvoie aux textes'
+prouver $'issue 9 1.378.6 b : « Clients : 11 » pour un client et onze mois' web/public/v10/cabinet/cabcore.js \
+  $'dossiers: new Set(lues.filter(s => (s.lignes || []).length).map(s => `${s.name || \'\'}|${s.matricule || \'\'}`)).size,' \
+  $'dossiers: lues.filter(s => (s.lignes || []).length).length,' \
+  $'le compte rendu compte des clients, pas des mois de livres'
+prouver $'issue 9 1.378.6 c : le dossier d\'exemple part dans le fichier du cabinet' web/public/v10/cabinet/cabcore.js \
+  $'if (d.demo && vrais) {' \
+  $'if (false) {' \
+  $'le dossier d\'exemple sort du fichier'
+prouver $'issue 9 1.378.6 d : la balance d\'ouverture d\'un client sans mouvement oubliée' web/public/v10/cabinet/cabcore.js \
+  $'(plan.sans || []).forEach(d => {' \
+  $'[].forEach(d => {' \
+  $'la balance d\'ouverture d\'un client sans mouvement part dans le fichier'
+prouver $'issue 9 1.378.6 e : la fiche compte les brouillards sans le dire' modules/socle/ecrans/cabinet/app-1.js \
+  $'· lu dans ses livres${brDit(L.brVente)}`)' \
+  $'· lu dans ses livres`)' \
+  $'un clic charge un dossier d\'exemple complet'
+prouver $'issue 9 1.378.6 f : une année sans livre se lit comme un exercice' modules/socle/ecrans/cabinet/app-1.js \
+  $'? `${y} — à ouvrir` : String(y);' \
+  $'? String(y) : String(y);' \
+  $'un client tenu commence son livre avec la balance d\'un CSV'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

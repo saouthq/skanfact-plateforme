@@ -174,6 +174,16 @@ describe('la reprise d\'un client, à la souris', () => {
     await expect.poll(() => p.locator('#c-livres').innerText())
       .toContain(`Aucune écriture sur ${aSaisir.length} mois, de janvier 2026 à ${dernierASaisir} 2026 : ces mois restent à saisir.`);
 
+    // (1.378.6 ; issue 9, CABDECLARER-20) L'année d'avant, proposée sans livre : elle se dit « à ouvrir », la barre ne
+    // parle plus du livre de 2026, et un bouton y ramène.
+    await aller(`#/dossier/${cafe}/comptabilite/journal/2025`);
+    await p.locator('#lv-sans-livre').waitFor({ timeout: 20_000 });
+    expect((await p.locator('#lv-sans-livre').innerText()).replace(/\s+/g, ' ')).toContain('2025 n\'a pas de livre. Les livres de ce dossier : 2026.');
+    expect(await p.locator('#c-livre-etat').innerText()).toBe('2025 n\'a pas encore de livre');
+    expect(await p.locator('#lv-annee option').allInnerTexts()).toContain('2025 — à ouvrir');
+    await p.locator('#lv-revenir').click();
+    await expect.poll(() => p.locator('#c-livre-etat').innerText(), { timeout: 20_000 }).toMatch(/Le livre de 2026/);
+
     // ── Un client tenu qui démarre : sa société est née le 1er juin 2025 ; son livre commence ce
     // jour-là, sans balance d'ouverture ──────────────────────────────────────────────────────────
     const boulangerie = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Boulangerie du Port' })).corps.entreprise);

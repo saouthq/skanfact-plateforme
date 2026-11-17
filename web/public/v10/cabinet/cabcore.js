@@ -2356,9 +2356,22 @@
       // Le BOM : sans lui, Excel en français lit « Société » comme « SociÃ©tÃ© ».
       csv: '﻿' + [toCsvLine(tete)].concat(corps).join('\r\n') + '\r\n',
       lignes: corps.length,
-      dossiers: lues.filter(s => (s.lignes || []).length).length,
+      // (1.378.6 ; issue 9, CABDECLARER-17) Des CLIENTS, pas des mois de livres : un client et onze mois faisaient
+      // « Clients : 11 » au compte rendu.
+      dossiers: new Set(lues.filter(s => (s.lignes || []).length).map(s => `${s.name || ''}|${s.matricule || ''}`)).size,
       vides: lues.filter(s => !(s.lignes || []).length).map(s => `${s.name} (${monthLabel(s.month)})`)
     };
+  }
+
+  // (1.378.6) Ce que l'export lit vraiment : les mois du plan, plus — pour un client sans mouvement sur la période — les
+  // mois où son livre porte quand même une écriture (sa balance d'ouverture). `livres` : id du dossier → ses écritures.
+  function packsAvecOuvertures(plan, livres) {
+    const plus = [];
+    (plan.sans || []).forEach(d => {
+      const mois = [...new Set(((livres && livres.get(d.id)) || []).map(e => String(e.date).slice(0, 7)))].sort();
+      mois.forEach(m => plus.push({ id: d.id, name: d.name, matricule: d.matricule, month: m, definitive: true, ouverture: true }));
+    });
+    return (plan.packs || []).concat(plus).sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : parNom(a.name, b.name)));
   }
 
   // Quels paquets lire pour une période donnée. Pur : l'interface montre ce qui partira AVANT de
@@ -2368,8 +2381,14 @@
     const du = opts.from || opts.month || '';
     const au = opts.to || opts.month || du;
     const ids = opts.ids && opts.ids.length ? new Set(opts.ids) : null;
-    const pris = [], sansPaquet = [];
+    const pris = [], sansPaquet = [], sans = [];
+    // (1.378.6 ; issue 9, CABDECLARER-17) Le dossier d'exemple ne part pas dans le fichier destiné au logiciel du cabinet
+    // dès qu'un vrai client a des écritures sur la période. Seul, il part : c'est avec lui qu'on essaie l'export.
+    const dansPeriode = d => (d.packs || []).some(p => (!du || (p.month >= du && p.month <= au)));
+    const vrais = (state.dossiers || []).some(d => !d.demo && !d.archived && (!ids || ids.has(d.id)) && dansPeriode(d));
+    let exempleExclu = false;
     (state.dossiers || []).forEach(d => {
+      if (d.demo && vrais) { if (dansPeriode(d)) exempleExclu = true; return; }
       // Il n'y a plus de garde « d.demo » ici, et c'est un correctif, pas un oubli. Elle datait de
       // la 6.8.0, où l'exemple n'avait aucun fichier sur le disque : l'exclure était juste. Depuis
       // la 9.2.2 il livre de VRAIS `.skanpack`, et la garde a fabriqué une contradiction que
@@ -2385,7 +2404,9 @@
       // jamais, même sans fichier. On ne reproche rien à un client qui n'existe pas — c'est la règle
       // « on ne réclame pas le néant » (Cabinet 1.0.0), et c'est la SEULE chose que l'étiquette
       // `demo` décide ici ; ce qui entre dans l'export, lui, se décide sur le fichier.
-      if (!dans.length) { if (!d.archived && !d.demo) sansPaquet.push(d.name); return; }
+      // `sans` : les mêmes, avec de quoi relire leur livre — une balance d'ouverture seule ne fait pas un « mois »,
+      // mais elle part dans le fichier comme les à-nouveaux des autres (1.378.6).
+      if (!dans.length) { if (!d.archived && !d.demo) { sansPaquet.push(d.name); sans.push({ id: d.id, name: d.name, matricule: d.matricule }); } return; }
       dans.forEach(p => pris.push({
         id: d.id, name: d.name, matricule: d.matricule, month: p.month,
         path: p.path, definitive: !!p.definitive, sealed: !!p.sealed
@@ -2393,7 +2414,7 @@
     });
     pris.sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : parNom(a.name, b.name)));
     return {
-      packs: pris, sansPaquet,
+      packs: pris, sansPaquet, sans, exempleExclu,
       mois: [...new Set(pris.map(p => p.month))],
       provisoires: pris.filter(p => !p.definitive).map(p => `${p.name} (${monthLabel(p.month)})`)
     };
@@ -2584,7 +2605,7 @@
     justificatifsDuPaquet, justificatifsDeLigne,
     exemplePerime, verdictMotDePasse,
     newDossier, parseDossierLines, parseSalariesLines, parseBiensLines, emailDouteux, noteRelance, portfolio, caDuPortefeuille, relanceDue, relanceRows, accuseMail,
-    parseCsv, verdictOrigine, csvDangereux, toCsvLine, csvMontant, csvDate, mergeEcritures, ecrituresPlan,
+    parseCsv, verdictOrigine, csvDangereux, toCsvLine, csvMontant, csvDate, mergeEcritures, ecrituresPlan, packsAvecOuvertures,
     DEFAULT_DEADLINES, deadlineSettings, echeances, enRetard, dayOf,
     TVA_PERIODES, migrateRegime, regimes, regimeDe, choixRegimes, regimeEnPhrase, periodeTva, deposeCnss, personnePhysique, jourTva,
     dossierMonths, debutDeMission, dossierRow, dossierList, cabinetTodo, premiersPas, relanceMail, pairingFile,
