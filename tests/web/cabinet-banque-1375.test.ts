@@ -1,0 +1,155 @@
+// (1.375.0) La revue « saisie et banque » (issue 11), à la souris : ce qui faisait de faux montants ou des doubles.
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium, type Browser } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+const PHOTOS = path.join(RACINE, 'dist/photos');
+
+describe('(1.375.0) la revue « saisie et banque »', () => {
+  let navigateur: Browser;
+  let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-cab-bq1375-'));
+  beforeAll(async () => {
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    navigateur = await chromium.launch();
+    fs.mkdirSync(PHOTOS, { recursive: true });
+  }, 120_000);
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+
+  const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
+      method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
+    });
+    const texte = await r.text();
+    return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
+  };
+  const personne = async (nom: string) => {
+    const email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    return jeton;
+  };
+
+  type Ecr = { id: string; piece: string; statut: string; lignes: { compte: string; debit: string; credit: string }[] };
+  const ecritures = async (ent: string, jeton: string) => (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, jeton)).corps.ecritures as Ecr[];
+  const reglages = async (cabinet: string, jeton: string) => (await api('GET', `/cabinets/${cabinet}/reglages`, jeton)).corps as { contenu: { banques?: Record<string, unknown> }; revision: unknown };
+
+  it('un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const cafe = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Café des Arts' })).corps.entreprise);
+    const an = String((await api('POST', `/entreprises/${cafe}/compta/ecritures`, associe, { date: '2026-01-01', journal: 'BQ', piece: 'AN-1', libelle: 'Solde repris',
+      lignes: [{ compte: '532', debit: '10000', credit: '' }, { compte: '101', debit: '', credit: '10000' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${cafe}/compta/ecritures/valider`, associe, { ids: [an] })).statut).toBe(200);
+    // Un modèle retenu AVANT cette version (sans ses titres) : la date, le libellé, le débit puis le crédit. Et une
+    // règle de libellé qui porte une TVA.
+    const avant = await reglages(cabinet, associe);
+    expect((await api('PUT', `/cabinets/${cabinet}/reglages`, associe, { contenu: { ...avant.contenu, banques: { BIAT: { date: 0, libelle: 1, debit: 2, credit: 3 } },
+      libelles: [{ motif: 'ORANGE', compte: '626', tva: { taux: '19', compte: '4366' } }] }, revision: avant.revision ?? null })).statut).toBe(200);
+
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message + ' ' + (e.stack ?? '').split('\n').slice(0, 3).join(' / ')));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const aller = async (hash: string) => {
+      await p.goto('about:blank');
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}${hash}`);
+      await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(800);
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    };
+    const choisir = async (nom: string, texte: string) => {
+      const [f] = await Promise.all([p.waitForEvent('filechooser'), p.locator('.bqi-page #rv-fichier').click()]);
+      await f.setFiles({ name: nom, mimeType: 'text/csv', buffer: Buffer.from(texte, 'utf8') });
+    };
+
+    // ── Le modèle d'une banque ne s'applique pas à un fichier que ses titres suffisent à lire ───────
+    await aller(`#/dossier/${cafe}/comptabilite/banque/2026`);
+    await p.locator('#bq-import').first().click();
+    const imp = p.locator('.bqi-page');
+    await imp.locator('[name=banque]').fill('BIAT');
+    // Le crédit AVANT le débit : lu d'après le modèle, le virement reçu devenait une sortie (− 440,500).
+    const clair = ['Date;Libellé;Crédit;Débit', '03/03/2026;VIR CLIENT DUPONT;500,000;', '05/03/2026;ORANGE FACTURE 0326;;59,500', '06/03/2026;ORANGE MOBILE 0326;;119,000'].join('\r\n');
+    await choisir('releve-clair.csv', clair);
+    await expect.poll(() => imp.locator('#rv-apercu').innerText()).toMatch(/3 lignes lues · mouvements 321,500/);
+    expect(await imp.locator('#rv-par-modele').count()).toBe(0);
+    // Un fichier que ses titres ne disent pas : le modèle le lit, l'écran le DIT, et le modèle s'oublie d'un geste.
+    await choisir('releve-muet.csv', ['J;Texte;S;E', '03/03/2026;VIR CLIENT DUPONT;;500,000', '05/03/2026;ORANGE FACTURE 0326;59,500;', '06/03/2026;ORANGE MOBILE 0326;119,000;'].join('\r\n'));
+    await expect.poll(() => imp.locator('#rv-par-modele').innerText().catch(() => '').then((t) => t.replace(/\s+/g, ' ').trim())).toBe('Colonnes lues d\'après le modèle retenu pour BIAT. Revoir les colonnes Oublier ce modèle');
+    expect(await imp.locator('#rv-apercu').innerText()).toMatch(/3 lignes lues · mouvements 321,500/);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-banque-1375-modele.png') });
+    await imp.locator('#rv-oublier').click();
+    await expect.poll(async () => (await reglages(cabinet, associe)).contenu.banques?.BIAT ?? null).toBeNull();
+    await imp.locator('#rv-colonnes').waitFor();
+    expect(await imp.locator('#ok').isDisabled()).toBe(true);
+    // Les colonnes dites à la main : le modèle se range avec les titres de CE fichier.
+    for (const [i, v] of [[0, 'date'], [1, 'libelle'], [2, 'debit'], [3, 'credit']] as const) await imp.locator(`[data-col-i="${i}"]`).selectOption(v);
+    await imp.locator('#rv-relire').click();
+    await expect.poll(async () => (await reglages(cabinet, associe)).contenu.banques?.BIAT).toEqual({ date: 0, libelle: 1, debit: 2, credit: 3, titres: ['j', 'texte', 's', 'e'] });
+    // Le fichier clair, rechoisi : toujours lu à ses titres ; il s'importe.
+    await choisir('releve-clair.csv', clair);
+    await expect.poll(() => imp.locator('#rv-apercu').innerText()).toMatch(/3 lignes lues · mouvements 321,500/);
+    expect(await imp.locator('#rv-par-modele').count()).toBe(0);
+    await imp.locator('[name=compte]').fill('532');
+    await imp.locator('[name=debut]').fill('10000');
+    await imp.locator('[name=fin]').fill('10321,5');
+    await imp.getByRole('button', { name: 'Importer', exact: true }).click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toMatch(/^Relevé importé : 3 lignes/);
+
+    // ── La règle « ORANGE » porte une TVA : l'écriture proposée part avec ses trois lignes ─────────
+    const R = ((await api('GET', `/entreprises/${cafe}/compta/releves?annee=2026`, associe)).corps.releves as { lignes: { id: string; libelle: string }[] }[])[0];
+    const orange = R?.lignes.find((l) => l.libelle.startsWith('ORANGE FACTURE'))?.id;
+    const mobile = R?.lignes.find((l) => l.libelle.startsWith('ORANGE MOBILE'))?.id;
+    await p.locator(`table.bq-t [data-bq-ligne="${orange}"]`).click();
+    await expect.poll(() => p.locator('.bq-livre').innerText()).toMatch(/626[\s\S]*4366/);
+    await p.locator('#bq-principal').click();
+    await expect.poll(async () => (await ecritures(cafe, associe)).filter((e) => e.piece !== 'AN-1').length, { timeout: 10_000 }).toBe(1);
+    const ecrite = (await ecritures(cafe, associe)).find((e) => e.piece !== 'AN-1');
+    expect(ecrite?.lignes.map((l) => [l.compte, l.debit, l.credit])).toEqual([['532', '0.000', '59.500'], ['626', '50.000', '0.000'], ['4366', '9.500', '0.000']]);
+
+    // « Écrire autre chose… » garde le compte proposé : la TVA reste ; un autre compte reprend le montant entier.
+    await p.locator(`[data-rowmenu="LIG:${mobile}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Écrire autre chose…' }).click();
+    const fenE = p.locator('#modal-root .modal').first();
+    await expect.poll(() => fenE.locator('[name=compte]').inputValue()).toBe('626');
+    await fenE.getByRole('button', { name: 'Créer le brouillard' }).click();
+    await expect.poll(async () => (await ecritures(cafe, associe)).filter((e) => e.piece !== 'AN-1').length, { timeout: 10_000 }).toBe(2);
+    const autre = (await ecritures(cafe, associe)).find((e) => e.piece !== 'AN-1' && e.id !== ecrite?.id);
+    expect(autre?.lignes.map((l) => [l.compte, l.debit, l.credit])).toEqual([['532', '0.000', '119.000'], ['626', '100.000', '0.000'], ['4366', '19.000', '0.000']]);
+
+    // ── Une validation refusée : la pièce est au brouillard UNE fois, la grille se vide ─────────────
+    const demain = new Date(Date.now() + 86_400_000);
+    const jj = (n: number) => String(n).padStart(2, '0');
+    const fr = `${jj(demain.getDate())}/${jj(demain.getMonth() + 1)}/${demain.getFullYear()}`;
+    await aller(`#/dossier/${cafe}/comptabilite/saisie/${demain.getFullYear()}`);
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id), { timeout: 10_000 }).toBe('sa-piece');
+    await p.locator('#sa-journal').selectOption('OD');
+    await p.locator('#sa-date').fill(fr);
+    await p.locator('#sa-piece').fill('OD-DEMAIN');
+    await p.locator('#sa-libelle').fill('Loyer de demain');
+    for (const [i, [compte, debit, credit]] of ([['6132', '100', ''], ['401', '', '100']] as const).entries()) {
+      if (!(await p.locator(`#sa-lignes tr[data-i="${i}"]`).count())) await p.locator('#sa-ajouter').click();
+      const tr = p.locator(`#sa-lignes tr[data-i="${i}"]`);
+      await tr.locator('input[data-k="compte"]').fill(compte);
+      if (debit) await tr.locator('input[data-k="debit"]').fill(debit);
+      if (credit) await tr.locator('input[data-k="credit"]').fill(credit);
+    }
+    await p.locator('#sa-okvalider').click();
+    const fen = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/Gardée au brouillard, pas validée[\s\S]*enregistrée au brouillard[\s\S]*Elle n'a pas pu être validée/);
+    await fen.getByRole('button').last().click();
+    // La grille est vide : un second clic n'a plus rien à enregistrer.
+    await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
+    expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').map((e) => e.statut)).toEqual(['brouillard']);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+});

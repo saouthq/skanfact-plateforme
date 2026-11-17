@@ -29979,6 +29979,30 @@ prouver $'revue 1.374.0 i : une étape de visite sur un bloc absent de l\'écran
   $'          si: () => !!document.querySelector(\'#tb-arrivee, #tb-charge\'),' \
   $'          si: () => true,' \
   $'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
+prouver $'revue 1.375.0 a : le modèle d\'une banque appliqué à un fichier aux titres clairs' modules/socle/ecrans/cabinet/app-2.js \
+  $'const vaut = Object.keys(am).length && (tm ? tm.join(\'|\') === titresBq(r.entetes).join(\'|\') : !!r.motif);' \
+  $'const vaut = Object.keys(am).length > 0;' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.0 b : le modèle rangé sans les titres de son fichier' modules/socle/ecrans/cabinet/app-2.js \
+  $'const garde = { ...assoc, titres: titresBq(lu.entetes) };' \
+  $'const garde = { ...assoc };' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.0 c : la TVA d\'une règle de banque ne part pas avec l\'écriture proposée' modules/socle/ecrans/cabinet/app-2.js \
+  $'const avecTva = contre.length > 1 && contre[0].compte === compte;' \
+  $'const avecTva = false;' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.0 d : « Écrire autre chose » perd la TVA du compte proposé' modules/socle/ecrans/cabinet/app-2.js \
+  $'if (tvaR.length && !tiersR && compte === brouillon.lignes[1].compte) ec.lignes.push(...tvaR);' \
+  $'if (tvaR.length < 0) ec.lignes.push(...tvaR);' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.0 e : une validation refusée laisse la pièce dans la grille (un second clic la doublait)' modules/socle/ecrans/cabinet/app-2.js \
+  $'try { w = await api.valider(dossier.id, s.annee, idE); }' \
+  $'w = await api.valider(dossier.id, s.annee, idE); try { void 0; }' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.0 f : le modèle lu ne se dit pas' modules/socle/ecrans/cabinet/app-2.js \
+  $'${lignes.length && lu.parModele && !lu.modele && !deja ? `<div' \
+  $'${lignes.length < 0 ? `<div' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

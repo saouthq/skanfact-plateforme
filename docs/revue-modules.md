@@ -4308,3 +4308,28 @@ Joué à la souris sur le cabinet d'essai. Tests : `tests/web/barre-cabinet.test
 
 Reste de l'issue 12 : constats 5 à 23 et 25 à 33 (un seul mot par état de mois, le retard en tête de « À faire »,
 archiver en une petite fenêtre, la recherche sans accents…). Puis les issues 11, 10, 9, 6, 4, 5, 7, 8.
+
+## 1.375.0 — La revue « saisie et banque » : les trois points qui faisaient de faux chiffres
+
+Une autre session a revu la saisie et la banque du Cabinet (issue 11). Ses trois constats bloquants, corrigés ici :
+
+- **Le modèle de colonnes d'une banque lisait de faux montants.** Retenu pour « BIAT », il s'appliquait à tout fichier
+  nommé BIAT, même un export aux titres clairs rangés autrement : un virement reçu devenait une sortie, en vert. Le
+  fichier se lit d'abord SEUL, à ses titres ; le modèle se range avec les titres du fichier qui l'a fait naître et ne
+  vaut que pour eux (un modèle d'avant, sans titres, ne sert plus qu'à un fichier que ses titres ne disent pas).
+  L'écran le DIT (« Colonnes lues d'après le modèle retenu pour BIAT »), avec « Revoir les colonnes » et « Oublier ce
+  modèle ». Le serveur accepte `titres` dans le modèle.
+- **La TVA d'une règle de banque ne partait pas.** L'écriture proposée montrait trois lignes (626 / 4366 / 532),
+  Entrée n'en envoyait que deux : « débit ≠ crédit ». La ligne de TVA part avec l'écriture, depuis la touche Entrée
+  comme depuis « Écrire autre chose… » tant que le compte proposé est gardé ; un autre compte reprend le montant entier.
+- **Une validation refusée doublait la pièce.** « Enregistrer et valider » range d'abord au brouillard ; si la
+  validation se refuse (date future, mois clos), la pièce restait dans la grille sous « Enregistrement impossible »,
+  et un second clic l'enregistrait deux fois. La fenêtre dit « Gardée au brouillard, pas validée », avec la raison ;
+  la grille se vide et le brouillard se relit.
+
+Et un quatrième, trouvé en rejouant les tests : dans la saisie d'une pièce, le compte tapé d'un trait juste après la
+TVA (Tab puis « 6241 ») perdait ses premiers chiffres (« 41 »), parce que la fiche redessinée sélectionnait ce qui
+venait d'être tapé. Le curseur va au bout. Ce défaut dépend de la vitesse de la machine : il n'a pas de preuve stable
+(le défaut remis, le test passe une fois sur deux), c'est dit ici plutôt que caché.
+
+Test à la souris : `tests/web/cabinet-banque-1375.test.ts`. Six preuves « revue 1.375.0 a…f ».

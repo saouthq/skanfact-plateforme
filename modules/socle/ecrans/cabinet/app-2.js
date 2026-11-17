@@ -1156,7 +1156,15 @@
       let n = base, i = 2; while (prises.has(n)) n = `${base}-${i++}`;
       return n;
     })();
-    const ec = { ...b, piece: pieceBq, libelle: lib, lignes: [{ ...b.lignes[0], libelle: lib }, { ...b.lignes[1], compte, libelle: lib }] };
+    // (1.375.0) Une règle avec TVA propose TROIS lignes (la banque, le hors taxe, la TVA) : n'en garder que deux écrivait
+    // « Débit 50 ≠ crédit 59,5 » sur une proposition pourtant équilibrée à l'écran (issue 11). Au compte de la règle, la
+    // TVA part avec ; à un autre compte (le 471, « écrire autre chose »), tout le montant va à ce compte, sans TVA.
+    const banqueL = { ...b.lignes[0], libelle: lib };
+    const contre = b.lignes.slice(1);
+    const avecTva = contre.length > 1 && contre[0].compte === compte;
+    const ec = { ...b, piece: pieceBq, libelle: lib, lignes: avecTva
+      ? [banqueL, { ...contre[0], libelle: lib }, ...contre.slice(1)]
+      : [banqueL, { compte, libelle: lib, debit: banqueL.credit, credit: banqueL.debit }] };
     delete ec.aChoisir; delete ec.regle;
     const r = await api.saisir(dossier.id, s.annee, ec);
     s.livre = r.livre;
@@ -1981,6 +1989,11 @@
             ...brouillon, journal: v('journal') || 'BQ', date: v('date'), libelle: v('libelle'),
             lignes: [{ ...brouillon.lignes[0], libelle: v('libelle') }, (({ tiers, ...c }) => ({ ...c, compte, libelle: v('libelle'), ...(tiers && compte === (tiersR || {}).compte ? { tiers } : {}) }))(contre)]
           };
+          // La règle du libellé porte parfois une TVA (une troisième ligne) : elle reste tant que le
+          // compte proposé est gardé. Un autre compte choisi à la main reprend le montant entier.
+          const tvaR = brouillon.lignes.slice(2);
+          if (tvaR.length && !tiersR && compte === brouillon.lignes[1].compte) ec.lignes.push(...tvaR);
+          else if (tvaR.length) { const bq = ec.lignes[0]; ec.lignes[1] = { ...ec.lignes[1], debit: bq.credit, credit: bq.debit }; }
           delete ec.aChoisir; delete ec.regle;
           try {
             const suivante = suivanteBq(dossier, R, ligne.id);
@@ -2041,6 +2054,7 @@
   }
   // Le choix des colonnes comme la maquette : un menu au-dessus de chaque colonne du fichier, son titre et ce que SkanFact
   // y a compris dessous, les trois premières lignes, et ce qui a été compris en une phrase.
+  const titresBq = ent => (ent || []).map(e => sansAccentBq(String(e == null ? '' : e)).trim());
   function colonnesReleveBq(lu, banque) {
     const ent = lu.entetes || [], assoc = lu.assoc || {};
     const ou = i => Object.keys(assoc).find(k => Number(assoc[k]) === i) || (/solde|balance/.test(sansAccentBq(ent[i])) ? 'solde' : '');
@@ -2257,6 +2271,8 @@
               lu.ignorees.length ? ` · ${pl(lu.ignorees.length, 'ligne ignorée', 'lignes ignorées')}` : ''}${
               lu.totaux ? ` · ${pl(lu.totaux, 'ligne de total écartée', 'lignes de total écartées')}` : ''}${
               lu.ligneTitres > 1 ? ` · titres trouvés ligne ${lu.ligneTitres}` : ''}</div>` : ''}
+            ${lignes.length && lu.parModele && !lu.modele && !deja ? `<div class="cp-gestes mb" id="rv-par-modele"><span class="small muted">Colonnes lues d'après le modèle retenu pour ${esc(lu.parModele)}.</span>
+              <button type="button" class="btn btn-sm btn-ghost" id="rv-revoir">Revoir les colonnes</button><button type="button" class="btn btn-sm btn-ghost" id="rv-oublier">Oublier ce modèle</button></div>` : ''}
             ${lu.ignorees && lu.ignorees.length ? `<div class="small muted">${lu.ignorees.slice(0, 5).map(i => `Ligne ${i.ligne} : ${esc(i.motif)}`).join(' · ')}</div>` : ''}
             ${lignes.length && !(lu.entetes && lu.modele) ? `<div class="scroll-x" style="max-height:200px"><table class="list compact"><thead><tr><th class="nw">Date</th><th>Libellé</th><th class="r nw">Montant</th></tr></thead>
               <tbody>${lignes.slice(0, 12).map(l => `<tr><td class="nw">${esc(fmtJour(l.date))}</td><td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td><td class="r nw">${esc(money(l.montant))}</td></tr>`).join('')}</tbody></table></div>` : ''}
@@ -2272,17 +2288,37 @@
             const assoc = {};
             $$('[data-col-i]', rootModal).forEach(sel2 => { if (sel2.value && sel2.value !== 'solde') assoc[sel2.value] = Number(sel2.dataset.colI); });
             // (1.209.0, maquette « une banque nouvelle ») Le modèle se retient dès qu'on le valide, pour cette banque.
-            if (v('banque')) { try { S = await api.saveBanque({ banques: { ...banques, [v('banque')]: assoc } }); banques[v('banque')] = assoc; } catch (e) { toast(plainError(e), 'error'); } }
+            // Le modèle se range AVEC les titres du fichier qui l'a fait naître : il ne vaut que pour eux.
+            const garde = { ...assoc, titres: titresBq(lu.entetes) };
+            if (v('banque')) { try { S = await api.saveBanque({ banques: { ...banques, [v('banque')]: garde } }); banques[v('banque')] = garde; } catch (e) { toast(plainError(e), 'error'); } }
             lu = { ...await api.lireReleve({ chemin: lu.fichier, assoc }), assoc, devine: true, modele: true };
+            montrer();
+          };
+          // Ce qui a été lu d'après un modèle retenu se DIT, se revoit, et le modèle s'oublie d'un geste.
+          const revoir = $('#rv-revoir', rootModal);
+          if (revoir) revoir.onclick = () => { lu = { ...lu, modele: true, parModele: '' }; montrer(); };
+          const oublier = $('#rv-oublier', rootModal);
+          if (oublier) oublier.onclick = async () => {
+            const nom = lu.parModele, reste = { ...banques };
+            delete reste[nom];
+            try { S = await api.saveBanque({ banques: reste }); delete banques[nom]; } catch (e) { return toast(plainError(e), 'error'); }
+            lu = { ...await api.lireReleve({ chemin: lu.fichier }), devine: false };
+            lu.assoc = lu.colonnes;
             montrer();
           };
         };
         $('#rv-fichier', rootModal).onclick = async () => {
           try {
             const banque = v('banque');
-            const r = await api.lireReleve({ assoc: banques[banque] || null });
+            // Le fichier se lit d'abord SEUL, à ses titres. Le modèle d'une banque ne s'applique qu'au
+            // fichier qui porte les titres du modèle (ou, pour un modèle d'avant, à un fichier que ses
+            // titres ne suffisent pas à lire) : appliqué à un autre export, il lisait de faux montants.
+            let r = await api.lireReleve({});
             if (r.annule) return;
-            lu = { ...r, assoc: banques[banque] || r.colonnes };
+            const { titres: tm, ...am } = banques[banque] || {};
+            const vaut = Object.keys(am).length && (tm ? tm.join('|') === titresBq(r.entetes).join('|') : !!r.motif);
+            if (vaut) r = { ...await api.lireReleve({ chemin: r.fichier, assoc: am }), parModele: banque };
+            lu = { ...r, assoc: vaut ? am : r.colonnes };
             etat.textContent = String(r.fichier || '').split(/[\\/]/).pop();
             montrer();
           } catch (e) { toast(plainError(e), 'error'); }
@@ -3679,6 +3715,10 @@
             if (zone.querySelector('button:hover')) return;
             const ici = document.activeElement && zone.contains(document.activeElement) && document.activeElement.id ? `#${document.activeElement.id}` : '';
             redessinerSx(dossier, true, ici);
+            // (1.375.0) On tape peut-être DÉJÀ dans ce champ (Tab puis « 6241 » d'un trait) : le curseur va au bout de ce qui
+            // est tapé, sans le sélectionner, sinon le chiffre suivant remplaçait les premiers (« 6241 » donnait « 41 »).
+            const c = ici && $(ici, zone);
+            if (c && c.tagName === 'INPUT' && c.value) { try { c.setSelectionRange(c.value.length, c.value.length); } catch (_) { /* un champ sans curseur */ } }
           }, 0);
         });
       }
@@ -4404,9 +4444,13 @@
           } catch (x) { toast(`L'écriture est enregistrée, mais « ${dc.nom} » n'a pas pu s'y joindre : ${plainError(x)}`, 'error'); }
         }
         if (puisValider) {
-          const w = await api.valider(dossier.id, s.annee, idE);
-          s.livre = w.livre;
-          toast(`Écriture validée sous le n° ${w.numero}.`);
+          // (1.375.0) La pièce est DÉJÀ au brouillard quand la validation se refuse (une date future, un mois clos…) :
+          // « Enregistrement impossible » la laissait dans la grille, et un second clic l'enregistrait deux fois
+          // (issue 11). On dit ce qui s'est passé, la grille se vide, et le brouillard se relit.
+          let w = null;
+          try { w = await api.valider(dossier.id, s.annee, idE); }
+          catch (e) { await infoHtml('Gardée au brouillard, pas validée', `<p>Ta pièce est enregistrée <b>au brouillard</b>, sans numéro : elle n'est pas perdue, et il ne faut pas la retaper.</p><p>Elle n'a pas pu être validée : ${esc(plainError(e))}</p><p>Corrige-la depuis le brouillard, juste en dessous, puis valide-la.</p>`); }
+          if (w) { s.livre = w.livre; toast(`Écriture validée sous le n° ${w.numero}.`); }
         } else {
           toast(res.attente ? 'Gardée sur ce poste, au brouillard : elle partira seule au serveur au retour du réseau.'
             : p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');

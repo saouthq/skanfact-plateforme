@@ -103,7 +103,9 @@ const FICHE = z.object({
 // proposé), pour tous ses clients.
 const COLONNE = z.number().int().min(0).max(200);
 const REGLAGES = z.object({
-  banques: z.record(z.string().min(1).max(60), z.object({ date: COLONNE, libelle: COLONNE, montant: COLONNE, debit: COLONNE, credit: COLONNE, reference: COLONNE }).partial().strict())
+  banques: z.record(z.string().min(1).max(60), z.object({ date: COLONNE, libelle: COLONNE, montant: COLONNE, debit: COLONNE, credit: COLONNE, reference: COLONNE,
+    // (1.375.0) Les titres du fichier qui a fait naître le modèle : il ne vaut que pour un fichier qui les porte.
+    titres: z.array(z.string().max(120)).max(200) }).partial().strict())
     .refine((o) => Object.keys(o).length <= 50, { message: 'cabinet.champ.banques' }),
   // (1.209.0, maquette « les règles ») Une règle peut se borner à un sens (débit : l'argent sort ; crédit : il entre) et à
   // un montant au plus (en millimes, un entier), et séparer la TVA d'après son taux et son compte (À VÉRIFIER : le compte
