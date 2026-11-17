@@ -30007,6 +30007,10 @@ prouver $'revue 1.375.1 a : le justificatif déposé n\'est pas joint à son éc
   $'await api.classeur.classer(dossier.id, doc.id, true, \'jointe\', id);' \
   $'await api.classeur.classer(dossier.id, doc.id, true, \'jointe\');' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'revue 1.375.2 a : la barre d\'onglets collante de la comptabilité sans fond (on lit à travers)' web/public/plateforme/charte.css \
+  $'padding: 6px 0 0; border: 0; border-radius: 0; background: var(--sb-fond); box-shadow: none; }' \
+  $'padding: 6px 0 0; border: 0; border-radius: 0; background: none; box-shadow: none; }' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

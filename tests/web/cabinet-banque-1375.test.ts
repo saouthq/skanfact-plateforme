@@ -74,6 +74,8 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
 
     // ── Le modèle d'une banque ne s'applique pas à un fichier que ses titres suffisent à lire ───────
     await aller(`#/dossier/${cafe}/comptabilite/banque/2026`);
+    // (1.375.2) La barre des onglets reste collée en haut d'un long journal : elle a un fond, on ne lit pas à travers.
+    expect(await p.locator('.c-nav').evaluate((n) => [getComputedStyle(n).position, getComputedStyle(n).backgroundColor])).toEqual(['sticky', 'rgb(245, 247, 250)']);
     await p.locator('#bq-import').first().click();
     const imp = p.locator('.bqi-page');
     await imp.locator('[name=banque]').fill('BIAT');

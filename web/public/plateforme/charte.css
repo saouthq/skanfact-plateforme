@@ -245,7 +245,8 @@ body { --warning: var(--sb-ambre-texte); }
 #view :is(#set-tabs, #c-groupes, .onglets-cab, .cf-onglets, .onglets-f:not(.pa-sous), .pa-seg:not(.filtre):has(> [aria-selected])) > :is(.active, .ed-seg > .on, [aria-selected="true"], [aria-pressed="true"], [aria-current="page"]) {
   color: var(--sb-encre); border-bottom-color: var(--sb-sarcelle); background: none; box-shadow: none; }
 /* La comptabilité d'un dossier (Cabinet) : les deux niveaux étaient côte à côte dans une carte ; ils se suivent, comme partout. */
-#view .cp-modele .c-nav { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 10px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }
+/* (1.375.2) La barre reste collée en haut d'un long journal : son fond est celui de la page, sinon les lignes se lisaient à travers. */
+#view .cp-modele .c-nav { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 10px; padding: 6px 0 0; border: 0; border-radius: 0; background: var(--sb-fond); box-shadow: none; }
 #view .cp-modele .c-nav > #c-groupes { justify-self: stretch; }
 /* 2 · Les vues : un segment gris, le choix actif en blanc. Deux tailles. */
 #view :is(.vues-page, .segment, .ed-seg, .portee, .ec-vue, .msg-onglets, .pa-so, #c-tabs.tabs, .ptj-seg, .onglets-f.pa-sous, .pa-seg:not(.filtre):has(> [aria-pressed])) {

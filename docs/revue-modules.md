@@ -4340,3 +4340,9 @@ Le bouton de la grille de saisie et l'entrée du menu d'une écriture appelaient
 pas : « Justificatif impossible », partout (issue 11, point 9), alors qu'une visite guidée l'enseigne. Plutôt que de le
 retirer, il fait ce qu'il dit : le fichier choisi va au classeur du dossier, au mois de l'écriture, joint à elle du même
 geste (les deux appels existaient déjà, rien de neuf ne part au serveur). Preuve « revue 1.375.1 a ».
+
+## 1.375.2 — La barre d'onglets collante de la comptabilité a un fond
+
+Dans la comptabilité d'un dossier, la barre « Saisir · Consulter · Déclarer » reste collée en haut quand on descend
+dans un long journal ; la charte lui avait retiré son fond, et les lignes se lisaient à travers (issue 11, point 14).
+Elle porte le fond de la page. Preuve « revue 1.375.2 a ».
