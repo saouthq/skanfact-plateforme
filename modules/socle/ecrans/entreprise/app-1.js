@@ -528,9 +528,18 @@
       marque.classList.add('champ-faute');
       // Le rouge s'efface dès qu'on touche au champ : le laisser serait accuser quelqu'un qui a
       // déjà corrigé.
+      // (1.379.8, issue 15 V-12) Dans une fenêtre, le refus s'écrit aussi SOUS son champ, et y reste tant qu'on n'a pas
+      // corrigé : le toast du bas de l'écran s'efface, hors de la fenêtre, avant d'avoir été lu.
+      let sous = null;
+      if (marque.closest && marque.closest('.modal') && marque.parentNode) {
+        const vieux = marque.parentNode.querySelector(':scope > .refus-sous'); if (vieux) vieux.remove();
+        sous = document.createElement('p'); sous.className = 'refus-sous small'; sous.setAttribute('role', 'alert'); sous.textContent = message;
+        marque.insertAdjacentElement('afterend', sous);
+      }
       const nettoyer = () => marque.classList.remove('champ-faute');
-      marque.addEventListener('input', nettoyer, { once: true });
-      marque.addEventListener('change', nettoyer, { once: true });
+      const corrige = () => { nettoyer(); if (sous) { sous.remove(); sous = null; } };
+      marque.addEventListener('input', corrige, { once: true });
+      marque.addEventListener('change', corrige, { once: true });
       setTimeout(nettoyer, 6000);
     }
     return false;

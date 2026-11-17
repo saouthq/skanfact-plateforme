@@ -306,6 +306,8 @@ body.dark .lock-banner .btn:not(.btn-primary):not(.btn-danger) { background: rgb
    c'est la grille entière qui est refusée. Elle se redessine au premier clic, donc la marque part
    d'elle-même. */
 .act-grid.champ-faute { border-radius: 12px; box-shadow: 0 0 0 2px var(--danger), 0 0 0 5px var(--danger-soft); }
+/* (1.379.8) Le refus écrit sous son champ, dans une fenêtre : il reste jusqu'à la correction. */
+.refus-sous { color: var(--danger); margin: 4px 0 0; grid-column: 1 / -1; }
 /* Une valeur DOUTEUSE sans être refusée (un RIB dont la clé ne tombe pas, 10.12.0) : orange, pas
    rouge — on prévient, on ne bloque pas. `!important` comme `.champ-faute` : une marque de refus ou
    de doute doit gagner contre TOUT habillage de conteneur (grille, ligne, en-tête), pas seulement

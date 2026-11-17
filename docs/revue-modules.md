@@ -4765,3 +4765,9 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
   Reste : l'acompte déduit hors des sections, et la remise qui ne tombe pas juste à l'œil sur la facture de solde.
 - Rouge GitHub de la 1.379.6 : la preuve qui visait la ligne du QR retirée de la page est reprise.
 - À VÉRIFIER : pas encore de test propre pour le relevé à une date passée.
+
+## 1.379.8 — Un refus dans une fenêtre reste écrit sous son champ (issue 15, V-12)
+
+- Le refus d'une fenêtre (un paiement trop grand, une date d'acceptation avant le devis…) s'écrit sous le champ en faute et
+  y reste jusqu'à la correction ; le message du bas de l'écran s'effaçait avant d'être lu.
+- Reste de V-12 : prévenir du trop-perçu dès la frappe, et proposer « garder en avance du client ».
