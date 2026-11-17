@@ -30095,6 +30095,10 @@ prouver $'revue 1.377.3 b : « passer au suivant » ne rouvre rien' modules/pers
   $'if (puisSuivant) bulletinForm(root, dossier, null);' \
   $'if (puisSuivant && false) bulletinForm(root, dossier, null);' \
   $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.4 a : une échéance d\'avance oubliée comptée comme remboursée' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (!oubli) reste = KC.round3(reste - x);' \
+  $'if (true) reste = KC.round3(reste - x);' \
+  $'1.237.0 — l\'inventaire de la maquette'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

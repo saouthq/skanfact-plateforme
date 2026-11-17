@@ -4437,3 +4437,10 @@ n'a plus ce bouton). « Enregistrer le bulletin » ferme comme avant : on reste 
 
 Reste de CABPAIE-6, dit : pas de préparation de tous les bulletins d'un seul geste (la maquette « Préparer les 5 bulletins »).
 Essai : `tests/web/cabinet-paie-regul-1377.test.ts`. Deux preuves.
+
+## 1.377.4 — Une échéance d'avance oubliée se reporte (issue 10, CABPAIE-13)
+
+L'échéancier d'une avance comptait comme remboursé un mois dont le bulletin existe SANS la retenue : 300 prêtés à 100 par
+mois, un premier mois déjà validé, et il ne restait que 200 planifiés. Une échéance oubliée se dit toujours (« pas
+retenu »), mais ne rembourse rien : les retenues à venir vont jusqu'au bout de l'avance. (La mensualité plus grosse que
+l'avance est refusée depuis la 1.376.0.) Essai : `cabinet-paie-parcours.test.ts`. Une preuve.

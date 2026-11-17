@@ -290,8 +290,12 @@
     while (reste > 0.0005 && par > 0 && prevues.length < 120 && y > 0) {
       if (m > 12) { y += 1; m = 1; }
       const x = KC.round3(Math.min(par, reste));
-      prevues.push({ y, m, montant: x, oubli: avecBulletin.has(`${y}-${m}`) });
-      reste = KC.round3(reste - x); m += 1;
+      // (1.377.4, CABPAIE-13) Une échéance OUBLIÉE (le mois a son bulletin, sans la retenue) ne rembourse rien : elle se
+      // dit, et se reporte. L'échéancier comptait ces mois comme remboursés — 200 planifiés pour 300 prêtés.
+      const oubli = avecBulletin.has(`${y}-${m}`);
+      prevues.push({ y, m, montant: x, oubli });
+      if (!oubli) reste = KC.round3(reste - x);
+      m += 1;
     }
     return { faites, prevues };
   }

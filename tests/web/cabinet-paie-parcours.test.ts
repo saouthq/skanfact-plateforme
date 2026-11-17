@@ -562,7 +562,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const ech = espace(await p.locator('#av-echeancier [data-av-ech="av1"]').innerText());
     expect(ech).toMatch(/^Hamza Mejri · 300,000 DT versés le \d\d\/\d\d\/\d{4} · 100,000 DT par mois/);
     expect(await p.locator('#av-echeancier [data-av-ech="av1"] .oubli').count()).toBe(2);
-    expect(await p.locator('#av-echeancier [data-av-ech="av1"] .cp-pa-ech > span').count()).toBe(3);
+    // (1.377.4, CABPAIE-13) Deux échéances oubliées ne remboursent rien : les trois retenues de 100 restent à venir
+    // (l'échéancier s'arrêtait à 3 lignes, soit 100 planifiés pour 300 prêtés).
+    expect(await p.locator('#av-echeancier [data-av-ech="av1"] .cp-pa-ech > span').count()).toBe(5);
+    expect(await p.locator('#av-echeancier [data-av-ech="av1"] .cp-pa-ech > span:not(.oubli)').count()).toBe(3);
     expect(erreurs).toEqual([]);
     await p.close();
   }, 300_000);
