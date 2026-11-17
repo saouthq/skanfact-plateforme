@@ -29941,10 +29941,9 @@ prouver $'entrée 1.373.0 j : la visite ne part pas à l\'arrivée sur l\'exempl
   $'if (v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
   $'if (false && v && !Visite.enCours() && exempleEnLigne()) lancerVisite(v, 0);' \
   $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
-prouver $'entrée 1.373.0 k : la fenêtre du nouveau dossier tait le code à venir' modules/socle/ecrans/cabinet/app-2.js \
-  $'${S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code">' \
-  $'${false && S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code">' \
-  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+# (retirée le 17/11/2026) « entrée 1.373.0 k » : depuis la 1.379.3 (0219) plus aucun code n'est exigé d'office, l'annonce
+# « sept jours après ton premier dossier » ne s'affiche donc plus jamais sans qu'un cabinet l'ait demandé — et aucun écran
+# ne le lui permet encore. La preuve ne pouvait plus tomber ; elle reviendra avec le bouton « exiger le code ».
 prouver $'entrée 1.373.0 l : le cabinet créé s\'ouvre sans laisser choisir son départ' web/src/ecrans/Porte.tsx \
   $'    setCabinetNeuf(r.corps.id); setEtape(\'depart\');' \
   $'    cabinetCree(r.corps.id);' \
