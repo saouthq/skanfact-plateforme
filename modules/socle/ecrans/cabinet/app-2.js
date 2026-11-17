@@ -4393,7 +4393,8 @@
 
     const dupliquerPiece = () => {
       const base = lignesReelles(p);
-      if (!base.length) return;
+      // (1.381.1, issue 11, constat 8) Sur une grille vide, la touche ne faisait rien, sans un mot : on dit pourquoi.
+      if (!base.length) { toast('Rien à dupliquer : la grille est vide. Ouvre une écriture, ou tape la première.'); return; }
       p.lignes = base.map(l => ({ compte: l.compte, libelle: l.libelle, debit: montantChamp(l.debit), credit: montantChamp(l.credit) }))
         .concat([ligneVide()]);
       p.id = ''; p.piece = '';

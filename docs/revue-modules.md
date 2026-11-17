@@ -4864,3 +4864,8 @@ la bêta : `SKANFACT_BETA=` (vide).
 
 Tests : `tests/web/a-venir-1379.test.ts` (le titre et le menu de la paie, les trois cadres de l'écran, la ligne du
 module sans case ni bouton, et rien de tout cela quand tout est ouvert), `tests/socle/a-venir.test.ts` (`enBeta`).
+
+## 1.381.1 — « Dupliquer la pièce » sur une grille vide le dit (issue 11, constat 8)
+
+La touche ne faisait rien, sans un mot, quand la grille de saisie était vide : elle dit maintenant « Rien à dupliquer »
+et quoi faire. Pas de test neuf (une phrase) ; les tests de la saisie rejoués.
