@@ -1932,18 +1932,17 @@ W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le 
 prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0212_effet_recu.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
-prouver "une saisie déséquilibrée qui entre" $M210 \
+prouver "une saisie déséquilibrée qui entre" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if td <> tc then" "  if false then" \
   "$S1"
-prouver "une saisie dans la période close" $M210 \
-  "  if c is not null and v_date <= c then
-    perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" "  if false then
-    perform socle.refus(format('la période est validée jusqu''au %s : une écriture ne s''y écrit plus'" \
+prouver "une saisie dans la période close" base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'  if c is not null and v_date <= c and not coalesce(p_dans_la_periode, false)\n' \
+  $'  if false and not coalesce(p_dans_la_periode, false)\n' \
   "$S1"
-prouver "un compte qui n'est pas un numéro" $M210 \
+prouver "un compte qui n'est pas un numéro" base/migrations/0217_portes_de_la_periode_validee.sql \
   "    if coalesce(l->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(format('ligne %s : le compte doit être un numéro', i)); end if;" "" \
   "$S1"
-prouver "une écriture sans libellé" $M210 \
+prouver "une écriture sans libellé" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if v_libelle is null then perform socle.refus('le libellé manque : écris-le sur la pièce ou sur une ligne'); end if;" "" \
   "$S1"
 prouver "un brouillard écrasé par un poste qui ne l'a pas relu" $M21 \
@@ -2462,22 +2461,21 @@ prouver "la porte qui laisse l'assistant préparer" serveur/compta/gestes.ts \
   // Préparer la liasse" "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } },
   // Préparer la liasse" \
   "$DC2"
-prouver "écrire l'écriture d'une déclaration sans le garde, dans la base" $M24 \
-  "declare d compta.declaration; v_id uuid;
-begin
-  perform compta.exiger_declarer(p_entreprise);" "declare d compta.declaration; v_id uuid;
-begin" \
+prouver "écrire l'écriture d'une déclaration sans le garde, dans la base" base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'declare d compta.declaration; v_id uuid; c date; v_dedans boolean;\nbegin\n  perform compta.exiger_declarer(p_entreprise);' \
+  $'declare d compta.declaration; v_id uuid; c date; v_dedans boolean;\nbegin' \
   "$DC3"
-prouver "l'écriture d'une déclaration jamais préparée" $M24 \
+prouver "l'écriture d'une déclaration jamais préparée" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if not found then perform socle.refus('prépare la déclaration avant d''en écrire l''écriture'); end if;" "" \
   "$DC3"
-prouver "l'écriture d'une déclaration datée hors du mois" $M24 \
-  "  if coalesce(p_ecriture->>'date', '') not like p_periode || '-%' then" "  if false then" \
+prouver "l'écriture d'une déclaration datée hors du mois" base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'  if coalesce(p_ecriture->>\'date\', \'\') !~ (\'^\' || p_periode || \'-\\d{2}$\') then' \
+  $'  if false then' \
   "$DC3"
-prouver "l'écriture du mois passée deux fois" $M24 \
+prouver "l'écriture du mois passée deux fois" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if not coalesce(p_complement, false) and compta.ecriture_vivante(d.ecriture) then" "  if false then" \
   "$DC3"
-prouver "un complément qui prend le lien de l'écriture du mois" $M24 \
+prouver "un complément qui prend le lien de l'écriture du mois" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if not coalesce(p_complement, false) then update compta.declaration set ecriture = v_id" "  if true then update compta.declaration set ecriture = v_id" \
   "$DC3"
 prouver "une écriture contre-passée qui reste liée" $M24 \
@@ -2889,7 +2887,7 @@ prouver "l'onglet Cabinet qui fabrique encore un paquet" modules/socle/ecrans/en
 
 # ── Brique 45 : la clôture de l'exercice (docs/cabinet.md, C35) ──
 CE1="se clôt fini et sans brouillard ; clos, plus rien ne s'y écrit ; rouvert avec un motif, la période revient où elle était"
-CE2="rouvert, la période revient à ce qui était validé avant la clôture ; jamais si des jours d'après sont validés"
+CE2="rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d'après sont validés, ils le restent et seul l'exercice se rouvre"
 CE3="qui clôture : l'associé ; ni le collaborateur, ni l'entreprise sous mandat — à la porte et dans la base"
 WC1="refusée sur un brouillard, clôturée, les à-nouveaux posés au 1er janvier, rouverte avec son motif"
 M29=base/migrations/0029_compta_cloture_exercice.sql
@@ -2902,17 +2900,19 @@ prouver "un exercice clôturé avant d'être fini" $M29 \
 prouver "une clôture qui ne ferme pas la période" $M29 \
   "  if c is null or c < x.au then perform compta.valider(p_entreprise, x.au); end if;" "" \
   "$CE1"
-prouver "une réouverture sans motif" $M29 \
+prouver "une réouverture sans motif" base/migrations/0217_portes_de_la_periode_validee.sql \
   "  if length(v_motif) < 5 then" "  if false then" \
   "$CE1"
-prouver "le motif d'une réouverture perdu" $M29 \
+prouver "le motif d'une réouverture perdu" base/migrations/0217_portes_de_la_periode_validee.sql \
   "values (p_entreprise, p_annee, x.clos_le, x.clos_par, socle.moi(), v_motif);" "values (p_entreprise, p_annee, x.clos_le, x.clos_par, socle.moi(), 'motif perdu');" \
   "$CE1"
-prouver "une réouverture qui rouvre plus que la clôture" $M29 \
-  "  if x.jusqua_avant is null then delete from compta.cloture where entreprise = p_entreprise;" "  if true then delete from compta.cloture where entreprise = p_entreprise;" \
+prouver "une réouverture qui rouvre plus que la clôture" base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'    if x.jusqua_avant is null then delete from compta.cloture where entreprise = p_entreprise;' \
+  $'    if true then delete from compta.cloture where entreprise = p_entreprise;' \
   "$CE2"
-prouver "une réouverture qui rouvre aussi les jours d'après" $M29 \
-  "  if c > x.au then" "  if false then" \
+prouver "une réouverture qui rouvre aussi les jours d'après" base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'  if not v_dedans then\n' \
+  $'  if true then\n' \
   "$CE2"
 prouver "le collaborateur qui clôture, dans la base" $M29 \
   "  if socle.perimetre_cabinet(p_entreprise) is not null and not ('supervision' = any(socle.mes_roles(p_entreprise))) then" "  if false then" \
@@ -27437,7 +27437,7 @@ prouver 'immos 1.345.0 i : la période validée refusée seulement au clic' modu
   'if (valide) return { ok: false, motif: valide, motifs: [valide] };' '' \
   "$IM1345"
 prouver 'immos 1.345.0 j : le pont ne pose pas la période validée' web/public/plateforme/pont-cabinet.js \
-  'livre.exercice.valideJusqua = valideJusquaConnu.get(ent) || '\'''\'';' 'livre.exercice.valideJusqua = '\'''\'';' \
+  $'livre.exercice.valideJusqua = ex && ex.rouvert ? \'\' : valideJusquaConnu.get(ent) || \'\';' $'livre.exercice.valideJusqua = \'\';' \
   "$IM1345"
 prouver 'immos 1.345.0 k : le serveur tait la période validée' serveur/compta/exercice.ts \
   'valideJusqua: (cloture?.jusqua as string | undefined) ?? null,' 'valideJusqua: null,' \
@@ -28744,7 +28744,7 @@ prouver $'achat en euros 1.358.1 m : l\'enregistrement en arrière-plan ne deman
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot }, true);' \
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot });' \
   'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
-prouver $'tiers de janvier 1.358.2 a : une ligne garde l\'identifiant d\'un tiers d\'une AUTRE entreprise' base/migrations/0210_tiers_des_lignes.sql \
+prouver $'tiers de janvier 1.358.2 a : une ligne garde l\'identifiant d\'un tiers d\'une AUTRE entreprise' base/migrations/0217_portes_de_la_periode_validee.sql \
   $'(l->>\'tiersId\')::uuid and t.entreprise = p_entreprise) end);' \
   $'(l->>\'tiersId\')::uuid) end);' \
   'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
@@ -30112,6 +30112,46 @@ prouver $'revue 1.377.6 b : le contrôle des 5 % ne voit que le brut' modules/pe
   $'0) > 0.05);' \
   $'la sortie d\'un salarié se note avec son jour'
 
+prouver $'issue 9 1.378.0 a : l\'écriture de déclaration refusée dans un mois validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'    perform compta.poser_saisie(p_entreprise, v_id, p_ecriture, true, true);' \
+  $'    perform compta.poser_saisie(p_entreprise, v_id, p_ecriture, true, false);' \
+  $'dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste'
+prouver $'issue 9 1.378.0 b : l\'écriture de déclaration laissée au brouillard dans un mois validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'    perform compta.numeroter(v_id);\n    perform socle.tracer(p_entreprise, \'compta.ecritures.valider\'' \
+  $'    perform socle.tracer(p_entreprise, \'compta.ecritures.valider\'' \
+  $'dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste'
+prouver $'issue 9 1.378.0 c : toute saisie passe dans un mois validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'  if c is not null and v_date <= c and not coalesce(p_dans_la_periode, false)\n' \
+  $'  if c is not null and v_date <= c and false and not coalesce(p_dans_la_periode, false)\n' \
+  $'dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste'
+prouver $'issue 9 1.378.0 d : rouvrir l\'exercice recule la période validée' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'  v_dedans := c is not null and c > x.au;' \
+  $'  v_dedans := false;' \
+  $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
+prouver $'issue 9 1.378.0 e : l\'exercice rouvert reste fermé à l\'écriture' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'and x.clos_le is null and v_date between x.du and x.au)' \
+  $'and x.clos_le is null and false)' \
+  $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
+prouver $'issue 9 1.378.0 f : les à-nouveaux passent à n\'importe quel jour validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'                and x.du = v_date and exists' \
+  $'                and exists' \
+  $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
+prouver $'issue 9 1.378.0 g : un exercice reclos reste écrivable' base/migrations/0217_portes_de_la_periode_validee.sql \
+  $'(select 1 from compta.exercice x where x.entreprise = p_entreprise and x.rouvert_le is not null\n                       and x.clos_le is null and v_date' \
+  $'(select 1 from compta.exercice x where x.entreprise = p_entreprise and x.rouvert_le is not null\n                       and v_date' \
+  $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
+prouver $'issue 9 1.378.0 h : la réouverture ne dit pas que 2026 reste fermé' modules/socle/ecrans/cabinet/app-1.js \
+  $'toast(r.periodeGardee ? `Exercice ${s.annee} rouvert' \
+  $'toast(false ? `Exercice ${s.annee} rouvert' \
+  $'refusée sur un brouillard, clôturée, les à-nouveaux posés au 1er janvier, rouverte avec son motif'
+prouver $'issue 9 1.378.0 i : un motif de trois lettres part au serveur' modules/socle/ecrans/cabinet/app-1.js \
+  $'        if (motif.length < 5) return refus(' \
+  $'        if (motif.length < 0) return refus(' \
+  $'refusée sur un brouillard, clôturée, les à-nouveaux posés au 1er janvier, rouverte avec son motif'
+prouver $'issue 9 1.378.0 j : l\'écran dit « en brouillard » d\'une écriture déjà validée' modules/socle/ecrans/cabinet/app-1.js \
+  $'        toast(r.validee ? (r.complement' \
+  $'        toast(false ? (r.complement' \
+  $'dans un mois déjà validé, « Écrire l\'écriture du mois » aboutit'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

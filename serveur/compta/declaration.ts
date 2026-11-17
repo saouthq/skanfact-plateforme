@@ -100,8 +100,9 @@ export function routesDeclaration(ctx: Contexte): Route<never>[] {
       if (!estPeriode(params.periode)) return champInvalide('periode', t('compta.champ.periode'));
       const e = versLaBase(corps.ecriture);
       if ('statut' in e) return e;
-      const id = (await tx.query('select compta.ecrire_declaration($1, $2, $3::jsonb, $4) id', [params.entreprise ?? '', params.periode, e.json, corps.complement])).rows[0].id as string;
-      return { statut: 201, corps: { id } };
+      // Dans un mois déjà validé, l'écriture est posée ET validée d'un geste (0217) : `validee` le dit à l'écran.
+      const r = (await tx.query('select r_id, r_validee from compta.ecrire_declaration($1, $2, $3::jsonb, $4)', [params.entreprise ?? '', params.periode, e.json, corps.complement])).rows[0];
+      return { statut: 201, corps: { id: r.r_id as string, validee: r.r_validee === true } };
     },
   });
 

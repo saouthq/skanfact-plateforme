@@ -156,4 +156,37 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     expect(await p.locator('#dc-payee').isEnabled()).toBe(true);
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  // (1.378.0, issue 9 CABDECLARER-1) L'ordre naturel : le mois est validé, PUIS on déclare et on passe la TVA.
+  it('(1.378.0) dans un mois déjà validé, « Écrire l\'écriture du mois » aboutit : écrite et validée d\'un geste, le bouton le dit, le dépôt devient l\'étape', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Papeterie du Port' })).corps.entreprise);
+    const r = await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-03-10', journal: 'VT', piece: 'V-03', libelle: 'V-03',
+      lignes: [{ compte: '411', debit: '1190,000' }, { compte: '706', credit: '1000,000' }, { compte: '4367', credit: '190,000' }] });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/compta/valider`, associe, { jusqua: '2026-03-31' })).statut).toBe(200);
+
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message + ' ' + (e.stack ?? '').split('\n').slice(0, 3).join(' / ')));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/declaration/2026`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await p.locator('#dc-preparer').waitFor({ timeout: 15_000 });
+    const toast = () => p.locator('#toast').innerText();
+    await p.locator('#dc-mois').selectOption('2026-03');
+    await p.locator('#dc-preparer').click();
+    await expect.poll(toast).toBe('Déclaration préparée.');
+    await p.locator('#dc-ecriture').click();
+    await expect.poll(toast).toBe('Écriture du mois écrite et validée : mars 2026 était déjà validé, elle est entrée au livre telle quelle.');
+    await expect.poll(() => p.locator('#dc-ecriture').innerText()).toMatch(/Écriture du mois passée/);
+    await expect.poll(() => p.locator('#dc-deposee').getAttribute('class')).toMatch(/btn-primary/);
+    const livre = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as { piece: string; statut: string; date: string }[];
+    expect(livre.filter((e) => e.piece === 'DECL-2026-03').map((e) => [e.statut, e.date])).toEqual([['validee', '2026-03-31']]);
+    await p.screenshot({ path: path.join(PHOTOS, 'declaration-1378-mois-valide.png') });
+    expect(erreurs).toEqual([]);
+  }, 240_000);
 });

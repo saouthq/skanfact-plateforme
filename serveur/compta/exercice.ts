@@ -26,7 +26,7 @@ export function routesExercice(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       // La clôture (brique 45) : quand, par qui (son nom), et chaque réouverture avec son motif.
-      const lus = (await tx.query(`select x.annee, to_char(x.du, 'YYYY-MM-DD') du, to_char(x.au, 'YYYY-MM-DD') au, x.ouverture, x.clos_le,
+      const lus = (await tx.query(`select x.annee, to_char(x.du, 'YYYY-MM-DD') du, to_char(x.au, 'YYYY-MM-DD') au, x.ouverture, x.clos_le, x.rouvert_le,
           (select u.nom from socle.utilisateur u where u.id = x.clos_par) clos_par,
           coalesce((select jsonb_agg(jsonb_build_object('closLe', r.clos_le, 'le', r.rouvert_le, 'motif', r.motif,
               'par', (select u.nom from socle.utilisateur u where u.id = r.rouvert_par)) order by r.rouvert_le)
@@ -40,7 +40,7 @@ export function routesExercice(ctx: Contexte): Route<never>[] {
           valideJusqua: (cloture?.jusqua as string | undefined) ?? null,
           exercices: lus.map((x) => ({
             annee: Number(x.annee), du: x.du, au: x.au, ouverture: x.ouverture ?? null,
-            closLe: x.clos_le ? (x.clos_le as Date).toISOString() : null, closPar: x.clos_par ?? null, reouvertures: x.reouvertures,
+            closLe: x.clos_le ? (x.clos_le as Date).toISOString() : null, rouvert: !x.clos_le && !!x.rouvert_le, closPar: x.clos_par ?? null, reouvertures: x.reouvertures,
           })),
         },
       };
@@ -81,8 +81,9 @@ export function routesExercice(ctx: Contexte): Route<never>[] {
       if (!tx) throw new Error('transaction attendue');
       const annee = Number(params.annee);
       if (!Number.isInteger(annee) || annee < 1900 || annee > 2999) return { statut: 400, corps: { motif: motif('commun.champ_invalide', { champ: 'annee', raison: t('compta.champ.annee') }), champ: 'annee' } };
-      await tx.query('select compta.rouvrir_exercice($1, $2, $3)', [params.entreprise ?? '', annee, corps.motif]);
-      return { corps: { annee } };
+      // (0217) `periodeGardee` : des mois de l'année suivante sont validés ; ils le restent, seul l'exercice se rouvre.
+      const r = (await tx.query('select compta.rouvrir_exercice($1, $2, $3) garde', [params.entreprise ?? '', annee, corps.motif])).rows[0];
+      return { corps: { annee, periodeGardee: r.garde === true } };
     },
   });
   return routes;

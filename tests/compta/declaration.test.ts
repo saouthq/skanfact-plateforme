@@ -208,4 +208,34 @@ describe('la déclaration du mois', () => {
     expect((await declarations(d.ent, d.collaborateur))[0]?.ecriture).toBeNull();
     expect((await ecrire(d.ent, d.collaborateur, '2026-03', ECRITURE_MARS)).statut).toBe(201);
   });
+
+  // (1.378.0, issue 9 CABDECLARER-1) L'ordre naturel d'un cabinet : valider le mois, déclarer, PUIS écrire la TVA.
+  it('dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste : numérotée, liée, jamais deux fois ; une saisie ordinaire y reste refusée ; qui ne valide pas ne l\'écrit pas', async () => {
+    const d = await dossier();
+    await preparer(d.ent, d.collaborateur, '2026-03', { tvaCollectee: '190,125' });
+    expect((await appeler('POST', `/entreprises/${d.ent}/compta/valider`, d.collaborateur.jeton, { jusqua: '2026-03-31' })).statut).toBe(200);
+    // Une saisie ordinaire reste refusée dans le mois validé : la porte ne s'ouvre qu'à l'écriture de déclaration.
+    const saisie = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.collaborateur.jeton, { ...ECRITURE_MARS, piece: 'OD-1' });
+    expect(saisie.corps.motif).toBe('La période est validée jusqu\'au 31/03/2026 : une écriture ne s\'y écrit plus.');
+    const r = await ecrire(d.ent, d.collaborateur, '2026-03', ECRITURE_MARS);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    expect(r.corps.validee).toBe(true);
+    const id = String(r.corps.id);
+    expect((await declarations(d.ent, d.collaborateur))[0]?.ecriture).toBe(id);
+    expect((await livres(d.ent, d.collaborateur)).map((e) => [e.id, e.statut, e.piece])).toEqual([[id, 'validee', 'DECL-2026-03']]);
+    const numero = (await admin.query('select numero, chaine_rang from compta.ecriture where id = $1', [id])).rows[0];
+    expect(numero.numero).toBe('OD-2026-000001');
+    expect(numero.chaine_rang).not.toBeNull();
+    expect((await ecrire(d.ent, d.collaborateur, '2026-03', ECRITURE_MARS)).corps.motif)
+      .toBe('L\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois.');
+    // Le complément d'un mois validé entre validé lui aussi, sans remplacer le lien.
+    const c = await ecrire(d.ent, d.collaborateur, '2026-03', { ...ECRITURE_MARS, piece: 'DECL-2026-03-C1', lignes: [
+      { compte: '4367', debit: '19,000' }, { compte: '4365', credit: '19,000' }] }, true);
+    expect([c.statut, c.corps.validee]).toEqual([201, true]);
+    expect((await declarations(d.ent, d.collaborateur))[0]?.ecriture).toBe(id);
+    // Hors de la période validée, rien ne change : avril entre au brouillard.
+    await preparer(d.ent, d.collaborateur, '2026-04', { tvaCollectee: '10,000' });
+    const avril = await ecrire(d.ent, d.collaborateur, '2026-04', { ...ECRITURE_MARS, date: '2026-04-30', piece: 'DECL-2026-04' });
+    expect([avril.statut, avril.corps.validee]).toEqual([201, false]);
+  });
 });

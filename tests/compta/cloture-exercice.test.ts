@@ -118,7 +118,7 @@ describe('la clôture de l\'exercice', () => {
     expect(traces).toEqual(['compta.exercice.cloturer', 'compta.exercice.rouvrir']);
   });
 
-  it('rouvert, la période revient à ce qui était validé avant la clôture ; jamais si des jours d\'après sont validés', async () => {
+  it('rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre', async () => {
     const d = await dossier();
     await saisir(d.ent, d.associe, '2025-03-10');
     expect((await appeler('POST', `/entreprises/${d.ent}/compta/valider`, d.associe.jeton, { jusqua: '2025-06-30' })).statut).toBe(200);
@@ -136,8 +136,29 @@ describe('la clôture de l\'exercice', () => {
     expect((await cloturer(d.ent, d.associe, 2025)).statut).toBe(200);
     await saisir(d.ent, d.associe, '2026-01-15');
     expect((await appeler('POST', `/entreprises/${d.ent}/compta/valider`, d.associe.jeton, { jusqua: '2026-01-31' })).statut).toBe(200);
-    expect((await rouvrir(d.ent, d.associe, 2025, 'Une erreur de compte')).corps.motif)
-      .toBe('La période est validée jusqu\'au 31/01/2026, après la fin de l\'exercice 2025 : le rouvrir rouvrirait aussi ces jours-là.');
+    // (1.378.0, issue 9 CABDECLARER-2) La facture en retard de décembre arrive quand janvier est déjà validé : l'exercice
+    // se rouvre SANS rouvrir janvier. La période validée ne bouge pas ; seul 2025 redevient écrivable, dans ses dates.
+    const rouvert = await rouvrir(d.ent, d.associe, 2025, 'Une erreur de compte');
+    expect([rouvert.statut, rouvert.corps.periodeGardee]).toEqual([200, true]);
+    expect(await jusqua(d.ent)).toBe('2026-01-31');
+    const exercices = (await appeler('GET', `/entreprises/${d.ent}/compta/exercices`, d.associe.jeton)).corps.exercices as { annee: number; rouvert: boolean; closLe: string | null }[];
+    expect(exercices.filter((x) => x.annee === 2025).map((x) => [x.rouvert, x.closLe])).toEqual([[true, null]]);
+    const tardive = await saisir(d.ent, d.associe, '2025-12-20');
+    expect(tardive.statut, JSON.stringify(tardive.corps)).toBe(201);
+    expect((await saisir(d.ent, d.associe, '2026-01-20')).corps.motif).toBe('La période est validée jusqu\'au 31/01/2026 : une écriture ne s\'y écrit plus.');
+    // Les à-nouveaux de 2026 se complètent à son premier jour, un jour pourtant validé ; un autre journal, non.
+    await appeler('POST', `/entreprises/${d.ent}/compta/exercices`, d.associe.jeton, { annee: 2026, ouverture: [] });
+    const an = (date: string, journal: string) => appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.associe.jeton, {
+      date, journal, piece: 'AN-2026-C1', libelle: 'À-nouveaux complémentaires', lignes: [{ compte: '12', debit: '300,125' }, { compte: '4286', credit: '300,125' }] });
+    expect((await an('2026-01-01', 'OD')).statut).toBe(403);
+    expect((await an('2026-01-02', 'AN')).statut).toBe(403);
+    expect((await an('2026-01-01', 'AN')).statut).toBe(201);
+    // La pièce tardive validée, 2025 se reclôt : la porte se referme, la période validée n'a jamais bougé.
+    const br = (await appeler('GET', `/entreprises/${d.ent}/compta/ecritures?limite=500`, d.associe.jeton)).corps.ecritures as { id: string; statut: string }[];
+    expect((await cloturer(d.ent, d.associe, 2025)).corps.motif).toMatch(/^Il reste 1 écriture au brouillard jusqu'au 31\/12\/2025/);
+    await appeler('POST', `/entreprises/${d.ent}/compta/ecritures/valider`, d.associe.jeton, { ids: br.filter((e) => e.statut === 'brouillard').map((e) => e.id) });
+    expect((await cloturer(d.ent, d.associe, 2025)).statut).toBe(200);
+    expect((await saisir(d.ent, d.associe, '2025-12-21')).corps.motif).toBe('La période est validée jusqu\'au 31/01/2026 : une écriture ne s\'y écrit plus.');
     expect(await jusqua(d.ent)).toBe('2026-01-31');
   });
 

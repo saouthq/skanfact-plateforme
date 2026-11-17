@@ -186,7 +186,9 @@ describe('le premier jour d\'un client tenu au cabinet (1.371.0)', () => {
     await q2.waitFor({ timeout: 20_000 });
     await q2.getByRole('button', { name: 'Plus tard', exact: true }).click();
     const band = p.locator('.fd-debut');
-    await band.waitFor({ timeout: 30_000 });
+    // Tout de suite : c'est « Plus tard » qui redessine la fiche. En trente secondes, un rafraîchissement de fond la
+    // redessinait aussi, et la preuve de ce geste restait verte sur une machine lente (rouge GitHub de c6c7ce2).
+    await band.waitFor({ timeout: 4_000 });
     expect(net(await band.innerText())).toContain('Tant que ce n\'est pas dit, toute l\'année est comptée à saisir');
     await band.locator('#fd-debut').click();
     await p.locator('.modal').filter({ hasText: 'À partir de quand tiens-tu Salon Jasmin ?' }).waitFor({ timeout: 10_000 });

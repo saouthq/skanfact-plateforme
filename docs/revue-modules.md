@@ -4467,3 +4467,26 @@ Un salarié dont le net baissait de 15 % à cause d'une retenue était rangé so
 
 Reste de CABPAIE-4, dit : dans « Les écarts ligne à ligne », la source d'une absence ou d'une prime tapée dans le bulletin
 se dit encore « pointage » ou « fiche ». Essai : `cabinet-paie-regul-1377.test.ts`. Deux preuves.
+
+## 1.378.0 — Deux portes dans la période validée (issue 9, CABDECLARER-1, -2 et -30)
+
+Deux gestes ordinaires d'un cabinet se cognaient à « la période est validée jusqu'au… », sans aucune issue.
+
+- **L'écriture de TVA d'un mois déjà validé s'écrit.** L'ordre naturel — je valide le mois, je déclare, je passe la TVA —
+  aboutissait à un refus rouge, pour toujours, sous un bouton vert. L'écriture de déclaration n'est pas une saisie (le
+  logiciel la calcule, elle ne change ni produit ni charge) : dans un mois validé, elle est **posée et validée d'un geste**,
+  numérotée et scellée, par quelqu'un qui a le droit de valider. L'écran le dit : « Écriture du mois écrite et validée :
+  mars 2026 était déjà validé, elle est entrée au livre telle quelle. » Hors période validée, rien ne change (brouillard).
+  Une saisie ordinaire reste refusée dans le mois validé.
+- **Un exercice clos se rouvre même quand des mois de l'année suivante sont validés** — le cas de tous les dossiers en mars.
+  La période validée ne recule plus : seul l'exercice rouvert redevient écrivable, dans ses propres dates ; janvier et
+  février restent fermés. Ce qu'on y écrit entre au brouillard, se valide pièce par pièce, et la clôture refaite referme la
+  porte. Les à-nouveaux de l'année suivante se complètent à son premier jour (journal AN seulement).
+  **À VÉRIFIER avec le comptable pilote** : c'est l'usage que j'ai retenu (rouvrir N sans dévalider N+1) ; un cabinet peut
+  préférer passer la pièce tardive sur N+1.
+- **Un motif de trois lettres** se voit répondre « au moins 5 caractères », plus « une réouverture demande un motif ».
+
+Migration `0217_portes_de_la_periode_validee.sql`. Essais : `tests/compta/declaration.test.ts`,
+`tests/compta/cloture-exercice.test.ts`, `tests/web/declaration-1350.test.ts`, `tests/web/cabinet-cloture.test.ts`.
+Dix preuves. Et un rouge GitHub réparé : la preuve « jour1 1.371.0 c » restait verte sur une machine lente (l'essai
+attendait trente secondes, le temps qu'un rafraîchissement de fond redessine la fiche) ; il attend quatre secondes.

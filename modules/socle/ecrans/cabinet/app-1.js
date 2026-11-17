@@ -9517,7 +9517,10 @@
       try {
         const r = await api.ecrireDeclaration({ dossierId: dossier.id, annee: s.annee, periode: s.decl.periode });
         s.livre = r.livre;
-        toast(r.complement ? 'Complément créé en brouillard : relis-le, puis « Valider le complément ».' : 'Écriture créée en brouillard : relis-la, puis « Valider l\'écriture du mois ».');
+        // (1.378.0, issue 9) Dans un mois déjà validé, le serveur la pose ET la valide d'un geste (0217) : le dire tel quel.
+        toast(r.validee ? (r.complement ? `Complément écrit et validé : ${K.monthLabel(s.decl.periode)} était déjà validé, il est entré au livre tel quel.`
+            : `Écriture du mois écrite et validée : ${K.monthLabel(s.decl.periode)} était déjà validé, elle est entrée au livre telle quelle.`)
+          : r.complement ? 'Complément créé en brouillard : relis-le, puis « Valider le complément ».' : 'Écriture créée en brouillard : relis-la, puis « Valider l\'écriture du mois ».');
         await chargerDeclaration(root, dossier); void majAValider(dossier);
       } catch (e) { toast(plainError(e), 'error'); ec.disabled = false; }
     };
@@ -10855,9 +10858,12 @@
         // le clic, c'était une consigne, pas une réponse. On amène le champ, on y met le curseur.
         const motif = $('#cl-motif', rootModal).value.trim();
         if (!motif) return refus($('#cl-motif', rootModal), 'Écris pourquoi tu rouvres cet exercice : sans motif, personne ne saura dans six mois pourquoi un chiffre a changé.');
+        // (issue 9, CABDECLARER-30) Trois lettres ne sont pas « pas de motif » : le refus dit ce qui manque vraiment.
+        if (motif.length < 5) return refus($('#cl-motif', rootModal), 'Un motif fait au moins 5 caractères : écris en quelques mots ce qui a changé (« facture de décembre reçue après la clôture »).');
         try {
           const r = await api.rouvrir({ dossierId: dossier.id, annee: s.annee, motif });
-          s.livre = r.livre; close(); toast('Exercice rouvert.');
+          // (1.378.0, issue 9) Des mois de l'année suivante sont validés : ils le restent (0217), et la phrase le dit.
+          s.livre = r.livre; close(); toast(r.periodeGardee ? `Exercice ${s.annee} rouvert : ses dates se rouvrent, les mois déjà validés de ${Number(s.annee) + 1} restent fermés. Valide ce que tu y écris, puis reclôture.` : 'Exercice rouvert.');
           await chargerCloture(root, dossier);
         } catch (err) { toast(plainError(err), 'error'); }
       };

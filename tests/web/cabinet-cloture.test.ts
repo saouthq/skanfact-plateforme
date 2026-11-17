@@ -119,10 +119,24 @@ describe('la clôture de l\'exercice, à la souris', () => {
     await expect.poll(() => p.locator('#cl-suivant').innerText()).toBe('Refaire les à-nouveaux de 2026…');
 
     // ── Rouvert, avec son motif ───────────────────────────────────────────────────────────────────
+    // (1.378.0, issue 9 CABDECLARER-2) Janvier 2026 est déjà validé — le cas de tous les dossiers en mars : l'exercice
+    // se rouvre quand même, et la phrase dit ce qui reste fermé.
+    expect((await api('POST', `/entreprises/${cafe}/compta/valider`, associe, { jusqua: '2026-01-31' })).statut).toBe(200);
     await ouvrir('#cl-rouvrir', '#cl-motif');
+    // (CABDECLARER-30) Trois lettres : le refus dit ce qui manque vraiment, pas « un motif » qu'on vient d'écrire.
+    await fenetre.locator('#cl-motif').fill('abc');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toMatch(/^Un motif fait au moins 5 caractères/);
+    expect((await exercice(2025))?.closLe).not.toBeNull();
     await fenetre.locator('#cl-motif').fill('Facture d\'électricité de décembre reçue après la clôture');
     await fenetre.locator('#ok').click();
-    await expect.poll(toast).toBe('Exercice rouvert.');
+    await expect.poll(toast).toBe('Exercice 2025 rouvert : ses dates se rouvrent, les mois déjà validés de 2026 restent fermés. Valide ce que tu y écris, puis reclôture.');
+    // La facture en retard s'écrit en décembre ; janvier, validé, reste fermé.
+    const tardive = await api('POST', `/entreprises/${cafe}/compta/ecritures`, associe, { date: '2025-12-20', journal: 'OD', piece: 'OD-10', libelle: 'Électricité de décembre',
+      lignes: [{ compte: '6061', debit: '84,500' }, { compte: '401', credit: '84,500' }] });
+    expect(tardive.statut, JSON.stringify(tardive.corps)).toBe(201);
+    expect((await api('POST', `/entreprises/${cafe}/compta/ecritures`, associe, { date: '2026-01-20', journal: 'OD', piece: 'OD-11', libelle: 'Refusée',
+      lignes: [{ compte: '6061', debit: '1,000' }, { compte: '401', credit: '1,000' }] })).statut).toBe(403);
     expect((await exercice(2025))?.reouvertures.map((r) => r.motif)).toEqual(['Facture d\'électricité de décembre reçue après la clôture']);
     await expect.poll(() => p.locator('#cl-rouvert').innerText()).toMatch(/Facture d'électricité de décembre reçue après la clôture/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-cloture-2-rouvert.png') });

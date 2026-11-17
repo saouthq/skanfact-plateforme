@@ -465,7 +465,7 @@
   }
   // Les exercices OUVERTS sur le serveur (brique 39) : leur année, leurs bornes, leur balance
   // d'ouverture. Gardés par dossier, pour l'écran qui demande sans attendre si un exercice est ouvert.
-  /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null, closLe: string | null, closPar: string | null, reouvertures: any[] }[]>} */
+  /** @type {Map<string, { annee: number, du: string, au: string, ouverture: string | null, closLe: string | null, closPar: string | null, rouvert?: boolean, reouvertures: any[] }[]>} */
   const exercicesConnus = new Map(), /** @type {Map<string, string>} */ valideJusquaConnu = new Map();
   /** @param {string} ent */
   async function exercicesDe(ent) {
@@ -558,7 +558,7 @@
     const [ecritures, releves, declarations, biens, inventaire, revisionsLues, questions] = await Promise.all([lues || ecrituresDe(ent, `${annee}-01-01`, `${annee}-12-31`), relevesDe(ent, annee),
       declarationsDe(ent, annee), immobilisationsDe(ent), inventaireDe(ent, annee), revisionsDe(ent, annee), questionsDe(ent, annee)]);
     const livre = versLeLivre(ent, Number(annee), ecritures);
-    const ex = exerciceDe(ent, annee); livre.exercice.valideJusqua = valideJusquaConnu.get(ent) || ''; // la grille le dit avant le geste (1.345.0)
+    const ex = exerciceDe(ent, annee); livre.exercice.valideJusqua = ex && ex.rouvert ? '' : valideJusquaConnu.get(ent) || ''; // la grille le dit avant le geste (1.345.0)
     if (ex) {
       livre.exercice.du = ex.du; livre.exercice.au = ex.au;
       // La clôture (brique 45) : qui, quand, et chaque réouverture avec son motif.
@@ -1986,11 +1986,11 @@
         const complement = KC.ecritureComplementDeclaration(livre, d);
         if (!complement) throw new Error('L\'écriture de cette déclaration existe déjà dans le livre : la repasser compterait la TVA du mois deux fois.');
         const r = await appel('POST', url, { ecriture: versLeServeur(complement), complement: true });
-        return { ok: true, id: r.id, complement: true, livre: await livreDe(o.dossierId, o.annee) };
+        return { ok: true, id: r.id, complement: true, validee: r.validee === true, livre: await livreDe(o.dossierId, o.annee) };
       }
       if (d.rienAEcrire) throw new Error(KC.MOTIF_RIEN_A_ECRIRE);
       const r = await appel('POST', url, { ecriture: versLeServeur(KC.ecritureDeclaration(livre, d)) });
-      return { ok: true, id: r.id, livre: await livreDe(o.dossierId, o.annee) };
+      return { ok: true, id: r.id, validee: r.validee === true, livre: await livreDe(o.dossierId, o.annee) };
     },
 
     // ── La liasse et l'annuel (brique 41 ter) : déduits par la v10 du livre du serveur ; les
@@ -2459,9 +2459,9 @@
       // Le refus de la v10 d'abord (le motif), mot pour mot ; le serveur le refait.
       const essai = KC.rouvrirExercice(JSON.parse(JSON.stringify(await livreDe(o.dossierId, o.annee))), o.motif, moiNom, Date.now());
       if (!essai.ok) throw new Error(essai.motif);
-      await appel('POST', `/entreprises/${o.dossierId}/compta/exercices/${Number(o.annee)}/rouvrir`, { motif: String(o.motif || '').trim() });
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/exercices/${Number(o.annee)}/rouvrir`, { motif: String(o.motif || '').trim() });
       await exercicesDe(o.dossierId);
-      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+      return { ok: true, periodeGardee: r.periodeGardee === true, livre: await livreDe(o.dossierId, o.annee) };
     },
     // Les à-nouveaux de l'année d'après : le geste de la v10 (compta.js, ouvrirExerciceSuivant) joué sur le
     // livre de l'année d'après, puis ce qu'il y change écrit au serveur — ses pièces en brouillard, celles
