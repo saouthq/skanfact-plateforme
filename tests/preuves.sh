@@ -30401,6 +30401,27 @@ prouver $'issue 16 1.379.1 d : « Un bulletin » s\'ouvre pour un salarié pas e
   $'if (e.hireDate && e.hireDate.slice(0, 7) > auj.slice(0, 7)) { toast(' \
   $'if (false && e.hireDate && e.hireDate.slice(0, 7) > auj.slice(0, 7)) { toast(' \
   $'un salarié entré ce mois-ci reçoit le bulletin de ce mois'
+# 1.379.2 — issue 13 : la photo choisie au clic, le total « versés » net, la flèche d'un avoir, la casse trop grosse.
+prouver $'issue 13 1.379.2 a : le clic sur la zone n\'ouvre que le choix d\'un XML' modules/socle/ecrans/entreprise/app-1.js \
+  $'i.accept = \'.xml,text/xml,application/xml,image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf\';' \
+  $'i.accept = \'.xml,text/xml,application/xml\';' \
+  $'la photo choisie en cliquant la zone se joint'
+prouver $'issue 13 1.379.2 b : un remboursement reçu s\'ajoute au total « versés »' modules/socle/ecrans/entreprise/app-1.js \
+  $'const verse = x => (x.p.kind === \'avoir\' ? -1 : 1) *' \
+  $'const verse = x => (x.p.kind === \'avoir\' ? 1 : 1) *' \
+  $'le bouton calculé, les bandeaux, les onglets'
+prouver $'issue 13 1.379.2 c : la flèche de stock d\'un avoir monte' modules/socle/ecrans/entreprise/app-1.js \
+  $'const sens = p.kind === \'avoir\' ? -1 : 1;\n        const qteDe' \
+  $'const sens = p.kind === \'avoir\' ? 1 : 1;\n        const qteDe' \
+  $'un article déjà commandé ne se recommande pas'
+prouver $'issue 13 1.379.2 d : une facture rangée montre une projection qui bouge' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (!isNew && rangee === qteDe(p.lines) * sens) {' \
+  $'if (false && !isNew && rangee === qteDe(p.lines) * sens) {' \
+  $'un article déjà commandé ne se recommande pas'
+prouver $'issue 13 1.379.2 e : une casse plus grosse que le stock passe sans question' modules/socle/ecrans/entreprise/app-2.js \
+  $'if (qte < 0 && avantMv.qty >= 0 && C.round3(avantMv.qty + qte) < 0' \
+  $'if (false && qte < 0 && avantMv.qty >= 0 && C.round3(avantMv.qty + qte) < 0' \
+  $'un article déjà commandé ne se recommande pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

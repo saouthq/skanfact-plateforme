@@ -294,4 +294,22 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer();
   }, 120_000);
+  // (1.379.2, issue 13, ENTACHATS-1) Le clic sur la zone n'ouvrait que le choix d'un XML : une photo choisie là était
+  // refusée comme « pas une facture électronique », et perdue.
+  it('la photo choisie en cliquant la zone se joint à la pièce et ouvre la saisie, sans refus', async () => {
+    const { jeton, ent } = await nadia();
+    const { p, erreurs, fermer } = await ouvrir(jeton, ent, '#/achat/new');
+    await p.locator('#ac-zone').waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#ac-zone').innerText())).toMatch(/Tu as la photo ou le PDF de la facture \? Clique ici pour le choisir, ou glisse-le/);
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    const [choix] = await Promise.all([p.waitForEvent('filechooser', { timeout: 10_000 }), p.locator('#ac-zone').click()]);
+    expect(await choix.element().getAttribute('accept')).toMatch(/image\/jpeg.*application\/pdf/);
+    await choix.setFiles({ name: 'facture-minoterie.png', mimeType: 'image/png', buffer: png });
+    // Soit la pièce se joint tout de suite, soit l'IA se propose d'abord : jamais le refus « pas une facture électronique ».
+    await expect.poll(async () => (await p.locator('#ac-arrivee').count()) === 0 || (await p.locator('#modal-root .modal').count()) > 0, { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#modal-root .modal').filter({ hasText: 'pas une facture électronique' }).count()).toBe(0);
+    if (await p.locator('#ac-arrivee').count() === 0) await expect.poll(() => p.locator('#view').innerText().then(net), { timeout: 15_000 }).toMatch(/facture-minoterie\.png/);
+    expect(erreurs).toEqual([]);
+    await fermer();
+  }, 120_000);
 });

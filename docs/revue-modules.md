@@ -4673,3 +4673,23 @@ Neuf preuves.
 
 Essais : `tests/web/paie-bulletin-1379.test.ts` (neuf), `tests/web/tresorerie-1298.test.ts`,
 `tests/web/cabinet-visites-1372.test.ts`. Quatre preuves.
+
+## 1.379.2 — L'issue 13 (achats, fournisseurs, stock) : les deux bloquants, et trois chiffres qui trompaient
+
+- **ENTACHATS-1 (bloquant)** : sur « Comment arrive cette pièce ? », cliquer la zone n'ouvrait que le choix d'un XML ;
+  la photo ou le PDF choisi là était refusé comme « pas une facture électronique », et perdu. Le clic prend maintenant
+  les trois (XML, photo, PDF), comme le glisser : la photo se joint à la pièce et la saisie s'ouvre. La zone le dit
+  (« Tu as la photo ou le PDF de la facture ? Clique ici pour le choisir, ou glisse-le »).
+- **ENTACHATS-2 (bloquant)** : fiche fournisseur › Règlements. Ce que le fournisseur a RENDU (le règlement d'un avoir)
+  s'ajoutait au total « versés ». Il se retranche, la ligne dit « − 142,800 DT · reçu », et le total dit ce qu'il a
+  retiré. Une ligne en devise écrit dessous ce qu'elle pèse en dinars dans ce total.
+- **ENTACHATS-3** : sur un avoir, « en stock : 25 → 29 » montait alors que la marchandise ressort : la flèche descend.
+  Une pièce déjà rangée, rouverte sans y toucher, dit un fait (« entré en stock : + 20 ») au lieu d'une projection qui
+  changeait avec le stock du jour.
+- **ENTACHATS-8** : une sortie plus grosse que le stock (casse de 100 pour 30) se demande d'abord (« Tu n'en as que
+  30… »), avec « Enregistrer quand même » : on ne bloque pas. Un ajustement demande sa note en une phrase.
+
+Reste de l'issue 13 : voir la liste des constats 4 à 7 et 9 à 24 (inventaire par dépôt, un seul coût par article,
+valorisation au prix de la facture — À VÉRIFIER avec le comptable —, commande soldée, lots, téléphone).
+
+Essais : `tests/web/complements.test.ts`, `fiche-fournisseur.test.ts`, `stock-revue.test.ts`. Cinq preuves.

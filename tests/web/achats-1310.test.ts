@@ -239,7 +239,8 @@ describe('les achats 1.310.0 : ce qu\'on doit, ce qu\'on garde, ce que lit la co
     const agee = c.locator('h2', { hasText: /^Ce qui reste à payer, par ancienneté/ }).locator('xpath=..');
     await agee.waitFor({ timeout: 15_000 });
     const rangee = async (tiers: string) => (await agee.locator('tbody tr').filter({ hasText: tiers }).first().evaluate((tr) => [...tr.children].map((td) => (td.textContent || '').replace(/\s+/g, ' ').trim())));
-    expect(await rangee('Céramique du Sahel SARL')).toEqual(['Céramique du Sahel SARL', '2 495,430 DT', '−337,960 DT', '', '', '', '2 157,470 DT']);
+    // (1.378.8) L'avoir se déduit de la plus ancienne dette : la tranche dit ce qui reste vraiment dû, sans ligne négative à côté.
+    expect(await rangee('Céramique du Sahel SARL')).toEqual(['Céramique du Sahel SARL', '2 157,470 DT', '', '', '', '', '2 157,470 DT']);
     await c.screenshot({ path: path.join(PHOTOS, 'achats-1310-g-agee.png') });
     expect(erreurs).toEqual([]);
   }, 300_000);

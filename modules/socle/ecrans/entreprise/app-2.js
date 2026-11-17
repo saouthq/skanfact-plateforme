@@ -66,13 +66,20 @@
             + (after < 0 ? ' Un stock négatif veut dire qu\'une entrée manque quelque part.' : '') + '</span>';
         };
         $('#adf', root).oninput = $('#adf', root).onchange = hint; hint();
-        $('#ok', root).onclick = () => {
+        $('#ok', root).onclick = async () => {
           if (enLecture('stockAdjustments')) return refus($('[name=itemId]', root), refusLecture('stockAdjustments'));
           const v = formValues($('#adf', root));
           if (!v.itemId) return refus($('[name=itemId]', root), 'Choisis un article.');
           const qte = C.qteMouvement(v.source, v.qty);
           if (!qte) { refus($('[name=qty]', root), 'La quantité ne peut pas être zéro.'); return; }
           if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
+          // (1.379.2, issue 13, ENTACHATS-8) Une sortie plus grosse que le stock se demande d'abord (une casse de 100 pour 30
+          // en stock passait d'un clic, puis la fiche accusait « un achat oublié ») ; et un ajustement dit pourquoi.
+          if (v.source === 'ajustement' && !String(v.note || '').trim()) return refus($('[name=note]', root), 'Un ajustement change la valeur du stock sans pièce : écris en une phrase ce qui s\'est passé.');
+          const avantMv = C.stockOf(data, v.itemId);
+          if (qte < 0 && avantMv.qty >= 0 && C.round3(avantMv.qty + qte) < 0
+            && !await confirmDialog(`Tu n'en as que ${avecUnite(avantMv.qty, avantMv.unit)} en stock, et tu en sors ${avecUnite(Math.abs(qte), avantMv.unit)} : le stock passerait à ${avecUnite(C.round3(avantMv.qty + qte), avantMv.unit)}. Vérifie la quantité. Si elle est juste, c'est qu'une entrée (un achat) n'a pas été saisie.`,
+              'Enregistrer quand même', false, { titre: 'Plus que ce qu\'il y a en stock' })) return;
           if (closedBlock(v.date, 'Ce mouvement de stock')) return;
           if (licenceBlock('Créer un mouvement de stock', 'stock')) return;
           const mv = { ...a, ...v, qty: qte, unitCost: v.unitCost === '' ? '' : Number(v.unitCost) };

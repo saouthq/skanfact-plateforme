@@ -16110,11 +16110,17 @@
     let fpReglements, fpCommandes, fpRetenues;
     function ongletReglements() {
       if (!reglements.length) return vide('Aucun règlement encore', 'Un règlement s\'enregistre sur la pièce qu\'il paie ; il vient ici aussitôt, avec son moyen et la retenue gardée.');
-      const total = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, Number(x.r.amount) || 0, co), 0));
+      // (1.379.2, issue 13, ENTACHATS-2) Ce que le fournisseur REND (le règlement d'un avoir, ou un montant négatif) se
+      // retranche : il s'ajoutait au total « versés ». Une ligne en devise dit aussi ce qu'elle pèse en dinars dans ce total.
+      const verse = x => (x.p.kind === 'avoir' ? -1 : 1) * (x.p.kind === 'avoir' ? Math.abs(Number(x.r.amount) || 0) : (Number(x.r.amount) || 0));
+      const total = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, verse(x), co), 0));
+      const rendu = C.round3(reglements.reduce((t, x) => t + (verse(x) < 0 ? C.toBase(x.p, -verse(x), co) : 0), 0));
+      const celluleVerse = x => { const v = verse(x), dev = x.p.currency || cur, enDevise = C.normCurrency(dev) !== C.normCurrency(cur);
+        return `${v < 0 ? `− ${C.money(-v, dev)} · reçu` : C.money(v, dev)}${enDevise ? `<small>soit ${v < 0 ? '− ' : ''}${mo(C.toBase(x.p, Math.abs(v), co))}</small>` : ''}`; };
       const rs = C.round3(reglements.reduce((t, x) => t + C.toBase(x.p, rsDe(x), co), 0));
-      return `<div class="cf-o-t"><span class="mu">${pl(reglements.length, 'règlement')} · ${mo(total)} versés${rs > 0.0005 ? ` · ${mo(rs)} gardés pour l'État (retenue à la source)` : ''}</span></div>
+      return `<div class="cf-o-t"><span class="mu">${pl(reglements.length, 'règlement')} · ${mo(total)} versés${rendu > 0.0005 ? ` (dont ${mo(rendu)} qu'il t'a rendus, déjà retirés)` : ''}${rs > 0.0005 ? ` · ${mo(rs)} gardés pour l'État (retenue à la source)` : ''}</span></div>
         <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Payé le</th><th>Sur</th><th>Moyen</th><th class="r">Versé</th><th class="r">Retenue gardée</th></tr></thead><tbody>
-        ${(fpReglements = feuilletFiche(s.id, 'reglements', reglements)).rows.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(modeReglement(x.r))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${C.money(Number(x.r.amount) || 0, x.p.currency || cur)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        ${(fpReglements = feuilletFiche(s.id, 'reglements', reglements)).rows.map(x => `<tr class="clic" data-achat="${h(x.p.id)}"><td class="nw">${C.fmtDate(x.r.date)}</td><td><b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>${contenuAchat(x.p) || x.p.subject ? `<small>${h(contenuAchat(x.p) || x.p.subject)}</small>` : ''}</td><td>${h(modeReglement(x.r))}${x.r.reference ? `<small>${h(x.r.reference)}</small>` : ''}</td><td class="r">${celluleVerse(x)}</td><td class="r">${rsDe(x) > 0.0005 ? C.money(rsDe(x), x.p.currency || cur) : '<span class="mu">—</span>'}</td></tr>`).join('')}
         </tbody></table></div>${fpReglements.pied('règlement')}
         <p class="cf-pied">${lfIc('aide', 13)} Un règlement s'enregistre sur la pièce qu'il paie. Un virement qui en paie plusieurs se règle d'un coup : choisis-les dans la liste des achats, puis « Régler ensemble ».</p>`;
     }
@@ -17966,7 +17972,7 @@
           <button type="button" class="btn ac-choix" id="ac-main"${dis}><span class="ac-ic">${lfIc('ecriture', 20)}</span><span class="ac-t"><b>Saisir à la main</b><span>Fournisseur, numéro, lignes : comme sur la facture</span></span></button>
           ${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet ? `<button type="button" class="btn ac-choix" id="ac-cabinet"${dis}><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></button><input type="file" id="ac-cabinet-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">`
           : bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
-        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span>Ou glisse ici le fichier de la facture : un XML El Fatoora se lit tout seul ; pour une photo ou un PDF, SkanFact te demande si tu veux la lecture par l'IA</span></button>`}</div>` : '';
+        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span><b>Tu as la photo ou le PDF de la facture ?</b> Clique ici pour le choisir, ou glisse-le : il se joint à la pièce et tu saisis en le regardant. Un XML El Fatoora se lit tout seul.</span></button>`}</div>` : '';
     // (27/10/2026, maquette achat « Dépense ») Un ticket se paie sur le moment : une dépense NEUVE s'enregistre réglée, à la
     // caisse ou par carte, à sa date (« pas encore » la laisse à régler). Rangée, le champ lit son dernier règlement.
     let payeeDep = payeeInit;
@@ -18757,8 +18763,14 @@
       $$('[data-stk]', body).forEach(el => {
         const l = p.lines[Number(el.dataset.stk)]; const it = l && l.destination === 'stock' && !l.recue ? C.itemOfLine(l, data) : null;
         if (!it || !it.tracked) { el.textContent = l && l.destination === 'immobilisation' && lignesAFicher().some(x => x.i === Number(el.dataset.stk)) ? 'fiche du bien proposée, ci-dessous' : ''; return; }
-        const avant = C.stockOf(data, it.id).qty - (isNew ? 0 : ((stored.lines || []).filter(x => C.itemOfLine(x, data) === it && x.destination === 'stock' && !x.recue).reduce((s2, x) => s2 + (Number(x.qty) || 0), 0)));
-        el.textContent = `en stock : ${pct(avant)} → ${pct(C.round3(avant + (Number(l.qty) || 0)))}`;
+        // (1.379.2, issue 13, ENTACHATS-3) Un avoir REPREND de la marchandise : sa flèche montait (« 25 → 29 ») au lieu de
+        // descendre. Et une pièce déjà rangée, pas retouchée, dit ce qu'elle a FAIT : la projection bougeait avec le stock du jour.
+        const sens = p.kind === 'avoir' ? -1 : 1;
+        const qteDe = lignes => (lignes || []).filter(x => C.itemOfLine(x, data) === it && x.destination === 'stock' && !x.recue).reduce((s2, x) => s2 + (Number(x.qty) || 0), 0);
+        const rangee = isNew ? 0 : qteDe(stored.lines) * (stored.kind === 'avoir' ? -1 : 1);
+        if (!isNew && rangee === qteDe(p.lines) * sens) { el.textContent = sens < 0 ? `ressorti du stock : − ${pct(Number(l.qty) || 0)}` : `entré en stock : + ${pct(Number(l.qty) || 0)}`; return; }
+        const avant = C.stockOf(data, it.id).qty - rangee;
+        el.textContent = `en stock : ${pct(avant)} → ${pct(C.round3(avant + sens * (Number(l.qty) || 0)))}`;
       });
       const avant = $('#ac-avant');
       if (avant) {
@@ -19413,7 +19425,17 @@
           if (bridge.piecesJointes !== false && await joindreFichier(fichier)) toast(`« ${f.name} » jointe : saisis la pièce à la main`);
         } catch (e) { toast(plainError(e), true); }
       };
-      zoneChoix.onclick = () => { const b = $('#teif-lire'); if (b) b.click(); };
+      // (1.379.2, issue 13, ENTACHATS-1) Le clic n'ouvrait que le choix d'un XML : la photo ou le PDF choisi là était refusé
+      // comme « pas une facture électronique », et perdu. Le clic prend les trois, comme le glisser.
+      zoneChoix.onclick = () => {
+        const i = document.createElement('input');
+        i.type = 'file'; i.id = 'ac-zone-fichier'; i.hidden = true;
+        i.accept = '.xml,text/xml,application/xml,image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
+        i.addEventListener('change', () => { const f = i.files && i.files[0]; i.remove(); deposer(f); });
+        i.addEventListener('cancel', () => i.remove());
+        document.body.appendChild(i);
+        i.click();
+      };
       zoneChoix.ondragover = e => { e.preventDefault(); zoneChoix.classList.add('sur'); };
       zoneChoix.ondragleave = () => zoneChoix.classList.remove('sur');
       zoneChoix.ondrop = e => { e.preventDefault(); zoneChoix.classList.remove('sur'); deposer((e.dataTransfer && e.dataTransfer.files || [])[0]); };

@@ -312,7 +312,38 @@ describe('la revue du Stock', () => {
     expect(marge).toBeGreaterThanOrEqual(12);
     await p.getByRole('button', { name: 'Modifier l\'article', exact: true }).click();
     expect(net(await p.locator('#modal-root h2').last().innerText())).toBe('Modifier l\'article');
+
+    // (1.379.2, issue 13, ENTACHATS-3) Un avoir reprend la marchandise : sa flèche DESCEND (elle montait : « 2 → 4 »).
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new/s1/avoir/p4`);
+    const fleche = async () => net(await p.locator('#view [data-stk]').first().innerText().catch(() => ''));
+    await expect.poll(fleche, { timeout: 20_000 }).toMatch(/^en stock : \S+ → \S+$/);
+    const [, de, vers] = /^en stock : (\S+) → (\S+)$/.exec(await fleche()) as RegExpExecArray;
+    expect(Number(vers.replace(',', '.').replace('−', '-'))).toBeLessThan(Number(de.replace(',', '.').replace('−', '-')));
+    // La facture rangée, rouverte sans y toucher, dit ce qu'elle a fait : pas une projection qui bouge avec le stock du jour.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p4`);
+    await p.getByRole('button', { name: /Modifier la pièce/ }).first().click({ timeout: 20_000 });
+    await expect.poll(fleche, { timeout: 15_000 }).toBe('entré en stock : + 2');
+
+    // (1.379.2, ENTACHATS-8) Une casse plus grosse que le stock se demande d'abord ; un ajustement dit pourquoi.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/article/a5`);
+    await p.locator('#adj-item').click({ timeout: 20_000 });
+    await p.locator('#adf [name=qty]').fill('100');
+    await p.locator('.modal #ok').last().click();
+    const question = p.locator('#modal-root .modal').last();
+    await expect.poll(async () => net(await question.locator('h2').innerText()), { timeout: 10_000 }).toBe('Plus que ce qu\'il y a en stock');
+    expect(net(await question.innerText())).toMatch(/Tu n'en as que 2 sacs en stock, et tu en sors 100 sacs : le stock passerait à .98 sacs\./);
+    expect(net(await question.locator('#ok').innerText())).toBe('Enregistrer quand même');
+    await question.locator('[data-close]').click();
+    await expect.poll(() => p.locator('#adf').count()).toBe(1);
+    await p.locator('#adf [name=source]').selectOption('ajustement');
+    await p.locator('#adf [name=qty]').fill('5');
+    await p.locator('.modal #ok').last().click();
+    await expect.poll(() => p.locator('#toast').innerText().then(net).catch(() => ''), { timeout: 5_000 }).toMatch(/Un ajustement change la valeur du stock sans pièce/);
+    expect(await p.locator('#adf').count()).toBe(1);
     expect(erreurs).toEqual([]);
     await cx.close();
-  }, 180_000);
+  }, 240_000);
 });

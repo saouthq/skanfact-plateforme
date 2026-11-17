@@ -79,6 +79,15 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
       piece('p-boites', 2, { number: 'ES-4471', date: '2026-09-10', dueDate: jour(-20), supplierId: 's-sahel', lines: [{ label: 'Boîtes', qty: 200, unitPrice: n('0.385'), vatRate: 19, destination: 'charge' }] }),
       piece('p-sachets', 3, { number: 'ES-4502', date: '2026-09-25', dueDate: jour(-5), supplierId: 's-sahel', lines: [{ label: 'Sachets', qty: 100, unitPrice: n('0.385'), vatRate: 19, destination: 'charge' }] }),
       piece('p-avoir', 4, { kind: 'avoir', number: 'AV-ES-09', date: '2026-09-28', supplierId: 's-sahel', lines: [{ label: 'Boîtes abîmées', qty: 20, unitPrice: n('0.385'), vatRate: 19, destination: 'charge' }] }),
+      // (1.379.2, issue 13, ENTACHATS-2) Un fournisseur qui a RENDU de l'argent, et une facture en euros : 119,000 versés,
+      // 23,800 rendus (l'avoir remboursé), 100 EUR à 3,4 = 340,000 : le total net est 435,200 DT.
+      { collection: 'suppliers', cle: 's-rend', rang: 3, revision: null, contenu: { id: 's-rend', name: 'Tunisie Matériel', city: 'Tunis', matricule: '1234567A/A/M/000', paymentTermsDays: 30 } },
+      piece('p-mat', 5, { number: 'TM-100', date: '2026-08-20', dueDate: '2026-09-19', supplierId: 's-rend', payments: [{ id: 'r-mat', date: '2026-09-01', amount: 119, method: 'virement' }],
+        lines: [{ label: 'Écran', qty: 1, unitPrice: 100, vatRate: 19, destination: 'charge' }] }),
+      piece('p-mat-av', 6, { kind: 'avoir', number: 'AV-TM-7', date: '2026-09-12', supplierId: 's-rend', payments: [{ id: 'r-mat-av', date: '2026-09-15', amount: n('23.8'), method: 'virement' }],
+        lines: [{ label: 'Erreur de prix', qty: 1, unitPrice: 20, vatRate: 19, destination: 'charge' }] }),
+      piece('p-mat-eu', 7, { number: 'TM-EU-1', date: '2026-09-05', dueDate: '2026-10-05', supplierId: 's-rend', currency: 'EUR', exchangeRate: n('3.4'), payments: [{ id: 'r-mat-eu', date: '2026-09-10', amount: 100, method: 'virement' }],
+        lines: [{ label: 'Licence', qty: 1, unitPrice: 100, vatRate: 0, destination: 'charge' }] }),
     ] });
     expect(pose.motif, JSON.stringify(pose)).toBeUndefined();
 
@@ -132,6 +141,14 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1440);
     await p.screenshot({ path: path.join(PHOTOS, 'fiche-fournisseur-1.png') });
 
+    // 1 bis. (1.379.2, ENTACHATS-2) Ce que le fournisseur a rendu se retranche du total, et la ligne en euros dit ses dinars.
+    await ouvrir('s-rend');
+    await p.locator('#view .cf-onglets [data-onglet="reglements"]').click();
+    expect(await texte('#ff-onglet .cf-o-t')).toBe('3 règlements · 435,200 DT versés (dont 23,800 DT qu\'il t\'a rendus, déjà retirés)');
+    const lignesRend = (await p.locator('#ff-onglet tbody tr').allInnerTexts()).map((x) => x.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim());
+    expect(lignesRend[0]).toMatch(/^15\/09\/2026 AV-TM-7 .*− 23,800 DT · reçu —$/);
+    expect(lignesRend[1]).toMatch(/^10\/09\/2026 TM-EU-1 .*100,00 EUR ?soit 340,000 DT —$/);
+    await ouvrir('s-moulins');
     // 2. Les onglets Règlements, Commandes, Retenues ; « Les préparer » mène aux retenues.
     await p.locator('#view .cf-onglets [data-onglet="reglements"]').click();
     expect(await texte('#ff-onglet .cf-o-t')).toBe('1 règlement · 328,383 DT versés · 3,317 DT gardés pour l\'État (retenue à la source)');
