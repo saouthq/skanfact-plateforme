@@ -144,4 +144,54 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('régularisée sur novembre');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  // (1.377.1, CABPAIE-9) « Noter la sortie… » demande le dernier jour : le salarié reste compté dans le mois où il était là,
+  // n'est plus attendu ensuite, et « Annuler la sortie » le remet en poste.
+  it('la sortie d\'un salarié se note avec son jour, compte dans son dernier mois, et s\'annule', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(salarie('s1', 'Amel Trabelsi', 1300, '2025-01-01')) },
+      { collection: 'employees', cle: 's2', rang: null, revision: null, contenu: encoder(salarie('s2', 'Youssef Mejri', 980, '2025-03-01')) },
+    ] })).statut).toBe(200);
+    const fiche = async (cle: string) => decoder(((await api('GET', `/entreprises/${ent}/paie/dossier`, associe)).corps.objets as Objet[]).find((o) => o.collection === 'employees' && o.cle === cle)?.contenu ?? {}) as { endDate?: string; active?: boolean };
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption('10');
+    const fenetre = p.locator('#modal-root .modal').last();
+    const toast = async () => net((await p.locator('#toast').textContent()) ?? '');
+    const menu = async (libelle: string) => {
+      await p.locator('.pa-so [data-pa-vue="salaries"]').click();
+      await p.locator('[data-rowmenu="SAL:s1"]').first().click();
+      await p.getByRole('menuitem').filter({ hasText: libelle }).click();
+    };
+    await menu('Noter la sortie…');
+    expect(net(await fenetre.locator('h2').innerText())).toBe('La sortie d\'Amel Trabelsi');
+    // Avant son entrée : refusée sur sa case.
+    await fenetre.locator('#pa-sortie-le').fill('20/12/2024');
+    await fenetre.locator('#pa-sortie-ok').click();
+    await expect.poll(toast).toBe('Son entrée est le 01/01/2025 : la sortie ne peut pas la précéder.');
+    await fenetre.locator('#pa-sortie-le').fill('20/10/2025');
+    await fenetre.locator('#pa-sortie-ok').click();
+    await expect.poll(toast).toBe('Sortie d\'Amel Trabelsi notée au 20/10/2025.');
+    await expect.poll(async () => { const f = await fiche('s1'); return [f.endDate, f.active]; }).toEqual(['2025-10-20', false]);
+    // Octobre l'attend encore (deux bulletins à faire), novembre plus (un seul).
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await expect.poll(() => p.locator('#pa-bulletin').first().innerText().then(net).catch(() => '')).toBe('Établir les bulletins : 2 à faire…');
+    await p.locator('#pa-mois').selectOption('11');
+    await expect.poll(() => p.locator('#pa-bulletin').first().innerText().then(net).catch(() => '')).toBe('Établir les bulletins : 1 à faire…');
+    // « Annuler la sortie » : de nouveau en poste, sans date.
+    await menu('Annuler la sortie');
+    await expect.poll(toast).toBe('Amel Trabelsi est de nouveau en poste.');
+    await expect.poll(async () => { const f = await fiche('s1'); return [f.endDate ?? '', f.active]; }).toEqual(['', true]);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
 });

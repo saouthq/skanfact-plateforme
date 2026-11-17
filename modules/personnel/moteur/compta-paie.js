@@ -1079,7 +1079,9 @@
   function salariesDuMois(livre, annee, mois) {
     const premier = `${annee}-${String(mois).padStart(2, '0')}-01`;
     const dernier = ajouterJoursIso(premier, daysInMonth(Number(annee), Number(mois)) - 1);
-    return (livre.salaries || []).filter(s => s.actif && (!s.embauche || s.embauche <= dernier) && (!s.sortie || s.sortie >= premier));
+    // (1.377.1, CABPAIE-9) Un salarié SORTI avec sa date compte dans les mois où il était là : sa sortie notée le 20 ne
+    // retire pas son bulletin du mois. Sorti sans date (l'ancien geste), il ne compte plus nulle part, comme avant.
+    return (livre.salaries || []).filter(s => (s.actif || (s.sortie && s.sortie >= premier)) && (!s.embauche || s.embauche <= dernier) && (!s.sortie || s.sortie >= premier));
   }
   // Le socle ne nomme pas une fonction d'un module (1.276.1) : l'écran de la Paie du Cabinet la lit dans ses ajouts.
   Object.assign(ajoutsDesModules, { salariesDuMois });

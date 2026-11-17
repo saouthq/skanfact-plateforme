@@ -365,7 +365,10 @@
     const bouton = !g ? '' : g.attente ? `<button type="button" class="btn" id="pa-attente" disabled>${esc(g.attente)}</button>`
       : `<button type="button" class="btn btn-primary" id="${esc(g.id)}">${esc(g.t)}</button>`;
     const tuile = (t, v, sous, id) => `<div class="cp-pa-tuile" ${id ? `id="${id}"` : ''}><span class="t">${esc(t)}</span><b>${esc(money(v))}</b><small>${esc(sous)}</small></div>`;
-    const tuiles = bulletins.length ? `<div class="cp-pa-tuiles">${tuile('Brut', masse.brut, `${pl(masse.count, 'bulletin')}${avants.length ? ` · ${KC.moisPaie(moisAvant)} : ${avants.length}` : ''}`)}${tuile('Net à payer', masse.net, ecart(masse.net, masseAvant.net) || 'ce que touchent les salariés')}${tuile('Charges patronales', masse.chargesPatronales, 'CNSS, accident, TFP, FOPROLOS')}${tuile(`Coût pour ${dossier.name || 'le dossier'}`, masse.cout, [ecart(masse.cout, masseAvant.cout).split(' sur ')[0], raisonsDuMois(L, bulletins, avants)].filter(Boolean).join(' : ') || 'brut et charges', 'pa-tuile-cout')}</div>` : '';
+    // (1.377.1, CABPAIE-7) Tant qu'il reste des bulletins à établir, le mois ne se compare pas à celui d'avant : la
+    // comparaison annonçait « 2 départs ce mois » pour deux bulletins pas encore faits.
+    const partiel = P.manquants ? `${pl(masse.count, 'bulletin')} sur ${masse.count + P.manquants} : le mois n'est pas fini` : '';
+    const tuiles = bulletins.length ? `<div class="cp-pa-tuiles">${tuile('Brut', masse.brut, `${pl(masse.count, 'bulletin')}${avants.length ? ` · ${KC.moisPaie(moisAvant)} : ${avants.length}` : ''}`)}${tuile('Net à payer', masse.net, (partiel ? '' : ecart(masse.net, masseAvant.net)) || 'ce que touchent les salariés')}${tuile('Charges patronales', masse.chargesPatronales, 'CNSS, accident, TFP, FOPROLOS')}${tuile(`Coût pour ${dossier.name || 'le dossier'}`, masse.cout, partiel || [ecart(masse.cout, masseAvant.cout).split(' sur ')[0], raisonsDuMois(L, bulletins, avants)].filter(Boolean).join(' : ') || 'brut et charges', 'pa-tuile-cout')}</div>` : '';
     // Les bandeaux du parcours : l'accord, la correction proposée, la vérification, la lecture seule.
     const corrRep = P.reponses.filter(b => b.correction.reponse);
     const bandeaux = [
@@ -1636,12 +1639,30 @@
         const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut, primes', run: () => salarieForm(root, dossier, x) },
           // (plateforme) 1.72.0 — les documents du personnel, ceux de l'entreprise.
           { icon: 'pdf', label: 'Attestation, certificat, solde…', hint: 'Les documents du personnel, à signer', run: () => documentPersonnelForm(root, dossier, x) }];
-        if (x.actif) a.push({ sep: true }, { icon: 'non', label: 'Noter la sortie', danger: true,
-          hint: 'Son nom reste sur les bulletins déjà établis', run: async () => {
-            if (!await confirmDialog(`Noter la sortie de ${x.nom} ?`, 'Il ne sera plus proposé pour un nouveau bulletin. Son nom reste sur ceux qui existent — un bulletin remis ne se réécrit pas.', 'Noter la sortie')) return;
-            try { const r = await api.retirerSalarie({ dossierId: dossier.id, annee: s.annee, id: x.id }); s.livre = r.livre; toast('Sortie notée.'); redraw(); }
-            catch (err) { toast(plainError(err), 'error'); }
+        // (1.377.1, CABPAIE-9) La sortie se note avec son JOUR (le dernier jour travaillé) : le salarié reste compté dans
+        // les mois où il était là, ses documents portent la bonne date, et « Annuler la sortie » la défait.
+        if (x.actif) a.push({ sep: true }, { icon: 'non', label: 'Noter la sortie…', danger: true,
+          hint: 'Son dernier jour ; son nom reste sur les bulletins déjà établis', run: () => {
+            modal(`<h2>La sortie ${esc(deNom(x.nom))}</h2>
+              <p class="small">Il reste compté dans les mois où il était là (son dernier bulletin, ses documents de sortie), et n'est plus proposé ensuite. Son nom reste sur les bulletins déjà établis.</p>
+              <label class="field obligatoire"><span>Son dernier jour travaillé</span><input id="pa-sortie-le" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(x.sortie || aujourdhui()))}"></label>
+              <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pa-sortie-ok">Noter la sortie</button></div>`, (layer, close) => {
+              $('#pa-sortie-ok', layer).onclick = async () => {
+                const i = $('#pa-sortie-le', layer), tape = String(i.value || '').trim(), le = tape ? K.dateTapee(tape, s.annee) : '';
+                if (!le) return refus(i, tape ? `« ${tape} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.` : 'Indique son dernier jour travaillé.');
+                if (x.embauche && le < x.embauche) return refus(i, `Son entrée est le ${fmtJour(x.embauche)} : la sortie ne peut pas la précéder.`);
+                try {
+                  // Un dernier jour à venir (un CDD qui finit) : il reste en poste jusque-là.
+                  const r = await api.saveSalarie({ dossierId: dossier.id, annee: s.annee, salarie: { ...x, sortie: le, actif: le >= aujourdhui() } });
+                  s.livre = r.livre; close(); toast(`Sortie ${deNom(x.nom)} notée au ${fmtJour(le)}.`); redraw();
+                } catch (err) { toast(plainError(err), 'error'); }
+              };
+            });
           } });
+        else a.push({ sep: true }, { icon: 'oui', label: 'Annuler la sortie', hint: 'Il revient en poste, sans date de sortie', run: async () => {
+          try { const r = await api.saveSalarie({ dossierId: dossier.id, annee: s.annee, salarie: { ...x, sortie: '', actif: true } }); s.livre = r.livre; toast(`${x.nom} est de nouveau en poste.`); redraw(); }
+          catch (err) { toast(plainError(err), 'error'); }
+        } });
         return a;
       }
       const b = (s.livre.bulletins || []).find(y => y.id === id.slice(5));
@@ -2671,7 +2692,9 @@
   function bulletinForm(root, dossier, b) {
     const s = livresState;
     const L = s.livre;
-    const actifs = (L.salaries || []).filter(x => x.actif || (b && x.id === b.salarieId));
+    // (1.377.1) Un salarié sorti avec sa date reste proposé pour le bulletin d'un mois où il était là (son dernier).
+    const premierDuMois = `${s.annee}-${String(s.paieMois).padStart(2, '0')}-01`;
+    const actifs = (L.salaries || []).filter(x => x.actif || (x.sortie && x.sortie >= premierDuMois) || (b && x.id === b.salarieId));
     // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
     // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
     // (plateforme) 1.69.0 — un bulletin nouveau part du MOIS du salarié proposé, comme dans l'entreprise : son entrée ou sa

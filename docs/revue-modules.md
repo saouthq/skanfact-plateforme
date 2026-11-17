@@ -4400,3 +4400,16 @@ Limites, dites : le geste n'existe que pour un dossier tenu au cabinet (pour un 
 fait dans son SkanFact, et le bandeau le dit) ; la retenue réduit le brut du mois suivant, imposable et cotisable — la
 façon d'imposer une régularisation reste À VÉRIFIER avec le comptable, comme pour un rappel. Essai :
 `tests/web/cabinet-paie-regul-1377.test.ts` (écran et serveur, 1 300 DT sur 26 jours : 50,000 DT le jour). Sept preuves.
+
+## 1.377.1 — La paie du Cabinet : le mois pas fini, et la sortie d'un salarié (issue 10, CABPAIE-7 et 9)
+
+- **Un mois dont il reste des bulletins à établir ne se compare pas au mois d'avant** : « Coût… − 2 152,706 DT : 2 départs
+  ce mois » s'affichait pour deux bulletins simplement pas encore faits. Tant qu'il en reste, les tuiles disent
+  « 1 bulletin sur 4 : le mois n'est pas fini ».
+- **« Noter la sortie… » demande le dernier jour travaillé** (aujourd'hui par défaut, refusé avant l'entrée). Le salarié
+  reste compté dans les mois où il était là — son dernier bulletin reste attendu et il reste proposé pour ce mois —, puis
+  n'est plus attendu. Un dernier jour à venir (un CDD qui finit) le laisse en poste jusque-là. **« Annuler la sortie »**
+  le remet en poste. Sorti sans date par l'ancien geste, un salarié ne compte nulle part, comme avant.
+
+Essais : `tests/web/cabinet-paie-regul-1377.test.ts` (second parcours) et `cabinet-paie-hors-skanfact.test.ts`. Quatre preuves.
+Le motif de la sortie n'est pas demandé : rien ne le lit encore (les documents de sortie le demandent eux-mêmes).

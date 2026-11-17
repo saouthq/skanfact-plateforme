@@ -30059,6 +30059,22 @@ prouver $'revue 1.377.0 g : « L\'absence de Amel »' modules/personnel/ecrans/c
   $'/^[aeiouhâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
   $'/^[zâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
   $'une absence sans solde posée après la validation'
+prouver $'revue 1.377.1 a : « 2 départs ce mois » pendant la préparation des bulletins' modules/personnel/ecrans/cabinet/paie.js \
+  $'const partiel = P.manquants ? `' \
+  $'const partiel = false ? `' \
+  $'le mois d\'un dossier tenu : établir, valider, remettre'
+prouver $'revue 1.377.1 b : un salarié sorti le 20 n\'a plus son bulletin du mois' modules/personnel/moteur/compta-paie.js \
+  $'filter(s => (s.actif || (s.sortie && s.sortie >= premier)) &&' \
+  $'filter(s => (s.actif) &&' \
+  $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.1 c : la sortie notée sans son jour' modules/personnel/ecrans/cabinet/paie.js \
+  $'salarie: { ...x, sortie: le, actif: le >= aujourdhui() }' \
+  $'salarie: { ...x, sortie: \'\', actif: le >= aujourdhui() }' \
+  $'la sortie d\'un salarié se note avec son jour'
+prouver $'revue 1.377.1 d : une sortie d\'avant l\'entrée acceptée' modules/personnel/ecrans/cabinet/paie.js \
+  $'if (x.embauche && le < x.embauche) return refus(i, `Son entrée est le' \
+  $'if (x.embauche && le < \'1900\') return refus(i, `Son entrée est le' \
+  $'la sortie d\'un salarié se note avec son jour'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

@@ -97,6 +97,9 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
       await fenetre.locator('#ok').click();
       await expect.poll(async () => (await p.locator('#toast').textContent()) ?? '').toBe('Bulletin enregistré.');
       await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+      // (1.377.1, CABPAIE-7) Un bulletin fait sur deux : le coût ne se compare pas au mois d'avant, il dit où l'on en est.
+      if (nom === 'Salarié Numéro Un') await expect.poll(() => p.locator('#pa-tuile-cout small').innerText().then(net)).toBe('1 bulletin sur 2 : le mois n\'est pas fini');
+      else await expect.poll(() => p.locator('#pa-tuile-cout small').innerText().then(net)).not.toContain('le mois n\'est pas fini');
     }
     await expect.poll(async () => (await bulletins()).length).toBe(2);
     await expect.poll(principal).toEqual(['pa-valider-bul Valider les 2 bulletins']);
