@@ -4755,3 +4755,13 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
 - **V-7** : la facture tirée d'un devis (totale, acompte, solde, « Transformer ») prend le délai de paiement de la fiche du client.
 - **Rouges GitHub de la 1.379.5 réparés** : deux phrases de test (« Ton rôle au cabinet… »), le test des clients qui dépendait
   du jour du mois, et le poids de la première ouverture (le dessin des codes QR se charge à la demande, docs/leger.md L13).
+
+## 1.379.7 — Le relevé de compte dit la situation du jour choisi (issue 15, V-3, V-4, V-5)
+
+- **V-4** : arrêté à une date passée, le relevé compte les règlements et les avoirs jusqu'à ce jour-là seulement. Il disait
+  « soldé » d'un client qui devait de l'argent à la date choisie.
+- **V-5** : changer la date n'est plus « une saisie à abandonner » ; après « Envoyer au client… », la fenêtre reste ouverte.
+- **V-3 (en partie)** : un titre de section n'est plus pris pour « une ligne à 0 » ; « quantité manquante ».
+  Reste : l'acompte déduit hors des sections, et la remise qui ne tombe pas juste à l'œil sur la facture de solde.
+- Rouge GitHub de la 1.379.6 : la preuve qui visait la ligne du QR retirée de la page est reprise.
+- À VÉRIFIER : pas encore de test propre pour le relevé à une date passée.

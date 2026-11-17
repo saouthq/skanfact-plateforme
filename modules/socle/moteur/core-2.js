@@ -4371,6 +4371,12 @@
     const origine = (d, x) => opts.natif && !natif && normCurrency(d.currency || base) !== base ? money(x, normCurrency(d.currency)) : '';
     const lang = !opts.natif ? 'fr' : client.lang === 'en' || client.lang === 'fr' ? client.lang
       : pieces.length && pieces.every(d => d.lang === 'en') ? 'en' : (company.defaultLang === 'en' ? 'en' : 'fr');
+    // (1.379.7, issue 15 V-4) Arrêté à une date PASSÉE, le relevé dit la situation de ce jour-là : les règlements et les
+    // avoirs venus après ne comptent pas. Il ne montrait que ce qui reste ouvert aujourd'hui, et disait « soldé » d'un
+    // client qui devait de l'argent à la date choisie.
+    const passe = t < today();
+    const vu = !passe ? data : { ...data, documents: (data.documents || []).filter(x => !x.date || x.date <= t)
+      .map(x => x.clientId === clientId && Array.isArray(x.payments) ? { ...x, payments: x.payments.filter(q => !q || !q.date || q.date <= t) } : x) };
     pieces
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
       .forEach(d => {
@@ -4386,7 +4392,7 @@
             libelle: d.subject || '', montant: -net, regle: 0, reste: -net, retard: 0, origine: origine(d, -natNet) });
           return;
         }
-        const b = invoiceBalance(d, data, company);
+        const b = invoiceBalance(passe ? vu.documents.find(x => x.id === d.id) || d : d, vu, company);
         // Une facture payée plus qu'elle ne vaut porte une somme due AU CLIENT (10.14.0) : le relevé
         // la sautait comme une facture soldée, et le total disait au client qu'il devait plus qu'en
         // réalité. Elle s'écrit comme un avoir libre : un montant qu'il peut encore employer.

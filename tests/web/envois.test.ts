@@ -279,6 +279,8 @@ describe('les envois, à la souris', () => {
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toBe('Paramètres');
     await plusTard(nadia);
+    // (1.379.7, issue 15 V-5) La fenêtre du relevé reste ouverte après l'envoi : on la ferme soi-même.
+    await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
     await nadia.getByRole('tab', { name: 'Envois', exact: true }).click();
     expect(await nadia.locator('[name=mailClient]').count()).toBe(0);
     expect(net(await nadia.locator('#mail-fixe').innerText())).toBe('Le message s\'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n\'y a rien à régler ici.');

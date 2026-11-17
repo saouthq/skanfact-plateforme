@@ -8883,9 +8883,9 @@
       // Une ligne à zéro est légitime (une prestation offerte), mais c'est aussi la trace d'une
       // quantité effacée et jamais retapée. On la nomme avant d'émettre : après, la pièce est
       // verrouillée et il faut un avoir.
-      (doc.lines || []).filter(l => (l.label || '').trim() && !l.noDiscount
+      (doc.lines || []).filter(l => (l.label || '').trim() && !l.noDiscount && l.kind !== 'titre'
         && (!(Number(l.qty) > 0) || !(Number(l.unitPrice) > 0)))
-        .forEach(l => w.push(`La ligne « ${l.label} » est à 0 : ${!(Number(l.qty) > 0) ? 'quantité' : 'prix unitaire'} manquant. Si c'est une prestation offerte, ignore cet avertissement.`));
+        .forEach(l => w.push(`La ligne « ${l.label} » est à 0 : ${!(Number(l.qty) > 0) ? 'quantité manquante' : 'prix unitaire manquant'}. Si c'est une prestation offerte, ignore cet avertissement.`));
       // Une retenue sur une facture sous le seuil (9.1.1). On AVERTIT, on ne refuse pas et on ne
       // retire jamais la retenue soi-même : le seuil dépend de la nature de l'opération autant que
       // du montant, et c'est le comptable qui tranche. Sans seuil réglé (0), rien ne s'affiche
@@ -10912,7 +10912,7 @@
       $$('#rv-body tr[data-go]', root).forEach(tr => tr.onclick = () => navigate('#/doc/' + tr.dataset.go));
     };
     modal(`<h2>Relevé de compte — ${h(c.name)}</h2>
-      <p class="small muted">Toutes les pièces encore ouvertes à la date choisie, et leur total. Clique une ligne pour ouvrir la pièce.</p>
+      <p class="small muted">Ce que le client devait à la date choisie : les pièces ouvertes ce jour-là, et leur total. Clique une ligne pour ouvrir la pièce.</p>
       <form id="rvf" class="grid-2">${dateFieldHtml(lbl('Situation arrêtée au', 'rv.date'), 'au', au, {})}</form>
       <div id="rv-body" class="scroll-x"></div>
       <div class="modal-actions"><button class="btn" data-close>Fermer</button>
@@ -10934,10 +10934,12 @@
             const att = await bridge.exportPdfSilent(html(), nom());
             const r = releve();
             const rm = await bridge.composeMail({ to: c.email || '', mode: modeEnvoi(), attachment: att, ...C.mailReleve(r, company()) });
-            close(); toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; joins-le ensuite au message.');
+            // (1.379.7, issue 15 V-5) La fenêtre reste ouverte après l'envoi : « Exporter en PDF », que le message conseille, y est.
+            b.disabled = false; b.textContent = 'Envoyer au client…';
+            toast(att ? messageOuvert(rm, 'le relevé') : 'Message ouvert dans ta messagerie, sans le relevé : un navigateur ne sait pas le joindre. « Exporter en PDF » l\'enregistre ; joins-le ensuite au message.');
           } catch (e) { b.disabled = false; b.textContent = 'Envoyer au client…'; toast(plainError(e), true); }
         };
-      });
+      }, null, { garde: false });
   }
 
   // ---------- la facture électronique : le fichier TEIF pour El Fatoora (10.15.0) ----------

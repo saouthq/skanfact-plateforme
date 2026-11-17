@@ -4197,7 +4197,7 @@ prouver "Paramètres → Envois propose encore de choisir sa messagerie" modules
   "\${panneau('p-envoi')}<p class=\"small muted\" id=\"mail-fixe\">" "\${panneau('p-envoi')}<select name=\"mailClient\"></select><p class=\"small muted\" id=\"mail-fixe\">" \
   "$EN2"
 prouver "le relevé dit joint alors qu'un navigateur ne joint rien" modules/socle/ecrans/entreprise/app-1.js \
-  "close(); toast(att ? messageOuvert(rm, 'le relevé')" "close(); toast(true ? messageOuvert(rm, 'le relevé')" \
+  "toast(att ? messageOuvert(rm, 'le relevé')" "toast(true ? messageOuvert(rm, 'le relevé')" \
   "$EN2"
 
 # ── Brique 80 : la facture électronique, le fichier TEIF écrit par le serveur (docs/facture-electronique.md) ──
@@ -23833,7 +23833,7 @@ prouver 'B0 p : les registres posés ailleurs que sur la page' modules/socle/reg
   '  const w = /** @type {any} */ (window);' '  const w = /** @type {any} */ ({});' \
   "$RW1"
 prouver 'B0 q : les registres chargés après un autre script' web/public/v10/index.html \
-  '<script src="../plateforme/registres.js"></script>|||<script src="../tiers/qrcode.js"></script>' '|||<script src="../tiers/qrcode.js"></script><script src="../plateforme/registres.js"></script>' \
+  '<script src="../plateforme/registres.js"></script>|||<script src="../plateforme/sauvegardes.js"></script>' '|||<script src="../plateforme/sauvegardes.js"></script><script src="../plateforme/registres.js"></script>' \
   "$RW1"
 # ── 17 § 3.2, § 3.3 et § 5, lot P1b (1.266.14) : le Personnel ferme sa porte côté entreprise (sa boîte, ses entrées) ──
 PB1='la boîte du Personnel (lot P1b) : son morceau des écrans de l'"'"'entreprise ne pose aucun nom chez le socle ; il pose ses entrées une fois ses noms définis'
