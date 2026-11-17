@@ -151,10 +151,10 @@ prouver "une migration modifiée acceptée" base/migrer.ts \
 # ── La connexion (03 § 6) ────────────────────────────────────────────────────────────────────────
 C=base/migrations/0002_connexion.sql
 S=serveur/connexion.ts
-prouver "l'attente ne commence jamais" $C \
+prouver "l'attente ne commence jamais" base/migrations/0218_erreurs_oubliees.sql \
   "  if v_erreurs >= 5 then" "  if v_erreurs >= 500 then" \
   "après 5 erreurs, 1 minute"
-prouver "un blocage définitif" $C \
+prouver "un blocage définitif" base/migrations/0218_erreurs_oubliees.sql \
   "      else interval '60 minutes' end;" "      else interval '100 years' end;" \
   "après 5 erreurs, 1 minute"
 # Depuis le 09/10/2026 (décision de Skander, 0076) : le code du téléphone n'est exigé que d'un comptable de cabinet.
@@ -5236,7 +5236,7 @@ prouver "l'accueil de qui a demandé muet sur la décision" modules/socle/ecrans
 # ── Brique 101 : le menu selon le rôle (web/v10/menu-role.txt) ──
 MRW="chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi"
 prouver "le menu qui propose les pages cachées" modules/socle/ecrans/entreprise/app-1.js \
-  "    const pages = C.navPages(data).filter(p => !pageCachee(p.id));" "    const pages = C.navPages(data).slice();" \
+  "    const pages = C.navPages(data).filter(p => !pageCachee(p.id) || aVenir(p.id));" "    const pages = C.navPages(data).slice();" \
   "$MRW"
 prouver "une page cachée ouverte comme les autres" modules/socle/ecrans/entreprise/app-1.js \
   "    const dessine = pageCachee(name) ? pageInterdite(name) :" "    const dessine = false ? pageInterdite(name) :" \
@@ -6703,7 +6703,7 @@ prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
   "$BW"
 prouver "la connexion qui ne dit pas qui attend" web/src/App.tsx \
-  "inscription={vers({ ecran: 'inscription' })} sous={attend ?? sousInvitation('connexion')}" "inscription={vers({ ecran: 'inscription' })} sous={sousInvitation('connexion')}" \
+  "setAccueil({ ecran: 'inscription' }); }} sous={attend ?? sousInvitation('connexion')}" "setAccueil({ ecran: 'inscription' }); }} sous={sousInvitation('connexion')}" \
   "$BW"
 prouver "refuser qui ne dit pas le refus" web/src/ecrans/Connecter.tsx \
   "const suite = new URLSearchParams({ erreur: 'refusee', etat: demande.etat });" "const suite = new URLSearchParams({ etat: demande.etat });" \
@@ -6828,7 +6828,7 @@ prouver "le bouton hors de sa tuile" modules/socle/ecrans/entreprise/app-1.js \
   "<div class=\"tu-corps\" id=\"sg-a-signer\">" "<div class=\"tu-corps\" id=\"sg-a-signer-x\">" \
   "$SW"
 prouver "le bouton dans une entreprise non soumise" modules/socle/ecrans/entreprise/app-1.js \
-  "  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "  const lfAvecTtn = () => !!bridge.etatsTtn;" \
+  "  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true && !aVenir('efacture');" "  const lfAvecTtn = () => !!bridge.etatsTtn;" \
   "$SW"
 prouver "le bouton jamais posé" modules/socle/ecrans/entreprise/app-1.js \
   "      if (\$('#sg-a-signer')) void bridge.dessinerASigner(" "      if (false) void bridge.dessinerASigner(" \
@@ -6880,7 +6880,7 @@ prouver "un appel par ligne" web/public/plateforme/pont.js \
   "$EW"
 # (1.166.2) Preuve retirée, « chaque frappe redemande les états » : la liste des factures de la charte (1.154.0) filtre sans faire naître de nouvelle place « El Fatoora » à remplir : même sans la mémoire des états, la frappe ne redemande rien ; le test compte toujours les demandes (une seule).
 prouver 'la liste d'"'"'une entreprise non soumise montre l'"'"'état' modules/socle/ecrans/entreprise/app-1.js \
-  "const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "const lfAvecTtn = () => !!bridge.etatsTtn;" \
+  "const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true && !aVenir('efacture');" "const lfAvecTtn = () => !!bridge.etatsTtn;" \
   "chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser"
 prouver "la raison d'une pièce retenue tue" web/public/plateforme/pont.js \
   ": e.motif ? phrase(e.motif) :" ":" \
@@ -8593,7 +8593,7 @@ C81=base/migrations/0081_code_au_choix.sql
 CX=serveur/connexion.ts
 CO=serveur/compte.ts
 CE1="à la première connexion, l'adresse se vérifie par un code reçu par e-mail"
-CE2="sans code du téléphone, un appareil inconnu (ou le poste d'un autre) demande un code par e-mail"
+CE2="qui a choisi le code par e-mail : un appareil inconnu (ou le poste d'un autre) le demande"
 CE4="renvoyer le code : pas avant 30 secondes, cinq envois au plus"
 prouver "le code par e-mail jamais demandé" $CX \
   "    if (!aUnCode && ctx.courriel) {" "    if (false) {" \
@@ -8602,10 +8602,10 @@ prouver "un code par e-mail demandé sans relais" $CX \
   "    if (!aUnCode && ctx.courriel) {" "    if (!aUnCode) {" \
   "$CE1"
 prouver "un appareil reconnu à qui l'on redemande le code par e-mail" $CX \
-  "      if (!verifiee || !(reconnu && !posteDUnAutre)) {" "      if (true) {" \
+  "      if (!verifiee || (veutCode && !(reconnu && !posteDUnAutre))) {" "      if (true) {" \
   "$CE1"
 prouver "un appareil inconnu qui entre sans code par e-mail" $CX \
-  "      if (!verifiee || !(reconnu && !posteDUnAutre)) {" "      if (!verifiee) {" \
+  "      if (!verifiee || (veutCode && !(reconnu && !posteDUnAutre))) {" "      if (!verifiee) {" \
   "$CE2"
 prouver "l'adresse jamais prouvée par le code reçu" $CX \
   "    if (lu.methode === 'courriel') await tx.query('select socle.prouver_adresse(\$1, \$2)', [demande.defi, maintenant]);" "" \
@@ -8768,7 +8768,7 @@ prouver "le lien de Ton compte qui n'ouvre pas l'application" $CPTJS \
   "<p><a href=\"\${esc(r.adresseApplication)}\">" "<p><a href=\"#\">" \
   "$PARC"
 prouver "le code exigé d'un comptable de cabinet, désactivable à l'écran" $CPTJS \
-  "!actif ? '' : c.codeExige ? '<span" "!actif ? '' : false ? '<span" \
+  ": '') : c.codeExige ? '<span" ": '') : false ? '<span" \
   "$CPTC"
 prouver "le refus du mot de passe qui ne montre pas sa case" $CPTJS \
   "refuser(racine, x, { actuel: '#cpt-actuel', nouveau: '#cpt-nouveau' })" "refuser(racine, x)" \
@@ -9354,7 +9354,7 @@ prouver "les lignes de soi et du propriétaire avec un menu" web/public/platefor
   "    const modifiable = (m) => m.utilisateur !== eq.moi && !m.roles.includes('proprietaire');" "    const modifiable = (m) => true;" \
   "$EQW"
 prouver "le lien d'invitation qui arrive sur « Bon retour »" web/src/App.tsx \
-  "{ ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' }" "{ ecran: comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' }" \
+  "{ ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() || PROFIL_DEMANDE ? 'inscription' : 'connexion' }" "{ ecran: comptable.lire() || dossierTenu.lire() || PROFIL_DEMANDE ? 'inscription' : 'connexion' }" \
   "$EQW"
 # ── Toutes les données de l'entreprise (12/10/2026 ; migration 0080, docs/export-complet.md) ──────────────────────────
 EX1="le fichier téléchargé est celui de l'exploitation, au caractère près (deux chemins, un fichier)"
@@ -17818,7 +17818,7 @@ prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/sr
     comptable.oublier();' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'le comptable invité qui arrive sur la porte de l'"'"'entreprise' 'web/src/ecrans/Porte.tsx' \
-  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>(pourUnClient ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
+  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>(pourUnClient || profil === '"'"'cabinet'"'"' ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
   'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>('"'"'porte'"'"')' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'la vitrine de la première facture pour le comptable invité' 'web/src/ecrans/Inscription.tsx' \
@@ -29906,15 +29906,15 @@ prouver $'entrée 1.373.0 a : après un refus, le champ rebâti perd le curseur'
 prouver $'entrée 1.373.0 b : le code exigé dès la création du cabinet' base/migrations/0216_code_apres_l_essai.sql \
   $'  select coalesce(socle.code_exige_le_de(p_utilisateur) <= now(), false)' \
   $'  select exists (select 1 from socle.membre m where m.utilisateur = p_utilisateur and m.actif and m.organisation is not null)' \
-  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
-prouver $'entrée 1.373.0 c : aucun délai après le premier vrai dossier' base/migrations/0216_code_apres_l_essai.sql \
-  $'socle.premier_vrai_dossier(m.organisation) + interval \'7 days\' end)' \
-  $'socle.premier_vrai_dossier(m.organisation) + interval \'0 days\' end)' \
-  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
+  $'un comptable de cabinet sans code : recommandé, jamais imposé'
+prouver $'entrée 1.373.0 c : aucun délai après le premier vrai dossier' base/migrations/0219_code_facultatif_partout.sql \
+  $'select min(socle.premier_vrai_dossier(m.organisation) + interval \'7 days\')' \
+  $'select min(socle.premier_vrai_dossier(m.organisation) + interval \'0 days\')' \
+  $'un comptable de cabinet sans code : recommandé, jamais imposé'
 prouver $'entrée 1.373.0 d : le dossier d\'exemple compté comme un vrai dossier' base/migrations/0216_code_apres_l_essai.sql \
   $'      where d.cabinet = p_cabinet and d.statut = \'actif\' and e.active and not e.exemple),' \
   $'      where d.cabinet = p_cabinet and d.statut = \'actif\' and e.active),' \
-  $'un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place'
+  $'un comptable de cabinet sans code : recommandé, jamais imposé'
 prouver $'entrée 1.373.0 e : un cabinet nommé d\'une seule lettre' serveur/cabinet/routes.ts \
   $'    corps: z.object({ nom: z.string().trim().min(2).max(200) }),' \
   $'    corps: z.object({ nom: z.string().trim().min(1).max(200) }),' \
@@ -30435,6 +30435,15 @@ prouver $'la production qui ouvre tout sans qu\'on l\'ait décidé' serveur/a-ve
   $'v === undefined ? A_VENIR_CONNUS.join(\',\') : v' \
   $'v === undefined ? \'\' : v' \
   $'absent : la caisse et la facture électronique'
+# (1.379.4, issue 5 CONSOLE-1) La console : une règle connue sans nom blanchissait tout l'écran.
+prouver $'la FODEC sans nom dans la console' web/console/src/textes.ts \
+  $'  \'console.ecran.reglages.r.nom.fodec_taux\': \'le taux de la FODEC\',\n' \
+  $'' \
+  $'chaque règle connue du serveur a son nom et sa valeur dans les textes de la console'
+prouver $'un texte manquant qui fait tomber le registre' web/console/src/ecrans/Reglages.tsx \
+  $'(r.valeurLue.connue ? sansTomber(() => titre(`${K}.r.nom.${cleDeRegle(r)}`), r.code) : r.code);' \
+  $'(r.valeurLue.connue ? titre(`${K}.r.nom.${cleDeRegle(r)}`) : r.code);' \
+  $'un texte qui manque montre le code de la règle'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

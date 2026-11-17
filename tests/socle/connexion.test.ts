@@ -130,31 +130,46 @@ describe('le code sur le téléphone', () => {
     expect((await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m'))).rows[0].m).toBe(false);
   });
 
-  it('un comptable de cabinet sans code : recommandé, jamais imposé — même huit jours après son premier vrai dossier (0219)', async () => {
+  it('un comptable de cabinet sans code : recommandé, jamais imposé — sauf si son cabinet le demande, sept jours après son premier vrai dossier (0219)', async () => {
     const p = await personne({ telephone: '+216 20 000 001' });
     const cab = (await enTantQue(pool, p.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`))).rows[0].cabinet as string;
     const manque = async () => (await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m, (select code_exige_le from socle.mon_compte()) le'))).rows[0] as { m: boolean; le: Date | null };
+    const demander = (oui: boolean) => admin.query('update socle.organisation set code_exige = $2 where id = $1', [cab, oui]);
+    const vieillir = async (jours: number) => {
+      await admin.query(`update socle.entreprise set cree_le = now() - make_interval(days => $2) where tenue_par = $1`, [cab, jours]);
+      await admin.query(`update socle.mandat set cree_le = now() - make_interval(days => $2) where cabinet = $1`, [cab, jours]);
+    };
     expect(await manque()).toEqual({ m: false, le: null });
-    const dossier = (await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_tenu($1, $2, null) d', [cab, `Garage ${n}`]))).rows[0].d as string;
-    await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where id = $1`, [dossier]);
-    await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where entreprise = $1`, [dossier]);
-    // Avant la 0219, le code devenait obligatoire ici et la session ne servait plus qu'à le mettre en place.
+    // Un cabinet qui le demande, mais sans vrai dossier : rien, même avec son dossier d'exemple vieux de huit jours.
+    await demander(true);
     expect(await manque()).toEqual({ m: false, le: null });
-    const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
-    expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
-    if (r.etat !== 'connecte') return;
-    // Le cabinet qui le demande à ses comptables (éteint au départ) : là seulement, la session ne sert plus qu'à le poser.
-    await admin.query('update socle.organisation set code_exige = true where id = $1', [cab]);
+    await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_exemple($1, $2)', [cab, 'Exemple · Pâtisserie']));
+    await vieillir(8);
+    expect(await manque()).toEqual({ m: false, le: null });
+    // D'office (le cabinet ne demande rien) : jamais, même huit jours après un vrai dossier. Avant la 0219, le code
+    // devenait obligatoire ici et la session ne servait plus qu'à le mettre en place.
+    await demander(false);
+    await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_tenu($1, $2, null) d', [cab, `Garage ${n}`]));
+    await vieillir(8);
+    expect(await manque()).toEqual({ m: false, le: null });
+    expect(await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
+    // Le cabinet le demande : sept jours après le premier vrai dossier, pas avant.
+    await demander(true);
+    await vieillir(3);
+    const avant = await manque();
+    expect(avant.m).toBe(false);
+    expect(Math.round((new Date(avant.le as Date).getTime() - Date.now()) / 86_400_000)).toBe(4);
+    await vieillir(8);
     expect((await manque()).m).toBe(true);
-    const r2 = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
-    expect(r2).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
-    await admin.query('update socle.organisation set code_exige = false where id = $1', [cab]);
-    // Il reste libre de l'activer : dix codes de secours, tous différents.
+    const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
+    if (r.etat !== 'connecte') return;
     const qui = await sessionDe(r.jeton);
-    expect(qui.codeAConfigurer).toBe(false);
+    expect(qui.codeAConfigurer).toBe(true);
     const { codesDeSecours } = await mettreEnPlaceCode(ctx, qui, 'sms');
     expect(codesDeSecours).toHaveLength(10);
     expect(new Set(codesDeSecours).size).toBe(10);
+    expect((await quiEst(ctx, r.jeton))?.codeAConfigurer).toBe(false);
   });
 
   it('par SMS : seuls le numéro et le code partent ; un mauvais code est refusé ; un code ne sert qu\'une fois', async () => {

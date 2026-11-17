@@ -4714,3 +4714,12 @@ Quatre décisions de Skander, le même jour.
   du serveur les rouvre sans nouvelle version (`SKANFACT_A_VENIR`, `serveur/a-venir.ts`) ; les tests tournent ouverts.
 
 À VÉRIFIER avec Skander : vingt-quatre heures pour oublier les erreurs ; le code par e-mail éteint au départ.
+
+
+## 1.379.4 — La console : « Règles fiscales » ne blanchit plus (issue 5, CONSOLE-1)
+
+Le serveur connaît trois règles (timbre, seuil de la retenue, FODEC) ; la console n'avait le nom que du timbre, et un
+texte manquant faisait tomber toute la console. Les noms sont là, un taux se dit « 1 % » (plus « 1 %,000 DT »), et une
+règle sans nom se montre par son code. Le test confronte la liste du serveur aux textes de la console. Le contrôle
+éclair des preuves, rouge sur GitHub après la 1.379.3 (seize preuves visaient l'ancienne règle du code), est remis
+d'accord ; le test du code demandé par un cabinet couvre de nouveau l'exemple, les sept jours et le rôle.

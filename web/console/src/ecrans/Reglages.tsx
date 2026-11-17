@@ -119,7 +119,16 @@ const plusJours = (j: string, n: number) => {
   return d.toISOString().slice(0, 10);
 };
 // Le nom d'une règle, quand la console la connaît ; sinon son code, tel quel (jamais un nom deviné).
-const nomDeRegle = (r: Regle) => (r.valeurLue.connue ? titre(`${K}.r.nom.${r.code.replace('.', '_')}`) : r.code);
+// (1.379.4, issue 5 CONSOLE-1) Une règle connue du serveur dont la console n'a pas encore le nom se montre par son code :
+// un texte qui manque ne doit jamais blanchir toute la console (la FODEC et le seuil de la retenue le faisaient).
+const sansTomber = (lire: () => string, repli: string) => { try { return lire(); } catch { return repli; } };
+const cleDeRegle = (r: Regle) => r.code.replace('.', '_');
+const nomDeRegle = (r: Regle) => (r.valeurLue.connue ? sansTomber(() => titre(`${K}.r.nom.${cleDeRegle(r)}`), r.code) : r.code);
+// Un taux se dit « 1 % », un montant « 1,000 DT » : le serveur rend le texte dans son unité, l'écran ne la devine pas.
+const valeurDeRegleDite = (r: Regle) => {
+  const v = r.valeurLue.texte.trim().endsWith('%') ? r.valeurLue.texte.replace('.', ',').replace(' %', '\u00a0%') : montant(r.valeurLue.texte);
+  return sansTomber(() => dire(`${K}.r.valeur.${cleDeRegle(r)}`, { valeur: v }), v);
+};
 // Sous le titre d'une fenêtre : le nom de la règle ET son code (le code seul, pour une règle qu'on ne sait pas nommer).
 const nomEtCode = (r: Regle) => (r.valeurLue.connue ? `${nomDeRegle(r)} · ${r.code}` : r.code);
 
@@ -614,7 +623,7 @@ function Regles({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peu
                     <Puce ton={e.ton}>{e.texte}</Puce>
                   </div>
                   <dl className="c-rg-chiffres">
-                    <div><dt>{titre(`${K}.r.valeur`)}</dt><dd>{r.valeurLue.connue ? dire(`${K}.r.valeur.${r.code.replace('.', '_')}`, { valeur: montant(r.valeurLue.texte) }) : <span data-donnee>{r.valeurLue.texte}</span>}</dd></div>
+                    <div><dt>{titre(`${K}.r.valeur`)}</dt><dd>{r.valeurLue.connue ? valeurDeRegleDite(r) : <span data-donnee>{r.valeurLue.texte}</span>}</dd></div>
                     <div><dt>{titre(`${K}.r.vigueur`)}</dt><dd>{r.fin ? dire(`${K}.r.du_au`, { du: jour(r.debut), au: jour(r.fin) }) : dire(`${K}.r.depuis_sans_fin`, { du: jour(r.debut) })}</dd></div>
                     <div><dt>{titre(`${K}.r.posee`)}</dt><dd>{dire(`${K}.r.posee_le`, { jour: jour(jourDe(r.poseeLe)) })}</dd></div>
                   </dl>
