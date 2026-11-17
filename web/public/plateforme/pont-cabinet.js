@@ -346,7 +346,7 @@
     etat.cycles = reglages.contenu.cycles || [];
     nomDuCabinet = String(cab.nom || '');
     moiNom = String(moi.nom || '');
-    etat.moi = moi.id; etat.codeAVenir = !moi.code_methode && !(moi.compte && moi.compte.courriel); etat.codeExigeLe = etat.codeAVenir && moi.compte ? moi.compte.codeExigeLe || null : null;
+    etat.moi = moi.id; etat.codeAVenir = !!cab.codeExige && !moi.code_methode && !(moi.compte && moi.compte.courriel); etat.codeExigeLe = etat.codeAVenir && moi.compte ? moi.compte.codeExigeLe || null : null;
     moiId = String(moi.id || '');
     etat.moiNom = moi.nom;
     return etat;

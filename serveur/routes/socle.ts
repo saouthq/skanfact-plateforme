@@ -2,6 +2,7 @@
 // son geste (03 D2). Les écritures sensibles passent par les fonctions de la base, qui appliquent
 // les règles de l'équipe (D4 à D6) et tracent.
 
+import { aVenir } from '../a-venir.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
@@ -162,7 +163,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // (parCabinet : elles s'ouvrent dans le Cabinet, jamais comme les siennes).
       const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles,
           socle.perimetre_cabinet(e.id) is not null "parCabinet" from socle.entreprise e order by e.raison_sociale`)).rows;
-      const cabinets = (await tx.query(`select o.id, o.nom from socle.organisation o
+      const cabinets = (await tx.query(`select o.id, o.nom, o.code_exige "codeExige" from socle.organisation o
           join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
          where o.type = 'cabinet' order by o.nom, o.id`)).rows;
       // Ton compte (0076) : le code est-il exigé de moi (un comptable de cabinet), mon adresse est-elle vérifiée, combien
@@ -171,12 +172,23 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number; code_exige_le: Date | null };
       // (0216) `codeExigeLe` : le jour où le code deviendra exigé d'un comptable (sept jours après le premier vrai dossier
       // de son cabinet) ; rien avec l'e-mail, qui en tient lieu.
-      const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
-        courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
+      const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige || cabinets.length > 0, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
+        codeCourriel: (await tx.query('select socle.veut_code_courriel($1) v', [qui.utilisateur])).rows[0].v as boolean,
+        aVenir: aVenir(), courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
       return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
     },
   });
 
+  // (0219) Le code par e-mail sur un appareil inconnu : un choix de la personne, recommandé, jamais exigé.
+  ajouter({
+    methode: 'POST', chemin: '/moi/code/courriel', geste: 'compte.code.configurer',
+    corps: z.object({ actif: z.boolean() }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('select socle.regler_code_courriel($1)', [corps.actif]));
+      return { corps: { codeCourriel: corps.actif } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/moi/code', geste: 'compte.code.configurer',
     // Le SMS s'active par /moi/code/sms/… : un code part d'abord au numéro (0081). Ici, l'application seule (l'API).

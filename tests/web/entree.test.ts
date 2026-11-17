@@ -122,6 +122,8 @@ describe('l\'entrée refaite, à la souris', () => {
     // Le nouveau mot de passe ouvre le compte. Cet appareil, SkanFact ne le connaît pas : « C'est bien toi ? », un code
     // part à l'adresse, à demi cachée à l'écran ; « Renvoyer le code » attend ses 30 secondes. Puis la porte (il n'a pas
     // encore d'entreprise).
+    // (0219) Ce code à chaque nouvel appareil est un choix de « Ton compte » : cette personne l'a fait.
+    await admin.query('update socle.utilisateur set code_courriel = true where email = $1', [email]);
     await p.goto(serveur.adresse);
     await champ(p, 'ecran.connexion.email').fill(email);
     await champ(p, 'ecran.connexion.mot_de_passe').fill('Une-phrase-toute-neuve');
@@ -205,8 +207,8 @@ describe('l\'entrée refaite, à la souris', () => {
     const bonne = faute.replace('@exmple.tn', '@exemple.tn');
     const p = await page();
     await p.goto(serveur.adresse);
-    await bouton(p, 'ecran.connexion.creer_compte').click();
-    await ecran(p, 'ecran.inscription.titre');
+    await bouton(p, 'ecran.connexion.creer_entreprise').click();
+    await ecran(p, 'ecran.inscription.titre_entreprise');
     await champ(p, 'ecran.connexion.email').fill(faute);
     await champ(p, 'ecran.inscription.nom').fill('Amine Gharbi');
     await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
@@ -261,8 +263,8 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.goto(serveur.adresse);
     await ecran(p, 'ecran.connexion.titre');
     await expect.poll(() => champ(p, 'ecran.connexion.email').evaluate((i) => i === document.activeElement)).toBe(true);
-    await bouton(p, 'ecran.connexion.creer_compte').click();
-    await ecran(p, 'ecran.inscription.titre');
+    await bouton(p, 'ecran.connexion.creer_entreprise').click();
+    await ecran(p, 'ecran.inscription.titre_entreprise');
     await expect.poll(() => champ(p, 'ecran.inscription.nom').evaluate((i) => i === document.activeElement)).toBe(true);
     // Le nom se tape d'emblée ; puis l'adresse (déjà inscrite) et un autre mot de passe.
     await p.keyboard.type('Amine Gharbi');
@@ -287,8 +289,8 @@ describe('l\'entrée refaite, à la souris', () => {
   it('créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe', async () => {
     const p = await page();
     await p.goto(serveur.adresse);
-    await bouton(p, 'ecran.connexion.creer_compte').click();
-    await ecran(p, 'ecran.inscription.titre');
+    await bouton(p, 'ecran.connexion.creer_entreprise').click();
+    await ecran(p, 'ecran.inscription.titre_entreprise');
     // Chaque case porte le nom de son libellé, seul : le libellé contient la bulle « i » (un bouton), à laquelle le navigateur
     // le reliait ; la case restait sans nom, et un clic sur le libellé ne posait pas le curseur (recette du 23/10/2026).
     for (const cle of ['ecran.connexion.email', 'ecran.inscription.nom']) expect(await p.getByRole('textbox', { name: titre(cle), exact: true }).count()).toBe(1);

@@ -159,15 +159,19 @@ prouver "un blocage définitif" $C \
   "après 5 erreurs, 1 minute"
 # Depuis le 09/10/2026 (décision de Skander, 0076) : le code du téléphone n'est exigé que d'un comptable de cabinet.
 C76=base/migrations/0076_code_facultatif.sql
-prouver "un comptable de cabinet dispensé du code" base/migrations/0216_code_apres_l_essai.sql \
+prouver "un comptable de cabinet dispensé du code que son cabinet demande" base/migrations/0219_code_facultatif_partout.sql \
   "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['revision', 'saisie']::text[]" \
-  "un comptable de cabinet sans code : une session qui ne sert qu"
-prouver "le propriétaire forcé au code à la connexion" base/migrations/0216_code_apres_l_essai.sql \
-  "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[]" \
-  "un propriétaire entre sans code du téléphone : recommandé, jamais imposé"
-prouver "le propriétaire forcé au code à chaque requête" base/migrations/0216_code_apres_l_essai.sql \
-  "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['supervision', 'revision', 'saisie']::text[]" "where m.utilisateur = p_utilisateur and m.actif and m.roles && array['proprietaire', 'supervision', 'revision', 'saisie']::text[]" \
-  "un propriétaire continue sans code du téléphone"
+  "un comptable de cabinet sans code : recommandé, jamais imposé"
+# (0219, 1.379.3) Le code n'est plus exigé d'office : seulement du cabinet qui le demande à ses comptables.
+prouver "le code exigé d'office de tout comptable de cabinet" base/migrations/0219_code_facultatif_partout.sql \
+  "from socle.membre m join socle.organisation o on o.id = m.organisation and o.code_exige" "from socle.membre m join socle.organisation o on o.id = m.organisation" \
+  "un comptable de cabinet sans code : recommandé, jamais imposé"
+prouver "le code par e-mail imposé à chaque nouvel appareil" serveur/connexion.ts \
+  "if (!verifiee || (veutCode && !(reconnu && !posteDUnAutre))) {" "if (!verifiee || (true && !(reconnu && !posteDUnAutre))) {" \
+  "qui a choisi le code par e-mail : un appareil inconnu"
+prouver "des erreurs de connexion gardées pour toujours" base/migrations/0218_erreurs_oubliees.sql \
+  "socle.tentative.derniere < p_maintenant - interval '24 hours' then 1" "socle.tentative.derniere < p_maintenant - interval '100 years' then 1" \
+  "les erreurs de plus d'un jour s'oublient"
 prouver "un appareil reconnu pour un an" $C \
   "reconnu_jusqu_au = p_maintenant + interval '30 days'" "reconnu_jusqu_au = p_maintenant + interval '365 days'" \
   "ne redemande le code qu'après 30 jours"
@@ -30422,6 +30426,15 @@ prouver $'issue 13 1.379.2 e : une casse plus grosse que le stock passe sans que
   $'if (qte < 0 && avantMv.qty >= 0 && C.round3(avantMv.qty + qte) < 0' \
   $'if (false && qte < 0 && avantMv.qty >= 0 && C.round3(avantMv.qty + qte) < 0' \
   $'un article déjà commandé ne se recommande pas'
+# (1.379.3) « À venir » : la caisse et la facture électronique, tant que le serveur ne les ouvre pas.
+prouver $'une page à venir ouverte comme si elle était prête' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (aVenir(id)) return true;\n' \
+  $'' \
+  $'à venir : la ligne « Caisse » est grisée avec sa pastille'
+prouver $'la production qui ouvre tout sans qu\'on l\'ait décidé' serveur/a-venir.ts \
+  $'v === undefined ? A_VENIR_CONNUS.join(\',\') : v' \
+  $'v === undefined ? \'\' : v' \
+  $'absent : la caisse et la facture électronique'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

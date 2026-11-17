@@ -16,9 +16,11 @@ import { dire, phrase, titre } from '../langue.ts';
 
 // `pourUnClient` (1.77.0) : arrivé par le lien d'un client qui l'invite, le comptable sans cabinet commence par le sien ;
 // la phrase dit le client qui l'attend.
-export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null }) {
+export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient, profil }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null; profil?: 'cabinet' | 'entreprise' | null }) {
   const g = useGeste(deconnecte);
-  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet' | 'depart'>(pourUnClient ? 'cabinet' : 'porte');
+  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet' | 'depart'>(pourUnClient || profil === 'cabinet' ? 'cabinet' : 'porte');
+  // (1.379.3) Venu pour son entreprise, la porte ne montre que les deux façons de commencer ; le cabinet reste à un lien.
+  const sansCabinet = profil === 'entreprise';
   // (1.373.0) Le cabinet créé, on choisit par où commencer (son dossier d'exemple, ou ses clients) avant de l'ouvrir.
   const [cabinetNeuf, setCabinetNeuf] = useState<string | null>(null);
   const [raison, setRaison] = useState('');
@@ -117,8 +119,8 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
   }
   return (
     <PageEtapes etape={2} droite={sortir}>
-      <div className="ent-titre-page centre"><h1>{titre('ecran.porte.titre')}</h1><p>{phrase('ecran.porte.trois_facons')}</p></div>
-      <div className="ent-choix trois">
+      <div className="ent-titre-page centre"><h1>{titre('ecran.porte.titre')}</h1><p>{phrase(sansCabinet ? 'ecran.porte.deux_facons' : 'ecran.porte.trois_facons')}</p></div>
+      <div className={sansCabinet ? 'ent-choix' : 'ent-choix trois'}>
         <article className="reco">
           <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="boussole" /></span><span className="ent-choix-badge">{dire('ecran.porte.recommande')}</span></div>
           <h2>{titre('ecran.porte.essai_titre')}</h2>
@@ -142,7 +144,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
         </article>
         {/* (1.373.0) Le comptable a sa carte, du même poids que les deux autres : une pilule grise sous deux grandes
             cartes d'entreprise ne lui disait pas que l'outil est aussi pour lui (revue du 16/11/2026). */}
-        <article className="autre">
+        {sansCabinet ? null : <article className="autre">
           <div className="ent-choix-haut"><span className="ent-choix-ico"><Dessin id="cabinet" /></span><span className="ent-choix-meta">{titre('ecran.porte.cabinet_meta')}</span></div>
           <h2>{titre('ecran.porte.cabinet_carte_titre')}</h2>
           <p className="ent-choix-texte">{phrase('ecran.porte.cabinet_carte_texte')}</p>
@@ -151,8 +153,10 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
             <li><Dessin id="coche" />{titre('ecran.porte.cabinet_puce2')}</li>
           </ul>
           <Bouton onClick={() => setEtape('cabinet')}>{titre('ecran.porte.cabinet_lien')}</Bouton>
-        </article>
+        </article>}
       </div>
+      {sansCabinet ? <p className="ent-autre-profil centre">{phrase('ecran.inscription.es_comptable')}{' '}
+        <button type="button" className="ent-lien" id="porte-vers-cabinet" onClick={() => setEtape('cabinet')}>{titre('ecran.inscription.vers_cabinet')}</button></p> : null}
     </PageEtapes>
   );
 }

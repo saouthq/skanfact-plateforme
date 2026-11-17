@@ -93,6 +93,8 @@ describe('ton compte, à la souris', () => {
   it('l\'entreprise : l\'adresse change par un code reçu à la nouvelle ; le mot de passe par l\'actuel ; de nouveaux codes de secours, puis le code désactivé, par le code du moment', async () => {
     const { email, jeton } = await personne('nadia');
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Librairie Ennour' })).corps.id);
+    // (0219) Le code par e-mail à chaque nouvel appareil est un choix : il l'a fait.
+    await api('POST', '/moi/code/courriel', jeton, { actif: true });
     const { p, erreurs } = await page(jeton);
     await ouvrirCompte(p, `/v10/?e=${ent}#/parametres`);
     // Les cartes : l'adresse vérifiée, le code par e-mail (le choix par défaut : rien à activer), le SMS et l'application
@@ -291,6 +293,8 @@ describe('ton compte, à la souris', () => {
   it('le SMS à la souris : le numéro, le code reçu, les codes de secours ; changer de numéro, puis revenir à l\'e-mail, par un code reçu par SMS', async () => {
     const { email, jeton } = await personne('lina');
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Lina' })).corps.id);
+    // (0219) Le code par e-mail à chaque nouvel appareil est un choix : elle l'a fait.
+    await api('POST', '/moi/code/courriel', jeton, { actif: true });
     const { p, erreurs } = await page(jeton);
     await ouvrirCompte(p, `/v10/?e=${ent}#/parametres`);
     await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par e-mail');

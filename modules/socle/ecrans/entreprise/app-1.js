@@ -2953,7 +2953,10 @@
     immos: ['assets'], immo: ['assets'], tresorerie: ['accounts', 'movements'], marges: ['documents', 'purchases'], affaire: ['projects', 'purchases'],
     paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD'],
   };
+  // (1.379.3) Ce que le serveur dit « à venir » (la caisse, la facture électronique) : visible, pas encore ouvert.
+  const aVenir = id => (window.__aVenir || []).includes(id);
   function pageCachee(id) {
+    if (aVenir(id)) return true;
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
     // (brique 121) Le caissier tient la caisse sans lire les pièces de vente : la page Caisse lui montre ses tickets.
     if (d && id === 'caisse' && d.caisse) return false;
@@ -2963,6 +2966,14 @@
   function pageInterdite(name) {
     const nom = (C.pageById(name) || {}).titre || PAGE_LABELS[name] || 'Cette page';
     const titre = nom.charAt(0).toUpperCase() + nom.slice(1);
+    if (aVenir(name)) {
+      $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)} <span class="pastille-avenir">À venir</span></h1></div>
+        <div class="panel vide-utile" id="page-a-venir"><h2>${h(titre)} arrive bientôt</h2>
+          <p class="small">Cette partie de SkanFact n'est pas encore ouverte sur ce serveur : on finit de la brancher. Tu n'as rien à faire, elle apparaîtra ici dès qu'elle sera prête. En attendant, tes ventes se font par une facture, et tout le reste de l'application marche.</p>
+          <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
+      $('#pi-accueil').onclick = () => navigate('#/dashboard');
+      return;
+    }
     $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
       <div class="panel vide-utile" id="page-interdite"><h2>Ton rôle ne te montre pas cette page</h2>
         <p class="small">Elle lit une partie de l'entreprise que ton rôle ne te donne pas : c'est le propriétaire qui choisit ce que chacun voit (les ventes pour un commercial, la paie pour la personne qui la fait…). Rien n'a disparu : elle n'est simplement pas dans ton menu.</p>
@@ -3064,12 +3075,14 @@
   window.__pageBarre = (id) => ({ id, titre: (C.pageById(id) || {}).titre || id, icone: icone(id) });
 
   function drawNav() {
-    const pages = C.navPages(data).filter(p => !pageCachee(p.id));
+    // (1.379.3) Une page encore « à venir » garde sa ligne, à sa place, grisée avec sa pastille : on sait qu'elle arrive.
+    const pages = C.navPages(data).filter(p => !pageCachee(p.id) || aVenir(p.id));
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
     const role = roleBarre();
     const quotidien = navQuotidien(pages);
     const reglable = role !== 'caissier';
     const lien = (p, dansQuotidien) => {
+      if (aVenir(p.id)) return `<a href="#/${p.id}" data-route="${p.id}" class="lien a-venir" data-tip="${h(p.titre)}" title="${h(p.titre)} arrive bientôt : cette partie n'est pas encore ouverte."><span class="ic">${icone(p.id)}</span>${h(p.titre)}<span class="pastille-avenir">À venir</span><span class="point"></span></a>`;
       const cid = NAV_COMPTEURS[p.id];
       const ferme = pageReservee(p);
       const m = p.module ? C.moduleById(p.module) : null;
@@ -3085,7 +3098,8 @@
     const accueil = role === 'caissier' ? '' : pages.filter(p => !p.famille).map(p => lien(p, false)).join('');
     const titreQ = role === 'caissier' ? 'Ma caisse' : 'Au quotidien';
     let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">${titreQ}${reglable ? '<span class="regler" title="Glisse les entrées pour les ranger ; épingle une page depuis « Tout le reste »">Ranger</span>' : ''}</p>`
-      + accueil + quotidien.map(id => lien(pageDe(id), true)).join('') + '</div>';
+      + accueil + quotidien.map(id => lien(pageDe(id), true)).join('')
+      + '</div>';
     // « Tout le reste » : les familles, sauf pour le caissier (sa caisse, et rien d'autre).
     const familles = [];
     // (1.269.0) Une vue d'une page (`vueDe` : les Relances, la Facturation récurrente, les Immobilisations) ne fait pas sa
@@ -3102,6 +3116,7 @@
       const epingle = `<button type="button" class="epingler" data-epingle="${p.id}" aria-pressed="${dedans}" title="${dedans ? 'Retirer de « Au quotidien »' : 'Épingler dans « Au quotidien »'}" aria-label="${h((dedans ? 'Retirer de « Au quotidien » : ' : 'Épingler dans « Au quotidien » : ') + p.titre)}">${dedans ? ICONE_COCHE : ICONE_EPINGLE}</button>`;
       // Une page que l'offre ferme porte son cadenas dans son volet aussi (ici, on lit ; la création attend l'offre).
       const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d" title="${h(dedans ? '' : phrase(p))}">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
+      if (aVenir(p.id)) return `<div class="ligne a-venir"><button type="button" class="pl-l" data-aller="${p.id}"><span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)} <span class="pastille-avenir">À venir</span></b><span class="d">Pas encore ouverte : elle arrive bientôt.</span></span></button></div>`;
       if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${p.id}">${corps}</button>${epingle}</div>`;
       // Une page qui n'a pas de compteur porte celui de sa vue (la Facturation récurrente à générer, sur « Autres pièces »),
       // sauf si cette vue est déjà « Au quotidien » avec le sien : un compteur ne s'affiche qu'une fois.
@@ -5185,7 +5200,7 @@
     if (st === 'payée' && lfReste(d) < -0.0005) return '<span class="badge partielle">Payée en trop</span>';
     return `<span class="badge ${h(st === 'émis' ? 'avoir-emis' : st)}">${h(LF_STATUTS[st] || C.statusLabel(st, d.type))}</span>`;
   }
-  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;
+  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true && !aVenir('efacture');
   const lfEtats = new Map();      // les états El Fatoora lus pour les tuiles et les menus (le pont garde le sien)
   let lfASigner = new Set();      // les pièces que la tuile « À signer » a reçues
 
@@ -10931,7 +10946,7 @@
   // Soumise à la facture électronique, une pièce dont le fichier serait refusé ne s'émet pas : c'est dit
   // avant le numéro (le serveur le refuserait de toute façon).
   function bloqueParEfacture(doc) {
-    if (!bridge.teifDuServeur || !company().efacture || !window.SkanTeif || !['facture', 'avoir'].includes(doc.type) || C.estTicket(doc)) return false;
+    if (!bridge.teifDuServeur || aVenir('efacture') || !company().efacture || !window.SkanTeif || !['facture', 'avoir'].includes(doc.type) || C.estTicket(doc)) return false;
     const cl = clientById(doc.clientId) || null;
     const ctl = window.SkanTeif.controleTeif(Object.assign({}, doc, { number: doc.number || 'A-EMETTRE', status: 'envoyée' }), cl, company());
     if (ctl.ok) return false;
@@ -15177,7 +15192,7 @@
     'p-marque': { onglet: 'documents', titre: 'Image de marque (sur tes documents)', mots: 'logo cachet signature couleur accent marque entete image' },
     'p-textes': { onglet: 'documents', titre: 'Textes imprimés sur les documents', mots: 'pied de page footer conditions mentions anglais english' },
     'p-objectifs': { onglet: 'documents', titre: 'Objectifs et statistiques', mots: 'objectif chiffre affaires client endormi dormant statistiques' },
-    'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur },
+    'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur && !(window.__aVenir || []).includes('efacture') },
     'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
     'p-imprimante': { onglet: 'documents', titre: 'Imprimante de tickets', mots: 'imprimante ticket thermique tiroir caisse reseau port usb essai bureau', visible: () => !!bridge.dessinerImprimante },

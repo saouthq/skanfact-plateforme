@@ -9,7 +9,7 @@ import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineComptable, VitrineCompte, VitrineDossier, VitrineInvitation } from '../composants/Entree.tsx';
+import { Dessin, PageDouble, VitrineCabinet, VitrineComptable, VitrineCompte, VitrineDossier, VitrineInvitation } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
@@ -40,16 +40,20 @@ export function Jauge({ motDePasse }: { motDePasse: string }) {
 // la personne entre, et il n'y a pas d'entreprise à créer ensuite.
 // `comptable` : un client invite son comptable (1.77.0) : son adresse déjà remplie, et la vitrine du comptable.
 // `dossier` : un cabinet invite son client tenu à rejoindre son dossier (1.78.0) : son adresse remplie, sa vitrine.
-export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation, comptable, dossier }: {
+export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation, comptable, dossier, profil, changerProfil }: {
   connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null;
   invitation?: { email: string; ou: string; qui: string } | null; comptable?: { email: string; ou: string; qui: string } | null;
   dossier?: { email: string; ou: string; cabinet: string } | null;
+  // (1.379.3) Venu pour son cabinet ou pour son entreprise : le titre, la vitrine et la suite le suivent.
+  profil?: 'cabinet' | 'entreprise' | null; changerProfil?: (p: 'cabinet' | 'entreprise') => void;
 }) {
   const g = useGeste(rien);
   const options = useOptions();
   const [email, setEmail] = useState(invitation?.email ?? comptable?.email ?? dossier?.email ?? '');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
+  // Une invitation dit déjà où l'on va : le profil ne s'y ajoute pas.
+  const seul = !invitation && !comptable && !dossier;
 
   const envoyer = () => g.geste(async () => {
     let r;
@@ -83,13 +87,14 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
   });
 
   return (
-    <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> : dossier ? <VitrineDossier ou={dossier.ou} cabinet={dossier.cabinet} /> : <VitrineCompte code={options.courriel} />}
+    <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> : dossier ? <VitrineDossier ou={dossier.ou} cabinet={dossier.cabinet} /> : seul && profil === 'cabinet' ? <VitrineCabinet /> : <VitrineCompte code={options.courriel} />}
       haut={<>
         <span className="etape">{titre(invitation || comptable || dossier ? 'ecran.invitation.etape' : 'ecran.inscription.etape')}</span>
         <span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span>
       </>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
-        <div className="ent-entete"><h1>{titre('ecran.inscription.titre')}</h1><p>{sous ?? phrase('ecran.inscription.sous')}</p></div>
+        <div className="ent-entete"><h1 id="ins-titre">{titre(seul && profil === 'cabinet' ? 'ecran.inscription.titre_cabinet' : seul && profil === 'entreprise' ? 'ecran.inscription.titre_entreprise' : 'ecran.inscription.titre')}</h1>
+          <p>{sous ?? phrase(seul && profil === 'cabinet' ? 'ecran.inscription.sous_cabinet' : seul && profil === 'entreprise' ? 'ecran.inscription.sous_entreprise' : 'ecran.inscription.sous')}</p></div>
         <Champ obligatoire libelle={titre('ecran.inscription.nom')} aide={phrase('ecran.inscription.nom_aide')} valeur={nom} changer={setNom} autoComplete="name" premier {...g.sur('nom')} />
         {/* 1.77.0 — « username » : le navigateur retient l'adresse avec le mot de passe (recette du 20/10/2026 : il retenait
             le nom, qu'il remettait ensuite dans la case de l'e-mail à la connexion). */}
@@ -97,6 +102,8 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
         <Champ obligatoire libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.inscription.mot_de_passe_aide', { min: LONGUEUR_MINIMALE })} valeur={motDePasse} changer={setMotDePasse}
           type="password" autoComplete="new-password" revelable dessous={<Jauge motDePasse={motDePasse} />} {...g.sur('motDePasse')} />
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.inscription.bouton')}<Dessin id="fleche" /></Bouton>
+        {seul && profil && changerProfil ? <p className="ent-autre-profil">{phrase(profil === 'cabinet' ? 'ecran.inscription.pas_comptable' : 'ecran.inscription.es_comptable')}{' '}
+          <button type="button" className="ent-lien" id="ins-autre" onClick={() => changerProfil(profil === 'cabinet' ? 'entreprise' : 'cabinet')}>{titre(profil === 'cabinet' ? 'ecran.inscription.vers_entreprise' : 'ecran.inscription.vers_cabinet')}</button></p> : null}
       </form>
     </PageDouble>
   );

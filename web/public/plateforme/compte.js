@@ -129,14 +129,18 @@
     const methode = moi.code_methode === 'application' || moi.code_methode === 'sms' ? moi.code_methode : null;
     const actif = methode !== null;
     const relais = !!c.courriel;
+    // (0219, 1.379.3) Le code par e-mail sur un nouvel appareil est un choix : recommandé, jamais exigé.
+    const parMail = relais && !!c.codeCourriel;
     const redessiner = () => { void dessiner(el, outils); };
 
-    const etatCode = methode === 'sms' ? 'Par SMS' : methode === 'application' ? 'Par application' : relais ? 'Par e-mail' : 'Mot de passe seul';
+    const etatCode = methode === 'sms' ? 'Par SMS' : methode === 'application' ? 'Par application' : parMail ? 'Par e-mail' : 'Mot de passe seul';
     const explication = c.codeExige && !actif
       ? 'Il est exigé de chaque comptable d\'un cabinet, qui voit les comptes et les salaires de ses clients : choisis le SMS ou une application.'
-      : actif || relais
+      : actif || parMail
         ? 'Sur un appareil que SkanFact ne connaît pas, il faut ton mot de passe et ce code : personne n\'entre à ta place avec ton seul mot de passe.'
-        : 'Ce serveur n\'envoie pas encore d\'e-mails : ton mot de passe suffit. Recommandé : un code par SMS ou dans une application, en plus.';
+        : relais
+          ? 'Aujourd\'hui, ton mot de passe suffit pour entrer. Recommandé : un code en plus sur un appareil que SkanFact ne connaît pas. Par e-mail, il n\'y a rien à installer.'
+          : 'Ce serveur n\'envoie pas encore d\'e-mails : ton mot de passe suffit. Recommandé : un code par SMS ou dans une application, en plus.';
     // Les trois choix ; celui du compte est marqué, les autres disent le geste qui y mène.
     /** @param {string} cle @param {keyof typeof DESSINS} ico @param {string} nom @param {string} texte @param {boolean} choisi @param {string} geste */
     const option = (cle, ico, nom, texte, choisi, geste) => `<li class="cpt-option${choisi ? ' cpt-choisi' : ''}" data-methode="${cle}">
@@ -144,8 +148,8 @@
         <div class="cpt-quoi"><b>${nom}${choisi ? ` <span class="badge cpt-ok">${dessin('coche')}Choisi</span>` : ''}</b><p class="small muted">${texte}</p></div>${geste}</li>`;
     const courriel = option('courriel', 'enveloppe', relais ? 'Par e-mail' : 'Le mot de passe seul',
       relais ? `Un code part à <b>${esc(moi.email)}</b> quand tu te connectes depuis un nouvel appareil. Rien à installer.` : 'Ce serveur n\'envoie pas encore d\'e-mails : sans SMS ni application, rien d\'autre n\'est demandé.',
-      !actif, !actif ? '' : c.codeExige ? '<span class="small muted cpt-geste">Exigé : SMS ou application</span>'
-        : `<button type="button" class="btn btn-sm" id="cpt-desactiver">${relais ? 'Revenir à l\'e-mail…' : 'Désactiver le code…'}</button>`);
+      !actif && (parMail || !relais), !actif ? (relais ? `<button type="button" class="btn btn-sm${parMail ? '' : ' btn-primary'}" id="cpt-courriel">${parMail ? 'Ne plus demander ce code…' : 'Activer le code par e-mail'}</button>` : '') : c.codeExige ? '<span class="small muted cpt-geste">Exigé : SMS ou application</span>'
+        : `<button type="button" class="btn btn-sm" id="cpt-desactiver">${parMail ? 'Revenir à l\'e-mail…' : 'Désactiver le code…'}</button>`);
     const sms = option('sms', 'sms', 'Par SMS',
       methode === 'sms' ? `Au <b id="cpt-telephone" class="cpt-masque">${esc(c.telephone || '')}</b>. Le code arrive en quelques secondes ; il faut du réseau mobile.`
         : c.sms ? 'Un code arrive par SMS sur ton mobile tunisien quand tu te connectes depuis un nouvel appareil.' : 'Ce serveur n\'envoie pas de SMS pour l\'instant.',
@@ -155,12 +159,12 @@
       'Un code qui change toutes les 30 secondes, dans Google Authenticator ou Microsoft Authenticator. Le plus sûr, et il marche sans réseau.',
       methode === 'application', methode === 'application' ? '<button type="button" class="btn btn-sm" id="cpt-changer">Changer de téléphone…</button>'
         : '<button type="button" class="btn btn-sm" id="cpt-activer">Utiliser une application…</button>');
-    const recommande = !actif && (!relais || c.codeExige);
+    const recommande = !actif && !parMail;
     const appareil = actif
       ? [`Un nouvel appareil demande ${methode === 'sms' ? 'le code reçu par SMS' : 'le code de ton application'}`, 'C\'est lui qui prouve que c\'est toi sur un appareil que SkanFact ne connaît pas : il remplace l\'e-mail.']
-      : relais
+      : parMail
         ? ['Un nouvel appareil se vérifie par e-mail', 'Quand tu te connectes depuis un appareil que SkanFact ne connaît pas, un code part à ton adresse. L\'appareil est ensuite reconnu 30 jours.']
-        : ['Un nouvel appareil entre avec le mot de passe', 'Ce serveur n\'envoie pas encore d\'e-mails : rien d\'autre n\'est demandé sur un nouvel appareil. Un code par SMS ou dans une application le protège.'];
+        : ['Un nouvel appareil entre avec le mot de passe', relais ? 'Rien d\'autre n\'est demandé sur un nouvel appareil. Recommandé : active un code (par e-mail, par SMS ou dans une application), il le protège.' : 'Ce serveur n\'envoie pas encore d\'e-mails : rien d\'autre n\'est demandé sur un nouvel appareil. Un code par SMS ou dans une application le protège.'];
     // Vérifier l'adresse sans en changer (0077) : qui a le code du téléphone ne reçoit jamais de code par e-mail à la
     // connexion. La phrase disait « elle se vérifie à ta prochaine connexion », ce qui était faux pour lui.
     const adresseNote = c.adresseVerifiee
@@ -204,7 +208,14 @@
     if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, methode, redessiner);
     if ($('#cpt-sms')) $('#cpt-sms').onclick = () => activerSms(outils, methode, redessiner);
     if ($('#cpt-secours')) $('#cpt-secours').onclick = () => nouveauxSecours(outils, methode, redessiner);
-    if ($('#cpt-desactiver')) $('#cpt-desactiver').onclick = () => desactiver(outils, methode, relais, moi.email, redessiner);
+    if ($('#cpt-desactiver')) $('#cpt-desactiver').onclick = () => desactiver(outils, methode, parMail, moi.email, redessiner);
+    // (0219) Le code par e-mail s'allume et s'éteint d'un geste : c'est un choix, et il se défait.
+    const bCourriel = $('#cpt-courriel');
+    if (bCourriel) bCourriel.onclick = async () => {
+      bCourriel.setAttribute('disabled', '');
+      try { await outils.appel('POST', '/moi/code/courriel', { actif: !parMail }); } catch (x) { bCourriel.removeAttribute('disabled'); el.querySelector('#cpt-code')?.insertAdjacentHTML('beforeend', `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`); return; }
+      redessiner();
+    };
   }
 
   // ── Vérifier son adresse (0077) : un code y part ; tapé, il la prouve ──────────────────────────────────────────────

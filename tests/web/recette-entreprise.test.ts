@@ -67,7 +67,7 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
   it('au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l\'adresse', async () => {
     const { p, erreurs } = await nouvellePage();
     await p.goto(serveur.adresse);
-    await p.getByRole('button', { name: 'Créer mon compte', exact: true }).click();
+    await p.getByRole('button', { name: 'Je gère une entreprise', exact: true }).click();
     const caseDe = (libelle: RegExp) => p.locator('label.field').filter({ hasText: libelle }).locator('input');
     await expect.poll(() => caseDe(/ton nom/i).evaluate((e) => e === document.activeElement)).toBe(true);
     // Aucun « i » d'aide dans l'ordre de la touche Tab : tapé d'une traite, chaque morceau tombe dans sa case.
@@ -87,7 +87,8 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
 
     // Créé, le compte ouvre la porte : le message se lit en haut, au-dessus de tout ce qui se clique.
     await p.keyboard.press('Enter');
-    const cabinet = p.getByRole('button', { name: /je suis un cabinet comptable/i });
+    // (1.379.3) Venu par « Je gère une entreprise », la porte ne montre plus la carte du cabinet : il reste un lien, en bas.
+    const cabinet = p.locator('#porte-vers-cabinet');
     await cabinet.waitFor({ timeout: 15_000 });
     const message = p.locator('#toast.show');
     await expect.poll(() => message.innerText().then(net).catch(() => '')).toMatch(/ton compte est créé/i);

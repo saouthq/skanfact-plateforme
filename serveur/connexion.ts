@@ -165,7 +165,10 @@ export async function connecter(ctx: Contexte, demande: {
     // sait pas envoyer). Un comptable de cabinet sans code encore en place passe aussi par là d'abord.
     if (!aUnCode && ctx.courriel) {
       const verifiee = (await tx.query('select socle.adresse_verifiee($1) v', [u.utilisateur])).rows[0].v as boolean;
-      if (!verifiee || !(reconnu && !posteDUnAutre)) {
+      // (0219) L'adresse se prouve une fois, à la création du compte. Le code sur un appareil inconnu, lui, est un choix
+      // de la personne (« Mon compte ») : recommandé, jamais exigé.
+      const veutCode = (await tx.query('select socle.veut_code_courriel($1) v', [u.utilisateur])).rows[0].v as boolean;
+      if (!verifiee || (veutCode && !(reconnu && !posteDUnAutre))) {
         const code = codeSms();
         const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
           [u.utilisateur, appareil, 'courriel', sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0].id as string;

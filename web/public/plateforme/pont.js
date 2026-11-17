@@ -1904,7 +1904,7 @@
   let moiLu = null;
   function lireMoi() {
     if (moiLu && Date.now() - moiLu.le < 2000) return moiLu.lu;
-    const lu = appelCompte('GET', '/moi');
+    const lu = appelCompte('GET', '/moi').then((/** @type {any} */ m) => { /** @type {any} */ (window).__aVenir = (m && m.compte && m.compte.aVenir) || []; return m; });
     moiLu = { le: Date.now(), lu };
     // Un échec ne se garde pas : le geste suivant redemande.
     lu.catch(() => { if (moiLu && moiLu.lu === lu) moiLu = null; });

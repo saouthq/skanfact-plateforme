@@ -92,8 +92,8 @@ describe('le parcours, à la souris', () => {
     await ecran(p, 'ecran.connexion.titre');
 
     // Créer son compte : un mot de passe trop court est refusé SUR son champ, qui prend le focus.
-    await bouton(p, 'ecran.connexion.creer_compte').click();
-    await ecran(p, 'ecran.inscription.titre');
+    await bouton(p, 'ecran.connexion.creer_entreprise').click();
+    await ecran(p, 'ecran.inscription.titre_entreprise');
     await champ(p, 'ecran.connexion.email').fill(email);
     await champ(p, 'ecran.inscription.nom').fill('Sami Gharbi');
     await champ(p, 'ecran.connexion.mot_de_passe').fill('court');
@@ -300,6 +300,36 @@ describe('le parcours, à la souris', () => {
     await q.screenshot({ path: path.join(PHOTOS, 'parcours-5-telephone.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  // (1.379.3) L'inscription séparée : le comptable arrive par `/cabinet` (ou par « Je suis comptable ») et tombe sur SES
+  // écrans, sans choisir à la porte ; le lien d'en bas ramène à l'entreprise si l'on s'est trompé.
+  it('par /cabinet : le compte du cabinet, sa vitrine, puis « Ton cabinet » sans passer par le choix ; l\'autre lien ramène à l\'entreprise', async () => {
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.connexion.titre');
+    expect(await bouton(p, 'ecran.connexion.creer_entreprise').count()).toBe(1);
+    expect(await bouton(p, 'ecran.connexion.creer_cabinet').count()).toBe(1);
+    await p.goto(`${serveur.adresse}/cabinet`);
+    await ecran(p, 'ecran.inscription.titre_cabinet');
+    expect(new URL(p.url()).pathname).toBe('/');
+    expect(await p.locator('.ent-vitrine-titre h2').innerText()).toBe(titre('ecran.vitrine.cabinet_titre'));
+    // Trompé de porte : un lien, pas un retour en arrière.
+    await p.locator('#ins-autre').click();
+    await ecran(p, 'ecran.inscription.titre_entreprise');
+    await p.locator('#ins-autre').click();
+    await ecran(p, 'ecran.inscription.titre_cabinet');
+    await champ(p, 'ecran.connexion.email').fill(`cabinet-porte-${Date.now()}@exemple.tn`);
+    await champ(p, 'ecran.inscription.nom').fill('Leila Ben Youssef');
+    await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
+    await bouton(p, 'ecran.inscription.bouton').click();
+    // La porte s'ouvre directement sur le cabinet : pas de carte « entreprise » à écarter.
+    await ecran(p, 'ecran.porte.cabinet_titre');
+    expect(await p.getByRole('heading', { level: 1, name: titre('ecran.porte.titre') }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 120_000);
 
   // Une personne inscrite par l'API, son entreprise d'essai et le code en place ; `ouvrir` ouvre
   // l'application v10 de l'entreprise voulue dans un nouvel onglet.

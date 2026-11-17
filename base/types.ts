@@ -1666,6 +1666,7 @@ export interface BaseDeDonnees {
     nom: string;
     code_cabinet: string | null;
     cree_le: Generated<Date>;
+    code_exige: Generated<boolean>;
   };
   'socle.piece_jointe': {
     id: Generated<string>;
@@ -1813,6 +1814,7 @@ export interface BaseDeDonnees {
     code_sms_attente_erreurs: Generated<number>;
     code_sms_preuve: string | null;
     code_sms_preuve_le: Date | null;
+    code_courriel: Generated<boolean>;
   };
   'ventes.accord': {
     id: Generated<string>;

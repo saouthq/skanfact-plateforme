@@ -318,7 +318,7 @@ describe('la revue du Stock', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new/s1/avoir/p4`);
     const fleche = async () => net(await p.locator('#view [data-stk]').first().innerText().catch(() => ''));
     await expect.poll(fleche, { timeout: 20_000 }).toMatch(/^en stock : \S+ → \S+$/);
-    const [, de, vers] = /^en stock : (\S+) → (\S+)$/.exec(await fleche()) as RegExpExecArray;
+    const [, de = '', vers = ''] = /^en stock : (\S+) → (\S+)$/.exec(await fleche()) as RegExpExecArray;
     expect(Number(vers.replace(',', '.').replace('−', '-'))).toBeLessThan(Number(de.replace(',', '.').replace('−', '-')));
     // La facture rangée, rouverte sans y toucher, dit ce qu'elle a fait : pas une projection qui bouge avec le stock du jour.
     await p.goto('about:blank');

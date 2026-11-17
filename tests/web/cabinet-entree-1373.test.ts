@@ -113,53 +113,28 @@ describe('l\'entrée d\'un comptable (1.373.0), à la souris', () => {
     const compte = async () => (await api('GET', '/moi', jeton)).corps as { codeAConfigurer: boolean; compte: { codeExige: boolean; codeExigeLe: string | null } };
     expect(await compte()).toMatchObject({ codeAConfigurer: false, compte: { codeExige: false, codeExigeLe: null } });
 
-    // ── Le premier vrai dossier : annoncé dans la fenêtre, puis sept jours, rappelés ───────────────────────────────
+    // ── Le premier vrai dossier : rien n'est annoncé ni exigé (0219 : le code est recommandé, jamais imposé) ───────
     await p.evaluate(() => { location.hash = '#/production'; });
     await p.locator('#page-bord').waitFor({ timeout: 15_000 });
     // Seul dans son cabinet : pas de « Les miens / Tous ».
     expect(await p.locator('[data-portee], [data-portee-page]').count()).toBe(0);
-    expect(await p.locator('#rappel-code').count()).toBe(0);
     await p.locator('#btn-creer, .btn-creer, button:has-text("Créer")').first().click();
     const menu = p.locator('[role=menu], .row-menu').last();
     await expect.poll(() => menu.innerText().then(net).catch(() => '')).toContain('Ouvrir le dossier d\'exemple');
     await p.getByText('Nouveau dossier', { exact: true }).first().click();
-    await p.locator('#nd-code').waitFor({ timeout: 10_000 });
-    expect(net(await p.locator('#nd-code').innerText())).toMatch(/^Sept jours après ton premier vrai dossier, SkanFact te demandera de protéger ton compte par un code sur ton téléphone/);
+    await p.locator('.modal input').first().waitFor({ timeout: 10_000 });
+    expect(await p.locator('#nd-code').count()).toBe(0);
     await p.locator('.modal input').first().fill('Garage Ben Salah');
     await p.locator('.modal #ok').click();
     await p.waitForURL(/#\/dossier\//, { timeout: 20_000 });
-    // Pas barré : il travaille. Le compte dit le jour.
-    const apres = await compte();
-    expect(apres.codeAConfigurer).toBe(false);
-    expect(Math.round((Date.parse(String(apres.compte.codeExigeLe)) - Date.now()) / 86_400_000)).toBe(7);
-    await p.reload();
-    await p.evaluate(() => { location.hash = '#/production'; });
-    await p.locator('#rappel-code').waitFor({ timeout: 20_000 });
-    expect(net(await p.locator('#rappel-code').innerText())).toMatch(/^Protège ton compte d'ici 7 jours\. Ton cabinet tient un vrai dossier : à partir du \d\d\/\d\d\/\d{4}, SkanFact demandera à chaque comptable un code sur son téléphone/);
-    // Le vrai dossier là, l'exemple sort des comptes du cabinet.
-    expect(net(await p.locator('#brand-cab-sous').innerText())).toBe('Cabinet · 1 dossier');
-    await p.screenshot({ path: path.join(PHOTOS, 'entree-cabinet-5-rappel.png') });
-    await p.locator('[data-rappel-code]').click();
-    await p.locator('#compte-panel').waitFor({ timeout: 15_000 });
-
-    // ── Huit jours plus tard : le code est exigé, il se pose, et le Cabinet rouvre ─────────────────────────────────
+    expect(await compte()).toMatchObject({ codeAConfigurer: false, compte: { codeExige: false, codeExigeLe: null } });
+    // Huit jours plus tard : le Cabinet s'ouvre toujours, sans écran de code ni rappel qui presse.
     await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where tenue_par = $1 and not exemple`, [cabinet]);
     await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where cabinet = $1`, [cabinet]);
-    await p.goto(serveur.adresse);
-    await p.getByRole('heading', { level: 1, name: 'Ton cabinet a un vrai dossier : protège ton compte' }).waitFor({ timeout: 20_000 });
-    expect(await p.locator('.ent-fil').count()).toBe(0);
-    await p.screenshot({ path: path.join(PHOTOS, 'entree-cabinet-6-code.png') });
-    await p.getByRole('button', { name: 'Mettre en place le code', exact: true }).click();
-    const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
-    // Les codes de secours gardés, la phrase dit ce qui reste ; les six chiffres tapés, elle dit que tout est prêt (1.76.0).
-    await p.getByText('Je les ai mis de côté', { exact: true }).click();
-    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/il reste à taper le code/);
-    await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
-    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/^Tout est prêt : « vérifier et continuer » contrôle le code tapé/i);
-    await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
-    await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
-    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
+    await p.locator('#page-bord').waitFor({ timeout: 20_000 });
     expect(await p.locator('#rappel-code').count()).toBe(0);
+    expect(net(await p.locator('#brand-cab-sous').innerText())).toBe('Cabinet · 1 dossier');
     expect(erreurs).toEqual([]);
     await p.context().close();
   }, 420_000);

@@ -45,7 +45,7 @@ describe('l\'exercice suivant se demande, et la question d\'un dossier tenu dit 
   };
 
 
-  const SESSION = (j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); };
+  const SESSION = (j: string) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); };
 
   it('(1.378.4) ouvrir l\'exercice suivant d\'un exercice en cours se confirme ; la question d\'un dossier tenu reste dans la révision, et le dit', async () => {
     const associe = await personne('associe');

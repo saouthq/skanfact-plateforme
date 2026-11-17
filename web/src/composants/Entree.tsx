@@ -131,6 +131,25 @@ export function VitrineComptable({ ou, qui }: { ou: string; qui: string }) {
   );
 }
 
+// (1.379.3) Le comptable venu créer son cabinet : ses trois étapes à lui, pas celles d'une entreprise.
+export function VitrineCabinet() {
+  const etapes = [['ecran.etape.compte', 'ecran.etape.compte_texte'], ['ecran.etape.cabinet', 'ecran.vitrine.cabinet_cabinet'],
+    ['ecran.vitrine.cabinet_depart_titre', 'ecran.vitrine.cabinet_depart']] as const;
+  return (
+    <>
+      <div className="ent-vitrine-titre"><h2>{titre('ecran.vitrine.cabinet_titre')}</h2><p>{phrase('ecran.vitrine.cabinet_sous')}</p></div>
+      <ol className="ent-etapes-liste">
+        {etapes.map(([t, texte], i) => (
+          <li key={t} className={i === 0 ? 'actuelle' : ''}>
+            <span className="num" data-donnee>{i + 1}</span>
+            <span className="txt"><b>{titre(t)}</b><span>{phrase(texte)}</span></span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 // Arriver par le lien d'un cabinet qui invite son client tenu (1.78.0) : son compte, avec l'adresse invitée, puis son
 // dossier, qu'il trouve tenu à jour et dont il devient le propriétaire.
 export function VitrineDossier({ ou, cabinet }: { ou: string; cabinet: string }) {

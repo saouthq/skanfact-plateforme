@@ -1,5 +1,5 @@
 // (0216, 1.373.0) Le code du téléphone n'est exigé d'un comptable que sept jours après le premier vrai dossier de son
-// cabinet. Les tests qui portent sur le code EXIGÉ créent donc un cabinet qui tient un dossier depuis huit jours.
+// cabinet, et (0219) seulement si ce cabinet le demande à ses comptables. Les tests qui portent sur le code EXIGÉ créent donc un cabinet qui tient un dossier depuis huit jours.
 import type pg from 'pg';
 import { enTantQue } from '../../serveur/base.ts';
 
@@ -10,6 +10,7 @@ export async function cabinetQuiExigeLeCode(pool: Pool, admin: pg.Client, utilis
   const dossier = (await enTantQue(pool, utilisateur, (tx) => tx.query('select socle.creer_dossier_tenu($1, $2, null) d', [cabinet, `Dossier tenu par ${nom}`]))).rows[0].d as string;
   await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where id = $1`, [dossier]);
   await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where entreprise = $1`, [dossier]);
+  await admin.query('update socle.organisation set code_exige = true where id = $1', [cabinet]);
   return cabinet;
 }
 
@@ -19,4 +20,5 @@ export async function exigerLeCode(poster: (chemin: string, corps: unknown) => P
   await poster(`/cabinets/${cabinet}/dossiers`, { raisonSociale: 'Dossier tenu depuis huit jours' });
   await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where tenue_par = $1`, [cabinet]);
   await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where cabinet = $1`, [cabinet]);
+  await admin.query('update socle.organisation set code_exige = true where id = $1', [cabinet]);
 }

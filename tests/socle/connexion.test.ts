@@ -40,6 +40,8 @@ async function personne(options: { proprietaire?: boolean; telephone?: string } 
 }
 // La session derrière un jeton (le test tombe si elle n'existe pas).
 const sessionDe = async (jeton: string) => { const q = await quiEst(ctx, jeton); if (!q) throw new Error('session attendue'); return q; };
+// (0219) Le code par e-mail à chaque nouvel appareil ne se demande qu'à qui l'a choisi dans « Ton compte ».
+const veutCodeParMail = (id: string) => enTantQue(pool, id, (tx) => tx.query('select socle.regler_code_courriel(true)'));
 const dernierCode = () => /(\d{3}) (\d{3})$/.exec(envoyes.at(-1)?.texte ?? '')?.slice(1).join('') ?? '';
 
 beforeAll(async () => { await admin.connect(); });
@@ -96,6 +98,18 @@ describe('les erreurs : une attente qui s\'allonge, jamais un blocage', () => {
     // Et le compteur repart de zéro.
     expect((await essai('faux-faux-faux')).etat).toBe('refuse');
   });
+
+  // (1.379.3, 0218) Quatre fautes d'il y a longtemps ne font pas attendre à la première faute du jour.
+  it('les erreurs de plus d\'un jour s\'oublient : la faute du lendemain repart à un', async () => {
+    const p = await personne();
+    const essai = (mdp: string) => connecter(ctx, { email: p.email, motDePasse: mdp, appareil: POSTE });
+    for (let i = 0; i < 4; i++) expect((await essai('faux-faux-faux')).etat).toBe('refuse');
+    avancer(25 * 60);
+    // Sans l'oubli, cette cinquième erreur faisait attendre une minute.
+    for (let i = 0; i < 4; i++) expect((await essai('faux-faux-faux')).etat).toBe('refuse');
+    // Le même jour, la cinquième fait toujours attendre : le frein n'a pas changé.
+    expect((await essai('faux-faux-faux')).etat).toBe('attendre');
+  });
 });
 
 describe('le code sur le téléphone', () => {
@@ -116,34 +130,31 @@ describe('le code sur le téléphone', () => {
     expect((await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m'))).rows[0].m).toBe(false);
   });
 
-  it('un comptable de cabinet sans code : une session qui ne sert qu\'à le mettre en place', async () => {
+  it('un comptable de cabinet sans code : recommandé, jamais imposé — même huit jours après son premier vrai dossier (0219)', async () => {
     const p = await personne({ telephone: '+216 20 000 001' });
     const cab = (await enTantQue(pool, p.id, (tx) => tx.query(`select * from socle.creer_cabinet('Cabinet ${n}')`))).rows[0].cabinet as string;
-    // (0216) Tant que le cabinet n'a aucun vrai dossier, le code n'est pas exigé : rien, puis son seul dossier d'exemple.
     const manque = async () => (await enTantQue(pool, p.id, (tx) => tx.query('select socle.code_manquant() m, (select code_exige_le from socle.mon_compte()) le'))).rows[0] as { m: boolean; le: Date | null };
-    expect(await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
     expect(await manque()).toEqual({ m: false, le: null });
-    await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_exemple($1, $2)', [cab, 'Exemple · Pâtisserie']));
-    expect(await manque()).toEqual({ m: false, le: null });
-    // Le premier vrai dossier : sept jours pour installer le code, et le jour se lit dans « Ton compte ».
     const dossier = (await enTantQue(pool, p.id, (tx) => tx.query('select socle.creer_dossier_tenu($1, $2, null) d', [cab, `Garage ${n}`]))).rows[0].d as string;
-    const apres = await manque();
-    expect(apres.m).toBe(false);
-    expect(Math.round((new Date(apres.le as Date).getTime() - Date.now()) / 86_400_000)).toBe(7);
-    expect(await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE })).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
-    // Sept jours plus tard, il est exigé : la session ne sert plus qu'à le mettre en place.
     await admin.query(`update socle.entreprise set cree_le = now() - interval '8 days' where id = $1`, [dossier]);
     await admin.query(`update socle.mandat set cree_le = now() - interval '8 days' where entreprise = $1`, [dossier]);
-    expect((await manque()).m).toBe(true);
+    // Avant la 0219, le code devenait obligatoire ici et la session ne servait plus qu'à le mettre en place.
+    expect(await manque()).toEqual({ m: false, le: null });
     const r = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
-    expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
+    expect(r).toMatchObject({ etat: 'connecte', codeAConfigurer: false });
     if (r.etat !== 'connecte') return;
+    // Le cabinet qui le demande à ses comptables (éteint au départ) : là seulement, la session ne sert plus qu'à le poser.
+    await admin.query('update socle.organisation set code_exige = true where id = $1', [cab]);
+    expect((await manque()).m).toBe(true);
+    const r2 = await connecter(ctx, { email: p.email, motDePasse: MDP, appareil: POSTE });
+    expect(r2).toMatchObject({ etat: 'connecte', codeAConfigurer: true });
+    await admin.query('update socle.organisation set code_exige = false where id = $1', [cab]);
+    // Il reste libre de l'activer : dix codes de secours, tous différents.
     const qui = await sessionDe(r.jeton);
-    expect(qui.codeAConfigurer).toBe(true);
+    expect(qui.codeAConfigurer).toBe(false);
     const { codesDeSecours } = await mettreEnPlaceCode(ctx, qui, 'sms');
     expect(codesDeSecours).toHaveLength(10);
     expect(new Set(codesDeSecours).size).toBe(10);
-    expect((await quiEst(ctx, r.jeton))?.codeAConfigurer).toBe(false);
   });
 
   it('par SMS : seuls le numéro et le code partent ; un mauvais code est refusé ; un code ne sert qu\'une fois', async () => {
@@ -227,12 +238,17 @@ describe('le code par e-mail (0076 ; seulement si le serveur sait envoyer un e-m
     expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { ...POSTE, id: r.appareil } })).etat).toBe('connecte');
   });
 
-  it('sans code du téléphone, un appareil inconnu (ou le poste d\'un autre) demande un code par e-mail ; un appareil reconnu, non', async () => {
+  it('qui a choisi le code par e-mail : un appareil inconnu (ou le poste d\'un autre) le demande ; un appareil reconnu, non ; sans ce choix, jamais', async () => {
     const p = await personne();
     const r0 = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: POSTE });
     if (r0.etat !== 'code') throw new Error('code attendu');
     const ok0 = await validerCode(ctxCourriel, { defi: r0.defi, code: codeDuCourriel() });
     if (ok0.etat !== 'connecte' || !ok0.appareil) throw new Error('connexion attendue');
+    // (0219) Sans l'avoir choisi, un autre appareil entre avec le mot de passe seul : aucun e-mail ne part.
+    const avantChoix = courriels.length;
+    expect((await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Tablette', type: 'navigateur' } })).etat).toBe('connecte');
+    expect(courriels).toHaveLength(avantChoix);
+    await veutCodeParMail(p.id);
     const ailleurs = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Téléphone', type: 'telephone' } });
     expect(ailleurs).toMatchObject({ etat: 'code', methode: 'courriel', raison: 'appareil' });
     expect(courriels.at(-1)?.texte).toMatch(/nouvel appareil/);
@@ -271,6 +287,7 @@ describe('le code par e-mail (0076 ; seulement si le serveur sait envoyer un e-m
     if (premier !== dernier) expect((await validerCode(ctxCourriel, { defi: r.defi, code: premier })).etat).toBe('refuse');
     expect((await validerCode(ctxCourriel, { defi: r.defi, code: dernier })).etat).toBe('connecte');
     // Un autre défi, laissé 15 minutes : son code ne vaut plus.
+    await veutCodeParMail(p.id);
     const r2 = await connecter(ctxCourriel, { email: p.email, motDePasse: MDP, appareil: { nom: 'Tablette', type: 'navigateur' } });
     if (r2.etat !== 'code') throw new Error('code attendu');
     avancer(16);
@@ -294,6 +311,7 @@ describe('le code par e-mail (0076 ; seulement si le serveur sait envoyer un e-m
     expect((await validerCode(ctxCourriel, { defi: r.defi, code: codeDuCourriel() })).etat).toBe('connecte');
     expect((await admin.query('select adresse_verifiee_le v from socle.utilisateur where id = $1', [p.id])).rows[0].v).not.toBeNull();
     // Une adresse prouvée ne se corrige plus ainsi (le défi d'un nouvel appareil ne le permet pas).
+    await veutCodeParMail(p.id);
     const ailleurs = await connecter(ctxCourriel, { email: nouvelle, motDePasse: MDP, appareil: { nom: 'Téléphone', type: 'telephone' } });
     if (ailleurs.etat !== 'code') throw new Error('code attendu');
     expect(await corrigerAdresse(ctxCourriel, ailleurs.defi, `encore${n}@exemple.tn`)).toMatchObject({ ok: false });

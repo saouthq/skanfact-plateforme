@@ -30,7 +30,7 @@ export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null
 }
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
 // `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
-type Props = { connecte: () => void; code: (d: Defi) => void; inscription: () => void; oubli: (email: string) => void; sous?: string | null; email?: string };
+type Props = { connecte: () => void; code: (d: Defi) => void; inscription: (profil: 'cabinet' | 'entreprise') => void; oubli: (email: string) => void; sous?: string | null; email?: string };
 const rien = () => undefined;
 
 
@@ -95,7 +95,11 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
         <Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} />
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.connexion.bouton')}<Dessin id="fleche" /></Bouton>
         <div className="ent-separe">{titre('ecran.connexion.premiere_fois')}</div>
-        <Bouton onClick={inscription}>{titre('ecran.connexion.creer_compte')}</Bouton>
+        {/* (1.379.3) Deux portes, dès ici : chacun tombe sur son écran (une seule porte menait à un choix, plus loin). */}
+        <div className="ent-deux-portes">
+          <Bouton onClick={() => inscription('entreprise')}><span id="creer-entreprise">{titre('ecran.connexion.creer_entreprise')}</span></Bouton>
+          <Bouton onClick={() => inscription('cabinet')}><span id="creer-cabinet">{titre('ecran.connexion.creer_cabinet')}</span></Bouton>
+        </div>
       </form>
     </PageDouble>
   );

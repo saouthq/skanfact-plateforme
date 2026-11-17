@@ -913,6 +913,10 @@ details.tech > code {
 body.dark details.tech > code { background: #1d232b; }
 
 /* ---------- relances / contrats / bannière ---------- */
+/* (1.379.3) « À venir » : ce qui n'est pas encore ouvert se voit, sans se confondre avec ce qui marche. */
+.pastille-avenir { display: inline-block; margin-inline-start: auto; background: var(--line, #e5e7eb); color: var(--muted, #6b7280); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 8px; white-space: nowrap; vertical-align: middle; }
+h1 .pastille-avenir, p .pastille-avenir { margin-inline-start: 6px; }
+nav a.lien.a-venir { opacity: .62; }
 .nav-count { margin-inline-start: auto; background: var(--warning-soft); color: var(--warning); font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 7px; }
 /* Le cadenas d'un module fermé par l'offre (7.33.0) : la page reste, elle se lit, elle ne crée plus. */
 nav a svg.nav-lock { width: 12px; height: 12px; margin-inline-start: 4px; opacity: .55; flex: none; }

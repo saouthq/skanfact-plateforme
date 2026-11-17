@@ -25,6 +25,25 @@ import { Ouverture, type Ouvrir } from './ecrans/Ouverture.tsx';
 import { Porte } from './ecrans/Porte.tsx';
 import { phrase, titre } from './langue.ts';
 
+// (1.379.3) Le profil : la personne dit d'emblée si elle vient pour son entreprise ou pour son cabinet (les boutons de
+// l'écran de connexion, ou les adresses `/cabinet` et `/entreprise` qu'on donne à quelqu'un) ; chacun tombe sur son écran.
+export type Profil = 'cabinet' | 'entreprise';
+const PROFIL = 'skanfact.profil';
+export const profil = {
+  lire(): Profil | null { try { const v = sessionStorage.getItem(PROFIL); return v === 'cabinet' || v === 'entreprise' ? v : null; } catch { return null; } },
+  poser(v: Profil | null) { try { if (v) sessionStorage.setItem(PROFIL, v); else sessionStorage.removeItem(PROFIL); } catch { /* sans stockage : la porte propose les deux */ } },
+};
+// L'adresse donnée à quelqu'un : `/cabinet` (ou `/?pour=cabinet`) et `/entreprise` ouvrent la création du compte de ce profil.
+const PROFIL_DEMANDE: Profil | null = (() => {
+  const chemin = location.pathname.replace(/\/+$/, '');
+  const q = new URLSearchParams(location.search);
+  const v = chemin === '/cabinet' || q.get('pour') === 'cabinet' ? 'cabinet' : chemin === '/entreprise' || q.get('pour') === 'entreprise' ? 'entreprise' : null;
+  if (!v) return null;
+  profil.poser(v);
+  q.delete('pour');
+  history.replaceState(null, '', `/${q.size ? `?${q}` : ''}`);
+  return v;
+})();
 type Accueil = { ecran: 'connexion'; email?: string } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' }
   | { ecran: 'oubli'; email: string } | { ecran: 'nouveau'; jeton: string };
 type Moi = { id: string; code_methode: string | null; codeAConfigurer: boolean; entreprises: EntrepriseDeMoi[]; cabinets: { id: string; nom: string }[] };
@@ -171,7 +190,7 @@ export function App() {
     const defi = defiEnCours.lire();
     // Un lien d'invitation est le plus souvent ouvert par quelqu'un qui n'a pas encore de compte (un vendeur, une
     // caissière) : il arrive sur la création du compte, l'adresse invitée déjà remplie (lot équipe).
-    return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' };
+    return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() || PROFIL_DEMANDE ? 'inscription' : 'connexion' };
   });
   // L'écran du code se garde dans l'onglet ; tout autre écran l'oublie.
   const setAccueil = useCallback((a: Accueil) => {
@@ -179,6 +198,7 @@ export function App() {
     setAccueilBrut(a);
   }, []);
   const [moi, setMoi] = useState<Moi | null>(null);
+  const [profilChoisi, setProfilChoisi] = useState<Profil | null>(profil.lire);
   // Ce qui s'ouvre (l'écran d'ouverture le montre le temps que l'application arrive).
   const [ouvrir, setOuvrir] = useState<Ouvrir | null>(null);
   const [demandeConnexion, setDemandeConnexion] = useState<DemandeConnexion | null>(connexionDemandee.lire);
@@ -355,12 +375,13 @@ export function App() {
   }, [moi, refusInvitation, demandeConnexion, demande]);
 
   const vers = (e: Accueil) => () => setAccueil(e);
+  const choisirProfil = (v: Profil) => { profil.poser(v); setProfilChoisi(v); };
   const finirConnexion = () => { connexionDemandee.oublier(); setDemandeConnexion(null); };
   let ecran: ReactNode;
   switch (accueil.ecran) {
     case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })}
       aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend ?? sousInvitation('inscription')}
-      invitation={invite} comptable={duClient} dossier={duDossier} key={invite?.email ?? emailDuClient ?? duDossier?.email ?? ''} />; break;
+      invitation={invite} comptable={duClient} dossier={duDossier} profil={profilChoisi} changerProfil={choisirProfil} key={invite?.email ?? emailDuClient ?? duDossier?.email ?? ''} />; break;
     case 'code': {
       const defi = accueil.defi;
       ecran = <Code defi={defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })}
@@ -368,7 +389,7 @@ export function App() {
       break;
     }
     case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} oubli={(email) => setAccueil({ ecran: 'oubli', email })}
-      inscription={vers({ ecran: 'inscription' })} sous={attend ?? sousInvitation('connexion')} key={accueil.email ?? invite?.email ?? ''}
+      inscription={(v) => { choisirProfil(v); setAccueil({ ecran: 'inscription' }); }} sous={attend ?? sousInvitation('connexion')} key={accueil.email ?? invite?.email ?? ''}
       {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : emailDuClient ? { email: emailDuClient } : duDossier ? { email: duDossier.email } : {})} />; break;
     case 'oubli': ecran = <Oubli email={accueil.email} retour={vers({ ecran: 'connexion', email: accueil.email })} />; break;
     case 'nouveau': ecran = <NouveauMotDePasse jeton={accueil.jeton} fait={() => { session.quitter(); setMoi(null); setAccueil({ ecran: 'connexion' }); }}
@@ -395,7 +416,7 @@ export function App() {
       // (1.78.0) Un lien de dossier tenu attend : le dossier s'ouvre, pas la porte d'une entreprise à créer.
       else if (moi && !dossierTenu.lire() && moi.cabinets.length === 0 && (miennes.length === 0 || comptable.lire())) {
         ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }}
-          pourUnClient={comptable.lire() && client?.valable ? client.entreprise : null} key={client?.valable ? 'client' : 'porte'}
+          pourUnClient={comptable.lire() && client?.valable ? client.entreprise : null} key={client?.valable ? 'client' : 'porte'} profil={profilChoisi}
           decouvrir={() => { history.replaceState(null, '', '/?exemple=decouvrir'); setDemande({ ecran: 'exemple', visite: 'decouvrir' }); }} />;
       }
       // Le compte se lit, ou l'application s'ouvre : l'écran d'ouverture, jamais une page blanche.

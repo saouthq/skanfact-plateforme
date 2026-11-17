@@ -218,6 +218,12 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-separe { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--e-gris); text-align: center; }
 .ent-separe::before, .ent-separe::after { content: ''; flex: 1; height: 1px; background: var(--e-trait); }
 .ent-sous-champ { display: flex; justify-content: flex-end; margin-top: -10px; }
+/* (1.379.3) Deux portes côte à côte sous « Première fois ? » : l'entreprise, le cabinet ; l'une sous l'autre au téléphone. */
+.ent-deux-portes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ent-deux-portes > * { min-width: 0; }
+@media (max-width: 480px) { .ent-deux-portes { grid-template-columns: 1fr; } }
+.ent-autre-profil { margin: 0; font-size: 14px; color: var(--e-gris); text-align: center; }
+.ent-autre-profil.centre { margin-top: 18px; }
 
 /* ── La page des étapes : un fond pointé, la barre du haut, une carte ou une page large ───────────────────────────── */
 .ent-etapes {

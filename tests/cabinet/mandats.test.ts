@@ -483,7 +483,7 @@ describe('les écrans du Cabinet, côté serveur', () => {
     await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
     const moiAssocie = (await appeler('GET', '/moi', cab.associe.jeton)).corps as { entreprises: { id: string; parCabinet: boolean }[]; cabinets: { id: string; nom: string }[] };
     expect(moiAssocie.entreprises).toMatchObject([{ id: cl.ent, parCabinet: true }]);
-    expect(moiAssocie.cabinets).toEqual([{ id: cab.id, nom: 'Cabinet Ennour' }]);
+    expect(moiAssocie.cabinets).toEqual([{ id: cab.id, nom: 'Cabinet Ennour', codeExige: false }]);
     const moiClient = (await appeler('GET', '/moi', cl.jeton)).corps as { entreprises: { id: string; parCabinet: boolean }[]; cabinets: unknown[] };
     expect(moiClient.entreprises).toMatchObject([{ id: cl.ent, parCabinet: false }]);
     expect(moiClient.cabinets).toEqual([]);

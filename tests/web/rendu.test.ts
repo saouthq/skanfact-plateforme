@@ -94,7 +94,7 @@ describe('l\'instrument de rendu des écrans', () => {
   type Ecran = { nom: string; titre: string; etape: Etape | null; adresse?: string; ouvrir?: (p: Page, langue: Langue) => Promise<void>; defi?: ReturnType<typeof defi> };
   const ENTREE: Ecran[] = [
     { nom: 'connexion', titre: 'ecran.connexion.titre', etape: null },
-    { nom: 'inscription', titre: 'ecran.inscription.titre', etape: null, ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.connexion.creer_compte', l) }).click(); } },
+    { nom: 'inscription', titre: 'ecran.inscription.titre_entreprise', etape: null, ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.connexion.creer_entreprise', l) }).click(); } },
     { nom: 'porte', titre: 'ecran.porte.titre', etape: 'vide' },
     { nom: 'porte-entreprise', titre: 'ecran.porte.entreprise_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.demarrer_bouton', l), exact: true }).click(); } },
     { nom: 'porte-cabinet', titre: 'ecran.porte.cabinet_titre', etape: 'vide', ouvrir: async (p, l) => { await p.getByRole('button', { name: titre('ecran.porte.cabinet_lien', l), exact: true }).click(); } },

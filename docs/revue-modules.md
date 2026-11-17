@@ -4693,3 +4693,24 @@ Reste de l'issue 13 : voir la liste des constats 4 à 7 et 9 à 24 (inventaire p
 valorisation au prix de la facture — À VÉRIFIER avec le comptable —, commande soldée, lots, téléphone).
 
 Essais : `tests/web/complements.test.ts`, `fiche-fournisseur.test.ts`, `stock-revue.test.ts`. Cinq preuves.
+
+
+## 1.379.3 — Avant de donner le lien au comptable (17/11/2026)
+
+Quatre décisions de Skander, le même jour.
+
+- **« Trop d'essais » après un seul essai.** Les erreurs de mot de passe ne s'oubliaient jamais : cinq fautes étalées
+  sur des semaines suffisaient, et la sixième — la première du jour — faisait attendre. Elles s'oublient maintenant
+  après vingt-quatre heures (`0218`). Une connexion réussie les efface toujours.
+- **Le code d'authentification est facultatif, et recommandé** (`0219`). Plus aucun code n'est exigé d'office : ni le
+  code du téléphone sept jours après le premier dossier d'un cabinet, ni le code par e-mail à chaque nouvel appareil.
+  L'adresse se prouve toujours une fois, à la création du compte. « Ton compte » propose le code par e-mail
+  (`#cpt-courriel`), le SMS et l'application. Un cabinet pourra le demander à ses comptables (`organisation.code_exige`,
+  éteint ; pas encore de bouton à l'écran). **Les clés d'accès (passkeys) ne sont pas faites** : c'est le lot suivant.
+- **L'inscription séparée.** `/cabinet` et `/entreprise` ouvrent chacun leur écran ; la page de connexion propose
+  « Je gère une entreprise » et « Je suis comptable ». Le comptable tombe droit sur la création de son cabinet.
+- **« À venir ».** La caisse et la facture électronique (El Fatoora) ne sont pas branchées en production : leur ligne
+  reste au menu, grisée, avec une pastille ; leur page dit qu'elles arrivent ; « Créer » ne les propose pas. Un réglage
+  du serveur les rouvre sans nouvelle version (`SKANFACT_A_VENIR`, `serveur/a-venir.ts`) ; les tests tournent ouverts.
+
+À VÉRIFIER avec Skander : vingt-quatre heures pour oublier les erreurs ; le code par e-mail éteint au départ.
