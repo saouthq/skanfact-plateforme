@@ -16972,7 +16972,7 @@ prouver 'la grille du pointage absente de la paie du Cabinet' modules/personnel/
   '${paiePointageResume(dossier, L, s.annee, m, P)}' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' modules/personnel/ecrans/cabinet/paie.js \
-  'const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);' \
+  'const depart = b ? null : saisieDe(premier.id, s.paieMois);' \
   'const depart = null;' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 prouver 'ce qui est proposé qui ne suit pas le salarié choisi' modules/personnel/ecrans/cabinet/paie.js \
@@ -22355,7 +22355,7 @@ prouver 'paie cabinet 1.237 e : les vues ne disent pas leur nombre' modules/pers
 
 # 1.238.0 — ce qui restait des maquettes : l'échéancier, le volet contrôlé, la CNSS face au livre, le mois validé, mon rappel.
 prouver 'paie cabinet 1.238 a : l'\''échéancier ne dit pas la retenue oubliée' modules/personnel/ecrans/cabinet/paie.js \
-  'prevues.push({ y, m, montant: x, oubli: avecBulletin.has(`${y}-${m}`) });' 'prevues.push({ y, m, montant: x, oubli: false });' \
+  'const oubli = avecBulletin.has(`${y}-${m}`);' 'const oubli = false;' \
   "$WC5"
 prouver 'paie cabinet 1.238 b : le volet dit l'\''avance retenue quand elle ne l'\''est pas' modules/personnel/ecrans/cabinet/paie.js \
   "dues.every(d => retenues.has(d.advanceId)) ? ['ok', 'avance retenue']" "true ? ['ok', 'avance retenue']" \
