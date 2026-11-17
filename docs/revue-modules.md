@@ -4723,3 +4723,13 @@ texte manquant faisait tomber toute la console. Les noms sont là, un taux se di
 règle sans nom se montre par son code. Le test confronte la liste du serveur aux textes de la console. Le contrôle
 éclair des preuves, rouge sur GitHub après la 1.379.3 (seize preuves visaient l'ancienne règle du code), est remis
 d'accord ; le test du code demandé par un cabinet couvre de nouveau l'exemple, les sept jours et le rôle.
+
+
+## 1.379.5 — La console dit la même chose d'un écran à l'autre (issue 5)
+
+- CONSOLE-4 : Clients dit « aucune pièce émise », Abonnements « 28 pièces créées » — deux comptes, deux noms.
+- CONSOLE-6 : « Tes appareils » ne promet plus trente jours sans code : la console le demande à chaque connexion.
+- CONSOLE-9 : le journal et le message de fin reprennent le mot du geste (« passage en lecture seule », « réactivation »).
+- Le rouge de GitHub sur la 1.379.4 : un import devenu inutile dans le test de l'entrée du Cabinet (lint).
+
+Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de la session).
