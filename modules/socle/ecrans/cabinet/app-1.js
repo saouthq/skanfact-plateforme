@@ -4869,7 +4869,7 @@
   // mois, l'année en douze cases, et sa fiche (la mission, l'équipe, le client, le contact, ce qui est partagé, la note,
   // l'historique). Le travail lui-même se fait dans la barre, sous son nom : Écritures, Pièces du dossier, Banque,
   // Déclarations. L'ancien suivi y est fondu (1.216.0).
-  const ficheFd = { id: '', livres: new Map(), lecture: new Map(), refus: new Map(), mois: '', menu: false, inviter: false };
+  const ficheFd = { id: '', livres: new Map(), source: new Map(), lecture: new Map(), refus: new Map(), mois: '', menu: false, inviter: false };
   const FD_IC = {
     alerte: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
     boite: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>',
@@ -4923,8 +4923,12 @@
     for (const d of (livre && livre.declarations) || []) {
       if (!d.periode) continue;
       const dep = d.deposee && typeof d.deposee === 'object' ? d.deposee : { le: d.deposee ? 'oui' : '' }, pay = d.payee && typeof d.payee === 'object' ? d.payee : { le: d.payee ? 'oui' : '' };
+      // (1.378.1, issue 9 CABDECLARER-3) `total` : ce que la déclaration fait VRAIMENT (TVA, retenues, IRPP, TFP, FOPROLOS, timbre),
+      // le total que l'écran Déclaration affiche. La fiche n'en montrait que la TVA et l'appelait « payés ».
+      const cs = d.cases || {};
       decl[d.periode] = { deposee: !!dep.le, payee: !!pay.le, deposeeLe: dep.le || '', deposeePar: dep.par || '', payeeLe: pay.le || '', type: d.type || '', par: d.par || '',
-        montant: montantDe((d.cases || {}).aDecaisser), cases: d.cases || {}, prepareeLe: d.prepareeLe };
+        montant: montantDe(cs.aDecaisser), cases: cs, prepareeLe: d.prepareeLe,
+        total: Math.round(['netAPayer', 'retenuesOperees', 'irpp', 'tfp', 'foprolos', 'timbre', 'fodec'].reduce((t, k) => t + montantDe(cs[k]), 0) * 1000) / 1000 };
     }
     const releves = ((livre && livre.releves) || []).slice().sort((a, b) => String(a.au).localeCompare(String(b.au)));
     const rapproche = releves.filter(r => (r.lignes || []).every(l => l.rapprochement && l.rapprochement.niveau !== 'aucun')).map(r => r.au).pop() || '';
@@ -4970,6 +4974,12 @@
     const annee = K.today().slice(0, 4), aujourdhui = K.today(), mc = aujourdhui.slice(0, 7), mp = moisPrecedent(mc);
     const cle = `${d.id}:${annee}`;
     if (ficheFd.id !== d.id) { ficheFd.id = d.id; ficheFd.mois = ''; ficheFd.menu = false; }
+    // (1.378.1, issue 9 CABDECLARER-3) Le livre que la comptabilité du dossier vient de modifier fait foi : la fiche gardait
+    // sa première lecture jusqu'au rechargement de l'application (« 9 déclarations » après en avoir déposé une dixième).
+    const sv = livresState;
+    if (sv.livre && sv.dossierVu && sv.dossierVu.id === d.id && String(sv.annee) === annee && ficheFd.source.get(cle) !== sv.livre) {
+      ficheFd.livres.set(cle, lireLivreFd(sv.livre)); ficheFd.source.set(cle, sv.livre);
+    }
     const L = ficheFd.livres.get(cle) || null, refus = ficheFd.refus.get(cle) || '';
     if (!L && !refus) void chargerLivreFd(d, annee);
     const retard = retardsConnus();
@@ -5028,15 +5038,17 @@
 
     // Les chiffres, lus dans ses livres de l'année.
     const ca = L ? Object.values(L.parMois).reduce((t, v) => t + v.ca, 0) : 0;
-    const paye = L ? Object.values(L.decl).filter(v => v.deposee).reduce((t, v) => t + v.montant, 0) : 0;
-    const nDecl = L ? Object.values(L.decl).filter(v => v.deposee).length : 0;
+    // (1.378.1) La carte dit ce qu'elle compte : le total des déclarations DÉPOSÉES — et combien sont notées payées.
+    const deposees = L ? Object.values(L.decl).filter(v => v.deposee) : [];
+    const paye = deposees.reduce((t, v) => t + v.total, 0);
+    const nDecl = deposees.length, nPayees = deposees.filter(v => v.payee).length;
     const tile = (lab, val, sous, ton = '') => `<div class="fd-ch-t ${ton}"><span class="fd-ch-l">${lab}</span><b>${val}</b><small>${sous}</small></div>`;
     const dtFd = v => `${esc(dtCd(v))} <i>DT</i>`;
     const chiffres = refus ? `<div class="panel fd-ch-err" role="status"><b>Ses livres n'ont pas pu se lire</b><span>${esc(refus)} Rien n'est perdu : la page se remplit dès que la lecture réussit.</span><button type="button" class="btn btn-sm" id="fd-relire"${hors ? ' disabled' : ''}>Réessayer</button></div>`
       : !L ? '<div class="fd-ch fd-ch-sq" aria-busy="true"><i></i><i></i><i></i><i></i></div>'
         : `<div class="fd-ch" role="group" aria-label="En un coup d'œil">
           ${L.lignesVente ? tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses livres`) : tile(`Chiffre d'affaires ${annee}`, '—', 'aucune vente dans ses livres')}
-          ${tile(`Payé à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')} · sans la CNSS`, 'ok')}
+          ${tile(`Déclaré à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')}${nDecl ? ` · ${nPayees === nDecl ? (nDecl > 1 ? 'toutes notées payées' : 'notée payée') : nPayees ? `${nPayees} ${nPayees > 1 ? 'notées payées' : 'notée payée'}` : 'aucune notée payée'}` : ''} · sans la CNSS`, 'ok')}
           ${tile(`Banque${L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé', L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
           ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
 
@@ -5104,7 +5116,7 @@
     const caMax = L ? Math.max(1, ...Object.values(L.parMois).map(v => v.ca)) : 1;
     const cases = mois.map((m, i) => {
       const [cl, lib, t] = etats[i], v = (L && L.parMois[m]) || { ca: 0, ecr: 0, br: 0 }, dc = (L && L.decl[m]) || null;
-      const sous = dc && dc.deposee && dc.montant ? `${esc(dtCd(dc.montant))} DT payés` : v.br ? `${pl(v.br, 'au brouillard', 'au brouillard')}` : v.ecr ? pl(v.ecr, 'écriture')
+      const sous = dc && dc.deposee && dc.total ? `${esc(dtCd(dc.total))} DT ${dc.payee ? 'payés' : 'déclarés'}` : v.br ? `${pl(v.br, 'au brouillard', 'au brouillard')}` : v.ecr ? pl(v.ecr, 'écriture')
         : d.archived ? '' : t ? `en retard depuis le ${jjmm(limiteDe(m))}` : m === mp && cl !== 'fait' && limiteDe(m) === aujourdhui ? 'dépôt aujourd\'hui' : cl === 'cours' && !d.manual ? 'rien reçu' : '';
       const barre = v.ca > 0 ? `<i class="fd-m-ca" style="--w:${Math.round((v.ca / caMax) * 100)}" title="Chiffre d'affaires HT ${deMois(m)} : ${esc(dtCd(v.ca))} DT"></i>` : '';
       return `<button type="button" class="fd-m ${cl}${t ? ' tard' : ''}${ficheFd.mois === m ? ' ici' : ''}" data-fd-mois="${m}"${['avenir', 'hors'].includes(cl) ? ' disabled' : ''} aria-label="${MOIS_LONGS[i]} : ${lib}${t ? ', en retard' : ''}"><span class="fd-m-n">${MOIS_CD[i]}</span><b>${t ? 'en retard' : lib}</b><small>${sous}</small>${barre}</button>`;
@@ -6199,7 +6211,23 @@
         ajouter({ chemin: `Déclarations/${x.periode} - ${nomPropre(f.nom)}`, octets: new Uint8Array(await f.blob.arrayBuffer()) });
       }
       const decls = exercices.flatMap(([, , lv]) => (lv && lv.declarations) || []).filter(x => o.quoi !== 'mois' || x.periode === o.mois);
-      if (decls.length) ajouter({ chemin: 'Déclarations/declarations.csv', octets: `﻿${toCsv([['periode', 'Période'], ['etat', 'État'], ['montant', 'À payer (DT)']].map(([k, label]) => ({ label, get: r => r[k] })), decls.map(x => ({ periode: x.periode, etat: x.payee ? 'déposée et payée' : x.deposee ? 'déposée' : 'préparée', montant: x.cases && x.cases.aDecaisser && x.cases.aDecaisser.montant != null ? dtCd(x.cases.aDecaisser.montant) : '' })))}` });
+      // (1.378.1, issue 9 CABDECLARER-4) Le dépôt et le paiement sont des objets ({ le, par }) : seule leur DATE dit qu'ils sont
+      // faits (1.172.0). Lus comme des booléens, tout mois déposé partait « déposée et payée » dans le dossier remis au
+      // vérificateur. Et le fichier porte le formulaire entier, case par case, pas la seule TVA.
+      if (decls.length) {
+        const faitLe = v => (v && typeof v === 'object' ? String(v.le || '') : v ? 'oui' : '');
+        const CASES_EXPORT = [['tvaCollectee', 'TVA collectée'], ['tvaDeductible', 'TVA déductible'], ['creditReporte', 'Crédit du mois précédent'], ['netAPayer', 'TVA à payer'],
+          ['creditAReporter', 'Crédit à reporter'], ['retenuesOperees', 'Retenues à la source'], ['irpp', 'IRPP et CSS sur salaires'], ['tfp', 'TFP'], ['foprolos', 'FOPROLOS'], ['timbre', 'Droit de timbre']];
+        const cas = (x, k) => (x.cases && x.cases[k] != null && montantDe(x.cases[k]) ? dtCd(montantDe(x.cases[k])) : x.cases && x.cases[k] != null ? '0,000' : '');
+        const totalDe = x => ['netAPayer', 'retenuesOperees', 'irpp', 'tfp', 'foprolos', 'timbre', 'fodec'].reduce((t, k) => t + montantDe((x.cases || {})[k]), 0);
+        const jourFr = v => (/^\d{4}-\d{2}-\d{2}/.test(v) ? fmtJourCourt(v.slice(0, 10)) : v === 'oui' ? 'oui' : '');
+        const cols = [['periode', 'Période'], ['etat', 'État'], ['deposeeLe', 'Déposée le'], ['payeeLe', 'Payée le'], ...CASES_EXPORT, ['total', 'Total de la déclaration (DT)']];
+        ajouter({ chemin: 'Déclarations/declarations.csv', octets: `\ufeff${toCsv(cols.map(([k, label]) => ({ label, get: r => r[k] })), decls.map(x => {
+          const dep = faitLe(x.deposee), pay = faitLe(x.payee);
+          return { periode: x.periode, etat: dep && pay ? 'déposée et payée' : dep ? 'déposée, paiement non noté' : 'préparée, non déposée', deposeeLe: jourFr(dep), payeeLe: jourFr(pay),
+            ...Object.fromEntries(CASES_EXPORT.map(([k]) => [k, cas(x, k)])), total: dtCd(Math.round(totalDe(x) * 1000) / 1000) };
+        }))}` });
+      }
     }
     let fec = 0;
     for (const [an, , lv] of o.prends.fec && o.quoi !== 'permanent' ? exercices : []) {

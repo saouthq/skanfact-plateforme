@@ -122,6 +122,21 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await comptesDu('Trésorerie');
     const ligne = p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') });
     expect(net(await ligne.innerText())).toContain('12 955,500 D');
+    // (1.378.1, issue 9 CABDECLARER-5) Sur l'exercice, l'ouverture est l'à-nouveau (10 000,500), pas un mouvement : la
+    // variation dit ce que l'année a fait (+ 3 000 − 45), elle ne répète plus le solde.
+    expect(net(await ligne.innerText())).toMatch(/^532 Banques 10 000,500 D 3 000,000 45,000 12 955,500 D 2 955,000 /);
+    // Sur un mois, l'ouverture et le solde sont ceux de la Balance du mois : avril s'ouvre à 10 000,500 (rien en banque
+    // avant), mai s'ouvre et se solde à 12 955,500 — jamais « 0,000 » ni le seul mouvement du mois.
+    // Le cycle ouvert le reste d'une période à l'autre : on lit sa ligne, sans recliquer la carte (elle se refermerait).
+    const banque = () => p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).innerText().then(net, () => '');
+    await p.locator('#rv-periode').selectOption(`${an}-04`);
+    await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
+    await expect.poll(banque, { timeout: 15_000 }).toMatch(/^532 Banques 10 000,500 D 3 000,000 45,000 12 955,500 D 2 955,000 /);
+    await p.locator('#rv-periode').selectOption(`${an}-05`);
+    await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
+    await expect.poll(banque, { timeout: 15_000 }).toMatch(/^532 Banques 12 955,500 D (0,000|—)? ?(0,000|—)? ?12 955,500 D /);
+    await p.locator('#rv-periode').selectOption(String(an));
+    await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
     await ligne.getByRole('button', { name: 'Signer', exact: true }).click();
     await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toContain('Compte 532 signé.');
     await expect.poll(async () => net(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).innerText())).toContain('revu');

@@ -30152,6 +30152,34 @@ prouver $'issue 9 1.378.0 j : l\'écran dit « en brouillard » d\'une écriture
   $'        toast(r.validee ? (r.complement' \
   $'        toast(false ? (r.complement' \
   $'dans un mois déjà validé, « Écrire l\'écriture du mois » aboutit'
+prouver $'issue 9 1.378.1 a : la grille dit « payés » d\'un mois seulement déposé' modules/socle/ecrans/cabinet/app-1.js \
+  $'DT ${dc.payee ? \'payés\' : \'déclarés\'}`' \
+  $'DT ${\'payés\'}`' \
+  $'marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant'
+prouver $'issue 9 1.378.1 b : la carte compte payée toute déclaration déposée' modules/socle/ecrans/cabinet/app-1.js \
+  $'nPayees = deposees.filter(v => v.payee).length;' \
+  $'nPayees = deposees.length;' \
+  $'marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant'
+prouver $'issue 9 1.378.1 c : la fiche garde sa première lecture du livre' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (sv.livre && sv.dossierVu && sv.dossierVu.id === d.id' \
+  $'    if (false && sv.livre && sv.dossierVu && sv.dossierVu.id === d.id' \
+  $'marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant'
+prouver $'issue 9 1.378.1 d : l\'export dit « déposée et payée » d\'un mois seulement déposé' modules/socle/ecrans/cabinet/app-1.js \
+  $'etat: dep && pay ? \'déposée et payée\' : dep ?' \
+  $'etat: x.payee ? \'déposée et payée\' : dep ?' \
+  $'marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant'
+prouver $'issue 9 1.378.1 e : l\'export ne porte que la TVA' modules/socle/ecrans/cabinet/app-1.js \
+  $'const cols = [[\'periode\', \'Période\'], [\'etat\', \'État\'], [\'deposeeLe\', \'Déposée le\'], [\'payeeLe\', \'Payée le\'], ...CASES_EXPORT,' \
+  $'const cols = [[\'periode\', \'Période\'], [\'etat\', \'État\'], [\'deposeeLe\', \'Déposée le\'], [\'payeeLe\', \'Payée le\'],' \
+  $'marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant'
+prouver $'issue 9 1.378.1 f : la révision d\'un mois s\'ouvre à zéro' modules/socle/moteur/compta-1.js \
+  $'      if (l.date < du || l.journal === \'AN\') ouverture[l.account]' \
+  $'      if (l.journal === \'AN\' && l.date >= du) ouverture[l.account]' \
+  $'chaque compte dans son cycle, la table d\'avant suivie, le sens du compte'
+prouver $'issue 9 1.378.1 g : l\'à-nouveau compté en mouvement dans la révision de l\'exercice' modules/socle/moteur/compta-1.js \
+  $'      if (l.date < du || l.journal === \'AN\') ouverture[l.account]' \
+  $'      if (l.date < du) ouverture[l.account]' \
+  $'chaque compte dans son cycle, la table d\'avant suivie, le sens du compte'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

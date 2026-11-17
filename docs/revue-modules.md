@@ -4490,3 +4490,21 @@ Migration `0217_portes_de_la_periode_validee.sql`. Essais : `tests/compta/declar
 `tests/compta/cloture-exercice.test.ts`, `tests/web/declaration-1350.test.ts`, `tests/web/cabinet-cloture.test.ts`.
 Dix preuves. Et un rouge GitHub réparé : la preuve « jour1 1.371.0 c » restait verte sur une machine lente (l'essai
 attendait trente secondes, le temps qu'un rafraîchissement de fond redessine la fiche) ; il attend quatre secondes.
+
+## 1.378.1 — La fiche, l'export et la révision disent le vrai chiffre (issue 9, CABDECLARER-3, -4, -5)
+
+- **La carte de la fiche s'appelle « Déclaré à l'État »** et porte le total des déclarations déposées (TVA, retenues,
+  IRPP, TFP, FOPROLOS, timbre) — elle n'en montrait que la TVA, sous le mot « payé ». Elle dit combien sont notées payées.
+  Dans la grille de l'année, un mois déposé dit « déclarés » ; « payés » seulement s'il est noté payé.
+- **La fiche se met à jour tout de suite** : elle gardait sa première lecture du livre jusqu'au rechargement de
+  l'application (« 9 déclarations » après en avoir déposé une dixième). Le livre que la comptabilité vient de modifier
+  fait foi.
+- **L'export pour un contrôle dit l'état réel de chaque mois.** Tout mois déposé partait « déposée et payée » (le dépôt
+  et le paiement sont des objets datés, lus comme des oui/non). Le fichier porte maintenant le formulaire entier : la
+  date du dépôt, celle du paiement, chaque case, le total.
+- **La révision d'un mois montre les soldes de la balance** : la banque d'octobre s'ouvrait à 0 et son « solde » n'était
+  que le mouvement du mois. Sur l'exercice, l'ouverture est l'à-nouveau, et la variation dit ce que l'année a fait.
+
+Restes de CABDECLARER-4, dits : l'index en PDF de l'export (qui peut manquer sans que le compte rendu le dise), le compte
+d'écritures annoncé par la fenêtre (brouillards compris), et les deux FEC qui ne nomment pas le tiers de la même façon.
+Essais : `tests/web/declaration-1350.test.ts`, `tests/web/revision-1348.test.ts`. Sept preuves.

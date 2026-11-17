@@ -154,6 +154,38 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     await expect.poll(() => p.locator('#dc-deposee').innerText()).toMatch(/^✓?\s*Déposée le /);
     expect(await p.locator('#dc-mois').inputValue()).toBe('2026-02');
     expect(await p.locator('#dc-payee').isEnabled()).toBe(true);
+
+    // ── (1.378.1, issue 9 CABDECLARER-3) La fiche dit ce qu'elle compte, tout de suite, et « payés » seulement d'un mois payé ──
+    const plat = (t: string) => t.replace(/\s+/g, ' ').trim();
+    const tuile = async () => plat(await p.locator('.fd-ch-t').filter({ hasText: /à l'État/i }).innerText());
+    const fevrier = async () => plat(await p.locator('[data-fd-mois="2026-02"]').innerText());
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}`);
+    // Février déposé à l'instant, sans recharger l'application : la fiche le compte déjà, et ne dit pas « payé ».
+    await expect.poll(tuile, { timeout: 15_000 }).toMatch(/^Déclaré à l'État en 2026 95,000 DT 2 déclarations déposées · aucune notée payée · sans la CNSS$/i);
+    expect(await fevrier()).toMatch(/déposé 95,000 DT déclarés$/i);
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/declaration/2026`);
+    await p.locator('#dc-payee').waitFor({ timeout: 15_000 });
+    if (await p.locator('#dc-mois').inputValue() !== '2026-02') await p.locator('#dc-mois').selectOption('2026-02');
+    await p.locator('#dc-payee').click();
+    await expect.poll(toast).toMatch(/payée/i);
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}`);
+    await expect.poll(tuile, { timeout: 15_000 }).toMatch(/2 déclarations déposées · 1 notée payée · sans la CNSS$/i);
+    expect(await fevrier()).toMatch(/déposé 95,000 DT payés$/i);
+    await p.screenshot({ path: path.join(PHOTOS, 'declaration-1378-fiche.png') });
+
+    // ── (1.378.1, issue 9 CABDECLARER-4) L'export pour un contrôle dit l'état RÉEL de chaque mois, et le formulaire entier ──
+    // Janvier est déposé sans être payé, février déposé et payé : le fichier écrivait « déposée et payée » pour les deux.
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/classeur`);
+    await p.locator('#cl-exporter').click({ timeout: 15_000 });
+    await p.locator('#ex-q [data-q="annee"]').click();
+    const envoi = p.waitForRequest((r) => r.method() === 'POST' && /\/classeur\/[^/]+\/exports$/.test(r.url()), { timeout: 30_000 });
+    await p.locator('#modal-root #ok').click();
+    const zip = Buffer.from(String(((await envoi).postDataJSON() as { contenu: string }).contenu), 'base64').toString('utf8');
+    const csv = zip.slice(zip.indexOf('Période;État;Déposée le;Payée le;'));
+    const lignes = csv.split('\n').map((l) => l.replace(/\r$/, ''));
+    expect(lignes[0]).toBe('Période;État;Déposée le;Payée le;TVA collectée;TVA déductible;Crédit du mois précédent;TVA à payer;Crédit à reporter;Retenues à la source;IRPP et CSS sur salaires;TFP;FOPROLOS;Droit de timbre;Total de la déclaration (DT)');
+    expect(lignes.find((l) => l.startsWith('2026-01;'))).toMatch(/^2026-01;déposée, paiement non noté;20\/02\/2026;;190,000;/);
+    expect(lignes.find((l) => l.startsWith('2026-02;'))).toMatch(/^2026-02;déposée et payée;\d{2}\/\d{2}\/2026;\d{2}\/\d{2}\/2026;95,000;0,000;0,000;95,000;0,000;0,000;0,000;0,000;0,000;0,000;95,000/);
     expect(erreurs).toEqual([]);
   }, 240_000);
 

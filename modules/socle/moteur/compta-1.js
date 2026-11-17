@@ -6022,8 +6022,19 @@
     // Une feuille maîtresse se bâtit sur les VALIDÉES : on ne révise pas un brouillard, qui par
     // définition n'est pas encore un fait. `brouillard: true` reste possible pour regarder ce qui
     // attend, et les contrôles le NOMMENT avant d'arrêter une révision.
-    const lignes = lignesDuLivre(livre, { du: o.du || livre.exercice.du, au: o.au || livre.exercice.au, brouillard: !!o.brouillard });
-    const bal = balanceDepuisLignes(lignes, soldesDepuisOuverture(livre), c => nomDuCompte(livre, c));
+    // (1.378.1, issue 9 CABDECLARER-5) L'OUVERTURE est celle de la Balance de la même période : les soldes repris, tout ce
+    // qui précède le premier jour, ET les à-nouveaux (journal AN). Sur octobre, la banque s'ouvrait à 0 et son « solde »
+    // n'était que le mouvement du mois (1 147,798 pour 57 562,607) : le réviseur pointait un chiffre faux contre son
+    // relevé. Sur l'exercice, l'à-nouveau comptait en mouvement : la « variation » répétait le solde.
+    const du = o.du || livre.exercice.du, au = o.au || livre.exercice.au;
+    const ouverture = soldesDepuisOuverture(livre);
+    const lignes = [];
+    lignesDuLivre(livre, { brouillard: !!o.brouillard }).forEach(l => {
+      if (l.date > au) return;
+      if (l.date < du || l.journal === 'AN') ouverture[l.account] = round3((ouverture[l.account] || 0) + num(l.debit) - num(l.credit));
+      else lignes.push(l);
+    });
+    const bal = balanceDepuisLignes(lignes, ouverture, c => nomDuCompte(livre, c));
     const rev = revisionDe(livre, o.periode || String(livre.exercice.annee));
     const vus = new Map(((rev && rev.comptes) || []).map(c => [txt(c.compte), c]));
     const rows = bal.rows
