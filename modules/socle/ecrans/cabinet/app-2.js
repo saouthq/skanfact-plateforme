@@ -4756,7 +4756,7 @@
         return `<tr data-ab="${esc(a.id)}">
           <td>${esc(a.nom || '')}</td>
           <td>${g ? esc(g.nom) : '<span class="err-inline">guide supprimé</span>'}</td>
-          <td class="nw">${esc(a.depuis || '—')}</td>
+          <td class="nw">${esc(a.depuis ? fmtJour(a.depuis) : '—')}</td>
           <td class="nw">${a.tousLesMois > 1 ? `${a.tousLesMois} mois` : 'mois'}</td>
           <td class="r nw">${esc(montant(Number(a.montant) || 0))}</td>
           <td class="nw">${!a.actif ? '<span class="muted">suspendu</span>' : reste ? `<b>${pl(reste, 'à générer', 'à générer')}</b>` : '<span class="muted">à jour</span>'}</td>
@@ -4782,8 +4782,18 @@
       { icon: 'modifier', label: 'Modifier cette écriture qui revient', hint: 'Son guide, son montant, sa période', run: () => abonnementForm(root, dossier, a) },
       a.actif
         ? { icon: 'pause', label: 'Suspendre cette écriture qui revient', hint: 'Elle cesse de se proposer', run: () => basculerAbo(root, dossier, a, false) }
-        : { icon: 'reprendre', label: 'Reprendre cette écriture qui revient', hint: 'Elle recommence à se proposer', run: () => basculerAbo(root, dossier, a, true) }
+        : { icon: 'reprendre', label: 'Reprendre cette écriture qui revient', hint: 'Elle recommence à se proposer', run: () => basculerAbo(root, dossier, a, true) },
+      // (1.384.9, issue 11, CABSAISIE-12) « Supprimer » n'était que dans la fenêtre « Modifier » : il est aussi au menu.
+      { icon: 'supprimer', label: 'Supprimer cette écriture qui revient', hint: 'Ce qu\'elle a déjà créé reste dans le livre', danger: true, run: () => supprimerAbo(root, dossier, a) }
     ];
+  }
+
+  async function supprimerAbo(root, dossier, a) {
+    const ok = await confirmDialog('Supprimer cette écriture qui revient ?',
+      `<p>« ${esc(a.nom)} » ne se proposera plus.</p><p>Les écritures qu'elle a déjà créées ne bougent pas : elles vivent leur vie dans le livre.</p>`, 'Supprimer', true);
+    if (!ok) return;
+    try { S = await api.saveAbonnements(dossier.id, (dossier.abonnements || []).filter(x => x.id !== a.id)); toast('Écriture qui revient supprimée.'); render(); }
+    catch (e) { toast(plainError(e), 'error'); }
   }
 
   async function basculerAbo(root, dossier, abo, actif) {

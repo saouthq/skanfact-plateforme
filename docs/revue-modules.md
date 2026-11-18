@@ -5077,3 +5077,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **« 607 », « 411 » dans une case vide** se prenaient pour des valeurs déjà saisies (chez le comptable, les cases
   portent des chiffres). L'exemple est en italique, la valeur tapée reste droite — dans tout le Cabinet.
+
+## 1.384.9 — Les écritures qui reviennent : la date et « Supprimer » (issue 11, CABSAISIE-12)
+
+- **« Depuis » s'écrit « 05/01/2026 »**, comme partout : la liste montrait « 2026-01-05 ».
+- **« Supprimer cette écriture qui revient » est au menu de la ligne**, en dernier, avec sa question. Il n'était que
+  dans la fenêtre « Modifier ». Ce qu'elle a déjà créé reste au livre.

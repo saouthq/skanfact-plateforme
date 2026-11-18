@@ -120,6 +120,9 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     await expect.poll(() => p.locator('#ab-new').count()).toBe(1);
     expect(await p.locator('#ab-gen').count()).toBe(0);
     expect(await p.locator('tr[data-ab]').innerText()).toMatch(/à jour/);
+    // (1.384.9, issue 11 constat 12) La date de départ s'écrit comme partout : « 05/01/2026 », pas « 2026-01-05 ».
+    expect(await p.locator('tr[data-ab]').innerText()).toMatch(/05\/01\/2026/);
+    expect(await p.locator('tr[data-ab]').innerText()).not.toMatch(/2026-01-05/);
 
     // ── Suspendu, il ne propose plus rien ────────────────────────────────────────────────────────
     await expect.poll(async () => {
@@ -131,6 +134,17 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     expect((await abos()).map((a) => a.actif)).toEqual([false]);
     expect((await ecritures()).length).toBe(dus.length);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-abonnements.png') });
+    // (1.384.9) « Supprimer » est au menu de la ligne, en dernier ; ce qu'elle a créé reste au livre.
+    await expect.poll(async () => {
+      if (!await p.getByRole('menuitem').filter({ hasText: 'Supprimer cette écriture qui revient' }).count()) await p.locator('[data-rowmenu^="A:"]').first().click({ timeout: 2_000 }).catch(() => {});
+      return p.getByRole('menuitem').filter({ hasText: 'Supprimer cette écriture qui revient' }).count();
+    }, { timeout: 30_000 }).toBe(1);
+    expect((await p.getByRole('menuitem').allInnerTexts()).at(-1)).toMatch(/^Supprimer cette écriture qui revient/);
+    await p.getByRole('menuitem').filter({ hasText: 'Supprimer cette écriture qui revient' }).click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Supprimer', exact: true }).click();
+    await expect.poll(toast).toBe('Écriture qui revient supprimée.');
+    expect(await abos()).toEqual([]);
+    expect((await ecritures()).length).toBe(dus.length);
     expect(erreurs).toEqual([]);
   }, 240_000);
 });
