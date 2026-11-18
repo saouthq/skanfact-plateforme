@@ -1527,6 +1527,15 @@
     return {
       ok, format: FORMAT_CNSS.nom, refus, avertissements,
       lignes: lignes.length, total: round3(total / 1000),
+      // (1.387.14, issue 10, CABPAIE-30) Les refus rangés par SALARIÉ : un salarié dont le n° CNSS et le CIN sont faux
+      // paraissait deux fois dans la liste des corrections, avec deux boutons qui ouvrent la même fiche. Un groupe par
+      // salarié (dans l'ordre où il paraît), ses motifs dans l'ordre ; un refus qui ne vise personne (employeur, code,
+      // période) reste seul. Les deux applications lisent CE champ : une seule règle de regroupement.
+      refusParSalarie: refus.reduce((gs, r) => {
+        const g = r.salarieId ? gs.find(x => x.salarieId === r.salarieId) : null;
+        if (g) { g.champs.push(r.champ); g.motifs.push(r.motif); } else gs.push({ salarieId: r.salarieId || '', nom: r.nom || '', champ: r.champ, champs: [r.champ], motifs: [r.motif] });
+        return gs;
+      }, []),
       nom: ok ? `DS${emp.texte}${code}.${trimestre}${annee}` : '',
       // Chaque salarié sur sa ligne, chaque ligne finie par un retour chariot (l'ancien format le
       // précise, le nouveau ne le contredit pas).

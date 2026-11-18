@@ -5322,3 +5322,13 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   barre de défilement toujours dessinée, et la colonne du nom reste collée à gauche : on sait toujours de qui on
   pointe le 31.
 - Un navigateur de test ne réserve pas de place à la barre : le test vérifie que sa règle s'applique, pas ses pixels.
+
+## 1.387.14 — Le fichier CNSS : un salarié par ligne, et le code d'exploitation dit avant (issue 10, CABPAIE-30)
+
+- **Le même salarié paraissait deux fois dans les corrections** (un n° CNSS et un CIN faux : deux lignes, deux boutons
+  vers la même fiche). Le moteur range désormais les refus par salarié (`refusParSalarie`), et les deux applications
+  lisent ce champ : une ligne, ses motifs à la suite, un bouton.
+- **Le code d'exploitation n'était jamais montré** alors qu'il part dans le nom et chaque ligne du fichier. Au Cabinet,
+  la ligne « Code d'exploitation : 0000 (le code ordinaire…) · Changer le code… » se lit avant « Fabriquer le fichier ».
+- Reste noté, À VÉRIFIER avec le pilote : l'état récapitulatif imprime le code sur deux chiffres (« 00 »), le fichier sur
+  quatre ; l'état suit le formulaire réel reçu le 19/10, on ne le change pas sans le voir.

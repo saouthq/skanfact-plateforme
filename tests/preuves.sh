@@ -30726,6 +30726,10 @@ prouver $'le détail du calcul tait le prorata' modules/personnel/ecrans/cabinet
 # (1.387.13, issue 10, CABPAIE-29) Au pointage, le nom du salarié reste à gauche quand la grille défile.
 prouver $'le nom du salarié part avec la grille' modules/personnel/styles/paie-cabinet.css $'#pt-grille tfoot > tr > :first-child { position: sticky;' $'#pt-grille tfoot > tr > :first-child { position: static;' $'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 
+# (1.387.14, issue 10, CABPAIE-30) Le fichier CNSS : un salarié, une ligne de corrections ; le code d'exploitation se lit avant le geste.
+prouver $'les refus du même salarié font deux lignes' modules/personnel/moteur/compta-paie.js $'const g = r.salarieId ? gs.find(x => x.salarieId === r.salarieId) : null;' $'const g = null;' $'deux refus du même salarié font UNE ligne, dans leur ordre ; un autre salarié et le code restent à part'
+prouver $'le code d\'exploitation ne se montre pas' modules/personnel/ecrans/cabinet/paie.js $'${f.refus.some(r => r.champ === \'code\') ? \'\' : `<div class="ctrl-geste small" id="pa-code-expl">' $'${true ? \'\' : `<div class="ctrl-geste small" id="pa-code-expl">' $'refusé sans matricule employeur, puis téléchargé sous son nom ; son salaire est l\'assiette du serveur'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

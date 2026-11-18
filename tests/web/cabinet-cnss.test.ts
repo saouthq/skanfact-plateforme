@@ -101,6 +101,10 @@ describe('le fichier CNSS du trimestre, à la souris', () => {
 
     // ── Le fichier se télécharge sous le nom du format ; son salaire est l'assiette du serveur ───────────
     await expect.poll(() => p.locator('#pa-fichier').isEnabled(), { timeout: 20_000 }).toBe(true);
+    // (1.387.14, issue 10, CABPAIE-30) Le code d'exploitation, qui part dans le nom du fichier, se lit AVANT le geste,
+    // avec le moyen de le changer : rien de réglé = 0000, le code ordinaire.
+    expect((await p.locator('#pa-code-expl').innerText()).replace(/\s+/g, ' ')).toMatch(/Code d'exploitation : 0000 \(le code ordinaire/);
+    expect(await p.locator('#pa-code-expl [data-pa-emp="code"]').innerText()).toBe('Changer le code…');
     const [telechargement] = await Promise.all([p.waitForEvent('download'), p.locator('#pa-fichier').click()]);
     expect(telechargement.suggestedFilename()).toBe('DS00123456720000.12025');
     const contenu = fs.readFileSync(String(await telechargement.path()), 'latin1');

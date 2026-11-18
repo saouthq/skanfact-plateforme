@@ -4674,12 +4674,15 @@
       const champDe = { cnss: 'cnss', cin: 'cin', identite: 'cnssName' };
       // Le matricule VIDE est déjà dit par #cn-employeur, avec « Le renseigner » ; mal écrit, il se dit ici.
       const refus = f.refus.filter(r => !(r.champ === 'employeur' && !(company().cnss || '').trim()));
+      // (1.387.14, issue 10, CABPAIE-30) Une ligne par salarié, ses motifs à la suite (le moteur les range) : un n° CNSS
+      // et un CIN faux faisaient deux lignes et deux boutons vers la même fiche.
+      const lignesRefus = (f.refusParSalarie || f.refus).filter(r => !(r.champ === 'employeur' && !(company().cnss || '').trim()));
       const court = { identite: 'identité reprise du nom de la fiche', cin: 'CIN absent (la case part vide)' };
       const par = [];
       f.avertissements.forEach(a => { let g = par.find(x => x.id === a.salarieId); if (!g) par.push(g = { id: a.salarieId, nom: a.nom, champs: [] }); g.champs.push(a.champ); });
       return `<div class="mt" id="cn-fichier-bloc">
         ${refus.length ? `<div class="warn-box mb"><div><b>Le fichier CNSS attend ${h(pl(refus.length, 'correction'))}</b> — il ne sort pas tant qu'une ligne est fausse : le portail le refuserait.</div>
-          ${refus.map(r => `<div class="ctrl-geste"><span>${r.nom ? `<b>${h(r.nom)}</b> — ` : ''}${h(r.motif)}</span>${r.salarieId && champDe[r.champ] ? fiche(r.salarieId, champDe[r.champ], `Ouvrir la fiche de ${r.nom}…`) : r.champ === 'code' || r.champ === 'employeur' ? `<button type="button" class="btn btn-sm" data-cn-regl="${r.champ === 'code' ? 'cnssCode' : 'cnss'}">${r.champ === 'code' ? 'Corriger le code d\'exploitation…' : 'Corriger le matricule CNSS…'}</button>` : ''}</div>`).join('')}</div>` : ''}
+          ${lignesRefus.map(r => `<div class="ctrl-geste"><span>${r.nom ? `<b>${h(r.nom)}</b> — ` : ''}${h((r.motifs || [r.motif]).join(' '))}</span>${r.salarieId && champDe[r.champ] ? fiche(r.salarieId, champDe[r.champ], `Ouvrir la fiche de ${r.nom}…`) : r.champ === 'code' || r.champ === 'employeur' ? `<button type="button" class="btn btn-sm" data-cn-regl="${r.champ === 'code' ? 'cnssCode' : 'cnss'}">${r.champ === 'code' ? 'Corriger le code d\'exploitation…' : 'Corriger le matricule CNSS…'}</button>` : ''}</div>`).join('')}</div>` : ''}
         ${/* (1.248.1) Les fiches au même manque se disent en UNE phrase, un bouton par personne : cinq lignes presque pareilles
               noyaient le refus qui, lui, bloque (recette du 02/11). */''}
         ${par.length ? `<div class="small mb" id="cn-avert">${[...new Set(par.map(g => g.champs.join('+')))].map(sig => {

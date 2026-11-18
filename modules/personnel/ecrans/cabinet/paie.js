@@ -1026,15 +1026,18 @@
     const AUSSI = { identite: 'son identité CNSS reprend le nom de sa fiche', cin: 'son CIN manque (la case partirait vide)' };
     const avertDe = id => f.avertissements.filter(a => a.salarieId === id).map(a => AUSSI[a.champ] || COURT_AVERT_CNSS[a.champ] || a.champ);
     const ligne = r => {
-      const dem = r.champ === 'cnss' && r.nom ? demandeCnss(dossier, r.nom) : null;
+      const dem = (r.champs || [r.champ]).includes('cnss') && r.nom ? demandeCnss(dossier, r.nom) : null;
       const plus = r.salarieId ? avertDe(r.salarieId) : [];
-      return `<div class="ctrl-geste"><span>${r.nom ? `<b>${esc(r.nom)}</b> — ` : ''}${esc(r.motif)}${plus.length ? ` <span class="muted">Aussi : ${esc(plus.join(' ; '))}.</span>` : ''}${dem ? ` <span class="${dem.recueLe ? 'ok-text' : 'muted'}">${esc(phraseDemandeCnss(dem, client))}</span>` : ''}</span>${geste(r)}</div>`;
+      return `<div class="ctrl-geste"><span>${r.nom ? `<b>${esc(r.nom)}</b> — ` : ''}${esc((r.motifs || [r.motif]).join(' '))}${plus.length ? ` <span class="muted">Aussi : ${esc(plus.join(' ; '))}.</span>` : ''}${dem ? ` <span class="${dem.recueLe ? 'ok-text' : 'muted'}">${esc(phraseDemandeCnss(dem, client))}</span>` : ''}</span>${geste(r)}</div>`;
     };
     const dejaVus = new Set(f.refus.map(r => r.salarieId).filter(Boolean));
     return `<div class="mt" id="pa-fichier-bloc">
-      ${f.refus.length ? `<div class="warn-box mb"><div><b>Le fichier CNSS attend ${esc(pl(f.refus.length, 'correction'))}</b> — il ne sort pas tant qu'une ligne est fausse : le portail le refuserait.</div>${f.refus.map(ligne).join('')}</div>` : ''}
+      ${f.refus.length ? `<div class="warn-box mb"><div><b>Le fichier CNSS attend ${esc(pl(f.refus.length, 'correction'))}</b> — il ne sort pas tant qu'une ligne est fausse : le portail le refuserait.</div>${(f.refusParSalarie || f.refus).map(ligne).join('')}</div>` : ''}
       ${avertissementsCnss(f, dejaVus)}
       ${enCours ? `<p class="small muted mb" id="pa-en-cours">${esc(enCours)}</p>` : ''}
+      ${/* (1.387.14, issue 10, CABPAIE-30) Le code d'exploitation part dans le nom et dans chaque ligne du fichier : il se
+            montre AVANT le geste, avec le moyen de le changer (vide = 0000, le code ordinaire — la fiche du dossier le règle). */''}
+      ${f.refus.some(r => r.champ === 'code') ? '' : `<div class="ctrl-geste small" id="pa-code-expl"><span>Code d'exploitation : <b>${esc(String(dossier.cnssCode || '').trim() ? String(dossier.cnssCode).trim().padStart(4, '0') : '0000')}</b>${String(dossier.cnssCode || '').trim() ? '' : ' <span class="muted">(le code ordinaire, rien de réglé sur le dossier)</span>'}</span><button type="button" class="btn btn-sm" data-pa-emp="code">Changer le code…</button></div>`}
       <div class="ctrl-geste"><button type="button" class="btn btn-sm" id="pa-fichier" ${f.ok && !enCours ? '' : 'disabled'}
         title="${esc(enCours || (f.ok ? '' : 'Corrige d\'abord ce qui est signalé au-dessus.'))}">Fabriquer le fichier CNSS…</button>
         <span class="small muted">Au format ${esc(f.format)} de la télédéclaration des salaires. <b>À VÉRIFIER</b> : contrôle-le sur le portail avant de valider le dépôt — SkanFact Cabinet ne dépose rien.</span>${info('pa.fichier')}</div>
