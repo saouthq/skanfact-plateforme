@@ -359,7 +359,9 @@ describe('la facture électronique reçue 1.325.0 : le fichier El Fatoora du fou
     expect(lignesDe(eAv)).toEqual([['6071', 0, 76500], ['4366', 0, 14535], ['401', 91035, 0]]);
 
     // La facture d'une autre société : la fiche le dit avant tout geste.
-    await expect.poll(() => p.locator('#sx-rang').innerText().catch(() => ''), { timeout: 20_000 }).toBe('Pièce 1 sur 2');
+    // (18/11/2026) il reste deux pièces ; laquelle s'ouvre après la validation dépend de l'ordre d'arrivée des
+    // deux fichiers (rouge une fois chez GitHub : « Pièce 2 sur 2 »). La ligne suivante choisit la pièce de toute façon.
+    await expect.poll(() => p.locator('#sx-rang').innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Pièce [12] sur 2$/);
     await puce('TEIF_FA-2026-1290').click().catch(() => undefined);
     await expect.poll(() => p.locator('#sx-ef-ck li.ko > span').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`Adressée à Clinique El Amen (${MA}), pas à Café des Arts le fichier nomme un autre acheteur : à demander avant de la saisir`);
     expect(net(await p.locator('#sx-ef-ck').innerText())).toContain('Le fichier n\'est pas signé');
