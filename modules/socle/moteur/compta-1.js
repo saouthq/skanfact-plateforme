@@ -741,7 +741,10 @@
     const by = {};
     const ordre = [];
     (entries || []).forEach(e => {
-      const k = cleDePiece(e);
+      // (1.386.4 ; issue 11, CABSAISIE-4) Dans le livre, une écriture est UNE pièce du journal : une écriture et son
+      // miroir (même journal, même pièce, même jour) se fondaient en « 1 pièce · 6 lignes », sous le seul numéro du
+      // miroir. Les lignes d'un paquet, sans identifiant d'écriture, se groupent comme avant.
+      const k = e.ecritureId ? `E|${e.ecritureId}` : cleDePiece(e);
       if (!by[k]) {
         by[k] = { key: k, date: txt(e.date), journal: txt(e.journal), piece: txt(e.piece), lignes: [], debit: 0, credit: 0, fixe: 0 };
         ordre.push(k);

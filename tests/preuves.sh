@@ -30639,6 +30639,11 @@ prouver $'banque 1.386.3 (0221) : reprendre une écriture rapprochée garde son 
   $'     where false and g.ecriture = p_id and g.compte = l->>\'compte\' and g.debit = (l->>\'debit\')::bigint and g.credit = (l->>\'credit\')::bigint' \
   $'un rapprochement : une ligne du relevé, une ligne d\'écriture du même compte, qui ne répond que d\'elle ; un brouillard qui change le fait tomber ; tout se défait, le relevé se retire'
 
+prouver $'journal 1.386.4 : une écriture et son miroir du même jour restent deux pièces' modules/socle/moteur/compta-1.js \
+  $'const k = e.ecritureId ? `E|${e.ecritureId}` : cleDePiece(e);' \
+  $'const k = cleDePiece(e);' \
+  $'une écriture et son miroir du même jour restent deux pièces, chacune sous son numéro'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

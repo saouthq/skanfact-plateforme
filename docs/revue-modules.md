@@ -5175,3 +5175,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   compte d'attente (471 → 411) ou ventiler une TVA rendait la ligne du relevé « à traiter ». Le rapprochement retrouve
   désormais sa ligne quand la ligne de banque n'a pas changé (même compte, même montant). Si elle change, il tombe,
   comme avant. Migration `0221_reprise_garde_le_rapprochement.sql`.
+
+## 1.386.4 — Le journal : une écriture et son miroir restent deux pièces (issue 11, CABSAISIE-4)
+
+- **Contre-passée le jour même**, une écriture et son miroir portent le même journal, la même référence et la même
+  date : le livre-journal les fondait en une seule pièce, sous un seul numéro, débit et crédit doublés. Les lignes du
+  livre se groupent maintenant par écriture ; celles d'un paquet (sans identifiant) se groupent comme avant.
