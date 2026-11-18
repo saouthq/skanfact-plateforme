@@ -773,7 +773,7 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
       <section className="c-carte c-rg" aria-labelledby="rg-message">
         <div className="c-al-section-tete">
           <div>
-            <h2 id="rg-message">{titre(`${K}.m.titre`)}</h2>
+            <h2 id="rg-message">{titre(futur ? `${K}.m.titre_futur` : `${K}.m.titre`)}</h2>
             <p className="c-carte-sous">{phrase(`${K}.m.sous`)}</p>
           </div>
           {peut ? <Bouton ton={m ? 'secondaire' : 'principal'} icone="plus" onClick={() => geste({ sorte: 'ecrire' })}>{titre(`${K}.m.ecrire`)}</Bouton> : null}
@@ -789,7 +789,7 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
               </div>
               {peut ? <Bouton petit onClick={() => geste({ sorte: 'retirer', message: m })}>{titre(`${K}.m.retirer`)}</Bouton> : null}
             </div>
-            <span className="c-champ-libelle">{titre(`${K}.m.ce_que_voient`)}</span>
+            <span className="c-champ-libelle">{titre(futur ? `${K}.m.ce_que_verront` : `${K}.m.ce_que_voient`)}</span>
             <Apercu sorte={m.sorte} texte={m.texte} />
             <p className="c-sous">{titre(`${K}.m.ecrit_par`, { nom: m.par, quand: quand(m.le, d.aujourdhui) })} <span data-donnee>« {m.motif} »</span></p>
           </div>

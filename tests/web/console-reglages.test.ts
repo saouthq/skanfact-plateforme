@@ -578,7 +578,18 @@ describe('les réglages de la plateforme, à la souris', () => {
     await expect.poll(async () => net(await p.locator('.c-table').innerText())).toMatch(/La relance automatique des devis.*Remplacé le/);
     // Les jours d'un message passé sont ceux qui étaient prévus : la colonne le dit, à côté de la façon dont il est parti.
     // (Le texte des cellules, pas leur rendu : la feuille de style met les en-têtes en capitales.)
-    expect((await p.locator('.c-table thead th').allTextContents()).map(net)).toEqual(['Sorte', 'Ce que les clients ont lu', 'Prévu', 'Comment il est parti']);
+    expect((await p.locator('.c-table thead th').allTextContents()).map(net)).toEqual(['Sorte', 'Le message', 'Prévu', 'Comment il est parti']);
+    // (1.383.7, issue 5, CONSOLE-19) le titre et le libellé suivent l'état : un message qui n'a pas encore paru est « à
+    // venir », et c'est ce que les clients « verront ».
+    expect(net(await p.locator('#rg-message').innerText())).toBe('Le message affiché en ce moment');
+    expect(net(await p.locator('.c-rg-actuel .c-champ-libelle').first().innerText())).toBe('Ce que voient les clients');
+    await admin.query("update plateforme.message_clients set du = du + 10, au = au + 10 where retire_le is null");
+    await p.reload();
+    await expect.poll(async () => net(await p.locator('#rg-message').innerText().catch(() => '')), { timeout: 15_000 }).toBe('Le message à venir');
+    expect(net(await p.locator('.c-rg-actuel .c-champ-libelle').first().innerText())).toBe('Ce que verront les clients');
+    await admin.query("update plateforme.message_clients set du = du - 10, au = au - 10 where retire_le is null");
+    await p.reload();
+    await expect.poll(async () => net(await p.locator('#rg-message').innerText().catch(() => '')), { timeout: 15_000 }).toBe('Le message affiché en ce moment');
     // Retiré : il disparaît de l'application, et la console le range dans les messages passés, avec son motif.
     await cliquer(p.getByRole('button', { name: 'Le retirer maintenant…' }));
     const f = p.locator('[role="dialog"]');

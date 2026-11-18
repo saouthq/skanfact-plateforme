@@ -4980,3 +4980,13 @@ Hors de son rôle, on lisait un titre, une phrase et un lien souligné sur une p
 simple bandeau. Les deux sont maintenant la même carte (`Ferme`, `Console.tsx`) : une icône, le titre, ce qui se passe,
 **qui ouvre l'écran** (lu dans la table des rôles, jamais recopié) et à qui demander, puis le bouton principal du retour.
 Vue en capture (clair, ordinateur). Test : `console` (la technique devant Clients). Preuve « console 1.383.6 a ».
+
+## 1.383.7 — La console : les messages aux clients suivent leur état (issue 5, CONSOLE-19)
+
+Un message programmé pour plus tard paraissait sous « Le message affiché en ce moment » et « Ce que voient les clients » :
+le titre devient « Le message à venir » et le libellé « Ce que verront les clients » tant que son premier jour n'est pas
+arrivé. La colonne des messages passés s'appelait « Ce que les clients ont lu », y compris pour un message retiré avant
+d'avoir paru : elle s'appelle « Le message ». Le Support renvoyait à l'onglet « Ses demandes » de la fiche, qui s'appelle
+« Support et échanges » (CONSOLE-20). Laissé tel quel : le refus de date qui reste après la correction — c'est la règle
+des fenêtres (un refus reste en retrait jusqu'au clic suivant, pour ne pas faire bouger le bouton sous le curseur).
+Test : `console-reglages`. Preuve « console 1.383.7 a ».

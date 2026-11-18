@@ -30523,6 +30523,10 @@ prouver $'console 1.383.6 a : l\'écran fermé ne dit pas qui l\'ouvre' web/cons
   $"{ qui: qui.join(' et ') }" $"{ qui: '' }" \
   $'la technique : l\'accueil et le service seulement ; les clients ne sont pas dans son rôle'
 
+prouver $'console 1.383.7 a : un message à venir titré « affiché en ce moment »' web/console/src/ecrans/Reglages.tsx \
+  $'titre(futur ? `${K}.m.titre_futur` : `${K}.m.titre`)' $'titre(`${K}.m.titre`)' \
+  $'écrire, remplacer, retirer : le bandeau du client suit ; « Plus tard » garde la place, un message neuf reparaît'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
