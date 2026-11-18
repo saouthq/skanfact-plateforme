@@ -5187,3 +5187,13 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Après un rechargement, « Écriture commencée…, pas encore enregistrée » arrivait après la grille** — jusqu'à cinq
   secondes plus tard, pendant qu'on tapait déjà. Le poste relit son brouillon dès que le dossier s'ouvre, une seule
   fois : le bandeau (« Reprendre » / « Le jeter ») est là avec la grille, et revenir à la saisie ne relit plus rien.
+
+## 1.386.6 — Les mêmes mots pour les mêmes gestes (issue 11, CABSAISIE-24) ; le pont du Cabinet revient sous son plafond
+
+- **Un écart se dit une fois.** Sous la grille, « Écart … Il manque … » était suivi de « Débit … ≠ crédit … » : la
+  seconde phrase ne s'affiche plus (elle reste sur le bouton éteint).
+- **Les messages se ressemblent** : « Écriture validée sous le n° … », « Écriture contre-passée sous le n° … »,
+  « Écriture enregistrée au brouillard : elle sera numérotée à la validation » (« pas encore de numéro » se lisait
+  comme le numéro de pièce qu'on venait de taper).
+- **Rouge GitHub de la 1.385.9** : `pont-cabinet.js` dépassait son plafond de trois lignes (frontières, F12) depuis la
+  1.385.7. Les mêmes instructions tiennent en trois lignes de moins ; le plafond n'a pas bougé.

@@ -414,11 +414,8 @@
     if (!d) throw new Error('Dossier introuvable.');
     const livre = await livreDe(o.dossierId, o.annee);
     const guides = K.guidesDuDossier(etat, d);
-    /** @type {{ crees: number, sansGuide: string[], horsExercice: number, details: any[], validees: string[] }} */
-    const bilan = { crees: 0, sansGuide: [], horsExercice: 0, details: [], validees: [] };
-    // (1.385.7 ; issue 11, CABSAISIE-12) Une occurrence dans la période validée faisait refuser toute la génération :
-    // elle se passe, se nomme, et le reste s'écrit.
-    const valideJusqua = String((livre.exercice || {}).valideJusqua || '');
+    const bilan = /** @type {{ crees: number, sansGuide: string[], horsExercice: number, details: any[], validees: string[] }} */ ({ crees: 0, sansGuide: [], horsExercice: 0, details: [], validees: [] });
+    const valideJusqua = String((livre.exercice || {}).valideJusqua || ''); // (1.385.7, CABSAISIE-12) une occurrence en période validée se passe et se nomme, le reste s'écrit
     const abonnements = (d.abonnements || []).map((/** @type {any} */ a) => ({ ...a, faites: [...(a.faites || [])] }));
     let notes = 0;
     try {

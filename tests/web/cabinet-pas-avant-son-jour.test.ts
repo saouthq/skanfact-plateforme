@@ -145,7 +145,7 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     await p.locator('#pa-valider').waitFor({ timeout: 15_000 });
     await p.locator('#pa-valider').click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
-    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Validée sous le n° \d+$/);
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Écriture validée sous le n° \d+\.$/);
     expect(await p.evaluate(() => location.hash)).toMatch(/comptabilite\/paie/);
     await expect.poll(() => p.locator('#pa-valider').count(), { timeout: 15_000 }).toBe(0);
     expect(erreurs).toEqual([]);

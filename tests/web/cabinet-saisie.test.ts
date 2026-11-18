@@ -132,7 +132,16 @@ describe('la saisie du Cabinet, à la souris', () => {
 
     // Une seconde, « enregistrée et validée » : son numéro vient du serveur.
     await remplir('OD-8', 'Honoraires d\'août', [['6226', '300', ''], ['4286', '', '300']]);
+    // (1.386.6, issue 11, CABSAISIE-24) Un écart se dit UNE fois sous la grille : la boîte du solde, pas le refus en plus.
+    const credit8 = p.locator('#sa-lignes tr[data-i="1"] input[data-k="credit"]');
+    await credit8.fill('250');
+    await expect.poll(async () => (await p.locator('#sa-solde').innerText()).replace(/\s+/g, ' ')).toMatch(/^Écart 50,000 — débit 300,000 \/ crédit 250,000\. Il manque 50,000 au crédit\.$/);
+    expect(await p.locator('#sa-refus').isVisible()).toBe(false);
+    expect(await p.locator('#sa-okvalider').getAttribute('title')).toMatch(/≠/);
+    await credit8.fill('300');
     await p.locator('#sa-okvalider').click();
+    // Les mêmes mots pour le même geste, d'un écran à l'autre : « Écriture validée sous le n° … »
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/^Écriture validée sous le n° .+\.$/);
     await expect.poll(async () => (await livres(ent, associe)).find((e) => e.piece === 'OD-8')?.statut, { timeout: 10_000 }).toBe('validee');
     const od8 = (await livres(ent, associe)).find((e) => e.piece === 'OD-8');
     expect(od8?.numero).toMatch(/^OD-2026-\d{6}$/);

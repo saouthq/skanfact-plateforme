@@ -30649,6 +30649,11 @@ prouver $'saisie 1.386.5 : le brouillon du poste se lit une fois par dossier ouv
   $'const lireReprise = id => { if (true) repriseLue.set' \
   $'gardée sur « mon ordinateur », elle se reprend après l\'onglet fermé ; ailleurs, fermer l\'onglet demande'
 
+prouver $'saisie 1.386.6 : l\'écart se dit une fois sous la grille' modules/socle/ecrans/cabinet/app-2.js \
+  $'motif.hidden = !phrase || dejaDit;' \
+  $'motif.hidden = !phrase;' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

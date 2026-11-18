@@ -8297,7 +8297,7 @@
       const r = await api.valider(dossier.id, livresState.annee, e.id);
       livresState.livre = r.livre;
       drawLivres(root, dossier);
-      toast(`Validée sous le n° ${r.numero}`);
+      toast(`Écriture validée sous le n° ${r.numero}.`);
       majAValider(dossier);
     } catch (err) { await infoDialog('Validation refusée', plainError(err)); }
   }
@@ -8353,7 +8353,7 @@
       const r = await api.contrepasser(dossier.id, livresState.annee, e.id, jour);
       livresState.livre = r.livre;
       drawLivres(root, dossier);
-      toast(r.date && r.date !== jour ? `Contre-passée au ${fmtJour(r.date)}, sous le n° ${r.numero}` : `Contre-passée sous le n° ${r.numero}`);
+      toast(r.date && r.date !== jour ? `Écriture contre-passée au ${fmtJour(r.date)}, sous le n° ${r.numero}.` : `Écriture contre-passée sous le n° ${r.numero}.`);
     } catch (err) { await infoDialog('Contre-passation impossible', plainError(err)); }
   }
 

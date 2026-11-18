@@ -4206,7 +4206,10 @@
       const av = (v.ok && vv.ok && v.avertissements) || [];
       const phrase = !v.ok ? v.motif : !vv.ok ? 'Pour valider : ' + vv.motif
         : av.length ? av[0] + (av.length > 1 ? ` Et ${pl(av.length - 1, 'autre compte neuf', 'autres comptes neufs')} dans cette pièce.` : '') : '';
-      if (motif) { motif.hidden = !phrase; motif.textContent = typoTexte(phrase); }
+      // (1.386.6, issue 11, CABSAISIE-24) L'écart se disait deux fois de suite, dans deux formats : la boîte du solde le dit
+      // déjà (« Écart … Il manque … ») ; le refus « Débit … ≠ crédit … » ne se répète pas dessous (il reste sur le bouton).
+      const dejaDit = !t2.equilibre && /≠/.test(phrase);
+      if (motif) { motif.hidden = !phrase || dejaDit; motif.textContent = typoTexte(phrase); }
 
       // Le geste de solde s'annonce là où il se déclenche, avec le montant qu'il posera — et il
       // nomme la colonne quand ce n'est pas celle où l'on est. Le placeholder se remet à jour ici,
@@ -4547,7 +4550,7 @@
           if (w) { s.livre = w.livre; toast(`Écriture validée sous le n° ${w.numero}.`); }
         } else {
           toast(res.attente ? 'Gardée sur ce poste, au brouillard : elle partira seule au serveur au retour du réseau.'
-            : p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');
+            : p.id ? 'Écriture enregistrée au brouillard.' : 'Écriture enregistrée au brouillard : elle sera numérotée à la validation.');
         }
         // On enchaîne : même journal, même date, tout le reste vide. C'est ça, la saisie au
         // kilomètre — on ne revient jamais au menu entre deux pièces.
