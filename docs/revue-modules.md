@@ -5418,3 +5418,7 @@ Une fois l'objectif posé, le bouton des Statistiques disparaissait : il devient
 ### 1.387.31 — la paie ne garde plus « Payer » sur un mois où rien n'est à payer (issue 16, constat 20)
 
 De l'étape « Payer » d'octobre, choisir novembre ouvrait un écran vide : « Tu regardes Payer. L'étape du moment : Pointer ». Un mois où il n'y a encore rien à payer s'ouvre maintenant sur son étape du moment. Les autres étapes suivent comme avant (à venir, « Bulletins » et « Déclarer » disent ce qu'il reste à faire). Et « Toute l'année » ne montre plus les quatre étapes d'un mois au-dessus des chiffres de l'année. Test : `paie-1330` (« la frise du mois… »), deux preuves.
+
+### 1.387.32 — la déclaration annuelle d'employeur n'a plus qu'une date (issue 16, constat 14)
+
+La paie en donnait quatre (« début 2027 (À VÉRIFIER) », « février 2027 », « 30/04/2027 », et celle du calendrier fiscal). Tous les écrans lisent maintenant la date que le calendrier fiscal règle, par la même fonction (`dateLimiteSociale`) : la déplacer dans le calendrier la déplace partout. Test : `date-employeur-une-1387`, une preuve.

@@ -2995,7 +2995,7 @@
         ...departs.map(e => [`sal:${e.id}`, `Le départ de ${e.name}`, 'son dernier bulletin, son solde de tout compte et son certificat de travail', `le ${C.fmtDate(e.endDate)}`, 'Sa fiche']),
         ['conges', 'Les congés qui restent', reste > 0 ? `${pct(reste)} jours à prendre avant la fin de l'année, ou à reporter (À VÉRIFIER : ta convention)` : 'aucun jour ne reste à prendre', 'décembre', 'Les congés'],
         ['', `Attestations de salaires ${y}`, `une par salarié (${pl(emps.length, 'salarié')}) : ce qu'il a gagné et ce qui a été retenu, pour sa déclaration d'impôt ; elles se préparent sur chaque fiche`, 'janvier', ''],
-        ['decl', 'Déclaration annuelle d\'employeur', 'un salarié par ligne, ses salaires et ses retenues ; SkanFact la prépare depuis les bulletins', `février ${y + 1}`, 'Les déclarations'],
+        ['decl', 'Déclaration annuelle d\'employeur', 'un salarié par ligne, ses salaires et ses retenues ; SkanFact la prépare depuis les bulletins', `avant le ${C.fmtDate(C.dateLimiteSociale(data, 'employeur', y))}`, 'Les déclarations'],
         ['', 'Régularisation de l\'impôt', 'si le salaire a changé dans l\'année, l\'impôt retenu chaque mois peut s\'écarter du barème annuel : à voir avec ton comptable (À VÉRIFIER)', 'décembre', '']
       ];
       return `<section class="pa-carte" id="p-fa"><div class="pa-carte-t"><b>La fin de l'année</b><span class="mu">ce que décembre et janvier demandent</span></div>
@@ -4809,7 +4809,7 @@
           // (1.251.0) Le mois en cours, comme le trimestre en cours : ce que ses bulletins déjà établis ajouteront.
           ['echeance', `Déclaration ${/^[aeiouyéè]/i.test(MONTHS_LONG[tm - 1]) ? 'd\'' : 'de '}${MONTHS_LONG[tm - 1]} : retenues et taxes sur les salaires`, `en cours : ${pl(dC.salaries, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(dC.dueDate)}`, dC.salaries ? dC.total : null, false, ''],
           ['echeance', `CNSS du ${C.quarterLabel(cq)} ${ty}`, `en cours : ${pl(cC.slips, 'bulletin')} jusqu'ici`, `avant le ${C.fmtDate(cC.dueDate)}`, cC.total, false, ''],
-          ['echeance', `Déclaration annuelle d'employeur ${ty}`, 'un salarié par ligne, ses salaires et ses retenues', `début ${ty + 1} (À VÉRIFIER)`, null, false, '']]);
+          ['echeance', `Déclaration annuelle d'employeur ${ty}`, 'un salarié par ligne, ses salaires et ses retenues', `avant le ${C.fmtDate(C.dateLimiteSociale(data, 'employeur', ty))}`, null, false, '']]);
         return `<section class="pa-carte" id="dc-verses"><div class="pa-carte-t"><b>Ce que tu verses, et quand ${info('soc.due')}</b><span class="mu">les dates : celles de tes réglages, À VÉRIFIER</span></div>
           <ul class="pa-ctl">${L.map(([ic, t2, d, q2, mt, tard, g]) => `<li class="${ic === 'coche' ? 'ok' : ''}${g ? ' pa-ctl-g' : ''}">${lfIc(ic, 16, 2)}<span><b>${h(t2)}</b><small>${h(d)}</small></span><span class="pa-q${tard ? ' ambre' : ''}">${h(q2)}</span><b class="pa-mt">${mt == null ? '—' : montantU(mt, cur)}</b>${g}</li>`).join('')}</ul>
           <p class="small muted pa-note-c">SkanFact ne dépose rien et ne se connecte à aucune administration : il prépare les chiffres et te rappelle la date. À VÉRIFIER avec ton comptable : les dates et les modalités de dépôt.</p></section>`;
