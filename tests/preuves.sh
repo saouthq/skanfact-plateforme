@@ -30543,6 +30543,14 @@ prouver $'console 1.384.0 a : deux écrans avant le premier client, au télépho
   $'className="c-vues c-vues-8"' $'className="c-vues"' \
   $'au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier'
 
+prouver $'console 1.384.1 a : les onglets du Service sur quatre lignes au téléphone' web/console/src/console.css \
+  $'  .c-onglets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }' $'' \
+  $'au téléphone, les onglets du Service tiennent sur une rangée, et l\'onglet ouvert s\'y voit'
+
+prouver $'console 1.384.1 b : « Équipe » ouvre « Ton compte » sans le dire' web/console/src/Console.tsx \
+  $"e.page === 'equipe' && moi.role !== 'direction'" $"e.page === 'jamais' && moi.role !== 'direction'" \
+  $'la technique : l\'accueil et le service seulement ; les clients ne sont pas dans son rôle'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

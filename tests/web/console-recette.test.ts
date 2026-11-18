@@ -214,6 +214,17 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  it('au téléphone, les onglets du Service tiennent sur une rangée, et l\'onglet ouvert s\'y voit', async () => {
+    // (1.384.1, issue 5, CONSOLE-20) huit onglets prenaient quatre lignes ; « Versions », le dernier, s'amène à l'écran.
+    const p = await ouvrir('#/service/versions', 390);
+    const barre = p.locator('.c-onglets').first();
+    await expect.poll(() => barre.locator('[aria-current="page"]').count(), { timeout: 20_000 }).toBe(1);
+    expect((await barre.boundingBox())?.height ?? 999).toBeLessThan(64);
+    await expect.poll(() => barre.locator('[aria-current="page"]').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }), { timeout: 5_000 }).toBe(true);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
   it('au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier', async () => {
     const p = await ouvrir('#/clients', 390);
     const lignes = p.locator('.c-table-clients tbody tr');

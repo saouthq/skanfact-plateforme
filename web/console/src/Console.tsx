@@ -156,7 +156,8 @@ function Cote({ moi, page, decisions, support, sortir, theme }: { moi: Moi; page
             <span className="c-nav-groupe" id={`nav-${g.cle}`}>{dire(`console.ecran.nav.${g.cle}`)}</span>
             {g.entrees.map((e) => (
               <a key={e.page} href={e.href} aria-current={actif === e.page ? 'page' : undefined}>
-                <Icone nom={e.icone} />{titre(`console.ecran.nav.${e.cle}`)}
+                {/* Hors de la direction, « Équipe » n'ouvre que son propre compte : l'entrée dit ce qu'on y trouve (issue 5, CONSOLE-20). */}
+                <Icone nom={e.icone} />{titre(e.page === 'equipe' && moi.role !== 'direction' ? 'console.ecran.equipe.ton_compte' : `console.ecran.nav.${e.cle}`)}
                 {e.page === 'accueil' && decisions ? <span className="c-nav-compte">{decisions}</span> : null}
                 {e.page === 'support' && support ? <span className="c-nav-compte" title={dire('console.ecran.nav.support_compte', { n: support })}>{support}</span> : null}
               </a>
@@ -234,6 +235,12 @@ function Ferme({ icone, titre: t, children }: { icone: NomIcone; titre: string; 
   );
 }
 function Page({ route, role }: { route: Route; role: Role }) {
+  // Au téléphone, une barre d'onglets tient sur UNE rangée qui défile : l'onglet ouvert s'y amène, sinon on arriverait
+  // sur « Versions » sans voir qu'on y est (issue 5, CONSOLE-20).
+  useEffect(() => {
+    const n = requestAnimationFrame(() => document.querySelector('.c-onglets [aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
+    return () => cancelAnimationFrame(n);
+  }, [route]);
   if (route.page === 'inconnue') return <Ferme icone="info" titre={titre('console.ecran.introuvable_titre')}><p>{phrase('console.ecran.introuvable')}</p></Ferme>;
   if (!OUVRE[route.page].includes(role)) {
     const qui = OUVRE[route.page].map((r) => dire(`console.ecran.role.article.${r}`));

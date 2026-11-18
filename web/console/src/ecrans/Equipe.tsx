@@ -373,7 +373,7 @@ function LEquipe() {
         <div className="c-entete-actions">
           <Lien href="#/equipe?vue=moi" icone="personne">{titre('console.ecran.equipe.ton_compte')}</Lien>
           <Lien href="#/journal" icone="journal">{titre('console.ecran.equipe.journal')}</Lien>
-          <Bouton ton="principal" icone="plus" onClick={() => setInvit({ sorte: 'inviter' })}>{titre('console.ecran.equipe.inv.inviter_titre')}</Bouton>
+          <Bouton ton="principal" icone="plus" onClick={() => setInvit({ sorte: 'inviter' })}>{titre('console.ecran.equipe.ur.seule_inviter')}</Bouton>
         </div>
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}

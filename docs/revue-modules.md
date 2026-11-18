@@ -5023,3 +5023,14 @@ de la case au-dessus de sa valeur. La recherche est à 425 points, le premier cl
 Rien ne change à l'ordinateur ni à la tablette (règle bornée à 600 points de large, et aux écrans qui portent les huit
 cartes). Vu en capture. Test : `console-recette` (les cartes sous 130 points, la recherche avant les états et dans le
 premier écran, deux cases sur la même ligne, aucun débordement de côté). Preuve « console 1.384.0 a ».
+
+## 1.384.1 — La console : trois petits défauts d'aspect (issue 5, CONSOLE-20)
+
+- **Au téléphone, une barre d'onglets tient sur une rangée** qui défile du doigt (les huit du Service prenaient quatre
+  lignes) ; l'onglet ouvert s'y amène, pour qu'on voie où l'on est en arrivant sur le dernier.
+- **« Équipe » ouvre « Ton compte »** pour le support et la technique : l'entrée du menu porte ce nom pour eux.
+- **« Inviter quelqu'un… »** s'écrit pareil en haut de l'écran et dans la carte (il ouvre une fenêtre : trois points).
+
+Déjà réglés par les versions d'avant, relus : les messages « C'est fait : suspension. » (1.38x, un mot par geste), le
+menu « … » qui s'ouvrait loin de sa ligne (il se pose sur la fenêtre, sous son bouton). Tests : `console-recette` (les
+onglets au téléphone), `console` (le menu du support et de la technique). Preuves « console 1.384.1 a » et « b ».

@@ -3283,6 +3283,13 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 /* Au téléphone étroit (issue 5, CONSOLE-12 : deux écrans à défiler avant le premier client, un demi-écran par client) :
    les huit cartes tiennent en UNE rangée qui défile du doigt, la recherche passe en tête des outils, et la carte d'un
    client range ses cases deux par deux, le nom de la case au-dessus de sa valeur. */
+/* Au téléphone, une barre d'onglets tient sur une rangée qui défile du doigt (les huit du Service prenaient quatre
+   lignes) ; l'onglet ouvert s'y amène (Console.tsx). */
+@media (max-width: 600px) {
+  .c-onglets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .c-onglets::-webkit-scrollbar { display: none; }
+  .c-onglets a, .c-onglets button { flex: none; white-space: nowrap; }
+}
 @media (max-width: 600px) {
   .c-vues-8 { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; scrollbar-width: none; }
   .c-vues-8::-webkit-scrollbar { display: none; }

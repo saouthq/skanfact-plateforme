@@ -493,7 +493,7 @@ describe('la console de l\'équipe, à la souris', () => {
     const p = await ouvrir(await jetonConsole(support), `#/clients/${essaiSupport}`);
     // Le support ne voit que ses écrans : « À décider », « Clients », « Abonnements », et le journal de ses propres gestes
     // (0114), et « Équipe », qui lui ouvre son propre compte (1.24.0, C40) ; pas le service.
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements', 'Journal', 'Équipe']));
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements', 'Journal', 'Ton compte']));
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Service/.test(t))).toBe(false);
     // La pastille d'« À décider » : la barre en porte une seconde (le Support) dès qu'une demande attend — les tests d'avant
     // en laissent dans la même base.
@@ -620,7 +620,9 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(net(await ferme.innerText())).toMatch(/Cet écran s.ouvre à la direction et le support\. Si tu en as besoin pour ton travail, demande à la direction\./);
     expect(await ferme.locator('a.c-btn-principal').getAttribute('href')).toBe('#/');
     // « Équipe » lui ouvre son propre compte (1.24.0, C40) ; ni les clients, ni le journal.
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toContain('Équipe');
+    // (1.384.1) l'entrée dit ce qu'elle ouvre : « Ton compte », pas « Équipe ».
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toContain('Ton compte');
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).not.toContain('Équipe');
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Clients|Journal/.test(t))).toBe(false);
     await p.goto(`${serveur.adresse}/console/#/service`);
     const graves = p.locator('.c-ligne-decision');
