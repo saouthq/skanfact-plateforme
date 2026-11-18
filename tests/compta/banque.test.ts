@@ -160,6 +160,23 @@ describe('la banque', () => {
     expect((await appeler('PUT', `/entreprises/${d.ent}/compta/ecritures/${e2}`, d.assistant.jeton, {
       date: '2026-03-05', journal: 'BQ', piece: 'STEG-3', libelle: 'STEG mars', lignes: [{ compte: '6061', debit: '85,125' }, { compte: '532', credit: '85,125' }], revision,
     })).statut).toBe(200);
+    // (1.386.3 ; 0221, issue 11 constat 15) La reprise n'a pas touché la ligne de banque (même compte, même montant) :
+    // le rapprochement la retrouve, sur sa ligne refaite — « la ligne 532 reste rapprochée », comme la fenêtre le promet.
+    const [, banque2b] = await lignesDe(e2);
+    expect(banque2b?.id).not.toBe(banque2?.id);
+    expect((await releves(d.ent, d.collaborateur))[0]?.lignes[1]?.rapprochement).toMatchObject({ ligne: banque2b?.id, ecriture: e2, rang: 2, auto: true });
+    // Ventiler la contrepartie (une TVA, un compte d'attente levé) ne touche pas non plus la ligne de banque.
+    const revision2 = (await livres(d.ent, d.collaborateur)).find((x) => x.id === e2)?.revision;
+    expect((await appeler('PUT', `/entreprises/${d.ent}/compta/ecritures/${e2}`, d.assistant.jeton, {
+      date: '2026-03-05', journal: 'BQ', piece: 'STEG-3', libelle: 'STEG mars', revision: revision2,
+      lignes: [{ compte: '6061', debit: '71,534' }, { compte: '4366', debit: '13,591' }, { compte: '532', credit: '85,125' }],
+    })).statut).toBe(200);
+    expect((await releves(d.ent, d.collaborateur))[0]?.lignes[1]?.rapprochement).toMatchObject({ ecriture: e2, rang: 3, auto: true });
+    // La ligne de banque change (son montant) : là, le rapprochement tombe, et la ligne du relevé redevient « sans réponse ».
+    const revision3 = (await livres(d.ent, d.collaborateur)).find((x) => x.id === e2)?.revision;
+    expect((await appeler('PUT', `/entreprises/${d.ent}/compta/ecritures/${e2}`, d.assistant.jeton, {
+      date: '2026-03-05', journal: 'BQ', piece: 'STEG-3', libelle: 'STEG mars', lignes: [{ compte: '6061', debit: '85,000' }, { compte: '532', credit: '85,000' }], revision: revision3,
+    })).statut).toBe(200);
     expect((await releves(d.ent, d.collaborateur))[0]?.lignes[1]).toMatchObject({ niveau: 'aucun', rapprochement: null });
     // Le jugement de l'automatique qui n'a pas tranché se garde sur la ligne.
     expect((await poser(d.assistant, [{ ligne: L3, ecritureLigne: null, niveau: 'a-confirmer', auto: true }])).statut).toBe(200);

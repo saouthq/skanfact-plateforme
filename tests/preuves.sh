@@ -30634,6 +30634,11 @@ prouver $'saisie 1.386.2 : un guide choisi avant le montant attend son montant' 
   $'' \
   $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
 
+prouver $'banque 1.386.3 (0221) : reprendre une écriture rapprochée garde son rapprochement' base/migrations/0221_reprise_garde_le_rapprochement.sql \
+  $'     where g.ecriture = p_id and g.compte = l->>\'compte\' and g.debit = (l->>\'debit\')::bigint and g.credit = (l->>\'credit\')::bigint' \
+  $'     where false and g.ecriture = p_id and g.compte = l->>\'compte\' and g.debit = (l->>\'debit\')::bigint and g.credit = (l->>\'credit\')::bigint' \
+  $'un rapprochement : une ligne du relevé, une ligne d\'écriture du même compte, qui ne répond que d\'elle ; un brouillard qui change le fait tomber ; tout se défait, le relevé se retire'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

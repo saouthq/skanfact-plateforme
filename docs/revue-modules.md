@@ -5167,3 +5167,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Choisi avant le montant, le guide s'appliquait pour zéro**, et le montant tapé ensuite partait dans le libellé. Le
   guide attend : le curseur va dans la case du montant (« Montant, puis Entrée »), Entrée l'applique. Le montant
   tapé d'abord, puis le guide, marche comme avant.
+
+## 1.386.3 — Reprendre une écriture de banque ne défait plus son rapprochement (issue 11, CABSAISIE-15)
+
+- **La promesse de la fenêtre est tenue.** « Reprendre dans la grille pour ventiler HT et TVA : la ligne 532 reste
+  rapprochée » — or modifier l'écriture refaisait ses lignes, et le rapprochement partait avec l'ancienne : lever un
+  compte d'attente (471 → 411) ou ventiler une TVA rendait la ligne du relevé « à traiter ». Le rapprochement retrouve
+  désormais sa ligne quand la ligne de banque n'a pas changé (même compte, même montant). Si elle change, il tombe,
+  comme avant. Migration `0221_reprise_garde_le_rapprochement.sql`.
