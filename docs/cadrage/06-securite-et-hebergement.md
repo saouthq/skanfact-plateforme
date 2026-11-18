@@ -7,6 +7,8 @@ R2, R8, R9, R11, § 11 points 11 et 12, § 12), `03-droits.md`, `04-hors-ligne-e
 validation, pour suivre le `14` : les portes de plus vers l'extérieur et la lecture de documents
 (§ 3), l'agent local au restaurant (§ 10). **Revalidé par délégation de Skander le 28/09/2026.***
 
+> **Décision du 18/11/2026 (Skander), qui remplace « tout en Tunisie » :** l'hébergement **reste en France**, conforme au RGPD, et l'infrastructure ne change plus. La déclaration du traitement et la demande d'autorisation de transfert se font auprès de l'autorité tunisienne (INPDP — **À VÉRIFIER**). Ce qui, plus bas, parle d'un hébergement en Tunisie décrit l'ancienne décision : à relire à cette lumière.
+
 ## En bref (pour Skander)
 
 Ce document dit **où vivront les données de nos clients**, comment on les protège, comment on les

@@ -301,7 +301,7 @@ milliers de PME** ; le chiffre exact se mesure, il ne se devine pas.
 | R6 | Signature bloquée par une démarche administrative | Démarches lancées pendant le cadrage ; trois chemins de signature |
 | R7 | Mises à jour qui cassent les personnalisations (le mal d'Odoo) | Points d'extension déclarés ; personnalisation par champs, pas par code |
 | R8 | Perte de données (panne, erreur, rançongiciel +140 % en Tunisie) | Sauvegarde continue de la base (restauration à la minute près), copie chiffrée hors du serveur, **exercice de restauration réel chaque mois** |
-| R9 | Hébergement tunisien sans base de données gérée | **Décidé le 27/09/2026 : tout en Tunisie.** On exploite donc nous-mêmes, très outillé (réplique, surveillance, alertes, restauration mensuelle) |
+| R9 | Hébergement | **Décidé le 18/11/2026 : on reste en France (RGPD), demande à faire en Tunisie** — remplace « tout en Tunisie » du 27/09/2026. On exploite donc nous-mêmes, très outillé (réplique, surveillance, alertes, restauration mensuelle) |
 | R10 | Obligations légales découvertes trop tard (INPDP, audit de cybersécurité ANCS pour un hébergeur, caisse certifiée) | Liste « À VÉRIFIER » traitée pendant le cadrage, avec un juriste |
 | R11 | Une seule personne pour tout faire (support, incidents, ventes) | Architecture la plus simple qui tient ; surveillance automatique ; prévoir un humain pour le support avant le lancement |
 | R12 | L'arabe demandé plus tard | **Abandonné** par Skander le 28/09/2026 ; les textes restent dans un catalogue (pour l'anglais) et les champs arabes facultatifs restent en base |
@@ -330,7 +330,9 @@ milliers de PME** ; le chiffre exact se mesure, il ne se devine pas.
 
 ## 9. Décisions qui reviennent à Skander
 
-**Décidé le 27/09/2026 :**
+> **Décision du 18/11/2026 (Skander), qui remplace celle du 27/09 :** l'hébergement **reste en France**, conforme au RGPD ; l'infrastructure ne change plus. Les données personnelles sortent donc de Tunisie : la **déclaration du traitement** ET la **demande d'autorisation de transfert à l'étranger** se font auprès de l'autorité tunisienne (INPDP — **À VÉRIFIER** : procédure, délais, pièces). Rien n'est à promettre aux clients sur cette autorisation tant qu'elle n'est pas obtenue.
+
+**Décidé le 27/09/2026 (remplacé pour l'hébergement, voir ci-dessus) :**
 - **Hébergement en Tunisie**, copie de secours comprise (un second centre de données tunisien) : pas
   de transfert de données à l'étranger. La **déclaration du traitement** auprès de l'INPDP reste à
   faire (**À VÉRIFIER**) ; seule l'autorisation de transfert disparaît.

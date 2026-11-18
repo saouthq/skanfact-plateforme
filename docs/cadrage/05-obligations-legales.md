@@ -312,7 +312,8 @@ fiscaliste **avant** de publier les prix TTC sur le site.
   **responsable du traitement**. Pour les données que nos clients rangent chez nous (leurs clients,
   leurs salariés), SkanFact agit **pour leur compte** : il faut un **contrat de traitement**
   (vision § 11, point 7) ;
-- **l'hébergement en Tunisie** (décidé le 27/09) évite l'autorisation de transfert. Il reste à
+- **Décision du 18/11/2026 (Skander), qui remplace celle du 27/09 :** l'hébergement **reste en France**, conforme au RGPD ; l'infrastructure ne change plus. Les données personnelles sortent donc de Tunisie : la **déclaration du traitement** ET la **demande d'autorisation de transfert à l'étranger** se font auprès de l'autorité tunisienne (INPDP — **À VÉRIFIER** : procédure, délais, pièces). Rien n'est à promettre aux clients sur cette autorisation tant qu'elle n'est pas obtenue.
+- *(ancienne décision, remplacée)* **l'hébergement en Tunisie** (décidé le 27/09) évite l'autorisation de transfert. Il reste à
   **compter chaque flux qui sort** : le fournisseur de SMS et d'e-mails (numéro et code, adresse et
   lien : `03` § 6), Konnect pour le paiement. Chacun doit être en Tunisie, ou déclaré et autorisé.
   C'est la règle du projet : aucune donnée ne part sans que la liste soit comptée et décidée ;
