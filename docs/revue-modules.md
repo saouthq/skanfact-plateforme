@@ -4933,3 +4933,11 @@ sa raison écrite à sa place. Le code ne change pas.
 - **CONSOLE-11.** Une invitation partie à la mauvaise adresse s'annule depuis la carte « À régler », à côté de
   « Renvoyer » : le geste n'existait que dans le menu « … » du tableau, plus bas.
 - Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 10, 12, 13, 15 à 20.
+
+## 1.383.1 — La console : le message écrit à un client se relit (issue 5, CONSOLE-3)
+
+« Écrire… » depuis la fiche d'un client ouvre une demande que SkanFact commence (canal « skanfact », base 0110).
+La liste des canaux du serveur ne le connaissait pas : la ligne était jetée à la lecture, et le message envoyé ne se
+retrouvait ni dans « Support et échanges » de la fiche ni dans le Support — seul le Journal en gardait l'objet. Le
+canal est connu, il se dit « écrit par SkanFact », et le test relit la fiche et le Support après l'envoi.
+Preuve « console 1.383.1 a ».

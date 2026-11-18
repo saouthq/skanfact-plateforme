@@ -30502,6 +30502,11 @@ prouver $'paie 1.382.2 b : le brut vide refusé par un bandeau, sans montrer la 
   $'          return c ? refus(c, ok.motif) : toast(ok.motif, \'error\');' $'          return toast(ok.motif, \'error\');' \
   $'(1.344.0) l\'écriture validée depuis la Paie, la paie passée au journal comptée dans l\'année, le fichier CNSS une ligne par salarié'
 
+# 1.383.1 (issue 5, CONSOLE-3) — le message écrit à un client se relit sur sa fiche et au Support.
+prouver $'console 1.383.1 a : le message écrit au contact jeté à la lecture' serveur/console/support.ts \
+  $"export const CANAUX = ['application', 'email', 'whatsapp', 'telephone', 'skanfact'] as const;" $"export const CANAUX = ['application', 'email', 'whatsapp', 'telephone'] as const;" \
+  $'un message au contact s\'ouvre dans son application, à une personne de son équipe, comme une demande que SkanFact commence'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -131,6 +131,12 @@ describe('nos échanges avec un client (0110)', () => {
                                    where d.id = $1`, [r.corps.demande])).rows;
     expect(d).toEqual([{ canal: 'skanfact', demandeur: proprio.id, sujet: corps.sujet, cote: 'equipe', texte: corps.texte }]);
     expect(await dernierGeste('clients.ecrit', ent)).toMatchObject({ motif: corps.sujet, role: 'support' });
+    // (1.383.1, CONSOLE-3) le message envoyé se relit tout de suite : sur la fiche du client et dans le Support.
+    const fi = await appeler('GET', `/console/entreprises/${ent}`, karim.console);
+    expect(fi.statut).toBe(200);
+    expect(((fi.corps.support as { ouvertes: { id: string }[] }).ouvertes).map((x) => x.id)).toContain(r.corps.demande);
+    const su = await appeler('GET', '/console/support', karim.console);
+    expect((su.corps.ouvertes as { id: string }[]).map((x) => x.id)).toContain(r.corps.demande);
   });
 });
 

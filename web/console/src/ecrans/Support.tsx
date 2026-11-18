@@ -16,7 +16,7 @@ import { Documentation, NotesPrivees, poserReponse, type FicheDoc, type NotePriv
 import { Evolutions, FenetreRattacher, PuceEvolution, type EvolutionDe } from './Evolutions.tsx';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 
-export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone';
+export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone' | 'skanfact';
 export type EtatDemande =
   | { etat: 'nouvelle' | 'a_repondre'; attendDepuis: string; heures: number; sansReponse: boolean }
   | { etat: 'attend_client'; depuis: string }

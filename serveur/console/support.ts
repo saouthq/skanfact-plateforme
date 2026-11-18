@@ -18,7 +18,9 @@ export const SANS_REPONSE_HEURES_URGENTE = 2;
 export const PRIORITES = ['normale', 'urgente'] as const;
 export type Priorite = (typeof PRIORITES)[number];
 export const delaiDe = (p: Priorite) => (p === 'urgente' ? SANS_REPONSE_HEURES_URGENTE : SANS_REPONSE_HEURES);
-export const CANAUX = ['application', 'email', 'whatsapp', 'telephone'] as const;
+// « skanfact » (0110) : la demande que l'équipe COMMENCE en écrivant au contact. Elle manquait ici (1.383.1,
+// CONSOLE-3) : la ligne était jetée à la lecture, et le message écrit ne se retrouvait ni sur la fiche ni au Support.
+export const CANAUX = ['application', 'email', 'whatsapp', 'telephone', 'skanfact'] as const;
 export type Canal = (typeof CANAUX)[number];
 export const CANAUX_NOTES: readonly Canal[] = ['email', 'whatsapp', 'telephone'];
 
