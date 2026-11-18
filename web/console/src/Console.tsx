@@ -30,7 +30,7 @@ import { Mesure } from './ecrans/Mesure.tsx';
 import { Reglages } from './ecrans/Reglages.tsx';
 import { Service } from './ecrans/Service.tsx';
 import { Support } from './ecrans/Support.tsx';
-import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
+import { Alerte, Avatar, Bouton, Icone, Toast, retenuParUneFenetre, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
 type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'donnees' | 'support' | 'journal' | 'equipe' | 'service' | 'mesure' | 'reglages';
@@ -84,7 +84,7 @@ function lireRoute(hash: string): Route {
 function useRoute(): Route {
   const [hash, setHash] = useState(location.hash);
   useEffect(() => {
-    const suivre = () => { setHash(location.hash); window.scrollTo(0, 0); };
+    const suivre = (e: HashChangeEvent) => { if (retenuParUneFenetre(e)) return; setHash(location.hash); window.scrollTo(0, 0); };
     window.addEventListener('hashchange', suivre);
     return () => window.removeEventListener('hashchange', suivre);
   }, []);

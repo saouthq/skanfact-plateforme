@@ -238,6 +238,14 @@ describe('les versions du service, à la souris', () => {
     await p.keyboard.press('Escape');
     await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(0);
     expect(await f.locator('textarea').inputValue()).toBe('la paie du mois');
+    // « Précédent » du navigateur passe par la même garde : la page reste, la saisie aussi (issue 5, CONSOLE-7).
+    const adresse = p.url();
+    await p.evaluate(() => { location.hash = '#/journal'; });
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(1);
+    expect(p.url()).toBe(adresse);
+    expect(await f.locator('textarea').inputValue()).toBe('la paie du mois');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(0);
     // « Annuler » passe par la même garde ; « Abandonner » referme pour de bon, sans geste ni consigne.
     await cliquer(f.getByRole('button', { name: 'Ne pas geler', exact: true }));
     await expect.poll(() => f.locator('.c-dialogue-question').count()).toBe(1);

@@ -353,6 +353,13 @@ export const saisieDe = (cadre: ParentNode | null | undefined) =>
 // nom d'un client) le dit (`titreDonnee`, `sousDonnee`) : il ne vient pas du catalogue des textes.
 // `pour` : le client que la fenêtre touche, dit au-dessus du titre (une donnée). Ouverte d'une liste ou d'un groupe, elle
 // ne laisse pas deviner sur quelle société le geste tombera.
+// Les fenêtres ouvertes qui retiennent un changement de page (voir `Dialogue`). Le routeur et tout écouteur de
+// `hashchange` passent par là avant d'agir.
+const GARDES = new Set<(e: HashChangeEvent) => boolean>();
+export function retenuParUneFenetre(e: HashChangeEvent): boolean {
+  for (const g of GARDES) if (g(e)) return true;
+  return false;
+}
 // `pret` : une fenêtre dont le préremplissage attend une lecture (le prénom d'un brouillon) prend son instantané quand
 // la lecture est là — sinon le brouillon complété passerait pour une saisie (vu le 15/10/2026).
 export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, children, pied, titreDonnee = false, sousDonnee = false, pret = true }: {
@@ -394,6 +401,22 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
     return () => { document.removeEventListener('keydown', echap); avant?.focus?.(); };
   }, [reprendre, ouvreur]);
   useEffect(() => { if (pret && depart.current === null) depart.current = saisieDe(corps.current); }, [pret]);
+  // « Précédent » du navigateur pendant une saisie : la page ne part pas en jetant ce qu'on a tapé. Le routeur demande
+  // d'abord aux fenêtres ouvertes (`retenuParUneFenetre`) : on remet l'adresse (sans second événement) et on pose la
+  // même question que la croix. Sans saisie, la page change comme d'habitude (issue 5, CONSOLE-7).
+  const occupeRef = useRef(occupe);
+  occupeRef.current = occupe;
+  useEffect(() => {
+    const garder = (e: HashChangeEvent) => {
+      const saisi = depart.current !== null && saisieDe(corps.current) !== depart.current;
+      if (!saisi && !occupeRef.current) return false;
+      history.pushState(null, '', e.oldURL);
+      if (!occupeRef.current) setQuestion(true);
+      return true;
+    };
+    GARDES.add(garder);
+    return () => { GARDES.delete(garder); };
+  }, []);
   // Entrée dans un champ d'une ligne — ou ⌘/Ctrl + Entrée dans un motif — c'est le bouton principal du pied, comme sur le
   // Mac ; jamais un bouton rouge : un geste qui détruit se clique (recette du 19/10/2026 : Entrée ne faisait rien).
   const entree = (e: ToucheReact<HTMLDivElement>) => {

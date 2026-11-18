@@ -4955,3 +4955,13 @@ Partie de « #/clients », une recherche tapée restait dans la case après un c
 frappe sans prévenir le routeur, qui ne voyait donc aucun changement. L'écran écoute maintenant le retour à
 « #/clients » et remet recherche, filtres et tri à leur départ. Test `console-clients.test.ts`, preuve
 « console 1.383.3 a » (elle n'a tenu qu'une fois le test parti de l'adresse nue : c'est le cas de la revue).
+
+## 1.383.4 — La console : « Précédent » ne jette plus la saisie d'une fenêtre (issue 5, CONSOLE-7)
+
+Le bouton « Précédent » du navigateur changeait de page sous une fenêtre où l'on avait tapé : la saisie partait sans un
+mot, alors que la croix, « Annuler » et Échap posent tous la question. Le routeur demande maintenant d'abord aux fenêtres
+ouvertes (`retenuParUneFenetre`, `ui.tsx`) : s'il y a une saisie, l'adresse est remise et la même question se pose ;
+sans saisie, la page change comme avant ; pendant un envoi, rien ne bouge. (Écouter l'événement « en capture » ne suffisait
+pas : le routeur passait quand même le premier, et la fenêtre était déjà démontée.) Au passage, l'écouteur de la liste des
+clients (1.383.3) lit l'adresse d'ARRIVÉE : retenu par une fenêtre, un départ de « Clients » ne remet plus les filtres.
+Test : `console-versions` (la fenêtre de gel). Preuve « console 1.383.4 a ».

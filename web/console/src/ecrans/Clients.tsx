@@ -438,8 +438,9 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
   // (1.383.3, CONSOLE-17) l'entrée « Clients » du menu remet la liste entière : l'adresse suivait la frappe sans prévenir le
   // routeur (replaceState), donc le clic sur le menu ne changeait rien à ses yeux et la recherche restait.
   useEffect(() => {
-    const remettre = () => {
-      if (location.hash !== '#/clients') return;
+    const remettre = (e: HashChangeEvent) => {
+      // L'adresse d'ARRIVÉE, et encore là : une fenêtre qui retient la page a déjà remis l'ancienne.
+      if (!e.newURL.endsWith('#/clients') || location.hash !== '#/clients') return;
       setQ(''); setQLue(''); setDebut(0); setNouvelles(false); setEtat(null); setVue('tout'); setTri('urgence'); setType(null); setOffre(null); setCabinet(null);
     };
     window.addEventListener('hashchange', remettre);

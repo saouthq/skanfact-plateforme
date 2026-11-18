@@ -30508,8 +30508,12 @@ prouver $'console 1.383.1 a : le message écrit au contact jeté à la lecture' 
   $'un message au contact s\'ouvre dans son application, à une personne de son équipe, comme une demande que SkanFact commence'
 
 prouver $'console 1.383.3 a : le menu Clients garde la recherche' web/console/src/ecrans/Clients.tsx \
-  $"      if (location.hash !== '#/clients') return;" $"      if (location.hash !== '#/jamais') return;" \
+  $"      if (!e.newURL.endsWith('#/clients') || location.hash !== '#/clients') return;" $"      if (location.hash !== '#/jamais') return;" \
   $'les pages : la première, les numéros, la seconde, et la taille d\'une page'
+
+prouver $'console 1.383.4 a : « Précédent » jette la saisie d\'une fenêtre' web/console/src/Console.tsx \
+  $'if (retenuParUneFenetre(e)) return; ' $'' \
+  $'une fenêtre où l\'on a tapé demande avant de jeter la saisie ; sans rien taper, elle se ferme tout de suite'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
