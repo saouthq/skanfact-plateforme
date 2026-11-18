@@ -2264,7 +2264,7 @@
             <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-dl="amount" placeholder="0,000" value="${esc(montantChamp(l.amount))}" aria-label="Ligne ${i + 1} : montant (DT)"></td>
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-dlx="${i}" aria-label="Retirer la ligne ${i + 1}" title="Retirer cette ligne">✕</button></td></tr>`).join('')}</tbody></table>
           <div class="inline mt"><button type="button" class="btn btn-sm" id="dp-plus">+ Ligne</button>
-            <span class="small muted">Net à percevoir : <b id="dp-total">${esc(money(total()))}</b></span></div>`;
+            <span class="small muted">Total du solde : <b id="dp-total">${esc(money(total()))}</b></span></div>`;
         $$('[data-dl]', zone).forEach(el => { el.oninput = () => {
           const l = lignes[Number(el.closest('tr').dataset.i)];
           if (el.dataset.dl === 'amount') l.amount = lireMontant(el.value); else l.label = el.value;

@@ -1874,7 +1874,7 @@
               <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-x="${i}" aria-label="Retirer la ligne">✕</button></td></tr>`).join('')}
           </tbody></table>
           <div class="inline mt"><button type="button" class="btn btn-sm" id="hf-add">+ Ligne</button>
-            <span class="small muted">Net à percevoir : <b id="hf-total">${C.money(total(), cur)}</b></span></div>`;
+            <span class="small muted">Total du solde : <b id="hf-total">${C.money(total(), cur)}</b></span></div>`;
           // Seul le total se recalcule à la frappe ; le tableau ne bouge qu'à l'ajout ou au retrait d'une ligne.
           $$('[data-f]', $('#hf-lines', root)).forEach(el => el.oninput = () => {
             const i = Number(el.closest('tr').dataset.i);

@@ -165,7 +165,9 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     expect(solde).toContain('et Madame Salariée Numéro Une, CIN n° 07123456, employée du 10/03/2025 au 14/08/2026');
     expect(solde).toContain('Indemnité de congés non pris (10,5 jours) 525,504');
     expect(solde).toContain('Prime de fin d\'année 200,000');
-    expect(solde).toContain('Net à percevoir 725,504 DT');
+    // (1.387.27, issue 16, constat 13) Les lignes sont des montants bruts (l'indemnité de congés sur le dernier salaire) : jamais « Net ».
+    expect(solde).toContain('Total du solde 725,504 DT');
+    expect(solde).not.toContain('Net à percevoir');
     expect(solde).toContain('Solde de congés non pris au départ : 10,5 jours, soit 525,504 DT');
     expect(solde).toContain('Rue du Port 2000 Le Bardo');
     // Le texte d'un PDF ne se lit pas dans le même ordre d'une machine à l'autre (ses polices) : la signature, en deux.

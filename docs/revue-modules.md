@@ -5398,3 +5398,7 @@ Des salaires d'octobre notés payés le 05/09 passaient sans un mot. Avant le mo
 ### 1.387.26 — le code du cabinet refusé en français (issue 16, constat 21)
 
 Un code de cabinet de mauvaise forme renvoyait « Le champ « codeCabinet » ne va pas », le nom technique du champ. Les deux portes de « Mon comptable » (la page et les Réglages) refusent maintenant avant l'envoi : « Le code de ton cabinet compte six à dix lettres ou chiffres : recopie-le tel que ton comptable te l'a donné ». Un code dicté avec des espaces ou des tirets (« AB12 CD34 ») est compris. Test : `inviter-comptable`, prouvé sur la page « Mon comptable » (la porte des Réglages porte la même ligne, sans test propre).
+
+### 1.387.27 — le solde de tout compte ne se dit plus « net » (issue 16, constat 13)
+
+Le solde additionne des montants bruts (l'indemnité de congés non pris est calculée sur le dernier salaire brut ; les retenues se font sur le dernier bulletin) sous le titre « Net à percevoir ». Il s'appelle « Total du solde », sur le document imprimé et dans les deux fenêtres (entreprise, Cabinet). Test : `cabinet-documents-personnel`, prouvé. Le constat 15 (la somme en lettres de l'état CNSS) n'est pas changé : la formule « déclaration de salaires arrêtée à la somme de » vise les salaires déclarés — À VÉRIFIER avec le cabinet pilote.
