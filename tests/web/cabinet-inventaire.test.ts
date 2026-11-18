@@ -80,6 +80,12 @@ describe('l\'inventaire de stock, à la souris', () => {
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Inventaire enregistré.');
     expect(await inventaire(cafe, associe)).toMatchObject({ total: '203.282', ecriture: null });
+    // (1.387.17, issue 10, CABPAIE-35) Au téléphone, la carte d'une ligne comptée se titre par sa DÉSIGNATION (« Câble HDMI
+    // 2 m »), pas par sa référence (« REF-01 »), qui passait avant.
+    const vp = p.viewportSize();
+    await p.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => p.locator('#iv-compte[data-cartes="oui"] tbody tr td[data-tel="titre"]').first().innerText().catch(() => ''), { timeout: 10_000 }).toBe('Câble HDMI 2 m');
+    if (vp) await p.setViewportSize(vp);
 
     // ── La variation : +53,257, au brouillard, liée ─────────────────────────────────────────────────
     await expect.poll(() => p.locator('#iv-ecrire').isEnabled(), { timeout: 15_000 }).toBe(true);

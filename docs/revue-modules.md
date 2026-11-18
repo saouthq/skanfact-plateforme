@@ -5347,3 +5347,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   la première ligne des bulletins et ↑ la dernière ; chaque ligne garde ensuite ses touches (↑ ↓ Entrée Espace P).
 - **La ligne d'une avance s'ouvrait au clic sans rien qui le dise**, à côté de bulletins et de salariés qui ont leur bouton.
   Elle porte « Modifier… » (son unique geste, donc un vrai bouton).
+
+## 1.387.17 — Au téléphone, une ligne d'inventaire se titre par sa désignation (issue 10, CABPAIE-35)
+
+- **La carte s'appelait « FAR »** (la référence), la désignation venait en dernier. Une case peut désormais dire qu'elle
+  ne titre pas sa carte (`data-tel-nomme="non"`, lu par `telephone.js`, commun aux deux applications) : la référence de
+  l'inventaire la porte, et la carte se titre « Farine T55 ».

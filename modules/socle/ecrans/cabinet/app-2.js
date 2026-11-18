@@ -138,9 +138,9 @@
     : `<div class="warn-box">${esc(v.motif || '')}</div>`}
       </div>
       <div class="panel mt"><h2>Ce qui a été compté au ${esc(fmtJour(inv.date))} ${info('iv.lignes')}</h2>
-        <div class="scroll-x"><table class="list compact"><thead><tr><th class="nw">Réf.</th><th>Désignation</th>
+        <div class="scroll-x"><table class="list compact" id="iv-compte"><thead><tr><th class="nw">Réf.</th><th>Désignation</th>
           <th class="r nw">Quantité</th><th class="r nw">Coût unitaire</th><th class="r nw">Valeur</th></tr></thead>
-        <tbody>${(pagerBar(inv.lignes.length, s, 'ligne'), paginate(inv.lignes, s)).map(l => `<tr><td class="nw">${esc(l.ref)}</td>
+        <tbody>${(pagerBar(inv.lignes.length, s, 'ligne'), paginate(inv.lignes, s)).map(l => `<tr><td class="nw" data-tel-nomme="non">${esc(l.ref)}</td>
           <td class="tronq" title="${esc(l.libelle)}">${esc(l.libelle)}</td>
           <td class="r nw">${esc(String(l.quantite).replace('.', ','))}</td><td class="r nw">${esc(money(l.cout))}</td>
           <td class="r nw">${esc(money(l.valeur))}</td></tr>`).join('')}</tbody>

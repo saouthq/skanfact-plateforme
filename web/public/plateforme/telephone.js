@@ -67,7 +67,9 @@
           const titre = td.colSpan === 1 ? titres[col] || '' : '';
           col += td.colSpan;
           const vide = !(td.textContent || '').trim() && !td.querySelector('input, select, button, a, img, svg, canvas');
-          const nomme = !vide && !nommee && !choix(td) && !dateSeule(td) && !td.classList.contains('row-actions');
+          // (1.387.16, issue 10, CABPAIE-35) Une case peut dire qu'elle ne titre pas la carte (`data-tel-nomme="non"`) : une
+          // référence courte (« FAR ») passait avant la désignation, qui finissait en dernier.
+          const nomme = !vide && !nommee && !choix(td) && !dateSeule(td) && !td.classList.contains('row-actions') && td.dataset.telNomme !== 'non';
           if (nomme) nommee = true;
           poser(td, 'data-tel', vide ? 'vide' : nomme ? 'titre' : '');
           poser(td, 'data-label', nomme ? '' : titre);
