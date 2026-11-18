@@ -30743,6 +30743,9 @@ prouver $'la carte d\'inventaire se titre par sa référence' modules/socle/ecra
 # (1.387.18, issue 10, CABPAIE-34) La CNSS ne réclame pas par prudence un trimestre passé avant l'entrée du dossier.
 prouver $'un dossier créé ce matin est en retard de CNSS' web/public/v10/cabinet/cabcore.js $'&& !exemplePasse(d) && !entreApres(d));' $'&& !exemplePasse(d) && true);' $'créé le 16/11 sans rien de saisi : pas dans le 3ᵉ trimestre ; créé en mars, oui ; employeur connu, oui'
 
+# (1.387.19, issue 10, CABPAIE-34) Un livre commencé depuis un écran de travail y ramène.
+prouver $'le livre neuf dépose toujours dans la Saisie' modules/socle/ecrans/cabinet/app-1.js $'allerSousOnglet(root, dossier, depuis);' $'allerSousOnglet(root, dossier, \'saisie\');' $'ses écrans parlent d\'un cabinet qui tient tout lui-même, le titre suit l\'écran sans livre, et la balance dit sa balance d\'ouverture'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

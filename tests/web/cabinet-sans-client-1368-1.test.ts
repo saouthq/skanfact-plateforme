@@ -92,6 +92,8 @@ describe('un cabinet dont aucun client n\'est sur SkanFact (1.368.1)', () => {
     await f.locator('[name=k1]').fill('1000');
     await f.getByRole('button', { name: 'Créer le livre', exact: true }).click();
     await expect.poll(() => p.locator('#toast').innerText(), { timeout: 20_000 }).toMatch(/Livre de \d{4} créé/);
+    // (1.387.19, issue 10, CABPAIE-34) Le livre commencé depuis la Banque ramène à la Banque, pas à la Saisie.
+    await expect.poll(async () => net(await p.locator('#cp-titre').innerText()), { timeout: 10_000 }).toBe('Banque');
     await aller(`#/dossier/${ent}/comptabilite/balance`);
     await expect.poll(vue, { timeout: 20_000 }).toContain('la balance d\'ouverture reprise (2 comptes) est une pièce du journal AN');
     expect(await vue()).not.toContain('ce livre part de zéro');

@@ -8137,6 +8137,9 @@
   function repriseForm(root, dossier) {
     const s = livresState;
     const annee = s.annee || String(new Date().getFullYear());
+    // (1.387.19, issue 10, CABPAIE-34) L'écran d'où l'on a commencé le livre (la Paie, les Immobilisations…) : on y revient.
+    // Lancé depuis la Paie, le livre neuf déposait dans la Saisie, et la paie qu'on était venu faire était à rechercher.
+    const depuis = s.onglet && !['journal', 'saisie'].includes(s.onglet) ? s.onglet : 'saisie';
     let lignes = [{ compte: '', libelle: '', debit: '', credit: '' }];
     // Un montant de la reprise s'écrit comme l'écran (H-3), qu'il vienne d'un nombre (import) ou de la
     // frappe (une rangée relue) ; ce qui ne se lit pas garde sa frappe, pour être refusé en la montrant.
@@ -8285,7 +8288,7 @@
             // l'adresse : c'est l'étape suivante. Il s'ouvrait sur un livre-journal vide, « Aucune
             // écriture sur cette période », sans un geste — la première impasse d'un comptable qui
             // commence un client hors SkanFact.
-            allerSousOnglet(root, dossier, 'saisie');
+            allerSousOnglet(root, dossier, depuis);
             toast(dejaOuvert && String(v.annee) === String(annee) ? `Soldes d'ouverture de ${v.annee} repris` : livreTenu ? `Exercice ${v.annee} ouvert` : `Livre de ${v.annee} créé`);
           } catch (e) { await infoDialog('Reprise impossible', plainError(e)); }
         };

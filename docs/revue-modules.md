@@ -5360,3 +5360,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   prudence reste (un dossier dont on ne sait pas s'il emploie est compté : une CNSS oubliée coûte plus qu'un rappel), mais
   pas pour un trimestre dont la date limite est passée AVANT que le dossier entre au cabinet. Dès que sa Paie dit qu'il
   emploie, il est compté comme les autres.
+
+## 1.387.19 — Un livre commencé depuis la Paie ramène à la Paie (issue 10, CABPAIE-34)
+
+- **« Commencer le livre », lancé depuis la Paie, déposait dans la Saisie** : la paie qu'on était venu faire était à
+  rechercher. Le livre neuf s'ouvre sur l'écran d'où l'on est parti (Paie, Banque, Immobilisations…) ; depuis le livre
+  lui-même, la Saisie reste l'étape suivante.
+- Au téléphone, les vues de la Paie défilent de côté (CABPAIE-37) : c'est la règle de la charte (1.368.0) pour toutes
+  les vues, gardée ; un indice de défilement commun est une question ouverte.
