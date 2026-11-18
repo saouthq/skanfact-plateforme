@@ -4921,3 +4921,15 @@ sa raison écrite à sa place. Le code ne change pas.
   carte d'identité de chiffres qui n'en compte pas huit. Un passeport ou une carte de séjour, avec ses lettres, passe.
   À VÉRIFIER : huit chiffres pour la CIN tunisienne.
 - Test : `tests/web/paie-1344.test.ts` ; preuves « paie 1.382.2 a » et « b ».
+
+## 1.383.0 — La console : un prix trop tôt se refuse dans l'aperçu, « Offrir » dit ce qui s'ouvre (issue 5)
+
+- **CONSOLE-14.** « Préparer un nouveau prix » avec une date d'avant le préavis affichait quand même la hausse et
+  « vaudra à partir du 01/01/2020 », bouton actif, sous une aide qui disait le contraire. Le refus se lit maintenant
+  dans l'aperçu, la case de la date est marquée, le bouton est éteint, et les phrases ne promettent plus la date
+  refusée (les quatre fenêtres : prix, contenu d'une offre, remises). La preuve vise la garde de l'aperçu.
+- **CONSOLE-8.** « Offrir l'abonnement » dit ce que le client pourra faire : tout est ouvert, la paie et la comptabilité
+  complète comprises, comme avec l'offre Complet (c'est ce que fait `serveur/abonnement/offre.ts`).
+- **CONSOLE-11.** Une invitation partie à la mauvaise adresse s'annule depuis la carte « À régler », à côté de
+  « Renvoyer » : le geste n'existait que dans le menu « … » du tableau, plus bas.
+- Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 10, 12, 13, 15 à 20.

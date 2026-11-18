@@ -1084,7 +1084,7 @@ declarerTextes({
   'console.ecran.geste.sous.annuler_resiliation': 'l\'abonnement reprend son cours : il se renouvelle à son échéance',
   'console.ecran.geste.sous.suspendre': 'l\'entreprise passe en lecture seule dès aujourd\'hui : elle lit et exporte, sans rien créer. Elle ne perd rien',
   'console.ecran.geste.sous.reprendre': 'l\'entreprise retrouve l\'état que lui donnent son essai et ses paiements',
-  'console.ecran.geste.sous.offrir': 'SkanFact offre l\'abonnement : plus d\'échéance ni de relance, tant que l\'offre n\'est pas retirée',
+  'console.ecran.geste.sous.offrir': 'SkanFact offre l\'abonnement : tout est ouvert, la paie et la comptabilité complète comprises, comme avec l\'offre Complet ; plus d\'échéance ni de relance, tant que l\'offre n\'est pas retirée',
   'console.ecran.geste.sous.retirer_offert': 'l\'abonnement redevient celui de ses faits : son essai, ou sa période payée',
   'console.ecran.geste.sous.ouvrir_module': 'le module s\'ouvre tout de suite dans l\'application du client ; la prochaine facture le compte, et rattrape au prorata les jours de la période payée qui court',
   'console.ecran.geste.sous.fermer_module': 'pendant une période payée, le module reste ouvert jusqu\'à son renouvellement, puis part : rien n\'est perdu, rien n\'est à rembourser. Sans période payée, il se ferme tout de suite à la création',

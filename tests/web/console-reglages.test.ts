@@ -176,9 +176,12 @@ describe('les réglages de la plateforme, à la souris', () => {
     // Trop tôt : la case de la date se refuse, en disant le premier jour possible.
     await f.getByLabel('À partir du').fill(plusJours(aujourdhui, 5));
     await f.locator('textarea').fill('Nouvelle grille au mois');
-    await cliquer(f.getByRole('button', { name: 'Préparer ce prix', exact: true }));
-    await expect.poll(() => f.locator('.c-alerte').last().innerText().then(net).catch(() => '')).toBe(`Un nouveau prix commence au plus tôt le ${enFrancais(plusTot)} : c'est le préavis.`);
+    // (1.383.0, CONSOLE-14) le refus se lit DANS l'aperçu, sans cliquer : plus de hausse affichée, la case marquée, le
+    // bouton éteint, et les phrases ne promettent plus la date refusée.
+    await expect.poll(() => f.locator('.c-rg-prix-zone').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Un nouveau prix commence au plus tôt le ${enFrancais(plusTot)} : c'est le préavis.`);
     await expect.poll(() => f.getByLabel('À partir du').getAttribute('aria-invalid')).toBe('true');
+    expect(await f.getByRole('button', { name: 'Préparer ce prix', exact: true }).isDisabled()).toBe(true);
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).not.toContain(enFrancais(plusJours(aujourdhui, 5)));
     await f.getByLabel('À partir du').fill(plusTot);
     await cliquer(f.getByRole('button', { name: 'Préparer ce prix', exact: true }));
     await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);

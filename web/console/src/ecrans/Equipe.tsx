@@ -436,6 +436,9 @@ function LEquipe() {
                         { role: dire(`console.ecran.role.${i.role}`), le: jourCourt(jourDe(i.inviteeLe)), qui: i.invitePar, fin: jourCourt(jourDe(i.expireLe)) })}</span>
                     </span>
                     <Bouton petit onClick={() => setInvit({ sorte: 'renvoyer', i })}>{titre('console.ecran.equipe.inv.renvoyer_menu')}</Bouton>
+                    {/* (1.383.0, CONSOLE-11) une invitation partie à la mauvaise adresse s'annule ici aussi : le geste
+                        n'existait que dans le menu « … » du tableau, plus bas, et la revue ne l'a pas trouvé. */}
+                    <Bouton petit ton="discret" onClick={() => setInvit({ sorte: 'annuler', i })}>{titre('console.ecran.equipe.inv.annuler_menu')}</Bouton>
                   </li>
                 ))}
                 {sansCode.map((m) => (

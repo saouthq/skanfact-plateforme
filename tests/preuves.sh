@@ -12492,9 +12492,10 @@ prouver 'le bouton qui prépare un prix absent des Réglages' web/console/src/ec
   "          {peut ? <Bouton icone=\"plus\" onClick={() => geste({ sorte: 'prix' })}>{titre(\`\${K}.p.preparer\`)}</Bouton> : null}
 " '' \
   "$PXW"
+# (1.383.0, CONSOLE-14) le refus se juge dans l'aperçu : la preuve vise la garde de l'aperçu, plus celle du bouton
+# (éteint avant d'y arriver).
 prouver 'un jour trop tôt laissé à la base, sans montrer sa case' web/console/src/ecrans/Reglages.tsx \
-  "    if (!dateLisible || date < plusTot) { refuser('date', \`\${K}.g.prix.trop_tot\`, { jour: jour(plusTot) }); return; }
-" '' \
+  "    if (tape.trim() && (!dateLisible || date < plusTot)) { setApercu(null);" "    if (false) { setApercu(null);" \
   "$PXW"
 prouver 'le prix à venir absent de « Ton abonnement »' web/public/plateforme/abonnement.js \
   "      const aVenir = annonces(k);" "      const aVenir = /** @type {string[]} */ ([]);" \

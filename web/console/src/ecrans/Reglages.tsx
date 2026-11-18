@@ -1052,6 +1052,10 @@ function FenetrePrix({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait
   const dateLisible = /^\d{4}-\d{2}-\d{2}$/.test(date);
   useEffect(() => {
     const t = ++tour.current;
+    // (1.383.0, CONSOLE-14) une date d'avant le préavis, ou illisible, se juge DANS l'aperçu : il affichait la hausse et
+    // « vaudra à partir du 01/01/2020 », bouton actif, sous une aide qui disait le contraire.
+    if (tape.trim() && (!dateLisible || date < plusTot)) { setApercu(null); setRefus(phrase(`${K}.g.prix.trop_tot`, { jour: jour(plusTot) })); setFaute((f) => (f?.champ === 'date' ? f : { champ: 'date', n: (f?.n ?? 0) + 1 })); return undefined; }
+    setFaute((f) => (f?.champ === 'date' ? null : f));
     if (!tape.trim() || !dateLisible) { setApercu(null); return undefined; }
     const minuteur = setTimeout(() => {
       void (async () => {
@@ -1093,7 +1097,7 @@ function FenetrePrix({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait
       </>}>
       <div className="c-al-ce-qui-va">
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
-        <ul>{['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.prix.${p}`, { jour: dateLisible ? jour(date) : '…' })}</li>)}</ul>
+        <ul>{['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.prix.${p}`, { jour: dateLisible && date >= plusTot ? jour(date) : '…' })}</li>)}</ul>
       </div>
       <Choix libelle={titre(`${K}.g.prix.quoi`)} valeur={String(choix)} changer={(v) => setChoix(Number(v))}
         options={CHOIX_PRIX.map((c, i) => ({ valeur: String(i), texte: `${maj(nomDe(c.quoi))}, ${dire(`${K}.p.periode.${c.periodicite}`)}` }))} />
@@ -1267,7 +1271,7 @@ function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; f
     })();
   };
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
-  const valeurs = { offre: dire(`${K}.p.offre.${offre}`), autre: dire(`${K}.p.offre.${autre}`), jour: dateLisible ? jour(date) : '…' };
+  const valeurs = { offre: dire(`${K}.p.offre.${offre}`), autre: dire(`${K}.p.offre.${autre}`), jour: dateLisible && date >= plusTot ? jour(date) : '…' };
   const pret = nombre !== null && !meme && !deja;
   return (
     <Dialogue titre={titre(`${K}.g.contenu.titre`)} fermer={fermer} occupe={occupe}
@@ -1366,7 +1370,7 @@ function FenetreCabinet({ d, fermer, fait }: { d: Donnees; fermer: () => void; f
     })();
   };
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
-  const valeurs = { nom: dire(`${K}.cb.nom.${code}`), jour: dateLisible ? jour(date) : '…', n: selon(d.cabinets.cabinets, `${K}.cb.abonnes`) };
+  const valeurs = { nom: dire(`${K}.cb.nom.${code}`), jour: dateLisible && date >= plusTot ? jour(date) : '…', n: selon(d.cabinets.cabinets, `${K}.cb.abonnes`) };
   const pret = lu !== null && !meme && !deja;
   return (
     <Dialogue titre={titre(`${K}.g.cabinet.titre`)} fermer={fermer} occupe={occupe}
@@ -1450,7 +1454,7 @@ function FenetreRemise({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
     })();
   };
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
-  const valeurs = { nom: dire(`${K}.rm.nom.${code}`), jour: dateLisible ? jour(date) : '…' };
+  const valeurs = { nom: dire(`${K}.rm.nom.${code}`), jour: dateLisible && date >= plusTot ? jour(date) : '…' };
   const pret = lisible && !meme && !deja;
   return (
     <Dialogue titre={titre(`${K}.g.remise.titre`)} fermer={fermer} occupe={occupe}
