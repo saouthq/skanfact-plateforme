@@ -30539,6 +30539,10 @@ prouver $'console 1.383.9 a : des factures à préparer sans entreprise qui les 
   $'    if (argent.sansEditeur) {' $'    if (argent.sansEditeur && liste.length > 9999) {' \
   $'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
 
+prouver $'console 1.384.0 a : deux écrans avant le premier client, au téléphone' web/console/src/ecrans/Clients.tsx \
+  $'className="c-vues c-vues-8"' $'className="c-vues"' \
+  $'au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

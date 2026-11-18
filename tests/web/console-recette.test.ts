@@ -225,6 +225,20 @@ describe('la recette de la console, tenue par l\'écran', () => {
     // Chaque case dit ce qu'elle est : « État », « Échéance »… devant sa valeur.
     const libelles = await p.locator('.c-table-clients tbody tr').first().locator('td[data-libelle]').evaluateAll((l) => l.map((e) => getComputedStyle(e, '::before').content));
     expect(libelles.slice(0, 4)).toEqual(['"Abonnement"', '"État"', '"Échéance"', '"Par an, HT"']);
+    // (1.384.0, issue 5, CONSOLE-12) on cherche un client dès le premier écran : les huit cartes tiennent en une rangée
+    // qui défile, la recherche passe avant les états, et la carte d'un client range ses cases deux par deux.
+    const m = await p.evaluate(() => {
+      const haut = (s: string) => (document.querySelector(s)?.getBoundingClientRect().top ?? 9e9) + scrollY;
+      const c = (s: string) => document.querySelector(s)?.getBoundingClientRect();
+      return { vues: c('.c-vues')?.height ?? 9e9, recherche: haut('.c-cl-filtres .c-recherche'), etats: haut('.c-liste-outils .c-pilules'), premier: haut('.c-table-clients tbody tr'),
+        carte: c('.c-table-clients tbody tr')?.height ?? 9e9, abo: c('.c-table-clients td.c-cl-abo')?.top, etat: c('.c-table-clients td.c-cl-etat')?.top, ecran: innerHeight, large: document.documentElement.scrollWidth };
+    });
+    expect(m.vues).toBeLessThan(130);
+    expect(m.recherche).toBeLessThan(m.etats);
+    expect(m.recherche).toBeLessThan(m.ecran * 0.6);
+    expect(m.premier).toBeLessThan(m.ecran * 1.05);
+    expect(m.abo).toBe(m.etat);
+    expect(m.large).toBeLessThanOrEqual(390);
     // Le journal aussi, un geste par carte : le geste tient dans l'écran, nommé.
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const gestes = p.locator('.c-table-journal td.c-jr-geste');

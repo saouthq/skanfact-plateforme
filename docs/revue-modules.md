@@ -5012,3 +5012,14 @@ l'onglet des Réglages où cela se fait. La fiche d'un client garde sa propre ph
 Test : `decider` (deux lignes deviennent une, qui en compte deux ; rien à facturer, rien d'affiché). Preuve
 « console 1.383.9 a ». **À VÉRIFIER par Skander** : désigner l'entreprise SkanFact dans la console de production avant de
 vendre le premier abonnement.
+
+## 1.384.0 — La console au téléphone : on cherche un client dès le premier écran (issue 5, CONSOLE-12)
+
+Mesuré à 390 × 844 avant : les huit cartes prenaient 615 points, la recherche était à 1 108, le premier client à 1 491
+(presque deux écrans), et chaque client en occupait 394. Après : les huit cartes tiennent en **une rangée qui défile du
+doigt** (91 points ; leur phrase d'explication reste à l'ordinateur), la **recherche et ses trois filtres passent avant
+les six états**, qui tiennent eux aussi sur une rangée, et la carte d'un client range ses cases **deux par deux**, le nom
+de la case au-dessus de sa valeur. La recherche est à 425 points, le premier client à 814 — dans le premier écran.
+Rien ne change à l'ordinateur ni à la tablette (règle bornée à 600 points de large, et aux écrans qui portent les huit
+cartes). Vu en capture. Test : `console-recette` (les cartes sous 130 points, la recherche avant les états et dans le
+premier écran, deux cases sur la même ligne, aucun débordement de côté). Preuve « console 1.384.0 a ».

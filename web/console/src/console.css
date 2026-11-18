@@ -3280,6 +3280,31 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-table-clients .c-cl-usage > .c-ar-ligne { min-width: 0; max-width: none; }
   /* Le survol colorait chaque case à part : des bandes grises, restées accrochées après un toucher. */
   .c-table-clients tbody tr:hover td { background: transparent; }
+/* Au téléphone étroit (issue 5, CONSOLE-12 : deux écrans à défiler avant le premier client, un demi-écran par client) :
+   les huit cartes tiennent en UNE rangée qui défile du doigt, la recherche passe en tête des outils, et la carte d'un
+   client range ses cases deux par deux, le nom de la case au-dessus de sa valeur. */
+@media (max-width: 600px) {
+  .c-vues-8 { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; scrollbar-width: none; }
+  .c-vues-8::-webkit-scrollbar { display: none; }
+  .c-vues-8 .c-vue { flex: 0 0 136px; scroll-snap-align: start; }
+  .c-vues-8 .c-vue-sous { display: none; }
+  /* La recherche et ses trois filtres d'abord ; les six états ensuite, sur UNE rangée qui défile. */
+  .c-vues-8 ~ .c-liste-carte .c-cl-filtres { order: -1; }
+  .c-vues-8 ~ .c-liste-carte .c-cl-filtres .c-recherche { flex: 1 1 100%; }
+  .c-vues-8 ~ .c-liste-carte .c-cl-filtre { flex: 1 1 calc(50% - 5px); min-width: 0; }
+  .c-vues-8 ~ .c-liste-carte .c-cl-filtre .c-select { width: 100%; }
+  .c-vues-8 ~ .c-liste-carte .c-pilules { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; scrollbar-width: none; padding-block: 2px; }
+  .c-vues-8 ~ .c-liste-carte .c-pilules::-webkit-scrollbar { display: none; }
+  .c-vues-8 ~ .c-liste-carte .c-pilule { flex: none; }
+  .c-table-clients tr { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px 12px; }
+  .c-table-clients td:first-child { grid-column: 1 / span 2; }
+  .c-table-clients td.c-cl-ouvrir { grid-column: 3; }
+  .c-table-clients td[data-libelle] { grid-template-columns: minmax(0, 1fr); gap: 1px; align-content: start; }
+  .c-table-clients td[data-libelle]::before { grid-row: auto; font-size: 11.5px; }
+  .c-table-clients td[data-libelle] > * { grid-column: 1; }
+  .c-table-clients td.c-cl-abo, .c-table-clients td.c-cl-echeance, .c-table-clients td.c-cl-usage { grid-column: 1; }
+  .c-table-clients td.c-cl-etat, .c-table-clients td.c-cl-par-an, .c-table-clients td.c-cl-vu { grid-column: 2 / -1; }
+}
 }
 /* « Ctrl K » ne sert à rien sans clavier : au téléphone et à la tablette tactile, il cède sa place au texte du champ. */
 @media (max-width: 860px), (hover: none) and (pointer: coarse) { .c-touche { display: none; } }

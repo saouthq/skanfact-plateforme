@@ -507,7 +507,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
       <EnteteClients action={direction && lu && lu.total > 0
         ? <Bouton icone="telecharger" onClick={() => setExporter(true)}>{titre('console.ecran.clients.ex.ouvrir')}</Bouton> : null} />
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
-      <div className="c-vues" role="group" aria-label={titre('console.ecran.clients.vues')}>
+      <div className="c-vues c-vues-8" role="group" aria-label={titre('console.ecran.clients.vues')}>
         {VUES.map((v) => (
           <button key={v} type="button" className="c-vue" aria-pressed={vue === v} onClick={() => choisirVue(v)}>
             <span className="c-vue-titre"><span>{titre(`console.ecran.clients.vue.${nomDeVue(v)}`)}</span><span className={`c-pilule-point c-point-v-${v}`} aria-hidden="true" /></span>
