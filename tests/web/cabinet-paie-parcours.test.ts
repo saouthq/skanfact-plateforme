@@ -148,7 +148,10 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(espace(await p.locator('#pa-valider-bul').innerText())).toBe('Valider les 5 bulletins');
     // (1.240.0) Au clavier : Ctrl + Entrée sur une ligne fait l'étape suivante (la fenêtre de validation demande encore).
     expect(espace(await p.locator('#pa-touche-geste').innerText())).toBe('· Ctrl Entrée valider les 5 bulletins');
-    await p.locator('#pa-bulletins tr[data-bul]').first().focus();
+    // (1.387.16, issue 10, CABPAIE-33) À l'arrivée, rien n'a le curseur : ↓ prend la première ligne au lieu de faire défiler.
+    await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await p.keyboard.press('ArrowDown');
+    expect(await p.evaluate(() => document.activeElement === document.querySelector('#pa-bulletins tr[data-bul]'))).toBe(true);
     await p.keyboard.press('Control+Enter');
     await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.valideLe === jour).length).toBe(5);

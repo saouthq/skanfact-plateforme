@@ -81,7 +81,8 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
   }, { timeout: 20_000 }).toBe(1);
   const net = (s: string) => s.replace(/\s+/g, ' ').trim();
   // Une ligne du panneau : salarié, versée le, mode, avancé, par mois, retenu, reste, note.
-  const ligne = async (p: Page, nom: string) => net(await p.locator('#av-liste tbody tr', { hasText: nom }).innerText());
+  // (1.387.16) La ligne finit par son bouton « Modifier… » : la ligne se compare sans lui.
+  const ligne = async (p: Page, nom: string) => net(await p.locator('#av-liste tbody tr', { hasText: nom }).innerText()).replace(/ Modifier…$/, '');
   const salarie = (id: string, name: string, grossSalary: number, hireDate: string, endDate = '') =>
     ({ id, name, grossSalary, hireDate, endDate, contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: '' });
   const ecrituresHorsPaie = async (ent: string, jeton: string) => ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, jeton)).corps.ecritures as { journal: string; date: string; lignes: Ligne[] }[])
@@ -182,6 +183,8 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     await expect.poll(() => ligne(p, 'Numéro Un')).toBe('Salarié Numéro Un 05/10/2025 Virement 1 000,750 DT 300,125 DT 300,125 DT 700,625 DT');
 
     // ── Corriger au clavier : ni sous ce qui a été retenu, ni d'un salarié à l'autre ; Entrée enregistre ───────────
+    // (1.387.16, issue 10, CABPAIE-33) La ligne s'ouvre au clic, et le dit : son bouton « Modifier… ».
+    expect(await p.locator('#av-liste tr', { hasText: 'Numéro Un' }).locator('[data-av-mod]').innerText()).toBe('Modifier…');
     await p.locator('#av-liste tr', { hasText: 'Numéro Un' }).focus();
     await p.keyboard.press('Enter');
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Modifier l\'avance');
@@ -281,7 +284,7 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     await fenetre.locator('#ok').click();
     // Le texte du toast, qui reste quand il se cache (sur une machine lente, innerText lisait '' après 2,6 s).
     await expect.poll(async () => (await p.locator('#toast').textContent()) ?? '').toBe('Bulletin enregistré.');
-    await expect.poll(async () => net(await p.locator('#av-liste tbody tr').innerText())).toBe('Salarié Numéro Un 15/09/2025 Virement 600,750 DT 200,250 DT 200,250 DT 400,500 DT');
+    await expect.poll(async () => net(await p.locator('#av-liste tbody tr').innerText()).replace(/ Modifier…$/, '')).toBe('Salarié Numéro Un 15/09/2025 Virement 600,750 DT 200,250 DT 200,250 DT 400,500 DT');
     // Deux chemins, un chiffre : le SkanFact du client, par le moteur de l'entreprise, lit le même reste dans ses données.
     const siennes = ((await api('GET', `/entreprises/${boulangerie}/dossier-v10`, patron)).corps.objets as Objet[]).map((o) => ({ ...o, contenu: decoder(o.contenu) as Record<string, unknown> }));
     const core = ecranDeLaPlateforme('core.js') as { advancesOf: (d: unknown, s: string) => { id: string; repaid: number; remaining: number }[] };

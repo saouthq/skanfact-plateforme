@@ -1364,6 +1364,16 @@
     if (!echapPaiePose) {
       echapPaiePose = true;
       document.addEventListener('keydown', e => {
+        // (1.387.16, issue 10, CABPAIE-33) À l'arrivée, aucune ligne n'a le curseur : ↑ ↓ faisaient défiler la page. Sans
+        // rien de sélectionné (le curseur sur la page), ↓ prend la première ligne des bulletins, ↑ la dernière ; ensuite
+        // chaque ligne garde ses touches (↑ ↓ Entrée Espace P).
+        if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !e.defaultPrevented && !e.altKey && !e.ctrlKey && !e.metaKey
+          && (!document.activeElement || document.activeElement === document.body)
+          && !document.querySelector('#modal-root .modal, .row-menu, .sb-panneau:not([hidden]), .pop-dossier')) {
+          const ls = document.querySelectorAll('#pa-bulletins tr[data-bul]');
+          if (ls.length) { e.preventDefault(); ls[e.key === 'ArrowDown' ? 0 : ls.length - 1].focus(); }
+          return;
+        }
         if (e.key !== 'Escape' || e.defaultPrevented || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
         if (document.querySelector('#modal-root .modal, .row-menu, .sb-panneau:not([hidden]), .pop-dossier')) return;
         const croix = document.querySelector('#pa-volet-x, #pa-sal-x, #pa-depart-x');
@@ -2078,12 +2088,14 @@
     : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses avances se lisent, elles ne se changent plus.`
       : 'Un bulletin nouveau en retient l\'échéance du mois, jusqu\'à la dernière ; le versement s\'écrit le jour même, à la banque ou à la caisse.'}</span></div>
       ${toutes.length ? `<div class="scroll-x"><table class="list compact" id="av-liste"><thead><tr><th>Salarié</th><th class="nw">Versée le</th><th>Mode</th>
-        <th class="r">Avancé</th><th class="r nw">Par mois</th><th class="r">Retenu</th><th class="r">Reste</th><th>Note</th></tr></thead>
+        <th class="r">Avancé</th><th class="r nw">Par mois</th><th class="r">Retenu</th><th class="r">Reste</th><th>Note</th>${tient ? '<th class="row-actions-h"></th>' : ''}</tr></thead>
         <tbody>${page.map(a => `<tr data-av="${esc(a.id)}"${tient ? ' class="clickable" tabindex="0" title="Modifier cette avance"' : ''}>
           <td class="tronq" title="${esc(nomDe(a.employeeId))}">${esc(nomDe(a.employeeId))}</td><td class="nw">${esc(fmtJour(a.date))}</td><td class="nw">${esc(modeDe(a.method))}</td>
           <td class="r nw">${esc(money(a.amount))}</td><td class="r nw">${esc(money(a.monthly))}</td><td class="r nw">${esc(money(a.repaid))}</td>
           <td class="r nw">${a.done ? '<span class="ok-text">soldée</span>' : `<b>${esc(money(a.remaining))}</b>`}</td>
-          <td class="tronq" title="${esc(a.note || '')}">${esc(a.note || '')}</td></tr>`).join('')}</tbody></table></div>${pied}`
+          <td class="tronq" title="${esc(a.note || '')}">${esc(a.note || '')}</td>${
+            // (1.387.16, issue 10, CABPAIE-33) La ligne s'ouvre au clic : son bouton le DIT, comme « Actions » sur les bulletins.
+            tient ? '<td class="actions nw"><button type="button" class="btn btn-sm" data-av-mod tabindex="-1">Modifier…</button></td>' : ''}</tr>`).join('')}</tbody></table></div>${pied}`
     : `<div class="empty mini">Aucune avance en ${esc(annee)}.</div>`}
       ${enCours.length ? `<h3 class="mt">L'échéancier</h3><ul class="cp-pa-echeancier" id="av-echeancier">${enCours.map(a => {
     const { faites, prevues } = echeancierAvance(L, a);

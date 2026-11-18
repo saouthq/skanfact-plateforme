@@ -5340,3 +5340,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   noms et dans un autre ordre ; le bouton principal servait une étape que la frise ne nommait pas. La seconde est
   désormais la suite de la frise : mêmes noms, même ordre, et le numéro de la frise (2 Bulletins remis, 3 Écriture de
   paie, 4 Salaires payés, 5 Déclarés). Chaque étape porte son identifiant (`#pa-f-…`) : les tests ne lisent plus un rang.
+
+## 1.387.16 — Le clavier à l'arrivée sur la paie, et la ligne d'une avance (issue 10, CABPAIE-33)
+
+- **À l'arrivée, ↑ ↓ faisaient défiler la page** : aucune ligne n'avait le curseur. Quand rien n'est sélectionné, ↓ prend
+  la première ligne des bulletins et ↑ la dernière ; chaque ligne garde ensuite ses touches (↑ ↓ Entrée Espace P).
+- **La ligne d'une avance s'ouvrait au clic sans rien qui le dise**, à côté de bulletins et de salariés qui ont leur bouton.
+  Elle porte « Modifier… » (son unique geste, donc un vrai bouton).

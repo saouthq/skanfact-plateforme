@@ -30733,6 +30733,10 @@ prouver $'le code d\'exploitation ne se montre pas' modules/personnel/ecrans/cab
 # (1.387.15, issue 10, CABPAIE-31) La suite de la frise suit l'ordre de la frise.
 prouver $'la suite des bulletins ne suit pas la frise' modules/personnel/ecrans/cabinet/paie.js $'<ol>${L1}${LE}${L2}${L3}</ol></section>' $'<ol>${L1}${L2}${LE}${L3}</ol></section>' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 
+# (1.387.16, issue 10, CABPAIE-33) Au clavier, ↓ prend la première ligne ; la ligne d'une avance dit qu'elle s'ouvre.
+prouver $'les flèches font défiler la page à l\'arrivée' modules/personnel/ecrans/cabinet/paie.js $'if (ls.length) { e.preventDefault(); ls[e.key === \'ArrowDown\' ? 0 : ls.length - 1].focus(); }' $'if (false) { e.preventDefault(); ls[e.key === \'ArrowDown\' ? 0 : ls.length - 1].focus(); }' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver $'la ligne d\'une avance ne dit pas qu\'elle s\'ouvre' modules/personnel/ecrans/cabinet/paie.js $'tient ? \'<td class="actions nw"><button type="button" class="btn btn-sm" data-av-mod' $'false ? \'<td class="actions nw"><button type="button" class="btn btn-sm" data-av-mod' $'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
