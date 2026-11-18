@@ -4941,3 +4941,10 @@ La liste des canaux du serveur ne le connaissait pas : la ligne était jetée à
 retrouvait ni dans « Support et échanges » de la fiche ni dans le Support — seul le Journal en gardait l'objet. Le
 canal est connu, il se dit « écrit par SkanFact », et le test relit la fiche et le Support après l'envoi.
 Preuve « console 1.383.1 a ».
+
+## 1.383.2 — La console : deux libellés d'atelier en moins (issue 5, CONSOLE-18)
+
+La colonne « Vu » des listes (clients, cabinets, groupe) dit « Dernière connexion » ; l'accueil ne dit plus « calculée
+par la même fonction ». CONSOLE-2 n'est pas reproduit : avec une vraie veille, « Voir l'alerte » mène bien à l'alerte
+(le test `console.test.ts` le joue) — la veille d'essai de la revue n'écrivait qu'une liste de problèmes.
+Reste de l'issue 5 : CONSOLE-5, 7, 10, 12, 13, 15, 16, 17, 19, 20.
