@@ -80,7 +80,7 @@ export function depuisEnMots(e: EtatDemande, aujourdhui: string): string {
   if (e.etat === 'attend_client' || e.etat === 'attend_technique') return quand(e.depuis, aujourdhui);
   return e.heures === 0 ? dire('console.ecran.support.depuis_peu') : dire('console.ecran.support.depuis_h', { n: e.heures });
 }
-const ICONE_CANAL: Record<Canal, NomIcone> = { application: 'decider', email: 'courriel', whatsapp: 'echange', telephone: 'telephone' };
+const ICONE_CANAL: Record<Canal, NomIcone> = { application: 'decider', email: 'courriel', whatsapp: 'echange', telephone: 'telephone', skanfact: 'courriel' };
 // Les pages de l'application où une demande s'écrit, dites en mots ; une autre se dit telle quelle.
 const PAGES = new Set(['dashboard', 'devis', 'factures', 'doc', 'relances', 'autres', 'contrats', 'contrat', 'clients', 'client', 'catalogue', 'achats', 'achat',
   'fournisseurs', 'fournisseur', 'tresorerie', 'marges', 'affaire', 'paie', 'salarie', 'stock', 'article', 'caisse', 'garanties', 'immos', 'immo', 'stats',
