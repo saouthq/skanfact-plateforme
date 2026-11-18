@@ -126,6 +126,10 @@ describe('le premier jour d\'un client tenu au cabinet (1.371.0)', () => {
     // Le tableau des immobilisations : la durée se déduit du taux, une famille reconnue propose la sienne, une date absente refuse.
     await p.evaluate((h) => { location.hash = h; }, `${base}/immobilisations`);
     await p.getByRole('button', { name: 'Ajouter un bien…', exact: true }).first().click();
+    // (1.387.20, issue 10, CABPAIE-25) Le taux dégressif, obligatoire, porte son étoile ; la note dit quoi faire, sans note de travail.
+    expect(await p.locator('#im-taux-l').getAttribute('class')).toContain('obligatoire');
+    expect(net(await p.locator('#im-degr-n').textContent() ?? '')).toMatch(/^Saisis le taux dégressif/);
+    expect(net(await p.locator('#im-degr-n').textContent() ?? '')).not.toMatch(/personne ne l|nul n'a dit/);
     await p.locator('#im-coller').click();
     await p.locator('#ct-liste').fill(['Désignation\tDate de mise en service\tValeur d\'acquisition HT\tTaux\tDurée\tCompte\tFournisseur',
       'Scie à format\t15/03/2023\t18500,000\t10 %\t\t2231\tSCM', 'Camionnette Partner\t01/06/2024\t62000\t20%\t\t\tStafim',

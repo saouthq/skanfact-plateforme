@@ -5368,3 +5368,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   lui-même, la Saisie reste l'étape suivante.
 - Au téléphone, les vues de la Paie défilent de côté (CABPAIE-37) : c'est la règle de la charte (1.368.0) pour toutes
   les vues, gardée ; un indice de défilement commun est une question ouverte.
+
+## 1.387.20 — La fenêtre d'un bien dégressif parle à un comptable (issue 10, CABPAIE-25)
+
+- **« personne ne l'a confirmé », « nul n'a dit que c'est celui d'ici »** : des notes de travail lues par l'expert-comptable.
+  Elles deviennent des consignes (« Saisis le taux dégressif qui s'applique à ce bien… », « À cocher si tu passes au
+  linéaire… »), avec leur « À VÉRIFIER selon la règle en vigueur ». Le taux, obligatoire, porte son étoile.

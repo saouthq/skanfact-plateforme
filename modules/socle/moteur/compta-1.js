@@ -4095,9 +4095,11 @@
   // Ce dont personne n'a confirmé la règle. Comme pour les cases fiscales de la 9.6.0 : on ne
   // remplit pas à la place du comptable, on DIT ce qui manque.
   const IMMO_A_VERIFIER = {
-    tauxDegressif: 'Le coefficient dégressif tunisien dépend de la durée et du régime : personne ne l\'a confirmé. Le taux se saisit sur la fiche, il n\'est jamais deviné. À VÉRIFIER.',
-    bascule: 'Basculer au linéaire quand il devient plus favorable est l\'usage dans plusieurs pays ; nul n\'a dit que c\'est celui d\'ici. Décoché par défaut. À VÉRIFIER.',
-    subvention: 'La reprise d\'une subvention d\'investissement suit ici le rythme de l\'amortissement. Les comptes et la règle sont À VÉRIFIER.'
+    // (1.387.20, issue 10, CABPAIE-25) Des consignes, pas des notes de travail : « personne ne l'a confirmé » se lisait
+    // comme un brouillon par l'expert-comptable à qui la fenêtre s'adresse.
+    tauxDegressif: 'Saisis le taux dégressif qui s\'applique à ce bien (le coefficient dépend de sa durée) : SkanFact ne le devine jamais. À VÉRIFIER selon la règle en vigueur.',
+    bascule: 'À cocher si tu passes au linéaire l\'année où il devient plus favorable. Décoché, le dégressif va jusqu\'au bout. À VÉRIFIER selon la règle en vigueur.',
+    subvention: 'La subvention se reprend au rythme de l\'amortissement du bien. Les comptes et la règle sont À VÉRIFIER.'
   };
 
   const compteImmo = (livre, role) => {

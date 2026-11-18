@@ -11536,7 +11536,7 @@
         <label class="field">${lbl('Méthode', 'im.verifier')}
           <select name="methode">${KC.IMMO_METHODES.map(m =>
     `<option value="${m}" ${(f.methode || 'lineaire') === m ? 'selected' : ''}>${esc(METHODE_LABEL[m])}</option>`).join('')}</select></label>
-        <label class="field" id="im-taux-l">${lbl('Taux dégressif (%)', 'im.tauxDegressif')}
+        <label class="field obligatoire" id="im-taux-l">${lbl('Taux dégressif (%)', 'im.tauxDegressif')}
           <input name="tauxDegressif" class="num" inputmode="decimal" value="${esc(taux(f.tauxDegressif))}"></label>
         <label class="check span-2" id="im-bascule-l"><input type="checkbox" name="bascule" ${f.bascule ? 'checked' : ''}>
           Basculer au linéaire quand il devient plus favorable</label>
