@@ -5265,3 +5265,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   tapent en JJ/MM/AAAA. Les deux bornes sont des cases ordinaires : « 01/06/2025 », « 1/6 » ou « 010625 » se lisent
   pareil, et elles suivent toujours l'exercice tapé.
 - Reste de ce constat, non rejoué : « repris de 2025 » sur un dossier né en 2026 (À VÉRIFIER sur le cas d'origine).
+
+## 1.387.6 — Révision : signer aussitôt la période changée (rouge de GitHub sur la 1.386.6)
+
+- **Le rouge n'était pas un test fragile, c'était une course à l'écran.** Changer de période puis cliquer « Signer »
+  avant que la nouvelle période soit lue signait le compte sur l'ANCIENNE (celle encore affichée) : dans l'exercice, il
+  restait « à revoir » après le message « Compte 532 signé. ». La signature porte maintenant sur la période choisie.
+- **Une lecture en retard ne repeint plus l'écran** : seule la dernière demande de révision s'affiche.
+- Le test rejoue la course exprès (les lectures ralenties de 900 ms), au lieu d'attendre qu'elle arrive par hasard.

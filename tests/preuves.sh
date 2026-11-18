@@ -30701,6 +30701,9 @@ prouver $'la carte d\'un bien perd son nom au téléphone' web/public/v10/cabine
 # (1.387.5, issue 10, CABPAIE-34) Les bornes de l'exercice se tapent en JJ/MM/AAAA.
 prouver $'les bornes du livre reviennent au format du navigateur' modules/socle/ecrans/cabinet/app-1.js $'<input name="du" placeholder="JJ/MM/AAAA" inputmode="numeric" value="01/01/${esc(annee)}">' $'<input type="date" name="du" value="${esc(annee)}-01-01">' $'un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste'
 
+# (1.387.6) Signer aussitôt la période changée signe sur la période choisie.
+prouver $'signer pendant le chargement signe sur l\'ancienne période' modules/socle/ecrans/cabinet/app-1.js $'periode: s.revPeriode || s.revision.dossier.periode, compte: id, revu' $'periode: s.revision.dossier.periode, compte: id, revu' $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

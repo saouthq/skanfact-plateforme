@@ -10537,8 +10537,14 @@
   const revDeLaRevision = s => `${revDuLivre(s.livre)}:${s.revPeriode || s.annee}:${JSON.stringify([S.questionnaire || [], S.cycles || []])}`;
   async function chargerRevision(root, dossier) {
     const s = livresState;
-    try { s.revision = await api.revision({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || String(s.annee) }); }
-    catch (e) { s.revision = { erreur: plainError(e) }; }
+    // (1.387.6) Une réponse en retard ne repeint pas l'écran : changer de période puis signer aussitôt laissait la
+    // première lecture, arrivée après la seconde, remettre « à revoir » sur un compte signé. Seule la dernière demande compte.
+    const tour = s.revisionTour = (s.revisionTour || 0) + 1;
+    let lue;
+    try { lue = await api.revision({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || String(s.annee) }); }
+    catch (e) { lue = { erreur: plainError(e) }; }
+    if (tour !== s.revisionTour) return;
+    s.revision = lue;
     s.revisionRev = revDeLaRevision(s);
     drawLivres(root, dossier);
   }
@@ -10734,7 +10740,9 @@
     };
     const signer = async (id, revu) => {
       try {
-        const r = await api.signerCompte({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, compte: id, revu });
+        // (1.387.6) La période signée est celle qu'on a CHOISIE, pas celle du dernier dossier lu : signer pendant que la
+        // période choisie se charge signait le compte sur l'ancienne.
+        const r = await api.signerCompte({ dossierId: dossier.id, annee: s.annee, periode: s.revPeriode || s.revision.dossier.periode, compte: id, revu });
         s.livre = r.livre; toast(r.revu ? `Compte ${id} signé.` : `Signature retirée sur ${id}.`); relire();
       } catch (e) { toast(plainError(e), 'error'); }
     };

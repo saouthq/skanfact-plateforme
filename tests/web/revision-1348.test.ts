@@ -135,9 +135,13 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await p.locator('#rv-periode').selectOption(`${an}-05`);
     await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
     await expect.poll(banque, { timeout: 15_000 }).toMatch(/^532 Banques 12 955,500 D (0,000|—)? ?(0,000|—)? ?12 955,500 D /);
+    // (1.387.6, rouge de GitHub) Signer AUSSITÔT la période changée, pendant que sa lecture traîne : le compte se signe
+    // sur la période choisie (l'exercice), pas sur celle encore à l'écran (mai) — il restait « à revoir » dans l'exercice.
+    let lent = true;
+    await p.route('**/v1/**', async (r) => { if (lent && r.request().method() === 'GET') await new Promise((ok) => setTimeout(ok, 900)); await r.continue().catch(() => {}); });
     await p.locator('#rv-periode').selectOption(String(an));
-    await expect.poll(() => p.locator('.cy-carte.cy-on').filter({ hasText: 'Trésorerie' }).count(), { timeout: 15_000 }).toBe(1);
     await ligne.getByRole('button', { name: 'Signer', exact: true }).click();
+    lent = false;
     await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toContain('Compte 532 signé.');
     await expect.poll(async () => net(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).innerText().catch(() => '')), { timeout: 15_000 }).toContain('revu');
     expect(await p.locator('#view table.list tbody tr').filter({ has: p.locator('[data-rowmenu="RV:532"]') }).getByRole('button', { name: 'Signer', exact: true }).count()).toBe(0);
