@@ -22,6 +22,7 @@ declarerTextes({
   'compta.libelle.extourne': 'Extourne de {numero}',
   'compta.champ.ecriture': 'une écriture : sa date, son journal, au moins deux lignes',
   'compta.champ.montant': 'un montant en dinars, sans signe (« 1191,000 »)',
+  'compta.releve_double': 'ce fichier vient d\'être importé : le second envoi n\'a rien ajouté',
   'compta.champ.montant_signe': 'un montant en dinars, signé au sens de la banque (« -1250,500 » : l\'argent sort)',
   'compta.champ.empreinte': 'l\'empreinte du fichier : 64 caractères hexadécimaux',
   'compta.champ.annee': 'une année sur quatre chiffres',

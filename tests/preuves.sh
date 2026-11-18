@@ -30551,6 +30551,10 @@ prouver $'console 1.384.1 b : « Équipe » ouvre « Ton compte » sans le dire'
   $"e.page === 'equipe' && moi.role !== 'direction'" $"e.page === 'jamais' && moi.role !== 'direction'" \
   $'la technique : l\'accueil et le service seulement ; les clients ne sont pas dans son rôle'
 
+prouver $'banque 1.384.2 a : le double clic sur Importer tombe en panne' serveur/compta/banque.ts \
+  $"pg.code === '23505' && pg.constraint === 'releve_entreprise_empreinte_key' ? new Refus('compta.releve_double') : e" $"e" \
+  $'deux envois du même relevé au même instant (un double clic) : un seul s\'importe, l\'autre est refusé par une phrase, jamais une panne'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

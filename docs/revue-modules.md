@@ -5034,3 +5034,9 @@ premier écran, deux cases sur la même ligne, aucun débordement de côté). Pr
 Déjà réglés par les versions d'avant, relus : les messages « C'est fait : suspension. » (1.38x, un mot par geste), le
 menu « … » qui s'ouvrait loin de sa ligne (il se pose sur la fenêtre, sous son bouton). Tests : `console-recette` (les
 onglets au téléphone), `console` (le menu du support et de la technique). Preuves « console 1.384.1 a » et « b ».
+
+## 1.384.2 — La banque : le double clic sur « Importer » (issue 11, CABSAISIE-22)
+
+- **Deux envois du même relevé au même instant** : le second passait le contrôle « déjà importé » avant que le premier
+  soit écrit, et tombait en panne (500). Il est refusé par une phrase — « ce fichier vient d'être importé : le second
+  envoi n'a rien ajouté » — et un seul relevé est rangé.

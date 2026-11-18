@@ -9,6 +9,7 @@ import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
+import { Refus } from '../erreurs.ts';
 import { estJour } from './saisie.ts';
 import './textes.ts';
 
@@ -99,7 +100,14 @@ export function routesBanque(ctx: Contexte): Route<never>[] {
       }
       const releve = { compte: corps.compte.trim(), banque: corps.banque, fichier: corps.fichier, empreinte: corps.empreinte,
         soldeDebut: debut.toString(), soldeFin: fin.toString(), lignes };
-      const id = (await tx.query('select compta.importer_releve($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.annee, JSON.stringify(releve)])).rows[0].id as string;
+      // Deux envois du même fichier au même instant (un double clic sur « Importer », issue 11, CABSAISIE-22) : le
+      // second passe le contrôle de la base avant que le premier soit écrit, et butait sur la contrainte — une panne
+      // (500) pour un geste sans conséquence. La base tient l'unicité ; son refus devient la phrase du doublon.
+      const id = (await tx.query('select compta.importer_releve($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.annee, JSON.stringify(releve)])
+        .catch((e: unknown) => {
+          const pg = e as { code?: string; constraint?: string };
+          throw pg.code === '23505' && pg.constraint === 'releve_entreprise_empreinte_key' ? new Refus('compta.releve_double') : e;
+        })).rows[0].id as string;
       return { statut: 201, corps: { id } };
     },
   });

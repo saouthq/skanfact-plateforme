@@ -123,6 +123,16 @@ describe('la banque', () => {
     expect([await vus(d.collaborateur), await vus(voisine)]).toEqual([4, 0]);
   });
 
+  it('deux envois du même relevé au même instant (un double clic) : un seul s\'importe, l\'autre est refusé par une phrase, jamais une panne', async () => {
+    // (1.384.2, issue 11, CABSAISIE-22) le second passait le contrôle avant que le premier soit écrit, et tombait en 500.
+    const d = await dossier();
+    const reponses = await Promise.all([importer(d.ent, d.assistant, MARS), importer(d.ent, d.assistant, MARS)]);
+    expect(reponses.map((r) => r.statut).sort()).toEqual([201, 403]);
+    const refus = reponses.find((r) => r.statut === 403);
+    expect(String(refus?.corps.motif)).toMatch(/^Ce fichier (vient d'être importé : le second envoi n'a rien ajouté|a déjà été importé le )/);
+    expect((await releves(d.ent, d.assistant, 2026)).length).toBe(1);
+  });
+
   it('un rapprochement : une ligne du relevé, une ligne d\'écriture du même compte, qui ne répond que d\'elle ; un brouillard qui change le fait tomber ; tout se défait, le relevé se retire', async () => {
     const d = await dossier();
     const e1 = await saisir(d.ent, d.assistant, '2026-03-02', 'VIR-1', [['532', '1190,250', ''], ['411', '', '1190,250']]);
