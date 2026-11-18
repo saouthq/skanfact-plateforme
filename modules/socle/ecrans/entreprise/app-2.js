@@ -5677,9 +5677,12 @@
         </div>
 
         <div class="panel"><h2>Journal centralisateur — exercice ${h(exo)} ${info('ecr.central')}</h2>
-          ${central.pieces ? `<div class="scroll-x"><table class="list compact" id="ecr-central"><thead><tr><th>Mois</th>${central.journaux.map(j => `<th class="r" colspan="2" title="${h(j.label)}">${h(j.code)} <span class="muted small">D / C</span></th>`).join('')}<th class="r">Débit</th><th class="r">Crédit</th><th class="r">Pièces</th></tr></thead><tbody>
+          ${/* (1.387.42, issue 16, constat 19) Un tableau de journaux (VT, AC, BQ… débit et crédit) est l'outil du comptable : pour le
+               gérant il se replie, et le bouton d'export reste à la vue. */''}
+          ${central.pieces ? `<details id="ecr-central-d"><summary class="small">Voir le tableau par journal et par mois (l'outil de ton comptable)</summary><div class="scroll-x"><table class="list compact" id="ecr-central"><thead><tr><th>Mois</th>${central.journaux.map(j => `<th class="r" colspan="2" title="${h(j.label)}">${h(j.code)} <span class="muted small">D / C</span></th>`).join('')}<th class="r">Débit</th><th class="r">Crédit</th><th class="r">Pièces</th></tr></thead><tbody>
             ${central.mois.map(m => `<tr class="${m.pieces ? '' : 'muted'}"><td class="nw">${h(m.label)}</td>${central.journaux.map(j => `<td class="r nw">${m.par[j.code].debit ? montantCompta(m.par[j.code].debit) : '—'}</td><td class="r nw">${m.par[j.code].credit ? montantCompta(m.par[j.code].credit) : '—'}</td>`).join('')}<td class="r nw">${m.debit ? montantCompta(m.debit) : '—'}</td><td class="r nw">${m.credit ? montantCompta(m.credit) : '—'}</td><td class="r">${m.pieces || '—'}</td></tr>`).join('')}
           </tbody><tfoot><tr class="total-row"><td>Total</td>${central.journaux.map(j => `<td class="r nw"><strong>${montantCompta(central.totaux[j.code].debit)}</strong></td><td class="r nw"><strong>${montantCompta(central.totaux[j.code].credit)}</strong></td>`).join('')}<td class="r nw"><strong>${montantCompta(central.debit)}</strong></td><td class="r nw"><strong>${montantCompta(central.credit)}</strong></td><td class="r"><strong>${central.pieces}</strong></td></tr></tfoot></table></div>
+          </details>
           <div class="inline mt"><button class="btn" id="ecr-central-csv">Exporter le centralisateur</button></div>` : '<div class="empty">Aucune écriture sur cet exercice.</div>'}
         </div>
 

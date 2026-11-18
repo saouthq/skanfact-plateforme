@@ -243,6 +243,14 @@ describe('la Comptabilité 1.303.0 : la période validée par le cabinet dite pa
     // ── D. L'assurance du local avancée par le gérant, en opération diverse ──
     await p.evaluate(() => { location.hash = '#/compta'; });
     await p.locator('#c-tabs [data-tab="ecritures"]').click({ timeout: 15_000 });
+    // (1.387.42, issue 16, constat 19) Le centralisateur (journaux × débit/crédit) est l'outil du comptable : replié pour le
+    // gérant, l'export reste à la vue ; il se déplie d'un clic.
+    await p.locator('#ecr-central-d').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#ecr-central-d').evaluate((d) => (d as HTMLDetailsElement).open)).toBe(false);
+    expect(await p.locator('#ecr-central').isVisible()).toBe(false);
+    expect(await p.locator('#ecr-central-csv').isVisible()).toBe(true);
+    await p.locator('#ecr-central-d > summary').click();
+    await expect.poll(() => p.locator('#ecr-central').isVisible()).toBe(true);
     await p.locator('#ecr-od').click({ timeout: 15_000 });
     await p.locator(`${fenetre} #odf`).waitFor({ timeout: 10_000 });
     await p.waitForTimeout(600);

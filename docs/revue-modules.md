@@ -5471,3 +5471,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - « l'onglet Barèmes » (une bulle et la visite de la paie) nommait un onglet qui s'appelle « Réglages » : « dans les Réglages de la paie ».
 - Déjà réglé avant : « Le salarié » accentué sur le bulletin imprimé, les élisions (« d'Ahmed »), « Total du solde ».
 - Une preuve : net-des-bulletins.
+
+## 1.387.42 — Le journal centralisateur replié pour le gérant, constat 19 (issue 16)
+
+- Comptabilité › Écritures montrait au gérant un tableau « VT D / C · AC D / C · BQ D / C… » qui sortait de l'écran à 1440. C'est l'outil du comptable : il se replie sous « Voir le tableau par journal et par mois (l'outil de ton comptable) », et « Exporter le centralisateur » reste visible.
+- Une preuve : centralisateur-replie.
