@@ -5476,3 +5476,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Comptabilité › Écritures montrait au gérant un tableau « VT D / C · AC D / C · BQ D / C… » qui sortait de l'écran à 1440. C'est l'outil du comptable : il se replie sous « Voir le tableau par journal et par mois (l'outil de ton comptable) », et « Exporter le centralisateur » reste visible.
 - Une preuve : centralisateur-replie.
+
+## 1.387.43 — La régularisation d'un bulletin payé, constat 23 (issue 16)
+
+- L'étoile « obligatoire » était sur « Sens » (une liste qui a toujours une valeur) alors que c'est le montant qui manque : elle passe sur le montant.
+- Le refus « Le montant de la régularisation manque » restait affiché une fois le montant tapé : il s'efface dès qu'un montant est lu.
+- Deux preuves : regul-refus-s-efface, regul-etoile-montant.

@@ -69,8 +69,9 @@
     modal(`<h2>Régulariser le bulletin ${/^[aeiouyéè]/i.test(nomDe) ? 'd\'' : 'de '}${h(nomDe)}</h2>
       <p class="small muted">Ce bulletin est payé${b.remisLe ? ' et remis' : ''} : il ne change plus. Ce qui manquait (ou ce qui a été payé en trop) passe sur le bulletin de <b>${h(nomCible)}</b>, avec son motif${cible.bulletin ? ', qui se recalcule' : ', quand il s’établira'}.</p>
       <form id="rg" class="grid-2">
-        <label class="field obligatoire">${lbl('Sens', 'pay.regulSens')}<select name="sens"><option value="plus">Il lui manquait (à ajouter)</option><option value="moins">Il a reçu en trop (à retirer)</option></select></label>
-        ${field(lbl(`Montant (${h(C.normCurrency(cur))})`, 'pay.regulMontant'), 'amount', '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" required')}
+        <label class="field">${lbl('Sens', 'pay.regulSens')}<select name="sens"><option value="plus">Il lui manquait (à ajouter)</option><option value="moins">Il a reçu en trop (à retirer)</option></select></label>
+        ${/* (1.387.43, issue 16, constat 23) L'étoile va sur ce qui peut manquer : le montant (le sens a toujours une valeur). */''}
+        ${field(lbl(`Montant (${h(C.normCurrency(cur))})`, 'pay.regulMontant'), 'amount', '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" required').replace('class="field"', 'class="field obligatoire"')}
         ${field(lbl('Libellé sur le bulletin', 'pay.regulLabel'), 'label', `Régularisation ${nomDe}`, 'text', 'class="span-2"')}
         <label class="field span-2">${lbl('Motif', 'pay.regulMotif')}<input type="text" name="motif" placeholder="ex. heures supplémentaires oubliées"></label>
         <label class="check span-2"><input type="checkbox" name="taxable" checked> soumise à la CNSS et à l'impôt ${info('pay.regulImposable')}</label>
@@ -95,6 +96,8 @@
         $('#rg-hs-h', root).oninput = calc; $('#rg-hs-m', root).onchange = calc;
       }
       if ($('#rg-rect', root)) $('#rg-rect', root).onclick = () => { fermer(); opts.rectificatif(b); };
+      // (1.387.43, issue 16, constat 23) Le refus du montant manquant restait affiché une fois le montant tapé.
+      $('#rg [name=amount]', root).addEventListener('input', () => { if (lireMontant($('#rg [name=amount]', root).value) > 0) $('#rg-refus', root).hidden = true; });
       $('#rg-ok', root).onclick = () => {
         const v = formValues($('#rg', root)), m = C.round3(Number(v.amount) || 0);
         const refus = $('#rg-refus', root);

@@ -94,7 +94,11 @@ describe('la paie : les écrans de la revue', () => {
     expect(espace(await p.locator('.modal').innerText())).toContain('ne change plus');
     await p.locator('#rg-ok').click();
     expect(await p.locator('#rg-refus').isVisible()).toBe(true);
+    // (1.387.43, issue 16, constat 23) L'étoile est sur le montant, pas sur le sens ; le refus s'en va quand on tape le montant.
+    expect(await p.locator('#rg label.obligatoire [name=amount]').count()).toBe(1);
+    expect(await p.locator('#rg label.obligatoire [name=sens]').count()).toBe(0);
     await p.locator('#rg [name=amount]').fill('45.125');
+    await expect.poll(() => p.locator('#rg-refus').isVisible()).toBe(false);
     await p.locator('#rg [name=motif]').fill('heures oubliées');
     await p.locator('#rg-ok').click();
     const suivant = A.ceMois.find((b) => b.employeeId === 'mt');

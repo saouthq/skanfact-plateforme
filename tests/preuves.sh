@@ -30780,6 +30780,8 @@ prouver $'une-ligne-entree-depart' modules/personnel/ecrans/entreprise/paie.js $
 prouver $'jours-hors-contrat' modules/personnel/ecrans/entreprise/paie.js $'jours payés : ${pct(p.total)} moins ${pct(hors)} hors de son contrat' $'jours payés sur ${pct(p.total)}' $'entré et parti dans le même mois : une seule ligne, et le compte des jours payés se lit'
 prouver $'net-des-bulletins' modules/personnel/ecrans/entreprise/paie.js $"l('Net des bulletins', f(ytd.net))" $"l('Net versé', f(ytd.net))" $'le cumul de l\'année compte TOUS les bulletins, payés ou non : il s\'appelle « Net des bulletins », jamais « Net versé »'
 prouver $'centralisateur-replie' modules/socle/ecrans/entreprise/app-2.js $'`<details id="ecr-central-d"><summary' $'`<details open id="ecr-central-d"><summary' $'fin octobre, le grossiste rattrape septembre : chaque saisie le dit, et la comptable lit tout au 1er octobre'
+prouver $'regul-refus-s-efface' modules/personnel/ecrans/entreprise/paie.js $"if (lireMontant(\$('#rg [name=amount]', root).value) > 0) \$('#rg-refus', root).hidden = true;" $"if (false) \$('#rg-refus', root).hidden = true;" $'un bulletin payé se régularise sur le mois suivant, sans changer'
+prouver $'regul-etoile-montant' modules/personnel/ecrans/entreprise/paie.js $'<label class="field">${lbl(\'Sens\', \'pay.regulSens\')}' $'<label class="field obligatoire">${lbl(\'Sens\', \'pay.regulSens\')}' $'un bulletin payé se régularise sur le mois suivant, sans changer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
