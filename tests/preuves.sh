@@ -30749,6 +30749,7 @@ prouver $'le livre neuf dépose toujours dans la Saisie' modules/socle/ecrans/ca
 # (1.387.20, issue 10, CABPAIE-25) Le taux dégressif porte son étoile, la note dit quoi faire.
 prouver $'le taux dégressif n\'a pas son étoile' modules/socle/ecrans/cabinet/app-1.js $'<label class="field obligatoire" id="im-taux-l">' $'<label class="field" id="im-taux-l">' $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 
+prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

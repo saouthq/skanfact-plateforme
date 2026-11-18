@@ -5374,3 +5374,7 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« personne ne l'a confirmé », « nul n'a dit que c'est celui d'ici »** : des notes de travail lues par l'expert-comptable.
   Elles deviennent des consignes (« Saisis le taux dégressif qui s'applique à ce bien… », « À cocher si tu passes au
   linéaire… »), avec leur « À VÉRIFIER selon la règle en vigueur ». Le taux, obligatoire, porte son étoile.
+
+### 1.387.21 — le bulletin imprimé au Cabinet porte la date de sa validation
+
+Un bulletin validé le 31/10 s'imprimait « Établi le 16/11/2026 » : la fiche envoyée au client prenait la date du jour de l'envoi. Elle prend maintenant le jour de la validation ; un bulletin pas encore validé garde la date déjà connue. Test : `tests/moteur/bulletin-etabli-le-valide-1387.test.ts`, prouvé.

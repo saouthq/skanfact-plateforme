@@ -822,7 +822,7 @@
     gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul,
     // 1.63.0 — le prorata avec lequel le bulletin a été calculé : un brut retouché au Cabinet n'en a plus (le moteur l'a dit).
     prorata: b.prorata || null,
-    paidDate: b.payeLe || '', issuedAt: (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10),
+    paidDate: b.payeLe || '', issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) || (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10), // (1.387.21) validé = établi ce jour-là
   });
   // Les congés et absences du dossier, dans la forme de l'entreprise.
   /** @param {any[]} objets */
