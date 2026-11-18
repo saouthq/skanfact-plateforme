@@ -234,8 +234,9 @@ describe('la banque, à la souris', () => {
     await p.locator('.bqi-page [name=compte]').evaluate((c: HTMLInputElement) => { c.value = '532'; c.dispatchEvent(new Event('change', { bubbles: true })); });
     await expect.poll(() => p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);
     // Une fin tapée qui ne tombe pas juste : l'écart est chiffré (10 405,625 + 300 = 10 705,625 ; tapé 10 700).
-    await p.locator('.bqi-page [name=fin]').fill('10700');
-    await expect.poll(async () => (await p.locator('.bqi-page #rv-fin-hint').innerText()).replace(/[\u00a0\u202f]/g, ' ')).toBe('début + mouvements donne 10 705,625 DT : 5,625 DT d\'écart avec cette fin');
+    // (Le formulaire est caché sous le refus du mois manquant : la case se remplit sans la souris.)
+    await p.locator('.bqi-page [name=fin]').evaluate((c: HTMLInputElement) => { c.value = '10700'; c.dispatchEvent(new Event('input', { bubbles: true })); });
+    await expect.poll(async () => ((await p.locator('.bqi-page #rv-fin-hint').textContent()) ?? '').replace(/[\u00a0\u202f]/g, ' ')).toBe('début + mouvements donne 10 705,625 DT : 5,625 DT d\'écart avec cette fin');
     await p.locator('.bqi-page').locator('.bq-h [data-close]').click();
 
     // ── Au téléphone : des cartes ; le tableau du bureau se cache ; le livre en face garde ses tableaux ─

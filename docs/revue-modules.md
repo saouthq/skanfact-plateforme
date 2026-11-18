@@ -5066,3 +5066,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   a tapé soi-même n'est pas touché.
 - **Une fin tapée qui ne tombe pas juste** dit l'écart en chiffres : « début + mouvements donne 10 705,625 DT :
   5,625 DT d'écart avec cette fin ».
+
+## 1.384.7 — La banque : « 14 à la main, 1 depuis SkanFact » (issue 11, CABSAISIE-17)
+
+- **Le compte des rapprochées retombe sur son total** : l'écriture née dans SkanFact est l'une des quatorze, pas une de
+  plus. Elle se dit « dont 1 sur une écriture venue de SkanFact ».
+- Le test de l'écart d'une fin fausse (1.384.6) remplit la case sans la souris : le formulaire est caché à cet instant.

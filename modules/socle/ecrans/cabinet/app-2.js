@@ -776,8 +776,10 @@
   function resumeOrigines(faites) {
     const auto = faites.filter(x => (x.l.rapprochement || {}).par === 'auto').length;
     const sf = faites.filter(x => x.e && x.e.source === 'skanfact').length;
-    const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} à la main` : '', sf ? `${sf} depuis SkanFact` : ''].filter(Boolean);
-    return parts.length ? ` · ${parts.join(', ')}` : '';
+    // (1.384.7, issue 11, CABSAISIE-17) « 14 à la main, 1 depuis SkanFact » faisait quinze pour quatorze : l'écriture née
+    // dans SkanFact est l'une des quatorze, pas une de plus. Elle se dit « dont ».
+    const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} à la main` : ''].filter(Boolean);
+    return parts.length ? ` · ${parts.join(', ')}${sf ? ` — dont ${sf} sur une écriture venue de SkanFact` : ''}` : '';
   }
   // (1.208.0, B6) D'où vient une rapprochée, comme la maquette : ce que son écriture paie ou porte (la paie du mois, le
   // versement de la caisse, l'encaissement ou le paiement de factures, la règle qui a proposé le compte), lu dans
