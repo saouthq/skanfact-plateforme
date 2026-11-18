@@ -242,6 +242,13 @@
   //
   // Aucun objet Date ici : une date de l'app est un JOUR, pas un instant (règle 5.2.3). Trois
   // découpages de chaîne, et la machine de test à Tunis comme à Londres rend la même chose.
+  // Un jour du calendrier : le 32/13 et le 30 février n'en sont pas.
+  function jourQuiExiste(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''));
+    if (!m) return false;
+    const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    return d.getUTCFullYear() === +m[1] && d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3];
+  }
   function dateDepuisCsv(v) {
     const s = txt(v);
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
@@ -2574,7 +2581,9 @@
       const montant = aMontant
         ? round3(nombreDepuisCsv(l[col.montant]))
         : round3(nombreDepuisCsv(l[col.credit]) - nombreDepuisCsv(l[col.debit]));
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { ignorees.push({ ligne: no, motif: `date illisible (« ${txt(l[col.date]).slice(0, 20)} »)` }); return; }
+      // (1.384.3, issue 11, CABSAISIE-18) un jour qui n'existe pas — « 32/13/2026 » — n'est pas une date : la
+      // ligne est illisible, elle ne donne pas un mouvement « du 32/13 ».
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !jourQuiExiste(date)) { ignorees.push({ ligne: no, motif: `date illisible (« ${txt(l[col.date]).slice(0, 20)} »)` }); return; }
       if (!montant) { ignorees.push({ ligne: no, motif: 'montant nul ou illisible' }); return; }
       lignes.push({
         id: '', date, libelle, montant,
@@ -2594,7 +2603,10 @@
       if (s.rang <= 0 && soldes.debut == null) soldes.debut = s.montant;
       else if (s.rang >= lignes.length) soldes.fin = s.montant;
     });
-    return { lignes, ignorees, totaux, colonnes: col, entetes: devine.entetes, ligneTitres: (r[h] && r[h].no) || h + 1, soldes, motif: '' };
+    // Aucune ligne lisible : ce fichier n'est pas un relevé — le dire, plutôt qu'un aperçu vide sous des coches.
+    const motif = !lignes.length && ignorees.length
+      ? 'Ce fichier n\'est pas un relevé : aucune de ses lignes ne porte une date et un montant lisibles.' : '';
+    return { lignes, ignorees, totaux, colonnes: col, entetes: devine.entetes, ligneTitres: (r[h] && r[h].no) || h + 1, soldes, motif };
   }
 
   // Le contrôle qui décide si un relevé entre : `soldeDebut + Σ montants = soldeFin`. Un relevé

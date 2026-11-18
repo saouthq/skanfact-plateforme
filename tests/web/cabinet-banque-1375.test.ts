@@ -160,6 +160,17 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^«\s32\/13\s» n'est pas une date de \d{4}/);
     expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
 
+    // ── (1.384.3, issue 11 constat 18) un relevé aux dates impossibles : ses lignes sont illisibles, et il se dit ──
+    const lu = await p.evaluate(() => {
+      const KC = (window as unknown as { SkanCompta: { releveDepuisCsv: (r: string[][]) => { lignes: { date: string }[]; ignorees: { motif: string }[]; motif: string } } }).SkanCompta;
+      const tete = ['Date', 'Libellé', 'Montant'];
+      const faux = KC.releveDepuisCsv([tete, ['32/13/2026', 'Virement', '100,000'], ['30/02/2026', 'Chèque', '-40,000']]);
+      const mele = KC.releveDepuisCsv([tete, ['32/13/2026', 'Virement', '100,000'], ['28/02/2026', 'Chèque', '-40,000']]);
+      return { faux: [faux.lignes.length, faux.ignorees.map((i) => i.motif), faux.motif], mele: [mele.lignes.map((l) => l.date), mele.ignorees.length, mele.motif] };
+    });
+    expect(lu.faux).toEqual([0, ['date illisible (« 32/13/2026 »)', 'date illisible (« 30/02/2026 »)'], 'Ce fichier n\'est pas un relevé : aucune de ses lignes ne porte une date et un montant lisibles.']);
+    expect(lu.mele).toEqual([['2026-02-28'], 1, '']);
+
     // ── (1.382.0, issue 11 constat 5) un compte que ni le dossier ni le plan de référence ne connaît se demande ──
     await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
     await p.locator('#sa-piece').fill('OD-FAUTE');

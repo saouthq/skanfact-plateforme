@@ -5040,3 +5040,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Deux envois du même relevé au même instant** : le second passait le contrôle « déjà importé » avant que le premier
   soit écrit, et tombait en panne (500). Il est refusé par une phrase — « ce fichier vient d'être importé : le second
   envoi n'a rien ajouté » — et un seul relevé est rangé.
+
+## 1.384.3 — La banque : un relevé aux dates impossibles (issue 11, CABSAISIE-18)
+
+- **« 32/13/2026 » n'est pas une date** : la ligne est écartée (« date illisible »), elle ne donne plus un mouvement
+  « du 32/13 » sous une coche verte. Le 30 février non plus.
+- **Aucune ligne lisible : « Ce fichier n'est pas un relevé »** — la fenêtre le dit, au lieu d'un aperçu vide.

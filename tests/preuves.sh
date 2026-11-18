@@ -30555,6 +30555,10 @@ prouver $'banque 1.384.2 a : le double clic sur Importer tombe en panne' serveur
   $"pg.code === '23505' && pg.constraint === 'releve_entreprise_empreinte_key' ? new Refus('compta.releve_double') : e" $"e" \
   $'deux envois du même relevé au même instant (un double clic) : un seul s\'importe, l\'autre est refusé par une phrase, jamais une panne'
 
+prouver $'banque 1.384.3 a : le 32/13 est pris pour une date' modules/socle/moteur/compta-1.js \
+  $" || !jourQuiExiste(date)) { ignorees.push(" $") { ignorees.push(" \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
