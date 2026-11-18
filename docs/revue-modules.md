@@ -5453,3 +5453,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - L'état récapitulatif CNSS : « Arrêtée à la somme de », posé sous « Total des cotisations », se lisait comme ces cotisations. La phrase dit désormais « Déclaration arrêtée au montant des salaires déclarés (…) », puis que les cotisations à payer sont le total au-dessus. À VÉRIFIER sur un vrai état avec le comptable.
 - « + Mouvement » : quand la paie est tenue dans SkanFact, « Salaires et charges » passe en fin de liste, et le choisir affiche « Les salaires payés depuis la Paie sortent déjà de la banque : … sinon il compterait deux fois ». L'invite du libellé suit la nature (« Assurance du local » pour une autre sortie, plus « Salaires de septembre » partout).
 - Deux preuves : salaire-pas-en-tete, cnss-arretee-salaires.
+
+## 1.387.39 — Le solde de tout compte, constat 13 (issue 16)
+
+- « Salaire du mois en cours 0,000 » se lisait « rien à payer » pour un salarié encore là jusqu'au 16. Le salaire du dernier mois se paie sur un BULLETIN (la CNSS et l'impôt s'y retiennent), pas dans le solde, qui est en brut. Quand ce bulletin manque, la fenêtre le dit : « Son bulletin de juin 2026 n'est pas encore fait : établis-le (au prorata, jusqu'au 30/06/2026)… ». La ligne du solde s'appelle « Salaire du mois en cours (s'il n'est pas sur un bulletin) », dans les deux applications (moteur commun).
+- Le total s'appelait déjà « Total du solde » (plus « Net à percevoir »). À VÉRIFIER avec le comptable : ce qui se retient sur les indemnités.
+- Une preuve : solde-dit-dernier-bulletin.

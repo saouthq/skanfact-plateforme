@@ -59,7 +59,7 @@ describe('les documents du personnel, dans le moteur commun', () => {
   it('deux chemins, un chiffre : la ligne que la fenêtre propose est celle que le document imprime', () => {
     const lignes = compta.lignesDuSolde(donnees(), 's1', '2026-08-20');
     expect(lignes.map((l) => [l.label, l.amount])).toEqual([
-      ['Salaire du mois en cours', 0], ['Indemnité de congés non pris (10,5 jours)', 525.504], ['Indemnité de préavis', 0], ['Indemnité de fin de contrat', 0]]);
+      ['Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', 0], ['Indemnité de congés non pris (10,5 jours)', 525.504], ['Indemnité de préavis', 0], ['Indemnité de fin de contrat', 0]]);
     expect(lignes.find((l) => l.cle === 'conges')?.amount).toBe(525.504);
     // Le document, daté deux mois avant la sortie (préparé d'avance : au 15 juin, il compterait 7,5 jours), compte au jour
     // de la sortie, comme la fenêtre.

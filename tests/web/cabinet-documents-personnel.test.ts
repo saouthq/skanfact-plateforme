@@ -137,7 +137,7 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     expect(await fenetre.locator('#dp-gerant, #dp-civ').count()).toBe(0);
     await fenetre.locator('[name=kind]').selectOption('solde');
     const valeurs = (sel: string) => fenetre.locator(sel).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
-    expect(await valeurs('#dp-lignes [data-dl=label]')).toEqual(['Salaire du mois en cours', 'Indemnité de congés non pris (10,5 jours)', 'Indemnité de préavis', 'Indemnité de fin de contrat']);
+    expect(await valeurs('#dp-lignes [data-dl=label]')).toEqual(['Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', 'Indemnité de congés non pris (10,5 jours)', 'Indemnité de préavis', 'Indemnité de fin de contrat']);
     expect(await valeurs('#dp-lignes [data-dl=amount]')).toEqual(['', '525,504', '', '']);
     expect((await fenetre.locator('#dp-avances').innerText()).replace(/[\u00a0\u202f]/g, ' ')).toContain('Il reste 1 000,750 DT à rembourser sur ses avances. Ce document ne les retient pas');
     await fenetre.locator('#dp-plus').click();

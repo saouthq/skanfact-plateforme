@@ -1875,6 +1875,15 @@
         <p class="small muted mb">Ce que tu dois encore au salarié à son départ. Les montants sont à toi : SkanFact propose seulement l'indemnité de congés non pris, calculée sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>
         <div id="hf-lines"></div>
         ${bal.remaining < 0 ? `<p class="small warn-text mt">Il a pris ${pct(-bal.remaining)} jour${sPl(-bal.remaining)} de congé de plus qu'il n'en a acquis : l'indemnité ci-dessus vaut donc zéro. <em>À VÉRIFIER avec ton comptable : ces jours peuvent se retenir sur le solde.</em></p>` : ''}
+        ${(() => {
+          // (1.387.39, issue 16, constat 13) « Salaire du mois en cours 0,000 » pour un salarié encore là jusqu'au 16 : son
+          // dernier mois se paie sur un BULLETIN (la CNSS et l'impôt s'y retiennent), pas dans le solde, qui est brut. On
+          // dit lequel manque, au lieu d'un zéro qu'on lit comme « rien à payer ».
+          const fin = String(e.endDate || '').slice(0, 7);
+          if (!fin) return '';
+          const fait = (data.payslips || []).some(b => b.employeeId === e.id && `${b.year}-${String(b.month).padStart(2, '0')}` === fin);
+          return fait ? '' : `<p class="small warn-text mt" id="hf-dernier">Son bulletin de ${h(MONTHS_LONG[Number(fin.slice(5, 7)) - 1])} ${fin.slice(0, 4)} n'est pas encore fait : établis-le (au prorata, jusqu'au ${C.fmtDate(e.endDate)}) depuis la paie du mois. Le salaire de ce mois va sur ce bulletin, pas dans le solde, qui est en brut.</p>`;
+        })()}
         ${resteAvances > 0 ? `<p class="small mt" id="hf-avances">Il reste <b>${C.money(resteAvances, cur)}</b> à rembourser sur ses avances. Ce document ne les retient pas : un bulletin les rembourse, et ce qu'il ne peut pas retenir se règle avec lui. <em>À VÉRIFIER avec ton comptable : ce qui peut se retenir au départ.</em></p>` : ''}
       </div>
       </div><div class="hf-droite"><div class="hf-zoom" role="group" aria-label="Taille de l'aperçu"><span class="small muted">Aperçu A4</span><button type="button" class="btn btn-sm" data-hf-zoom="page" aria-pressed="true">Page entière</button><button type="button" class="btn btn-sm" data-hf-zoom="largeur" aria-pressed="false">Pleine largeur</button></div>

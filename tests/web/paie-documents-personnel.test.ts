@@ -135,6 +135,9 @@ describe('les documents du personnel de l\'entreprise', () => {
     await expect.poll(async () => (await objets()).find((o) => o.collection === 'employees')?.contenu.endDate).toBe('2026-06-30');
     // La sortie arrête le compte des congés : au 30 juin, quel que soit le jour du document.
     await expect.poll(conges).toBe(String(auJuin));
+    // (1.387.39, issue 16, constat 13) Sorti le 30 juin sans bulletin de juin : le solde le DIT, au lieu d'un « 0,000 »
+    // qu'on lirait « rien à payer » ; le salaire de ce mois va sur ce bulletin, pas dans le solde brut.
+    await expect.poll(() => fenetre.locator('#hf-dernier').innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toMatch(/^Son bulletin de juin 2026 n'est pas encore fait : établis-le \(au prorata, jusqu'au 30\/06\/2026\)/);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

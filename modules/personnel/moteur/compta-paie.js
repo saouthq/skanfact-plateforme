@@ -445,7 +445,7 @@
     const ic = indemniteConges(data, employeeId, dateIso);
     const lic = indemniteLicenciement(data, employeeId, dateIso);
     return [
-      { label: 'Salaire du mois en cours', amount: 0 },
+      { label: 'Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', amount: 0 },
       { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, cle: 'conges' },
       { label: 'Indemnité de préavis', amount: 0 },
       lic ? { label: lic.label, amount: lic.montant, cle: 'licenciement' } : { label: 'Indemnité de fin de contrat', amount: 0 }
