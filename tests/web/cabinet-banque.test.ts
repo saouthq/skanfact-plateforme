@@ -228,6 +228,14 @@ describe('la banque, à la souris', () => {
     expect(await p.locator('.bqi-page #ok').isDisabled()).toBe(true);
     // Le solde de début proposé est la fin du relevé de mars (le chiffre de la banque).
     expect(await p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);
+    // (1.384.6, issue 11 constat 22) Un autre compte bancaire : le solde de début n'est plus celui de l'ancien compte.
+    await p.locator('.bqi-page [name=compte]').evaluate((c: HTMLInputElement) => { c.value = '5321'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await expect.poll(() => p.locator('.bqi-page [name=debut]').inputValue()).not.toMatch(/405,625/);
+    await p.locator('.bqi-page [name=compte]').evaluate((c: HTMLInputElement) => { c.value = '532'; c.dispatchEvent(new Event('change', { bubbles: true })); });
+    await expect.poll(() => p.locator('.bqi-page [name=debut]').inputValue()).toMatch(/^10\s405,625$/);
+    // Une fin tapée qui ne tombe pas juste : l'écart est chiffré (10 405,625 + 300 = 10 705,625 ; tapé 10 700).
+    await p.locator('.bqi-page [name=fin]').fill('10700');
+    await expect.poll(async () => (await p.locator('.bqi-page #rv-fin-hint').innerText()).replace(/[\u00a0\u202f]/g, ' ')).toBe('début + mouvements donne 10 705,625 DT : 5,625 DT d\'écart avec cette fin');
     await p.locator('.bqi-page').locator('.bq-h [data-close]').click();
 
     // ── Au téléphone : des cartes ; le tableau du bureau se cache ; le livre en face garde ses tableaux ─

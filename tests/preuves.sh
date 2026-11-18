@@ -30563,6 +30563,14 @@ prouver $'saisie 1.384.4 a : « Une écriture » sans effet sur un exercice clos
   $"if (livresState.livre && livresState.livre.exercice && livresState.livre.exercice.clos) {" $"if (false) {" \
   $'un exercice clos montre sa liasse sans rien laisser changer, et dit comment rouvrir'
 
+prouver $'banque 1.384.6 a : le solde de début reste celui de l\'ancien compte' modules/socle/ecrans/cabinet/app-2.js \
+  $"          champDebut.value = ''; if (hint) hint.textContent = '';" $"          return;" \
+  $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
+
+prouver $'banque 1.384.6 b : l\'écart d\'une fin fausse ne se chiffre pas' modules/socle/ecrans/cabinet/app-2.js \
+  $"          else if (lu && (lu.lignes || []).length && v('fin')) {" $"          else if (false) {" \
+  $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

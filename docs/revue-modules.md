@@ -5059,3 +5059,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Des notes de travail sorties de l'écran** : « Le relevé en PDF : pas encore. » (sans la parenthèse), la TVA d'une
   règle dit « à vérifier » avec sa raison au survol, et le refus d'un compte de TVA ne renvoie plus au « plan » en
   majuscules.
+
+## 1.384.6 — L'import d'un relevé : le solde de début et l'écart (issue 11, CABSAISIE-22)
+
+- **Changer de compte bancaire** recalcule le « Solde au début » proposé : il restait celui de l'ancien compte. Ce qu'on
+  a tapé soi-même n'est pas touché.
+- **Une fin tapée qui ne tombe pas juste** dit l'écart en chiffres : « début + mouvements donne 10 705,625 DT :
+  5,625 DT d'écart avec cette fin ».

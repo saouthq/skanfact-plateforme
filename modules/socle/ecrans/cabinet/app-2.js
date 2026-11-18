@@ -2139,6 +2139,14 @@
         const champDebut = $('[name=debut]', rootModal), hint = $('#rv-debut-hint', rootModal);
         let debutTouche = false, finTouche = false;
         if (champDebut) champDebut.addEventListener('input', () => { debutTouche = true; });
+        // (1.384.6, issue 11, CABSAISIE-22) Changer de compte bancaire : le « Solde au début » proposé était celui de
+        // l'ancien compte. Il se recalcule, sauf si on l'a tapé soi-même.
+        const champCompte = $('[name=compte]', rootModal);
+        if (champCompte) champCompte.addEventListener('change', () => {
+          if (debutTouche || !champDebut) return;
+          champDebut.value = ''; if (hint) hint.textContent = '';
+          if (lu && (lu.lignes || []).length) montrer();
+        });
         const champFin = $('[name=fin]', rootModal), hintFin = $('#rv-fin-hint', rootModal);
         // Le verdict se lit PENDANT la frappe dès qu'il tombe juste (10.14.1) : la bulle promettait
         // « l'écart s'écrit sous la case », et on ne l'apprenait qu'en cliquant « Importer ». Tant que
@@ -2159,6 +2167,13 @@
           // fichier… » au moment où le relevé se lisait (H-E1).
           if (juste) { hintFin.className = 'small ok-inline'; hintFin.textContent = source ? source + ' · ✓ ça tombe juste' : '✓ Ça tombe juste : début + mouvements = fin, aucune ligne ne manque.'; }
           else if (source) { hintFin.className = 'small muted'; hintFin.textContent = source + ' — mais début + mouvements ne donne pas cette fin : une ligne manque peut-être au fichier.'; }
+          // (1.384.6, issue 11, CABSAISIE-22) Une fin tapée qui ne tombe pas juste : l'écart se chiffre, il ne se devine pas.
+          else if (lu && (lu.lignes || []).length && v('fin')) {
+            const attendu = KC.round3(KC.nombreDepuisCsv(v('debut')) + lu.lignes.reduce((a, l) => a + l.montant, 0));
+            const ecart = KC.round3(KC.nombreDepuisCsv(v('fin')) - attendu);
+            hintFin.className = 'small err-inline';
+            hintFin.textContent = `début + mouvements donne ${money(attendu)} : ${money(Math.abs(ecart))} d'écart avec cette fin`;
+          }
           else { hintFin.className = 'small muted'; hintFin.textContent = 'recopie le solde de fin écrit sur le relevé'; }
         };
         if (champFin) champFin.addEventListener('input', () => { finTouche = true; verdictFin(''); });
