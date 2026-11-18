@@ -5459,3 +5459,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - « Salaire du mois en cours 0,000 » se lisait « rien à payer » pour un salarié encore là jusqu'au 16. Le salaire du dernier mois se paie sur un BULLETIN (la CNSS et l'impôt s'y retiennent), pas dans le solde, qui est en brut. Quand ce bulletin manque, la fenêtre le dit : « Son bulletin de juin 2026 n'est pas encore fait : établis-le (au prorata, jusqu'au 30/06/2026)… ». La ligne du solde s'appelle « Salaire du mois en cours (s'il n'est pas sur un bulletin) », dans les deux applications (moteur commun).
 - Le total s'appelait déjà « Total du solde » (plus « Net à percevoir »). À VÉRIFIER avec le comptable : ce qui se retient sur les indemnités.
 - Une preuve : solde-dit-dernier-bulletin.
+
+## 1.387.40 — Les jours payés d'un entrant ou d'un sortant, constat 11 (issue 16)
+
+- Entré le 10 et parti le 20 du même mois, la ligne du pointage s'écrivait deux fois (« entrée », puis « départ »), et « 11 jours payés sur 26 » ne disait pas d'où venait le 11. Une seule ligne désormais (« entrée le 10/11, départ le 20/11 »), qui dit le compte : « 11 jours payés : 26 moins 15 hors de son contrat ». À VÉRIFIER avec le comptable : la règle du prorata (jours ouvrables, base 26).
+- Deux preuves : une-ligne-entree-depart, jours-hors-contrat.

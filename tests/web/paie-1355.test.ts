@@ -238,4 +238,35 @@ describe('le premier salarié, du vide au bulletin à payer (1.355.0)', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+  // (1.387.40, issue 16, constat 11) Entré le 10 et parti le 20 du même mois : UNE ligne, qui dit d'où vient le nombre de
+  // jours payés (le mois, moins les jours hors de son contrat), au lieu de « 11 jours payés sur 26 » écrit deux fois.
+  it('entré et parti dans le même mois : une seule ligne, et le compte des jours payés se lit', async () => {
+    const { jeton, ent } = await boulangerie();
+    const [aa, mm] = aujourdhui.slice(0, 7).split('-').map(Number) as [number, number];
+    const y = mm === 1 ? aa - 1 : aa, m = mm === 1 ? 12 : mm - 1, ym = `${y}-${String(m).padStart(2, '0')}`;
+    const objets = (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[];
+    const fiche = objets.find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'company', rang: null,
+      revision: fiche ? fiche.revision : null, contenu: { ...(fiche ? fiche.contenu : {}), setupDone: true, managerName: 'Amel Nouri', address: 'Avenue Habib Bourguiba\n1000 Tunis' } }] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'employees', cle: 'e-passage', rang: null, revision: null,
+      contenu: encoder({ id: 'e-passage', name: 'Karim Passage', contract: 'cdd', grossSalary: 1200, hireDate: `${ym}-10`, endDate: `${ym}-20`, headOfFamily: false, children: 0, active: true, method: 'especes', iban: '', cnss: '', primes: [] }) }] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
+    await p.locator('#p-tabs').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator('#p-tabs [data-tab="bulletins"]').click();
+    await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
+    await p.locator('#p-sous .pa-etape[data-sous="pointage"]').click();
+    await expect.poll(() => p.locator('#view').innerText().then(net), { timeout: 10_000 }).toMatch(/entrée le 10\/\d\d, départ le 20\/\d\d/);
+    const t = net(await p.locator('#view').innerText());
+    expect(t.match(/entrée le 10\//g)?.length).toBe(1);
+    expect(t.match(/départ le 20\//g)?.length).toBe(1);
+    expect(t).toMatch(/\d+(,\d+)? jours payés : \d+(,\d+)? moins \d+(,\d+)? hors de son contrat/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

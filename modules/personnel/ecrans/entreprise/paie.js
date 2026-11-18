@@ -4246,8 +4246,14 @@
         const de = c => p.jours.filter(j => !j.repos && j.code === c).map(j => j.jour);
         // (1.355.0) Entré le 1er (ou parti le dernier jour), le mois est payé en entier : « au prorata » disait le contraire.
         const entier = Number(p.payes) >= Number(p.total);
-        if (e.hireDate && e.hireDate.startsWith(ym)) L.push(['', `entrée le ${jjmm(e.hireDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, entier ? 'mois entier' : 'au prorata']);
-        if (e.endDate && e.endDate.startsWith(ym)) L.push(['', `départ le ${jjmm(e.endDate)}`, `${pct(p.payes)} jours payés sur ${pct(p.total)}`, entier ? 'mois entier' : 'au prorata']);
+        // (1.387.40, issue 16, constat 11) Entré ET parti dans le mois, la ligne s'écrivait deux fois ; et « 11 jours payés sur
+        // 26 » ne disait pas d'où venait le 11. Une seule ligne, et le compte se lit : les jours hors de son contrat se retranchent.
+        const entre = e.hireDate && e.hireDate.startsWith(ym), part = e.endDate && e.endDate.startsWith(ym);
+        if (entre || part) {
+          const hors = Math.max(0, C.round3(Number(p.total) - Number(p.payes)));
+          const quand = [entre ? `entrée le ${jjmm(e.hireDate)}` : '', part ? `départ le ${jjmm(e.endDate)}` : ''].filter(Boolean).join(', ');
+          L.push(['', quand, entier ? `${pct(p.payes)} jours payés sur ${pct(p.total)}` : `${pct(p.payes)} jours payés : ${pct(p.total)} moins ${pct(hors)} hors de son contrat`, entier ? 'mois entier' : 'au prorata']);
+        }
         an.filter(a => a.employeeId === e.id).forEach(a => L.push(['alerte', a.sorte === 'sortie' ? 'sortie oubliée' : 'jours sans badge', a.sorte === 'sortie' ? `le ${String(a.jour).padStart(2, '0')}/${String(m).padStart(2, '0')}` : datesDites(a.jours, m), 'à régler']));
         const A = de('A'), D = de('D'), Co = de('C'), Ma = de('M');
         if (A.length) L.push(['', `absent ${pl(A.length, 'jour')}`, datesDites(A, m), `− ${C.money(C.round3(un * A.length), cur)}`]);
