@@ -591,7 +591,7 @@
       décochée. <em>À VÉRIFIER : les durées et le coefficient relèvent du droit.</em></p>
       <p class="small">Une acquisition que ton client a enregistrée dans SkanFact remonte <b>sans fiche</b> : l'écran propose de la créer, jamais
       d'office — la durée est une décision.</p>
-      <p class="small"><b>Passer les écritures d'inventaire</b> pose les dotations de l'exercice en brouillard au
+      <p class="small"><b>Passer les dotations et les sorties</b> pose les dotations de l'exercice en brouillard au
       31 décembre ; chaque bien retient son écriture, et le bouton s'éteint quand tout est passé. Un bien dont la dotation
       est écrite ne change plus de valeur — contre-passe d'abord — mais se renomme librement.</p>
       <p class="small">Une <b>cession</b> ou une mise au rebut écrit la sortie d'actif : les amortissements repris, la

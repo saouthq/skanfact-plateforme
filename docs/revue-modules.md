@@ -5223,3 +5223,12 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   en voyelle (« le bulletin de Amel », « la fiche de Amira ») : elles élident. Un prénom en H ou en Y ne s'élide pas
   (« de Hamza », « de Youssef »), le nom d'un dossier en Y non plus.
 - **Côté entreprise**, « Accepter la correction d'Anis » (c'était « de Anis »).
+
+## 1.387.1 — Immobilisations : ce qui va s'écrire se montre d'abord (issue 10, CABPAIE-14 et 17)
+
+- **« Passer son entrée au 01/07 » se proposait, puis se refusait** quand la période était validée au-delà. Le bouton
+  propose le premier jour ouvert, et le dit ; une fenêtre montre l'écriture (le bien, ses amortissements antérieurs, sa
+  contrepartie) avant de l'écrire.
+- **« Passer les écritures d'inventaire (3) » écrivait tout d'un clic**, sous un nom qui se confondait avec l'onglet
+  Inventaire. Il s'appelle « Passer les dotations et les sorties de 2026 » et montre la liste des écritures, lignes
+  comprises, avant de les passer au brouillard.

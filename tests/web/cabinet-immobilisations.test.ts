@@ -85,7 +85,15 @@ describe('les immobilisations, à la souris', () => {
     await expect.poll(() => p.locator('[data-creer]').count()).toBe(0);
 
     // ── La dotation de 2025, au brouillard, au millime du plan, liée à son bien ──────────────────────
+    // (1.387.1, issue 10, CABPAIE-17) Le geste dit ce qu'il passe, et le montre avant de l'écrire : la pièce, ses lignes.
+    expect((await p.locator('#im-ecrire').innerText()).replace(/\s+/g, ' ')).toBe('Passer les dotations et les sorties de 2025 (1)');
     await p.locator('#im-ecrire').click();
+    const avant = p.locator('.modal').last();
+    await expect.poll(() => avant.locator('h2').innerText()).toBe('Passer 1 écriture au brouillard ?');
+    expect((await avant.locator('.im-avant tbody tr').allInnerTexts()).map((t) => t.replace(/\s+/g, ' ').trim())).toEqual([
+      expect.stringMatching(/^DOT-2025-\S+ · 31\/12\/2025 Dotation 2025 — Camionnette Isuzu 681 6 000,100 DT$/), expect.stringMatching(/^28 6 000,100 DT$/)]);
+    expect((await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { piece: string }[]).not.toContainEqual(expect.objectContaining({ piece: expect.stringMatching(/^DOT-/) }));
+    await avant.locator('#ok').click();
     await expect.poll(toast).toBe('1 écriture passée en brouillard.');
     const [lie] = (await biens(cafe, associe))[0]?.ecritures ?? [];
     expect(lie).toMatchObject({ annee: 2025, genre: 'dotation' });

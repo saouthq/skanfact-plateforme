@@ -117,6 +117,7 @@ describe('les immobilisations du Cabinet (1.345.0), à la souris', () => {
     await expect.poll(toast).toBe('Fiche enregistrée.');
     // ── La dotation d'un bien sorti se date du jour de sa sortie, comme dans l'app entreprise ──────────
     await p.locator('#im-ecrire').click();
+    await p.locator('.modal').last().locator('#ok').click();
     await expect.poll(toast).toBe('2 écritures passées en brouillard.');
     const lies = (await biens(cafe, associe))[0]?.ecritures ?? [];
     const ecrites = (await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { id: string; date: string; lignes: { compte: string; debit: string; credit: string }[] }[];
@@ -124,6 +125,23 @@ describe('les immobilisations du Cabinet (1.345.0), à la souris', () => {
     expect(de('dotation')).toMatchObject({ date: '2026-09-30', lignes: [{ compte: '681', debit: '4200.000' }, { compte: '28', credit: '4200.000' }] });
     expect(de('cession')?.date).toBe('2026-09-30');
     expect(de('cession')?.lignes.find((l) => l.credit !== '0.000')).toMatchObject({ compte: '224', credit: '36000.000' });
+
+    // ── (1.387.1, issue 10, CABPAIE-14) Un bien mis en service dans la période validée : son entrée ne se propose plus à
+    // une date qui se refuse ; elle s'écrit au premier jour ouvert, montrée avant d'être écrite ─────────────────────
+    await p.locator('#im-neuf').click();
+    await fenetre.locator('[name=libelle]').fill('Ordinateur de caisse');
+    await fenetre.locator('[name=valeur]').fill('2400');
+    await fenetre.locator('[name=dateMiseEnService]').fill('15/01/2026');
+    await fenetre.locator('[name=dateMiseEnService]').press('Tab');
+    await fenetre.locator('[name=duree]').fill('3');
+    await fenetre.locator('#ok').click();
+    const entreeOrdi = p.locator('#im-entrees [data-entree]');
+    await expect.poll(() => entreeOrdi.innerText().catch(() => ''), { timeout: 15_000 }).toBe('Passer son entrée au 01/02/2026');
+    await entreeOrdi.click();
+    await expect.poll(async () => (await fenetre.innerText()).replace(/\s+/g, ' ')).toMatch(/^Passer l'entrée de « Ordinateur de caisse » \? Mis en service le 15\/01\/2026 ; la période est validée jusqu'au 31\/01\/2026 : l'entrée s'écrit au premier jour ouvert\. .*ENT-\S+ · 01\/02\/2026.*2 400,000 DT/);
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Entrée de « Ordinateur de caisse » passée en brouillard, au 01/02/2026.');
+    await expect.poll(() => p.locator('#im-entrees').count(), { timeout: 15_000 }).toBe(0);
 
     // ── La famille propose son compte, tant qu'on n'y a pas touché ─────────────────────────────────────
     await p.locator('#im-neuf').click();

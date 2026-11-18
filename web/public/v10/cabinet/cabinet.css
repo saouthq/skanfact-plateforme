@@ -863,3 +863,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 
 /* (1.386.2) Le guide choisi attend son montant : la case se montre. */
 #sa-guide-montant.sa-attend { border-color: var(--accent, #0f9d8f); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0f9d8f) 22%, transparent); }
+/* (1.387.1) L'aperçu des écritures avant de les passer (immobilisations). */
+.im-avant { max-height: 46vh; overflow-y: auto; margin-block: 8px; }
+.im-avant-l { display: block; }

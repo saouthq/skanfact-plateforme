@@ -124,6 +124,9 @@ describe('la cession 1.364.0 : un bien d\'avant la clôture s\'enregistre, et le
     await expect.poll(async () => (await alerte.count()) ? net(await alerte.innerText()) : '', { timeout: 15_000 }).toMatch(/Camionnette de livraison n'est entré dans aucune écriture : le compte 22\d* n'a pas reçu ses 30 000,000 DT/);
     await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'cession-1364-2-cabinet.png') });
     await alerte.locator('[data-entree]').click();
+    // (1.387.1, issue 10, CABPAIE-14) L'entrée se montre avant de s'écrire, contrepartie comprise.
+    await expect.poll(async () => (await c.locator('.modal').last().locator('.im-avant tbody tr').count())).toBeGreaterThanOrEqual(2);
+    await c.locator('.modal').last().locator('#ok').click();
     await expect.poll(() => alerte.count(), { timeout: 15_000 }).toBe(0);
     type Ecriture = { journal: string; piece: string; date: string; lignes: { compte: string; debit: string; credit: string }[] };
     const entree = ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, leila)).corps.ecritures as Ecriture[]).filter((x) => x.piece.startsWith('ENT-'));

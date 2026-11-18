@@ -243,6 +243,7 @@ describe('les immobilisations 1.314.0 : le matériel de l\'épicerie, vu de part
     // F. Les écritures d'inventaire de l'exercice (trois dotations, la sortie de la balance) ; puis le client change encore
     // d'avis (6 ans) : le Cabinet le voit, mais une dotation écrite ne se recalcule pas en silence — le refus le dit.
     await c.locator('#im-ecrire').click();
+    await c.locator('.modal').last().locator('#ok').click();
     await expect.poll(() => toast(c)).toBe('4 écritures passées en brouillard.');
     await duree('6');
     await immos();

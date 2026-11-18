@@ -30679,6 +30679,16 @@ prouver $'paie 1.387.0 b : « Accepter la correction d\'Anis »' modules/personn
   $'? \'de \' : \'de \'}${h(corr.correction.par)}' \
   $'une correction proposée : accepter change le net et garde la trace ; refuser garde la raison'
 
+prouver $'immos 1.387.1 a : l\'entrée d\'un bien s\'écrit au premier jour ouvert' modules/socle/ecrans/cabinet/app-1.js \
+  $'const dateEntreeIm = x => (valideIm() && String(x.date) <= valideIm() ? premierJourOuvertSa() : x.date);' \
+  $'const dateEntreeIm = x => x.date;' \
+  $'(1.345.0) l\'achat se rattache, la sortie s\'annonce et se date, le plan vient à l\'écran, la période validée se dit avant'
+
+prouver $'immos 1.387.1 b : les dotations se montrent avant de s\'écrire' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (aPasser.length && !await confirmDialog(' \
+  $'if (false && aPasser.length && !await confirmDialog(' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

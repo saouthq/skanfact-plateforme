@@ -11144,6 +11144,11 @@
 
   const METHODE_LABEL = { lineaire: 'Linéaire', degressif: 'Dégressif' };
 
+  // (1.387.1, issue 10, CABPAIE-14 et 17) Ce qui va s'écrire se montre d'abord : la pièce, son jour, ses lignes. Et une
+  // entrée datée dans la période validée s'écrit au premier jour ouvert (elle se proposait, puis se refusait).
+  const valideIm = () => String(((livresState.livre || {}).exercice || {}).valideJusqua || '');
+  const dateEntreeIm = x => (valideIm() && String(x.date) <= valideIm() ? premierJourOuvertSa() : x.date);
+  const apercuEcrituresIm = l => `<div class="scroll-x im-avant"><table class="list compact" data-sans-cartes><thead><tr><th>Écriture</th><th>Compte</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${l.map(e => (e.lignes || []).map((g, i) => `<tr><td>${i ? '' : `<b>${esc(e.piece || '')}</b> · ${esc(fmtJour(e.date))}<small class="muted im-avant-l">${esc(e.libelle || '')}</small>`}</td><td class="mono">${esc(g.compte)}</td><td class="r nw">${Number(g.debit) ? esc(money(g.debit)) : ''}</td><td class="r nw">${Number(g.credit) ? esc(money(g.credit)) : ''}</td></tr>`).join('')).join('')}</tbody></table></div>`;
   function vueImmobilisations(dossier) {
     const s = livresState;
     const d = s.immo;
@@ -11174,8 +11179,11 @@
           : e.rows.some(r => r.couverte) ? `Les amortissements de ${s.annee} sont déjà dans l'entrée ${e.rows.filter(r => r.couverte).length > 1 ? 'des biens' : 'du bien'}, passée plus tard : rien à écrire ici.`
             : `Aucune dotation ni sortie sur ${s.annee} : rien à écrire.`;
     const au = String((s.livre && s.livre.exercice && s.livre.exercice.au) || `${s.annee}-12-31`);
-    const motifs = !e.rows.length ? ['« Passer les écritures d\'inventaire » et « Exporter le tableau » attendent un premier bien.']
-      : pourquoiEcrire ? ['« Passer les écritures d\'inventaire » : ' + pourquoiEcrire.charAt(0).toLowerCase() + pourquoiEcrire.slice(1)]
+    // (1.387.1, issue 10, CABPAIE-17) Le geste dit ce qu'il passe : « les dotations et les sorties de 2026 » — « écritures
+    // d'inventaire », à côté de l'onglet Inventaire (le stock), se lisait comme autre chose.
+    const nomEcrire = `Passer les dotations et les sorties de ${s.annee}`;
+    const motifs = !e.rows.length ? [`« ${nomEcrire} » et « Exporter le tableau » attendent un premier bien.`]
+      : pourquoiEcrire ? [`« ${nomEcrire} » : ` + pourquoiEcrire.charAt(0).toLowerCase() + pourquoiEcrire.slice(1)]
         : !dues ? [`Les dotations de ${s.annee} s'écrivent à l'inventaire, au ${fmtJour(au)} : rien ne presse, le bouton les prépare dès maintenant si tu le veux.`] : [];
     return `<div class="filters">
       ${info('im.etat')}
@@ -11184,7 +11192,7 @@
             pour le même geste, l'un au-dessus de l'autre, se lisaient comme deux choses à faire. */''}
       <button class="${e.rows.length ? cls('neuf') : 'btn btn-sm'}" id="im-neuf">Ajouter un bien…</button>
       <button class="${cls('ecrire')}" id="im-ecrire" ${e.aEcrire ? '' : 'disabled'}
-        title="${esc(pourquoiEcrire)}">Passer les écritures d'inventaire${
+        title="${esc(pourquoiEcrire)}">${esc(nomEcrire)}${
   e.aEcrire ? ` (${(d.aEcrire || []).filter(x => x.genre !== 'subvention').length || e.aEcrire})` : ''}</button>
       <button class="btn btn-sm btn-ghost" id="im-csv" ${e.rows.length ? '' : 'disabled'}
         title="${e.rows.length ? '' : 'Rien à exporter : le tableau est vide.'}">Exporter le tableau</button>
@@ -11222,7 +11230,7 @@
     ? '<div class="small ambre im-ecrite">Une dotation de ce bien est déjà passée : retire-la d\'abord de la Saisie pour reprendre son plan.</div>' : ''}
         <button class="btn btn-sm btn-ghost mt" data-aligner="${esc(b.id)}">Reprendre son plan…</button>`}</td></tr>`).join('')}</tbody></table></div></div>` : ''}
     ${/* (1.364.0) Un bien que rien n'a fait entrer au livre : on le dit, avec le geste qui le répare. */''}${(d.entrees || []).length ? `<div class="warn-box mt" id="im-entrees">${d.entrees.map(x => `<div class="ctrl-geste"><span><b>${esc(x.bien)}</b> n'est entré dans aucune écriture : le compte ${esc(x.compte)} n'a pas reçu ses ${esc(money(x.valeur))}, et une sortie le rendrait créditeur.</span>
-      <button class="btn btn-sm" data-entree="${esc(x.immoId)}">Passer son entrée au ${esc(fmtJour(x.date))}</button></div>`).join('')}</div>` : ''}
+      <button class="btn btn-sm" data-entree="${esc(x.immoId)}"${dateEntreeIm(x) !== x.date ? ` title="La période est validée jusqu'au ${esc(fmtJour(valideIm()))} : l'entrée s'écrit au premier jour ouvert"` : ''}>Passer son entrée au ${esc(fmtJour(dateEntreeIm(x)))}</button></div>`).join('')}</div>` : ''}
     <div class="panel mt"><h2>Les biens de l'exercice ${info('im.tableau')}</h2>
       ${!e.rows.length
     ? `<div class="empty mini">Aucun bien sur cet exercice. <button class="${cls('neuf')}" id="im-neuf2">Ajouter un bien…</button></div>`
@@ -11401,17 +11409,24 @@
       bt.onclick = async () => {
         const x = (s.immo.entrees || []).find(v => v.immoId === bt.dataset.entree);
         if (!x) return;
+        // (1.387.1, issue 10, CABPAIE-14) L'entrée se montre avant de s'écrire (sa contrepartie ne se voyait pas), et une
+        // date dans la période validée ne se propose plus pour se refuser : elle passe au premier jour ouvert.
+        const y = { ...x, date: dateEntreeIm(x) };
+        if (!await confirmDialog(`Passer l'entrée de « ${x.bien} » ?`, `${y.date !== x.date ? `<p class="small">Mis en service le ${esc(fmtJour(x.date))} ; la période est validée jusqu'au ${esc(fmtJour(valideIm()))} : l'entrée s'écrit au premier jour ouvert.</p>` : ''}${apercuEcrituresIm([y])}<p class="small muted">Au brouillard : elle se relit et se valide dans la Saisie.</p>`, 'Passer l\'entrée')) return;
         bt.disabled = true;
         try {
-          const r = await api.saisir(dossier.id, s.annee, x);
+          const r = await api.saisir(dossier.id, s.annee, y);
           s.livre = r.livre;
-          toast(`Entrée de « ${x.bien} » passée en brouillard, au ${fmtJour(x.date)}.`);
+          toast(`Entrée de « ${x.bien} » passée en brouillard, au ${fmtJour(y.date)}.`);
           await chargerImmobilisations(root, dossier);
         } catch (err) { toast(plainError(err), 'error'); bt.disabled = false; }
       };
     });
     const ec = $('#im-ecrire', el);
     if (ec) ec.onclick = async () => {
+      // (1.387.1, issue 10, CABPAIE-17) Un clic écrivait tout sans rien montrer : la liste d'abord, puis le geste.
+      const aPasser = (s.immo.aEcrire || []);
+      if (aPasser.length && !await confirmDialog(`Passer ${pl(aPasser.length, 'écriture', 'écritures')} au brouillard ?`, `${apercuEcrituresIm(aPasser)}<p class="small muted">Au brouillard : elles se relisent et se valident dans la Saisie.</p>`, 'Les passer')) return;
       ec.disabled = true;
       try {
         const r = await api.ecrireDotations({ dossierId: dossier.id, annee: s.annee });
