@@ -85,6 +85,14 @@ describe('les guides d\'écritures, à la souris', () => {
     await p.locator('#set-retour').click();
     await expect.poll(() => p.url()).toContain(`#/dossier/${garage}/comptabilite/saisie/2026`);
     await p.locator('#ab-guides').waitFor({ timeout: 15_000 });
+    // (1.386.9, issue 11, CABSAISIE-20) Le « ⋯ » de la Saisie ouvre d'abord SES outils, puis les gestes du dossier.
+    await p.locator('.cp-menu').click();
+    await expect.poll(async () => (await p.getByRole('menuitem').allInnerTexts()).map((t) => t.split('\n')[0]).slice(0, 4), { timeout: 10_000 })
+      .toEqual(['Écritures qui reviennent', 'Les guides d\'écritures', 'Les touches de la grille', 'Modifier la fiche']);
+    await p.getByRole('menuitem').filter({ hasText: 'Les touches de la grille' }).click();
+    await expect.poll(() => p.locator('#set-retour').innerText().catch(() => ''), { timeout: 15_000 }).toBe('← Revenir à la saisie de Garage du Port');
+    await p.locator('#set-retour').click();
+    await p.locator('#ab-guides').waitFor({ timeout: 15_000 });
     await p.evaluate(() => { location.hash = '#/reglages'; });
     await p.locator('#set-tabs').waitFor({ timeout: 15_000 });
     expect(await p.locator('#set-retour').count()).toBe(0);

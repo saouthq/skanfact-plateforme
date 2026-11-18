@@ -7688,6 +7688,13 @@
       if (cle === 'F:' + dossier.id) {
         return [
           // (1.207.0) Dans la comptabilité, l'en-tête de la fiche laisse sa place : ses gestes passent ici.
+          // (1.386.9, issue 11, CABSAISIE-20) Sur la Saisie, le « ⋯ » n'ouvrait que les gestes du dossier : ses outils (les
+          // écritures qui reviennent, les guides, les touches de la grille) passent devant, avec leur retour vers la saisie.
+          ...(enCompta && livresState.onglet === 'saisie' ? (retour => [
+            $('#sx-abos') ? { icon: 'horloge', label: 'Écritures qui reviennent', hint: 'Loyers, abonnements : créées au brouillard, à leur date', run: () => { const b = $('#sx-abos'); if (b) { if (b.getAttribute('aria-expanded') !== 'true') b.click(); b.scrollIntoView({ block: 'center' }); } } } : null,
+            { icon: 'texte', label: 'Les guides d\'écritures', hint: 'Des écritures types, appliquées d\'un geste', run: () => versReglages('pan-guides', null, retour) },
+            { icon: 'modifier', label: 'Les touches de la grille', hint: 'Solder, valider, le journal proposé', run: () => versReglages('pan-saisie', null, retour) },
+            { sep: true }])({ hash: location.hash, nom: `la saisie ${/^[aeiouhéèAEIOUHÉÈ]/.test(dossier.name || '') ? 'd\'' : 'de '}${dossier.name || 'ce dossier'}` }) : []),
           ...(enCompta ? [
             { icon: 'modifier', label: 'Modifier la fiche', hint: 'L\'identité, le contact, la mission', run: () => dossierForm(dossier) },
             row.missingCount ? { icon: 'email', label: 'Relancer le client', hint: pl(row.missingCount, 'mois manquant', 'mois manquants'), run: () => writeRelance(row) } : null,

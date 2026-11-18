@@ -5210,3 +5210,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« 12 écritures » au brouillard, « Valider les 11 pièces de novembre » sur son bouton** : deux mots pour la même
   chose. Les boutons de lot disent « Valider les 11 écritures de novembre », « Valider la seule écriture de BQ »,
   comme le titre du brouillard et la fenêtre qui confirme.
+
+## 1.386.9 — Le « ⋯ » de la Saisie ouvre ses outils (issue 11, CABSAISIE-20)
+
+- **À côté de « + Une écriture », le menu n'ouvrait que les gestes du dossier** (modifier la fiche, appeler…). Sur la
+  Saisie, il ouvre d'abord « Écritures qui reviennent », « Les guides d'écritures » et « Les touches de la grille » ;
+  les deux derniers mènent aux Réglages, d'où « ← Revenir à la saisie de … » ramène au dossier.

@@ -30664,6 +30664,11 @@ prouver $'saisie 1.386.8 : le lot du brouillard compte des écritures' web/publi
   $'const quoi = n > 1 ? `les ${nbFr(n)} pièces` : \'la seule pièce\';' \
   $'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 
+prouver $'saisie 1.386.9 : le « ⋯ » de la Saisie ouvre ses outils' modules/socle/ecrans/cabinet/app-1.js \
+  $'...(enCompta && livresState.onglet === \'saisie\' ? (retour => [' \
+  $'...(false && enCompta && livresState.onglet === \'saisie\' ? (retour => [' \
+  $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
