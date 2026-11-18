@@ -20999,7 +20999,7 @@ prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' modules/soc
   'const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;' 'const nouveau = false;' \
   'au bureau : rien reçu depuis juillet'
 prouver 'classeur 1 : « Tout le dossier » ne mène pas au classeur' modules/socle/ecrans/cabinet/app-1.js \
-  "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\`," "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\`," \
+  "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\` }" "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\` }" \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 2 : les mois d'\''avant la mission se rangent comme les autres' modules/socle/ecrans/cabinet/app-1.js \
   '<div class="cl-a-ms">${avant.length ? `' '<div class="cl-a-ms">${false ? `' \
@@ -27388,7 +27388,7 @@ prouver 'paie 1.344.0 b : un 640 dans un mois qui a ses bulletins passe pour une
   ": m.aDesBulletins ? 'ecart' : e.source === 'skanfact'" ": e.source === 'skanfact'" \
   "$PA1344"
 prouver 'paie 1.344.0 c : « la fiche de Amira »' modules/personnel/ecrans/cabinet/paie.js \
-  "  const deNom = nom => (/^[aeiouhâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\\'' : 'de ') + nom;" "  const deNom = nom => 'de ' + nom;" \
+  "  const deNom = nom => (/^[aeiouâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\\'' : 'de ') + nom;" "  const deNom = nom => 'de ' + nom;" \
   "$PA1344"
 prouver 'paie 1.344.0 d : deux lignes et deux boutons pour la même fiche' modules/personnel/ecrans/cabinet/paie.js \
   'f.avertissements.filter(a => !(dejaVus && dejaVus.has(a.salarieId))).forEach(a => {' 'f.avertissements.forEach(a => {' \
@@ -29768,7 +29768,7 @@ prouver $'jour1 1.371.0 f : sans livre, toutes les portes s\'offrent' modules/so
   $'${fait ? \'\' : `<a class="btn btn-sm' \
   $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 prouver $'jour1 1.371.0 g : le titre du livre ne s\'élide plus' modules/socle/ecrans/cabinet/app-1.js \
-  $'const deNomLv = /^[aeiouyéèêàâîôûh]/i.test(' \
+  $'const deNomLv = /^[aeiouéèêàâîôûh]/i.test(' \
   $'const deNomLv = /^[_]/i.test(' \
   $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 prouver $'jour1 1.371.0 h : la prochaine déclaration est celle d\'avant la mission' modules/socle/ecrans/cabinet/app-1.js \
@@ -30052,7 +30052,7 @@ prouver $'revue 1.377.0 f : sans pointage, l\'absence d\'après validation n\'es
   $'if (pm && Number(pm.absences) < avant) r =' \
   $'une absence sans solde posée après la validation'
 prouver $'revue 1.377.0 g : « L\'absence de Amel »' modules/personnel/ecrans/cabinet/paie.js \
-  $'/^[aeiouhâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
+  $'/^[aeiouâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
   $'/^[zâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
   $'une absence sans solde posée après la validation'
 prouver $'revue 1.377.1 a : « 2 départs ce mois » pendant la préparation des bulletins' modules/personnel/ecrans/cabinet/paie.js \

@@ -100,7 +100,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const { p, erreurs } = await contexte(associe);
     await ouvrir(p, cab.id, boulangerie);
     // La barre : « Tout le dossier » propose le classeur en premier.
-    expect(await p.locator('#nav-dossier .panneau.volet a').first().getAttribute('href')).toBe(`#/dossier/${boulangerie}/classeur`);
+    expect(await p.locator('#nav-dossier .panneau.volet a').filter({ hasText: 'Le classeur' }).first().getAttribute('href')).toBe(`#/dossier/${boulangerie}/classeur`);
     // L'arbre : septembre est ouvert sur sa rubrique Achats ; l'exercice n'est pas surligné en même temps que le mois.
     expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/^Septembre/);
     expect(await p.locator('.cl-a-t.ici').count()).toBe(0);
