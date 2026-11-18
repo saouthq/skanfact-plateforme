@@ -30723,6 +30723,9 @@ prouver $'Échap ne ferme plus le panneau de la paie' modules/personnel/ecrans/c
 # (1.387.12, issue 10, CABPAIE-29) Le détail d'un bulletin proratisé dit ses jours.
 prouver $'le détail du calcul tait le prorata' modules/personnel/ecrans/cabinet/paie.js $'ligne(\'Salaire de base\', c.baseGross, b.prorata ?' $'ligne(\'Salaire de base\', c.baseGross, false ?' $'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 
+# (1.387.13, issue 10, CABPAIE-29) Au pointage, le nom du salarié reste à gauche quand la grille défile.
+prouver $'le nom du salarié part avec la grille' modules/personnel/styles/paie-cabinet.css $'#pt-grille tfoot > tr > :first-child { position: sticky;' $'#pt-grille tfoot > tr > :first-child { position: static;' $'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

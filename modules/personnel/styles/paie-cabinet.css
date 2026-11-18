@@ -163,3 +163,13 @@
 
 /* 1.344.0 — le numéro repris de la réponse du client, dit sous sa case. */
 .sf-propose { display: block; margin-block-start: 4px; font-size: 12px; }
+/* (1.387.13, issue 10, CABPAIE-29) Le pointage avec ses colonnes d'heures supplémentaires dépasse la carte : les derniers
+   jours sortaient, sans rien pour le dire (la barre de défilement de macOS ne paraît qu'en défilant). La barre se voit
+   toujours, et le nom du salarié reste à gauche pendant qu'on défile. */
+/* Pas de `scrollbar-width` ni de `scrollbar-color` ici : dès qu'ils sont posés, Chrome ignore la barre dessinée ci-dessous
+   et retombe sur la barre du système, invisible au repos. */
+.scroll-x:has(> #pt-grille) { padding-bottom: 4px; }
+.scroll-x:has(> #pt-grille)::-webkit-scrollbar-track { background: transparent; }
+.scroll-x:has(> #pt-grille)::-webkit-scrollbar { height: 9px; }
+.scroll-x:has(> #pt-grille)::-webkit-scrollbar-thumb { background: var(--sb-gris-3, #b6bfcb); border-radius: 99px; }
+#pt-grille thead th:first-child, #pt-grille tbody td:first-child, #pt-grille tfoot > tr > :first-child { position: sticky; left: 0; z-index: 2; background: var(--sb-papier, var(--panel)); }

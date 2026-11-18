@@ -5315,3 +5315,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   de base », comme dans le bulletin ouvert à droite, et dit son prorata : « entrée le 14/10/2026 · 15 j sur 26 ».
 - Reste de ce constat : au pointage, avec les colonnes d'heures supplémentaires, les derniers jours du mois sortent de
   la carte sans barre de défilement visible.
+
+## 1.387.13 — Le pointage défile sans perdre le nom (issue 10, CABPAIE-29)
+
+- **Les derniers jours du mois sortaient de la carte sans rien pour le dire.** La grille du pointage du Cabinet a sa
+  barre de défilement toujours dessinée, et la colonne du nom reste collée à gauche : on sait toujours de qui on
+  pointe le 31.
+- Un navigateur de test ne réserve pas de place à la barre : le test vérifie que sa règle s'applique, pas ses pixels.

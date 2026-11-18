@@ -238,6 +238,18 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     expect(await fiche()).toMatchObject({ hsMaj1: '50', heuresMois: '173.33' });
     await ouvrirLaPaie(p, null);
     expect(await p.locator('#pt-grille thead').innerText()).toContain('HS +50 %');
+    // (1.387.13, issue 10, CABPAIE-29) Sur un écran étroit, la grille défile : sa barre se voit, et le nom reste à gauche.
+    await p.setViewportSize({ width: 1100, height: 800 });
+    const zone = p.locator('.scroll-x').filter({ has: p.locator('#pt-grille') });
+    const mesure = await zone.evaluate((e) => {
+      e.scrollLeft = e.scrollWidth;
+      const nom = e.querySelector('tbody td') as HTMLElement, z = e.getBoundingClientRect(), n = nom.getBoundingClientRect();
+      return { deborde: e.scrollWidth > e.clientWidth + 1, barre: getComputedStyle(e, '::-webkit-scrollbar').height, nomAGauche: Math.abs(n.left - z.left) < 20, colle: getComputedStyle(nom).position };
+    });
+    // La barre : sa règle s'applique (un navigateur sans écran ne lui réserve aucune place, on ne peut pas la mesurer en pixels).
+    expect(mesure).toMatchObject({ deborde: true, nomAGauche: true, colle: 'sticky', barre: '9px' });
+    await zone.evaluate((e) => { e.scrollLeft = 0; });
+    await p.setViewportSize({ width: 1440, height: 900 });
     // Les trente et un jours d'octobre et la colonne des heures tiennent dans la page du Cabinet (vu à l'écran : elle
     // débordait de 70 pixels), sans défiler.
     expect(await p.locator('#pt-panneau .scroll-x').evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(0);
