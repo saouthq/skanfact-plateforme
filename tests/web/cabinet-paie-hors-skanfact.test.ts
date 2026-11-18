@@ -121,7 +121,7 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     // ── Faits : rien ne s'envoie à un client qui n'a pas SkanFact ; le cabinet note les salaires payés ─────────────
     await expect.poll(() => p.locator('#pa-faits').count()).toBe(1);
     expect(await p.locator('#pa-rappel, #pa-envoyer-pdf').count()).toBe(0);
-    const salaires = () => p.locator('#pa-faits li').nth(1).innerText().then(net);
+    const salaires = () => p.locator('#pa-f-salaires').innerText().then(net);
     expect(await salaires()).toContain('0 sur 2 payés · à noter quand ton client te le dit');
     expect(net(await p.locator('#pa-noter-payes').innerText())).toBe('Noter les 2 salaires payés');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-hors-2-valides.png'), fullPage: true });
@@ -154,7 +154,7 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     // Payés, les bulletins ne se dévalident plus, même le jour de leur validation (« Annuler » du toast).
     expect(await p.evaluate(async (o) => { try { await (window as unknown as Pont).cabinet.marquerBulletins(o); return 'passé'; } catch (e) { return (e as Error).message; } },
       { dossierId: ent, annee: 2025, ids: cles, champs: { valideLe: null }, annulerValidation: true, valideLe: jour })).toBe('Ce bulletin est validé : il ne change plus.');
-    expect(await p.locator('#pa-faits li').nth(1).getAttribute('class')).toContain('fait');
+    expect(await p.locator('#pa-f-salaires').getAttribute('class')).toContain('fait');
     expect(net(await p.locator('#pa-frise li').nth(3).innerText())).toContain('payés');
     expect(await p.locator('#pa-frise li').nth(3).getAttribute('class')).toContain('fait');
     // Les montants n'ont pas bougé : seule la marque « payé le » s'est écrite.

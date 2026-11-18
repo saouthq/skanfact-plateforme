@@ -635,35 +635,37 @@
     const pret = P.n > 0 && (P.valides || (P.mode === 'seule' && P.verifies && !P.enAttente.length));
     if (!pret) return '';
     const mo = KC.moisPaie(m), relie = !dossier.manual && !!api.messagerie;
-    const etape = (n, fait, titre, dit, geste) => `<li class="${fait ? 'fait' : ''}"><span class="n">${fait ? '✓' : n}</span><span><b>${esc(titre)}</b><small>${esc(dit)}</small></span>${geste || ''}</li>`;
+    // (1.387.15, issue 10, CABPAIE-31) Ces étapes SONT la suite de la frise : mêmes noms, même ordre, et le numéro de la frise
+    // (2 les bulletins, 3 l'écriture, 4 les salaires, 5 déclarés). Elles se renumérotaient 1, 2, 3 sous d'autres noms, et le
+    // bouton principal servait une étape (« Les remettre ») que la frise ne nommait pas.
+    const etape = (id, n, fait, titre, dit, geste) => `<li id="${id}" class="${fait ? 'fait' : ''}"><span class="n">${fait ? '✓' : n}</span><span><b>${esc(titre)}</b><small>${esc(dit)}</small></span>${geste || ''}</li>`;
     // (plateforme) 1.245.0 — « Les envoyer » (la maquette, paieapres) : les bulletins validés, en PDF, dans les documents
     // du client (le classeur du dossier, qu'il lit dans « Mon comptable »). Ce qui y est déjà se dit, et se remplace.
     const peutEnvoyer = relie && P.valides && !!(api.classeur && api.classeur.deposerPdf);
     const env = peutEnvoyer ? paiePdfsState.par[`${dossier.id}:${annee}-${String(m).padStart(2, '0')}`] : null;
     const dejaEnv = env && env.n ? `${env.n === P.n ? (P.n > 1 ? `les ${P.n}` : 'le bulletin') : `${env.n} sur ${P.n}`} dans les documents de ${P.client} (le ${fmtJour(env.le)})` : '';
     const envoyer = peutEnvoyer ? `<button type="button" class="btn btn-sm" id="pa-envoyer-pdf">${P.n > 1 ? 'Les ' : 'L\''}${env && env.n ? 'renvoyer' : `envoyer à ${esc(P.client)}`}</button>` : '';
-    const L1 = P.mode === 'seule' ? '' : etape(1, P.remis, P.n > 1 ? 'Les remettre aux salariés' : `Le remettre à ${P.seul}`, [P.remis ? 'remis' : `${P.n > 1 ? 'chaque' : 'le'} bulletin s'imprime depuis le menu de sa ligne`, dejaEnv].filter(Boolean).join(' · '), envoyer);
+    const L1 = P.mode === 'seule' ? '' : etape('pa-f-remis', 2, P.remis, P.n > 1 ? 'Bulletins remis aux salariés' : `Bulletin remis à ${P.seul}`, [P.remis ? 'remis' : `${P.n > 1 ? 'chaque' : 'le'} bulletin s'imprime depuis le menu de sa ligne`, dejaEnv].filter(Boolean).join(' · '), envoyer);
     const revenus = KC.virementsRevenus(L.releves || [], bulletins, o.nomDe).length;
     // (1.270.0 ; Skander, 04/11/2026 : « les entreprises hors SkanFact, il y en aura beaucoup ») Un client qui n'est pas sur
     // SkanFact ne marque rien payé : c'est le cabinet qui le note, quand le client le lui dit (sinon l'étape restait ouverte).
     const horsSk = !!dossier.manual;
-    const L2 = etape(P.mode === 'seule' ? 1 : 2, P.payes === P.n && !revenus, 'Les salaires', `${P.payes === P.n ? (horsSk ? 'payés, notés au cabinet' : `payés par ${P.client}`) : `${P.payes} sur ${P.n} payé${P.n > 1 ? 's' : ''} · ${horsSk ? `à noter quand ${P.client} te le dit` : `par ${P.client}`}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
+    const L2 = etape('pa-f-salaires', 4, P.payes === P.n && !revenus, 'Salaires payés', `${P.payes === P.n ? (horsSk ? 'payés, notés au cabinet' : `payés par ${P.client}`) : `${P.payes} sur ${P.n} payé${P.n > 1 ? 's' : ''} · ${horsSk ? `à noter quand ${P.client} te le dit` : `par ${P.client}`}`}${revenus ? ` · ${revenus > 1 ? `${revenus} virements revenus` : '1 virement revenu'}` : ''}`,
       P.payes < P.n && relie ? (pourLe => `<button type="button" class="btn btn-sm" id="pa-rappel" data-pour="${esc(pourLe)}">Lui rappeler${pourLe ? `, pour le ${esc(jourCourt(pourLe))}` : ''}</button>`)(finDuMoisPaie(annee, m) > aujourdhuiPaie() ? finDuMoisPaie(annee, m) : '')
         : P.payes < P.n && horsSk && P.valides ? `<button type="button" class="btn btn-sm" id="pa-noter-payes">Noter ${P.n - P.payes > 1 ? `les ${P.n - P.payes} salaires payés` : 'le salaire payé'}</button>` : '');
     const ms = KC.masseSalariale(bulletins);
-    const nE = P.mode === 'seule' ? 2 : 3;
     // UN seul vert par écran (U-11) : l'étape suivante de l'en-tête (remettre les bulletins…) passe d'abord ; l'écriture
     // ne prend le vert que quand l'en-tête n'en a plus. « Ouvrir les déclarations » reste discret : tout fait, rien n'est vert.
     const vertLibre = !(P.geste && P.geste.id);
-    const LE = o.auBrouillard ? etape(nE, false, 'L\'écriture de paie', o.paieAttendSonJour
+    const LE = o.auBrouillard ? etape('pa-f-ecriture', 3, false, 'Écriture de paie', o.paieAttendSonJour
       ? `au brouillard, datée du ${fmtJour(o.paieAttendSonJour)} : elle se valide à partir de ce jour-là`
       : 'au brouillard : elle n\'entre dans les livres — et dans la déclaration du mois — qu\'une fois validée',
     o.paieAttendSonJour ? '' : `<button type="button" class="btn btn-sm${vertLibre ? ' btn-primary' : ''}" id="pa-valider">Valider l'écriture de paie</button>`)
-      : bulletins.length && bulletins.every(b => o.etatDe(b) === 'ecrite') ? etape(nE, true, 'L\'écriture de paie', 'validée', '') : '';
+      : bulletins.length && bulletins.every(b => o.etatDe(b) === 'ecrite') ? etape('pa-f-ecriture', 3, true, 'Écriture de paie', 'validée', '') : '';
     // (1.355.8) Déclarés (la déclaration du mois déposée, la CNSS d'un trimestre fini déposée), l'étape se coche et le dit.
     const D = paieDeclares(dossier, L, annee, m, bulletins);
-    const L3 = D.fait ? etape(nE + (LE ? 1 : 0), true, 'Les déclarer', D.dit, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>') : etape(nE + (LE ? 1 : 0), false, 'Les déclarer', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
-    return `<section class="panel cp-pa-faits" id="pa-faits"><h3>${P.n > 1 ? 'Les bulletins' : 'Le bulletin'} ${esc(KC.deMois(mo))} ${P.n > 1 ? 'sont faits' : 'est fait'}</h3><ol>${L1}${L2}${LE}${L3}</ol></section>`;
+    const L3 = D.fait ? etape('pa-f-declarer', 5, true, 'Déclarés', D.dit, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>') : etape('pa-f-declarer', 5, false, 'Déclarés', `avec la déclaration ${KC.deMois(mo)} : retenues sur salaires (IRPP et CSS) ${money(KC.round3(ms.irpp + ms.css))}, TFP ${money(ms.tfp)}, FOPROLOS ${money(ms.foprolos)} · la CNSS au trimestre`, '<button type="button" class="btn btn-sm" id="pa-declarer">Ouvrir les déclarations</button>');
+    return `<section class="panel cp-pa-faits" id="pa-faits"><h3>${P.n > 1 ? 'Les bulletins' : 'Le bulletin'} ${esc(KC.deMois(mo))} ${P.n > 1 ? 'sont faits' : 'est fait'}</h3><ol>${L1}${LE}${L2}${L3}</ol></section>`;
   }
   // L'écriture de paie du mois, compte par compte (la maquette) : celle que le serveur tient au fil des bulletins.
   function paieEcriture(L, m, bulletins, P) {

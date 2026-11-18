@@ -5332,3 +5332,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   la ligne « Code d'exploitation : 0000 (le code ordinaire…) · Changer le code… » se lit avant « Fabriquer le fichier ».
 - Reste noté, À VÉRIFIER avec le pilote : l'état récapitulatif imprime le code sur deux chiffres (« 00 »), le fichier sur
   quatre ; l'état suit le formulaire réel reçu le 19/10, on ne le change pas sans le voir.
+
+## 1.387.15 — Une seule liste d'étapes pour le mois de paie (issue 10, CABPAIE-31)
+
+- **Deux listes d'étapes sur le même écran** : la frise (Pointage, Bulletins, Écriture de paie, Salaires payés, Déclarés)
+  et « Les bulletins sont faits » (Les remettre, Les salaires, L'écriture, Les déclarer), numérotées 1, 2, 3 sous d'autres
+  noms et dans un autre ordre ; le bouton principal servait une étape que la frise ne nommait pas. La seconde est
+  désormais la suite de la frise : mêmes noms, même ordre, et le numéro de la frise (2 Bulletins remis, 3 Écriture de
+  paie, 4 Salaires payés, 5 Déclarés). Chaque étape porte son identifiant (`#pa-f-…`) : les tests ne lisent plus un rang.

@@ -178,8 +178,12 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(espace(await p.locator('#pa-faits h3').innerText())).toMatch(/^Les bulletins d.\S+ sont faits$/);
     // 1.344.0 — l'écriture de paie a son étape entre les salaires et la déclaration (elle se valide d'ici, sans la grille).
     expect(await p.locator('#pa-faits li').count()).toBe(4);
-    expect(espace(await p.locator('#pa-faits li').nth(1).innerText())).toContain('0 sur 5 payés · par Sarra');
-    expect(espace(await p.locator('#pa-faits li').nth(2).innerText())).toMatch(/^3 L'écriture de paie (au brouillard|validée)/);
+    expect(espace(await p.locator('#pa-f-salaires').innerText())).toContain('0 sur 5 payés · par Sarra');
+    // (1.387.15, issue 10, CABPAIE-31) La suite de la frise, avec ses noms, dans son ordre, et ses numéros (2 à 5).
+    const suite = await p.locator('#pa-faits li').evaluateAll(ls => ls.map(l => [l.querySelector('b')?.textContent || '', l.querySelector('.n')?.textContent || '']));
+    expect(suite.map(x => x[0])).toEqual(['Bulletins remis aux salariés', 'Écriture de paie', 'Salaires payés', 'Déclarés']);
+    suite.forEach((x, k) => expect([String(k + 2), '✓']).toContain(x[1]));
+    expect(espace(await p.locator('#pa-f-ecriture').innerText())).toMatch(/^(3|✓) Écriture de paie (au brouillard|validée)/);
     expect(await p.locator('#pa-rappel').count()).toBe(1);
     // 1.238.0 — le rappel dit le jour où les salaires sont dus (s'il n'est pas passé), et le message dit combien sont payés.
     expect(espace(await p.locator('#pa-rappel').innerText())).toMatch(/^Lui rappeler(, pour le \d\d\/\d\d)?$/);
@@ -382,7 +386,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await auMois();
     const jj = `${jour.slice(8, 10)}/${jour.slice(5, 7)}`, trimestreFini = jour.slice(0, 7) > `${A.an}-${String(Math.ceil(A.mo / 3) * 3).padStart(2, '0')}`;
     await expect.poll(async () => espace(await derniere().innerText()), { timeout: 20_000 }).toContain(`déposée le ${jj}`);
-    expect(espace(await aDeclarer().innerText())).toContain(`Les déclarer déposée le ${jj}`);
+    expect(espace(await aDeclarer().innerText())).toContain(`Déclarés déposée le ${jj}`);
     if (trimestreFini) expect(espace(await derniere().innerText())).toMatch(/CNSS du \d(er|e) trimestre (à déposer|déposée)/);
     else {
       expect(await derniere().getAttribute('class')).toBe('fait');
