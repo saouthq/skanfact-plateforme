@@ -1953,7 +1953,7 @@
         <label class="field">${lbl('Compte ' + esc(R.compte), 'bq.eBanque')}<input value="${esc(money(ligne.montant))}" disabled></label>
         <label class="field obligatoire">${lbl('Contrepartie', 'bq.eContrepartie')}<input name="compte" value="${esc(contre.compte)}" placeholder="${Number(ligne.montant) >= 0 ? '411, ou tape « client »' : '627, ou tape « frais »'}">
           <small class="muted bf-nom" id="bf-nom">${esc(nomDeCompte()(contre.compte) || ' ')}</small></label>
-        ${brouillon.regle ? '' : `<div class="span-2 bf-retenir"><label class="check"><input type="checkbox" name="retenir" ${KC.motifDeLibelle(ligne.libelle) && !tiersR ? 'checked' : ''}> <span>Proposer ce compte aux lignes qui contiennent</span></label>
+        ${brouillon.regle ? '' : `<div class="span-2 bf-retenir"><label class="check">${/* 1.382.0 (issue 11, constat 16) : une règle est une décision, la case arrive décochée. */''}<input type="checkbox" name="retenir"> <span>Proposer ce compte aux lignes qui contiennent</span></label>
           <input name="motif" class="bf-motif" value="${esc(KC.motifDeLibelle(ligne.libelle))}" placeholder="STEG" aria-label="Mot retenu"></div>`}
       </form>
       ${/* 10.14.1 — la TVA d'une facture payée par la banque se ventile APRÈS : la pièce arrive en
@@ -4424,6 +4424,28 @@
         else if (ligneFautive) allerA(Number(ligneFautive[1]) - 1, 'compte');
         await infoDialog('Cette écriture n\'entre pas', v.motifs.join('\n'));
         return;
+      }
+      // 1.382.0 (issue 11, constat 5) — un compte que NI le plan du dossier NI le plan de référence ne
+      // connaît (471471 pour 471) entrait au plan sans un mot. On demande, une fois, en le nommant :
+      // le comptable reste libre de le créer (chaque cabinet a ses comptes), mais plus par accident.
+      {
+        const connus = (s.livre.plan || []).map(c => String(c.compte));
+        const inconnus = [...new Set((ecr.lignes || []).map(l => String(l.compte || '').trim())
+          // Suspect : inconnu de tout plan, OU un numéro long (5 chiffres et plus) qui n'est pas au plan du
+          // dossier et n'y a aucun « frère » (même longueur, mêmes trois premiers chiffres). 411001 se
+          // demande donc une fois, 411002 jamais ; 6132 (plan de référence) ne se demande pas.
+          .filter(c => /^\d{1,12}$/.test(c) && !connus.includes(c) && (
+            (!connus.some(k => c.startsWith(k)) && !KC.libelleDuPlan(c))
+            || (c.length >= 5 && !connus.some(k => k.length === c.length && k.slice(0, 3) === c.slice(0, 3))))))];
+        if (inconnus.length && !(await confirmDialog(
+          inconnus.length > 1 ? 'Créer ces comptes ?' : `Créer le compte ${inconnus[0]} ?`,
+          `<p>${inconnus.length > 1 ? `Les comptes <b>${esc(inconnus.join(', '))}</b> n'existent` : `Le compte <b>${esc(inconnus[0])}</b> n'existe`} pas encore dans le plan de ce dossier, et aucun compte voisin ne lui ressemble. C'est peut-être une faute de frappe.</p>
+           <p class="small muted">Si tu continues, ${inconnus.length > 1 ? 'ils entrent' : 'il entre'} au plan du dossier ; tu pourras ${inconnus.length > 1 ? 'les' : 'le'} renommer dans le plan de comptes.</p>`,
+          inconnus.length > 1 ? 'Créer ces comptes' : 'Créer ce compte', false, 'Corriger'))) {
+          const i = (p.lignes || []).findIndex(l => String(l.compte || '').trim() === inconnus[0]);
+          if (i >= 0) allerA(i, 'compte');
+          return;
+        }
       }
       // « Enregistrer et valider » sans licence : on le dit AVANT d'écrire quoi que ce soit, et la
       // pièce reste dans la grille — elle s'enregistre en brouillard d'un clic (10.14.0).

@@ -154,6 +154,24 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
     expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').map((e) => e.statut)).toEqual(['brouillard']);
 
+    // ── (1.382.0, issue 11 constat 5) un compte que ni le dossier ni le plan de référence ne connaît se demande ──
+    await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
+    await p.locator('#sa-piece').fill('OD-FAUTE');
+    await p.locator('#sa-libelle').fill('Compte mal tapé');
+    for (const [i, [compte, debit, credit]] of ([['471471', '10', ''], ['401', '', '10']] as const).entries()) {
+      if (!(await p.locator(`#sa-lignes tr[data-i="${i}"]`).count())) await p.locator('#sa-ajouter').click();
+      const tr = p.locator(`#sa-lignes tr[data-i="${i}"]`);
+      await tr.locator('input[data-k="compte"]').fill(compte);
+      if (debit) await tr.locator('input[data-k="debit"]').fill(debit);
+      if (credit) await tr.locator('input[data-k="credit"]').fill(credit);
+    }
+    await p.locator('#sa-ok').click();
+    const q = p.locator('#modal-root .modal').last();
+    await expect.poll(() => q.innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/Créer le compte 471471 \?[\s\S]*aucun compte voisin ne lui ressemble/);
+    await q.getByRole('button', { name: 'Corriger' }).click();
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.value)).toBe('471471');
+    expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-FAUTE')).toEqual([]);
+
     // ── (1.375.1) « Joindre un justificatif… » : le fichier va au classeur du dossier, joint à l'écriture ─────
     await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
     await p.locator('#sa-piece').fill('OD-JUST');

@@ -4892,3 +4892,15 @@ Et « il reste à taper le code », à reposer sur un test de « Ton compte ».
 enregistrements : sans la file, le dernier choix n'est perdu que si la machine est assez lente. Elle
 passait ici et tombait chez GitHub. Une preuve qui tombe au hasard cesse d'être lue : retirée, avec
 sa raison écrite à sa place. Le code ne change pas.
+
+## 1.382.0 — La saisie : un compte mal tapé se demande, une règle de banque se décide (issue 11, constats 5 et 16)
+
+- **Un compte mal tapé n'entre plus au plan sans un mot.** « 471471 » pour « 471 » créait un compte neuf à
+  l'enregistrement. La grille demande maintenant, une fois, en nommant le compte : « Créer le compte 471471 ? » —
+  « Corriger » ramène le curseur sur la ligne, rien n'est écrit. La question ne se pose que pour un compte inconnu de
+  tout plan, ou un numéro long (cinq chiffres et plus) qui n'a aucun « frère » dans le plan du dossier : 411001 se
+  demande une fois, 411002 jamais, 6132 (plan de référence) jamais. Le comptable reste libre de créer ses comptes.
+- **Une règle de banque est une décision.** En écrivant une ligne de relevé, la case « Proposer ce compte aux lignes
+  qui contiennent… » arrivait cochée : une règle se créait d'office, parfois sur un mot mal choisi. Elle arrive
+  décochée.
+- Test : `tests/web/cabinet-banque-1375.test.ts` ; preuve « saisie 1.382.0 a ».

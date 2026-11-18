@@ -30484,6 +30484,11 @@ prouver $'bêta d : la paie en bêta sans qu\'on l\'ait décidé quand le régla
   $'v === undefined ? BETA_CONNUS.join(\',\') : v' \
   $'v === undefined || v === \'\' ? BETA_CONNUS.join(\',\') : v' \
   $'en bêta (1.381.0) : absent, la paie'
+# 1.382.0 (issue 11, constats 5 et 16) — un compte inconnu se demande avant d'entrer au plan.
+prouver $'saisie 1.382.0 a : un compte mal tapé entre au plan sans question' modules/socle/ecrans/cabinet/app-2.js \
+  $'        if (inconnus.length && !(await confirmDialog(' $'        if (false && !(await confirmDialog(' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
