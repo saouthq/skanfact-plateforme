@@ -129,7 +129,8 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     expect(autre?.lignes.map((l) => [l.compte, l.debit, l.credit])).toEqual([['532', '0.000', '119.000'], ['626', '100.000', '0.000'], ['4366', '19.000', '0.000']]);
 
     // ── Une validation refusée : la pièce est au brouillard UNE fois, la grille se vide ─────────────
-    const demain = new Date(Date.now() + 86_400_000);
+    // Deux jours : entre 23 h et minuit UTC, « demain » d'ici est déjà « aujourd'hui » à Tunis, et rien n'est refusé.
+    const demain = new Date(Date.now() + 2 * 86_400_000);
     const jj = (n: number) => String(n).padStart(2, '0');
     const fr = `${jj(demain.getDate())}/${jj(demain.getMonth() + 1)}/${demain.getFullYear()}`;
     await aller(`#/dossier/${cafe}/comptabilite/saisie/${demain.getFullYear()}`);
