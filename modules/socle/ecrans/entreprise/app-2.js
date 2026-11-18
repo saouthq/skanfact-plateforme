@@ -3846,10 +3846,15 @@
       const nbE = cherche.filter(m => m.amount > 0 && !interne(m)).length, nbS = cherche.filter(m => m.amount < 0 && !interne(m)).length;
       // (1.298.0) Un mouvement libre (un loyer, un impôt, des frais) n'a que son fichier pour se prouver : c'est lui que le
       // comptable demande à la fin du mois. Ceux qui n'en ont pas se retrouvent d'un geste.
-      const sansPj = m => m.source === 'libre' && !C.justificatifsDe(data, m).length;
+      // (1.387.44, issue 16, constat 16) Un virement entre tes comptes n'a pas de justificatif à fournir : l'argent change de poche.
+      const sansPj = m => m.source === 'libre' && !m.virement && !C.justificatifsDe(data, m).length;
       const nbSansPj = cherche.filter(sansPj).length;
       if (!nbSansPj) s.sansPj = false;
-      const all = cherche.filter(m => (!s.sens || (s.sens === 'entrees' ? m.amount > 0 : m.amount < 0) && !interne(m)) && (!s.sansPj || sansPj(m)));
+      // (1.387.44, issue 16, constat 24) « Tout 98 » pour « Entrées 25 » et « Sorties 71 » : les deux lignes d'un virement entre
+      // tes comptes ne sont ni l'un ni l'autre. Elles ont leur filtre, et les comptes tombent juste.
+      const nbV = cherche.filter(interne).length;
+      if (s.sens === 'virements' && !nbV) s.sens = '';
+      const all = cherche.filter(m => (!s.sens || (s.sens === 'virements' ? interne(m) : (s.sens === 'entrees' ? m.amount > 0 : m.amount < 0) && !interne(m))) && (!s.sansPj || sansPj(m)));
       const rows = applySort(all.slice().reverse(), cols, s.moves.sort);
       const pg = paginate(rows, s.moves);
       const compte = m => !interne(m) && !avantDepart(m);
@@ -3864,7 +3869,7 @@
           <label class="cherche tr-q">${lfIc('recherche', 16)}<input type="search" id="t-q" autocomplete="off" placeholder="Rechercher : libellé, tiers, référence…" value="${h(s.q)}" aria-label="Rechercher un mouvement"></label>
           <label class="sel"><select id="t-acc" aria-label="Compte"><option value="">Tous les comptes</option>${data.accounts.map(a => `<option value="${a.id}" ${s.account === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
           <label class="sel"><select id="t-year" aria-label="Année">${annees.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select></label>
-          <div class="pa-seg filtre tr-sens" role="tablist" aria-label="Sens">${[['', 'Tout', cherche.length], ['entrees', 'Entrées', nbE], ['sorties', 'Sorties', nbS]].map(([k, l, n]) => `<button type="button" role="tab" data-sens="${k}" aria-selected="${s.sens === k}" class="${s.sens === k ? 'active' : ''}">${l} <small>${n}</small></button>`).join('')}</div>
+          <div class="pa-seg filtre tr-sens" role="tablist" aria-label="Sens">${[['', 'Tout', cherche.length], ['entrees', 'Entrées', nbE], ['sorties', 'Sorties', nbS], ...(nbV ? [['virements', 'Entre mes comptes', nbV]] : [])].map(([k, l, n]) => `<button type="button" role="tab" data-sens="${k}" aria-selected="${s.sens === k}" class="${s.sens === k ? 'active' : ''}">${l} <small>${n}</small></button>`).join('')}</div>
           ${nbSansPj ? `<div class="pa-seg filtre" role="group" aria-label="Justificatifs"><button type="button" class="${s.sansPj ? 'active' : ''}" id="t-sans-pj" aria-pressed="${!!s.sansPj}" title="Les mouvements saisis ici (loyer, impôts, frais) qui n'ont pas encore leur justificatif">Sans justificatif <small>${nbSansPj}</small></button></div>` : ''}
           <button class="btn btn-sm" id="exp-moves">${lfIc('exporter', 15)} Exporter</button>
         </div>

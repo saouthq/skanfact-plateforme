@@ -168,6 +168,19 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     await v.locator('[name=amount]').fill('100');
     await v.locator('#ok').click();
     await expect.poll(() => nMv(), { timeout: 10_000 }).toBe(avantVir + 1);
+    // (1.387.44, issue 16, constats 16 et 24) Les mouvements de tous les comptes : « Tout » = Entrées + Sorties + « Entre mes
+    // comptes » (les deux lignes du virement), et le virement ne réclame pas de justificatif.
+    await p.locator('#t-tabs [data-tab="mouvements"]').click({ timeout: 15_000 });
+    const seg = (k: string) => p.locator(`.tr-sens [data-sens="${k}"]`).innerText().then((t) => Number((t.match(/\d+/g) || ['0']).pop()));
+    await expect.poll(() => seg('virements'), { timeout: 10_000 }).toBe(2);
+    expect(await seg('')).toBe(await seg('entrees') + await seg('sorties') + await seg('virements'));
+    await p.locator('.tr-sens [data-sens="virements"]').click();
+    await expect.poll(() => p.locator('#view table.list tbody tr').filter({ hasText: 'Fonds de caisse' }).count()).toBe(2);
+    const sansPj = p.locator('#t-sans-pj');
+    if (await sansPj.count()) {
+      await sansPj.click();
+      await expect.poll(() => p.locator('#view table.list tbody tr').filter({ hasText: 'Fonds de caisse' }).count()).toBe(0);
+    }
 
     // 5. Deux chemins, un chiffre : les écritures de l'application et celles du brouillard du Cabinet.
     type Ligne = { compte: string; debit: string; credit: string };

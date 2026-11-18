@@ -5482,3 +5482,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - L'étoile « obligatoire » était sur « Sens » (une liste qui a toujours une valeur) alors que c'est le montant qui manque : elle passe sur le montant.
 - Le refus « Le montant de la régularisation manque » restait affiché une fois le montant tapé : il s'efface dès qu'un montant est lu.
 - Deux preuves : regul-refus-s-efface, regul-etoile-montant.
+
+## 1.387.44 — Les mouvements de trésorerie, constats 16 et 24 (issue 16)
+
+- « Tout 98 » pour « Entrées 25 » et « Sorties 71 » : les deux lignes d'un virement entre tes comptes ne sont ni l'un ni l'autre. Elles ont leur filtre, « Entre mes comptes », et les comptes tombent juste (Tout = Entrées + Sorties + Entre mes comptes).
+- Un virement entre tes comptes ne compte plus dans « Sans justificatif » : l'argent change de poche, il n'y a pas de pièce à fournir.
+- Deux preuves : virements-leur-filtre, virement-sans-justificatif.
