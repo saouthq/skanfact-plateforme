@@ -5406,3 +5406,7 @@ Le solde additionne des montants bruts (l'indemnité de congés non pris est cal
 ### 1.387.28 — un CDD sans date de fin se demande (issue 16, constat 17)
 
 La fiche d'un salarié acceptait un CDD sans date de fin : rien ne prévenait ensuite de son terme ni du dernier bulletin qui solde ses congés. À l'enregistrement, SkanFact demande « Enregistrer sans date ? » (un CDD en cours de renouvellement existe) ; « Annuler » ramène à la case de la date. La question ne revient pas à chaque modification d'une fiche déjà enregistrée ainsi. Test : `parcours` (« les primes de chaque mois… »), prouvé.
+
+### 1.387.29 — un nombre négatif ne change plus en silence (issue 16, constat 18)
+
+Taper « -5 » dans l'objectif donnait 5 : le navigateur refuse lui-même le signe moins dans une case de nombre au minimum positif, et les cases de montant le retiraient à la frappe — sans un mot. La page le DIT désormais (une fois par case). Et un nombre sous son minimum (un délai « endormi » à 0) se refuse à l'enregistrement des Paramètres en montrant sa case, avant d'écrire quoi que ce soit ; la fenêtre « Objectif » des Statistiques refuse de même. Test : `parcours` (« un nombre négatif dans les Paramètres… »), deux preuves.

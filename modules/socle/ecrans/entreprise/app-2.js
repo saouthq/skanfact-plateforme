@@ -4973,6 +4973,8 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => { $('#ok', root).onclick = () => {
         const v = formValues($('#gf', root));
+        const tEl = $('#gf [name="target"]', root);
+        if ((tEl.validity && tEl.validity.badInput) || Number(v.target) < 0) { refus(tEl, 'Un objectif se compte en positif : tape le chiffre d\'affaires HT que tu vises sur l\'année, ou vide la case pour n\'avoir aucun objectif.'); return; }
         data.company.revenueTarget = Math.max(0, Number(v.target) || 0);
         save(true); close(); if (after) after();
         toast(data.company.revenueTarget ? 'Objectif enregistré' : 'Objectif retiré');
@@ -7454,6 +7456,12 @@
       }
       // L'attestation d'exonération de retenue (10.15.0, H7) : ses trois champs ne sont pas des
       // réglages de la fiche, et une attestation sans fin se refuse avant d'écrire quoi que ce soit.
+      // (1.387.29, issue 16, constat 18) Un nombre sous son minimum se refuse ici, avant d'écrire : un
+      // objectif « -5 » devenait 0 sans un mot, un timbre négatif aussi. Le champ refusé se MONTRE.
+      for (const el of $$('#pf input[type=number]:not([disabled])')) {
+        if (el.validity && el.validity.badInput) { refus(el, 'Ce nombre ne se lit pas : retape-le avec des chiffres (la virgule ou le point pour les décimales).'); return false; }
+        if (el.value.trim() !== '' && el.min !== '' && Number(el.value) < Number(el.min)) { refus(el, `Ce nombre ne peut pas être inférieur à ${String(el.min).replace('.', ',')} : un montant ou un délai négatif n'a pas de sens ici. Corrige-le, ou vide la case pour revenir à la valeur proposée.`); return false; }
+      }
       const exosCo = lireAttestationRS(data.company, v, $('#pf'));
       if (!exosCo) return false;
       // Le taux des nouvelles lignes d'une entreprise qui ne facture pas de TVA est AFFICHÉ à 0 %,

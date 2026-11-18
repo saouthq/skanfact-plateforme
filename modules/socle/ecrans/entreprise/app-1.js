@@ -1692,8 +1692,21 @@
     const x = e.target;
     if (!(x instanceof HTMLInputElement) || !x.hasAttribute('data-montant')) return;
     const propre = x.value.replace(x.hasAttribute('data-signe') ? /[^\d\s\u202f\u00a0,.-]/g : /[^\d\s\u202f\u00a0,.]/g, '');
+    // (1.387.29, issue 16, constat 18) Le signe moins retiré se DIT : « -5 » devenait 5 sans un mot, et on croyait
+    // avoir enregistré le contraire de ce qu'on avait tapé. Une fois par case, le temps de la frappe.
+    if (propre !== x.value && !x.hasAttribute('data-signe') && x.value.includes('-') && !x.dataset.signeDit) {
+      x.dataset.signeDit = '1'; toast('Ce montant ne peut pas être négatif : le signe moins ne s\'écrit pas dans cette case.', true);
+    }
     if (propre !== x.value) x.value = propre;
   });
+  // Le navigateur refuse lui-même le signe moins dans une case de nombre au minimum positif (« -5 » y devient 5) :
+  // on le DIT, une fois par case, comme pour les cases de montant.
+  document.addEventListener('keydown', e => {
+    const x = e.target;
+    if (!(x instanceof HTMLInputElement) || x.type !== 'number' || (e.key !== '-' && e.key !== 'Subtract') || x.dataset.signeDit) return;
+    if (x.min === '' || Number(x.min) < 0) return;
+    x.dataset.signeDit = '1'; toast(`Ce nombre ne peut pas être négatif : le signe moins ne s'écrit pas dans cette case (au moins ${String(x.min).replace('.', ',')}).`, true);
+  }, true);
   // (1.356.9) En quittant une case chiffrée, son nombre s'écrit en français : « 2.5 » devient « 2,5 », « 1200,5 » devient
   // « 1 200,5 ». Un montant (`.montant`) montre les décimales de sa devise (« 2,5 » devient « 2,500 »). On garde au moins
   // les décimales tapées (« 2 814,160 » ne perd pas son zéro) et on ne change jamais le nombre : aucun événement ne part,

@@ -413,6 +413,39 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
+  it('un nombre négatif dans les Paramètres se refuse en montrant sa case, et le signe moins d\'un montant se dit (issue 16, constat 18)', async () => {
+    const qui = await inscrite('Hela Gharbi');
+    const p = await qui.ouvrir(qui.essai, '#/parametres');
+    await expect.poll(() => p.locator('#pf input[name=name]').count(), { timeout: 20_000 }).toBe(1);
+    await plusTard(p);
+    const ongletDe = (nom: string) => p.locator(`#pf [name=${nom}]`).evaluate((el) => (el.closest('[data-pane]') as HTMLElement).dataset.pane);
+    // L'objectif (une case de montant) : « -5 » devenait 5 sans un mot ; le signe retiré se DIT.
+    await p.locator(`#set-tabs button[data-tab=${await ongletDe('revenueTarget')}]`).click();
+    const objectif = p.locator('#pf input[name=revenueTarget]');
+    await expect.poll(() => objectif.isVisible()).toBe(true);
+    await objectif.fill('');
+    await objectif.pressSequentially('-5');
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/ne peut pas être négatif/);
+    expect(await objectif.inputValue()).toBe('5');
+    await objectif.fill('');
+    // Une case de nombre entier sous son minimum se refuse en montrant sa case : rien n'est écrit.
+    await p.locator(`#set-tabs button[data-tab=${await ongletDe('dormantDays')}]`).click();
+    const dormant = p.locator('#pf input[name=dormantDays]');
+    await dormant.fill('0');
+    await p.locator('#save-bar #save').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/inférieur à 1/);
+    expect(await dormant.evaluate((el) => el === document.activeElement)).toBe(true);
+    await dormant.fill('180');
+    // Le timbre : même règle, une autre case de montant.
+    await p.locator(`#set-tabs button[data-tab=${await ongletDe('stampFee')}]`).click();
+    const timbre = p.locator('#pf input[name=stampFee]');
+    await timbre.fill('');
+    await timbre.pressSequentially('-1');
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/ne peut pas être négatif/);
+    expect(await timbre.inputValue()).toBe('1');
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
   it('une facture émise, puis payée en partie et corrigée par un avoir, à la souris : le serveur tient le paiement et numérote l\'avoir ; l\'écran et le serveur disent le même reste', async () => {
     const qui = await inscrite('Rania Kefi');
     const p = await qui.ouvrir(qui.essai, '#/factures');
