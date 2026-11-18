@@ -443,6 +443,19 @@ describe('le parcours, à la souris', () => {
     await timbre.pressSequentially('-1');
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/ne peut pas être négatif/);
     expect(await timbre.inputValue()).toBe('1');
+    // Les Statistiques : l'objectif se refuse négatif dans sa fenêtre, et une fois posé il se CHANGE là où on le lit.
+    const st = await qui.ouvrir(qui.essai, '#/stats');
+    await expect.poll(() => st.locator('#s-goal').innerText().catch(() => ''), { timeout: 30_000 }).toBe('Se fixer un objectif…');
+    await st.locator('#s-goal').click();
+    const champ = st.locator('#gf [name=target]');
+    await champ.fill('');
+    await champ.pressSequentially('-5');
+    await expect.poll(() => st.locator('#toast').innerText()).toMatch(/ne peut pas être négatif/);
+    expect(await champ.inputValue()).toBe('5');
+    await champ.fill('1000');
+    await st.locator('#modal-root #ok').click();
+    await expect.poll(() => st.locator('#s-goal').innerText()).toBe('Changer l\'objectif…');
+    expect(await st.locator('.sx-obj .g-legend').innerText()).toMatch(/\d\s% de l'objectif/);
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 

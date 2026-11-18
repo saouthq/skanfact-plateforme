@@ -115,6 +115,11 @@ describe('bout en bout 17 : la TVA déclarée par le cabinet, versée par l\'ent
     await onglet(p, 'tva');
     await expect.poll(async () => p.locator('#c-month').inputValue(), { timeout: 10_000 }).toBe('10');
     expect(net(await p.locator('#c-body .panel h2').first().innerText())).toMatch(/^Déclaration de TVA — octobre 2026/);
+    // (1.387.30, issue 16, constat 19) Le saut se dit, et la période tient d'un onglet à l'autre.
+    expect(net(await p.locator('#tva-saut').innerText())).toMatch(/^Ouvert sur octobre : la TVA d'un mois se déclare et se paie le mois suivant, et novembre n'est pas fini\./);
+    await onglet(p, 'ventes');
+    expect(await p.locator('#c-month').inputValue()).toBe('10');
+    await onglet(p, 'tva');
 
     // 1. Ce que le dépôt fait verser, et sa date limite — le geste est le bouton principal.
     await expect.poll(async () => net(await p.locator('#vat-verse').innerText().catch(() => '')), { timeout: 15_000 })

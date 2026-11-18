@@ -4839,7 +4839,7 @@
       const itemMax = items.length ? Math.max(...items.map(x => x.ht), 1) : 1;
       const clientMax = clients.length ? Math.max(...clients.map(x => x.ht), 1) : 1;
       const objectif = obj ? `<div class="sx-obj"><div class="gauge"><div class="g-bar"><i style="width:${Math.min(100, Math.max(0, obj.pct))}%"></i><span class="g-mark" style="inset-inline-start:${Math.min(100, obj.expectedPct)}%" title="Où tu devrais en être aujourd'hui"></span></div>
-          <div class="g-legend"><span><strong>${C.money(obj.ht, cur)}</strong> réalisés en ${p.year} · ${obj.pct} % de l'objectif</span><span class="muted">objectif ${C.money(obj.goal, cur)}</span></div></div>
+          <div class="g-legend"><span><strong>${C.money(obj.ht, cur)}</strong> réalisés en ${p.year} · ${frChiffre(obj.pct)}\u00a0% de l'objectif</span><span class="muted">objectif ${C.money(obj.goal, cur)}</span></div></div>
           <p class="small ${obj.ahead >= 0 ? 'ok-text' : 'warn-text'}">${obj.ahead >= 0 ? `En avance de ${C.money(obj.ahead, cur)} sur le rythme de l'année.` : `En retard de ${C.money(-obj.ahead, cur)} sur le rythme de l'année.`}
             ${obj.remaining > 0 ? ` Il reste ${C.money(obj.remaining, cur)} à facturer, soit ${C.money(obj.perMonth, cur)} par mois sur les ${obj.monthsLeft} mois restants.` : ' Objectif atteint.'}</p></div>`
         : '';
@@ -4848,7 +4848,7 @@
       return section('s-mois', `Mois par mois — ${p.year}`, 'stat.chart', `${compareChart(series, anPrecedentVide ? [] : seriesPrev)}
           <div class="legend"><span><i style="background:var(--primary)"></i>${h(p.label)}</span>${p.kind === 'annee' ? '' : `<span><i style="background:var(--primary);opacity:.28"></i>reste de ${p.year}</span>`}${anPrecedentVide ? '' : `<span><i style="background:#9aa7b4;opacity:.6"></i>${p.year - 1}</span>`}</div>
           ${objectif}`,
-          obj ? '' : `<button class="btn btn-sm" id="s-goal">Se fixer un objectif…</button>`)
+          `<button class="btn btn-sm" id="s-goal">${obj ? 'Changer l\'objectif…' : 'Se fixer un objectif…'}</button>`)
         + section('s-canaux', comptoir ? 'Factures et comptoir' : 'Les factures', 'stat.canaux', `<div class="lf-tab scroll-x"><table class="list lf-table" data-sans-cartes><thead><tr><th>Vendu par</th><th class="r">Pièces</th><th class="r">HT</th><th class="r">Panier moyen HT</th></tr></thead><tbody>
             ${ligneCanal('Factures', canaux.factures)}${comptoir ? ligneCanal('Tickets de caisse', canaux.comptoir) : ''}</tbody>
             <tfoot><tr><td><span class="pied-t"><b>${h(p.label.charAt(0).toUpperCase() + p.label.slice(1))}</b></span></td><td class="r m">${cur1.invoices}</td><td class="r m">${lfMontant(cur1.ht, cur)}</td><td></td></tr></tfoot></table></div>
@@ -5212,7 +5212,7 @@
         <div class="panel" id="p-rs-clients"><h2>Retenues à la source — attestations à recevoir ${info('compta.rs')}</h2>
           ${rsAttendues.length ? `<p class="small muted">${C.money(rsPendingAmount, cur)} retenus par tes clients en te payant, sans attestation reçue. Coche quand l'attestation arrive (elle justifie la retenue auprès du fisc). Une facture pas encore payée n'y figure pas : rien n'a encore été retenu.</p>
           <div id="rs-wrap"><table class="list compact"><thead><tr><th>Facture</th><th>Client</th><th>Date</th><th class="r">Retenue</th><th></th></tr></thead><tbody>
-            ${rsPage.rows.map(x => { const d = x.doc, t = C.computeTotals(d, company()); return `<tr class="clickable" data-id="${d.id}"><td><strong>${h(d.number)}</strong></td><td>${h(nomClientPiece(d))}</td><td>${C.fmtDate(d.date)}</td><td class="r">${C.money(x.amount, cur)} <span class="muted small">(${pct(t.withholdingRate)} %${x.complete ? '' : ', payée en partie'})</span></td><td class="actions"><button class="btn btn-sm" data-cert="${d.id}">Attestation reçue</button></td></tr>`; }).join('')}
+            ${rsPage.rows.map(x => { const d = x.doc, t = C.computeTotals(d, company()); return `<tr class="clickable" data-id="${d.id}"><td><strong>${h(d.number)}</strong></td><td>${h(nomClientPiece(d))}</td><td>${C.fmtDate(d.date)}</td><td class="r">${C.money(x.amount, cur)} <span class="muted small">(${pct(t.withholdingRate)} %${x.complete ? '' : ', payée en partie'})</span></td><td class="actions"><button class="btn btn-sm" data-cert="${d.id}">Marquer reçue</button></td></tr>`; }).join('')}
           </tbody></table></div>${pagerBar(rsPage.pg, { noun: 'attestation' })}` : '<p class="small muted">Aucune attestation en attente.</p>'}
         </div>`;
       // `if (e.target.closest('button')) return` comme les sept autres liaisons de ligne : sans lui,
@@ -5413,6 +5413,9 @@
         if (prec && (prec.collected || prec.deductible || prec.carryIn)) {
           comptaState.month = String(Number(moisCourant) - 1).padStart(2, '0');
           if ($('#c-month')) $('#c-month').value = comptaState.month;
+          // (1.387.30, issue 16, constat 19) Le saut se DIT, et il tient : la période ne change plus en silence d'un onglet à
+          // l'autre (« Ventes » restait sur le mois en cours, « TVA à payer » passait au mois d'avant sans un mot).
+          comptaState.moisChoisi = true; comptaState.sautTva = comptaState.month;
         }
       }
       // La TVA se déclare par mois : le bloc du haut porte toujours sur UN mois. Sans mois choisi,
@@ -5506,6 +5509,7 @@
       const moisRienDits = plages.length > 1 ? `${plages.slice(0, -1).join(', ')} et ${plages[plages.length - 1]}` : plages[0] || '';
       $('#c-body').innerHTML = `
         <div class="panel"><h2>Déclaration de TVA — ${h(MONTHS[upTo - 1])} ${year} ${info('compta.vatReturn')}</h2>
+          ${comptaState.sautTva === comptaState.month ? `<p class="small muted mb" id="tva-saut">Ouvert sur ${h(MONTHS[upTo - 1])} : la TVA d'un mois se déclare et se paie le mois suivant, et ${h(MONTHS[Number(C.today().slice(5, 7)) - 1])} n'est pas fini. Les autres onglets restent sur ce mois ; choisis-en un autre en haut à droite.</p>` : ''}
           ${auto ? `<p class="small muted mb">La TVA se déclare mois par mois : voici ${h(MONTHS[upTo - 1])}. Choisis un autre mois en haut à droite, ou lis le tableau ci-dessous pour toute l'année.</p>` : ''}
           ${cur1 && !cur1.collected && !cur1.deductible && !cur1.carryIn
             // Sur une base vide, `toPay` vaut 0, donc la ligne verte annonçait « Crédit de TVA
@@ -6877,7 +6881,7 @@
     const tagOf = () => comptaState.month ? `${comptaState.year}-${comptaState.month}` : comptaState.year;
     const resetPages = () => { comptaState.journal.page = 1; comptaState.pays.page = 1; comptaState.buys.page = 1; comptaState.decs.page = 1; };
     $('#c-year').onchange = e => { comptaState.year = e.target.value; resetPages(); draw(); };
-    $('#c-month').onchange = e => { comptaState.month = e.target.value; comptaState.moisChoisi = true; resetPages(); draw(); };
+    $('#c-month').onchange = e => { comptaState.month = e.target.value; comptaState.moisChoisi = true; comptaState.sautTva = ''; resetPages(); draw(); };
     // La porte mène à LA CASE, pas à la page qui mène à la page qui la contient. Les Paramètres
     // n'en portent qu'un bouton (« Choisir les modules affichés… ») : y envoyer ferait deux clics
     // de plus pour trouver une ligne au milieu de dix-neuf. `pageFocus` amène la ligne à l'écran et
