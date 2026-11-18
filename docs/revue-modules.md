@@ -5488,3 +5488,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - « Tout 98 » pour « Entrées 25 » et « Sorties 71 » : les deux lignes d'un virement entre tes comptes ne sont ni l'un ni l'autre. Elles ont leur filtre, « Entre mes comptes », et les comptes tombent juste (Tout = Entrées + Sorties + Entre mes comptes).
 - Un virement entre tes comptes ne compte plus dans « Sans justificatif » : l'argent change de poche, il n'y a pas de pièce à fournir.
 - Deux preuves : virements-leur-filtre, virement-sans-justificatif.
+
+## 1.387.45 — Le mode de paiement d'un salaire, constat 17 (issue 16)
+
+- La fiche d'un salarié, le paiement d'un bulletin et une avance proposaient « Traite », « Carte », « Paiement en ligne » : un salaire se paie par virement, chèque ou espèces. Un mode déjà enregistré reste proposé, pour ne rien effacer en silence.
+- Le CDD a sa date de fin demandée depuis la 1.387.28.
+- Une preuve : modes-de-salaire.

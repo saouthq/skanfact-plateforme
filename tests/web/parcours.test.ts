@@ -714,6 +714,8 @@ describe('le parcours, à la souris', () => {
     const largeur = () => p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width));
     const auDepart = await largeur();
     await p.locator('#ef input[name=name]').fill('Nour Ben Salah');
+    // (1.387.45, issue 16, constat 17) Un salaire se paie par virement, chèque ou espèces : ni traite, ni carte.
+    expect(await p.locator('#ef [name=method] option').evaluateAll((o) => o.map((x) => (x as HTMLOptionElement).value))).toEqual(['virement', 'cheque', 'especes']);
     // (1.387.37, issue 16, constat 9) « abc » n'est pas un numéro de pièce ; un brut de 99 999 999 999 se demande, et
     // « Annuler » ramène à sa case.
     await p.locator('#ef input[name=grossSalary]').fill('612');

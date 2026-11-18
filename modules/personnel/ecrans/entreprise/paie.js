@@ -4,6 +4,9 @@
   // pages, ses lignes de « À faire », de la palette et de « Créer », et les points qu'il remplit (en bas de la boîte).
   (function () {
   const employeeById = id => data.employees.find(e => e.id === id);
+  // (1.387.45, issue 16, constat 17) Un salaire ou une avance se paie par virement, chèque ou espèces : « Traite », « Carte » ou
+  // « Paiement en ligne » n'ont pas de sens ici. Un mode déjà enregistré reste proposé (on ne l'efface pas en silence).
+  const modesSalaire = actuel => C.PAYMENT_METHODS.filter(([v]) => ['virement', 'cheque', 'especes'].includes(v) || v === actuel);
   const payslipById = id => data.payslips.find(p => p.id === id);
   const MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   // (1.305.0) « d'Amel », « d'octobre 2026 », « de Karim » : ce qu'on écrit au comptable s'élide comme on le dirait.
@@ -676,7 +679,7 @@
         <div class="span-2 pa-ef-sec">Son salaire et son paiement</div>
         <label class="field obligatoire">${lbl(`Salaire brut mensuel (${h(C.normCurrency(company().currency))})`, 'pay.gross')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="grossSalary" value="${h(C.money(Number(e.grossSalary) || 0, null, 3))}" class="num"><button type="button" class="lien small ef-net-b" id="ef-net-b" aria-expanded="false">À partir d'un net…</button></label>
         <div class="span-2 ef-net" id="ef-net" hidden><span class="small">Il veut toucher</span><input type="text" inputmode="decimal" data-montant autocomplete="off" id="ef-net-v" class="num" aria-label="Le net voulu par mois" placeholder="1 000,000"><span class="small">net par mois</span><span class="small muted" id="ef-net-r"></span><button type="button" class="btn btn-sm" id="ef-net-ok" disabled>Mettre ce brut</button></div>
-        <label class="field">${lbl('Mode de paiement', 'pay.method')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${e.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Mode de paiement', 'pay.method')}<select name="method">${modesSalaire(e.method).map(([v, l]) => `<option value="${v}" ${e.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${/* (plateforme) 1.74.0 — sa clé se contrôle à la saisie, comme le RIB de la société : il s'imprime sur l'ordre de virement. */''}
         <label class="field"><span class="fl">RIB / IBAN ${info('pay.iban')}<span class="rib-note" aria-live="polite"></span></span><input type="text" name="iban" value="${h(e.iban || '')}" autocomplete="off" spellcheck="false"></label>
         ${/* (plateforme) 1.229.0 — ce que la fiche affichait sans pouvoir l'écrire (l'e-mail des bulletins), et ce que le
@@ -886,7 +889,7 @@
       <fieldset class="bf-s"><legend>Le paiement</legend><div class="bf-3" id="bf-pay">
         ${dateFieldHtml(lbl('Payé le', 'pay.paid'), 'paidDate', p.paidDate || '', { clearable: true })}
         <label class="field">${lbl('Compte', 'pay.account')}<select name="accountId"><option value="">${data.accounts.length ? '— le compte par défaut —' : 'Aucun compte créé : la banque'}</option>${data.accounts.map(a => `<option value="${a.id}" ${p.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
-        <label class="field">${lbl('Mode', 'pay.slipMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${p.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+        <label class="field">${lbl('Mode', 'pay.slipMethod')}<select name="method">${modesSalaire(p.method).map(([v, l]) => `<option value="${v}" ${p.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
       </fieldset>
       </div><aside class="bf-d"><div class="bf-resume" id="bf-resume" role="status" aria-live="polite"></div><div id="bf-calc"></div></aside></div>
       <p class="small warn-text" id="bf-refus" role="status" aria-live="polite" hidden></p>
@@ -1546,7 +1549,7 @@
         ${dateFieldHtml(lbl('Date de l\'avance', 'hr.advanceDate'), 'date', a.date, { obligatoire: true })}
         ${field(lbl(`Montant avancé (${h(C.normCurrency(company().currency))})`, 'hr.advanceAmount'), 'amount', a.amount ? C.money(a.amount, null, 3) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" placeholder="Ce que tu lui prêtes"').replace('class="field"', 'class="field obligatoire"')}
         ${field(lbl(`Retenue mensuelle (${h(C.normCurrency(company().currency))})`, 'hr.monthly'), 'monthly', a.monthly ? C.money(a.monthly, null, 3) : '', 'text', 'inputmode="decimal" data-montant autocomplete="off" class="num" placeholder="Retenue sur chaque bulletin"').replace('class="field"', 'class="field obligatoire"')}
-        <label class="field">${lbl('Mode', 'hr.advanceMethod')}<select name="method">${C.PAYMENT_METHODS.map(m => `<option value="${m[0]}" ${(a.method || 'virement') === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Mode', 'hr.advanceMethod')}<select name="method">${modesSalaire(a.method).map(m => `<option value="${m[0]}" ${(a.method || 'virement') === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
         ${accountFieldHtml(a.accountId)}
         <label class="field">${lbl('Note', 'hr.advanceNote')}<input type="text" name="note" value="${h(a.note || '')}" placeholder="Pourquoi, et ce qui a été convenu"></label>
         ${/* (plateforme) 1.226.0 — un prêt (la maquette) : plus long qu'une avance, son échéancier commence au mois convenu. */''}
