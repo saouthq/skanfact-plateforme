@@ -609,6 +609,8 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const A = await monter('sans');
     const { p, erreurs } = await ouvrir(A, 390);
     expect(espace(await p.locator('#pa-sans').innerText())).toContain('Sarra fait sa paie seul dans SkanFact : le Cabinet la lit et la passe en comptabilité.');
+    // (1.387.23, CABPAIE-37) La Paie, en cartes au téléphone, ne se dit pas « pensée pour un ordinateur ».
+    expect(await p.locator('#bandeau-ordinateur').count()).toBe(0);
     expect(await p.locator('#view .btn-primary, #pa-attente, #pa-bulletin').count()).toBe(0);
     const items = await menuDe(p, A.ceMois[0]?.id ?? '');
     expect(items.some((t) => /Modifier|Supprimer|Proposer/.test(t))).toBe(false);

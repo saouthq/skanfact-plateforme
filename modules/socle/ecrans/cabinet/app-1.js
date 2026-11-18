@@ -1699,6 +1699,8 @@
     const poser = () => {
       // (1.170.0) La fiche du dossier est faite pour le téléphone (sa maquette) : elle ne le dit pas.
       if ($('#bandeau-ordinateur') || $('#page-fd') || $('#page-cl')) return;
+      // (1.387.23, CABPAIE-37) La Paie est refaite en cartes au téléphone : l'avis ajoutait un écran de bandeaux avant elle.
+      if (/\/comptabilite\/paie(\/|$)/.test(location.hash)) return;
       const tete = $('#view .page-head');
       if (tete) tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensé pour un ordinateur.</b> Sur un téléphone, cet écran se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
     };

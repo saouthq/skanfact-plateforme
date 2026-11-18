@@ -5382,3 +5382,7 @@ Un bulletin validé le 31/10 s'imprimait « Établi le 16/11/2026 » : la fiche 
 ### 1.387.22 — la bande des mois commande la Paie (issue 10, CABPAIE-5)
 
 Au Cabinet, cliquer « nov. » dans la bande des mois l'entourait, et la Paie restait sur octobre : seul le menu déroulant changeait le mois. Sur la Paie, la bande entoure maintenant le mois de paie regardé, et un clic le change. Et le mois choisi ne suit plus d'un dossier à l'autre : chaque dossier s'ouvre sur son mois à faire. Test : `cabinet-paie-parcours` (« tenue au cabinet »), prouvé (la bande ; le mois propre à chaque dossier n'a pas encore de test). Reste : la bande sur Immobilisations et Inventaire, sans effet.
+
+### 1.387.23 — la Paie au téléphone sans l'avis « Pensé pour un ordinateur » (issue 10, CABPAIE-37)
+
+La Paie d'un dossier est refaite en cartes au téléphone, mais l'avis « Pensé pour un ordinateur » s'ajoutait aux bandeaux et repoussait le mois sous un deuxième écran. Il ne se pose plus sur la Paie (il reste sur les autres écrans de comptabilité, qui sont à l'étroit). Test : `cabinet-paie-parcours` (« faite par le client seul… au téléphone »), prouvé. Reste ouvert : les onglets des vues coupés (la charte décide qu'une rangée trop longue défile de côté ; un indice de défilement est à proposer).
