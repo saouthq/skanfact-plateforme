@@ -30507,6 +30507,10 @@ prouver $'console 1.383.1 a : le message écrit au contact jeté à la lecture' 
   $"export const CANAUX = ['application', 'email', 'whatsapp', 'telephone', 'skanfact'] as const;" $"export const CANAUX = ['application', 'email', 'whatsapp', 'telephone'] as const;" \
   $'un message au contact s\'ouvre dans son application, à une personne de son équipe, comme une demande que SkanFact commence'
 
+prouver $'console 1.383.3 a : le menu Clients garde la recherche' web/console/src/ecrans/Clients.tsx \
+  $"      if (location.hash !== '#/clients') return;" $"      if (location.hash !== '#/jamais') return;" \
+  $'les pages : la première, les numéros, la seconde, et la taille d\'une page'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -4948,3 +4948,10 @@ La colonne « Vu » des listes (clients, cabinets, groupe) dit « Dernière conn
 par la même fonction ». CONSOLE-2 n'est pas reproduit : avec une vraie veille, « Voir l'alerte » mène bien à l'alerte
 (le test `console.test.ts` le joue) — la veille d'essai de la revue n'écrivait qu'une liste de problèmes.
 Reste de l'issue 5 : CONSOLE-5, 7, 10, 12, 13, 15, 16, 17, 19, 20.
+
+## 1.383.3 — La console : l'entrée « Clients » du menu remet la liste entière (issue 5, CONSOLE-17)
+
+Partie de « #/clients », une recherche tapée restait dans la case après un clic sur « Clients » : l'adresse suit la
+frappe sans prévenir le routeur, qui ne voyait donc aucun changement. L'écran écoute maintenant le retour à
+« #/clients » et remet recherche, filtres et tri à leur départ. Test `console-clients.test.ts`, preuve
+« console 1.383.3 a » (elle n'a tenu qu'une fois le test parti de l'adresse nue : c'est le cas de la revue).

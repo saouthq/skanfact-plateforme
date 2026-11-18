@@ -435,6 +435,16 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
     setVue(vueDe(vueDemandee)); setTri(triDe(triDemande));
     setType(typeDe(typeDemande)); setOffre(offreDe(offreDemandee)); setCabinet(cabinetDemande || null);
   }, [qDemande, etatDemande, nouvellesDemande, vueDemandee, triDemande, typeDemande, offreDemandee, cabinetDemande]);
+  // (1.383.3, CONSOLE-17) l'entrée « Clients » du menu remet la liste entière : l'adresse suivait la frappe sans prévenir le
+  // routeur (replaceState), donc le clic sur le menu ne changeait rien à ses yeux et la recherche restait.
+  useEffect(() => {
+    const remettre = () => {
+      if (location.hash !== '#/clients') return;
+      setQ(''); setQLue(''); setDebut(0); setNouvelles(false); setEtat(null); setVue('tout'); setTri('urgence'); setType(null); setOffre(null); setCabinet(null);
+    };
+    window.addEventListener('hashchange', remettre);
+    return () => window.removeEventListener('hashchange', remettre);
+  }, []);
   // La frappe se lit après un temps de pause, et l'adresse suit (elle se recopie, elle se garde en favori).
   useEffect(() => {
     const t = setTimeout(() => { if (q.trim() !== qLue) { setQLue(q.trim()); setDebut(0); } }, 300);

@@ -99,6 +99,15 @@ describe('la liste des clients, à la souris', () => {
     expect(await p.locator('.c-cl-num').count()).toBe(0);
     // Le tableau tient dans le cadre : « Ouvrir » et « … » restent à l'écran, sans barre de défilement.
     expect(await p.locator('.c-defile').evaluate((d) => d.scrollWidth - d.clientWidth)).toBeLessThanOrEqual(1);
+    // (1.383.3, CONSOLE-17) l'entrée « Clients » du menu remet la liste entière : la recherche ne reste pas dans la case.
+    // Partie de « #/clients » tout court : c'est là que le routeur ne voyait pas la recherche tapée (l'adresse suit sans le prévenir).
+    await p.locator('a[href="#/clients"]').first().click();
+    await expect.poll(() => p.locator('.c-recherche input[type=search]').inputValue(), { timeout: 10_000 }).toBe('');
+    await p.locator('.c-recherche input[type=search]').fill('zzzqqq-introuvable');
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toContain('q=zzzqqq-introuvable');
+    await p.locator('a[href="#/clients"]').first().click();
+    await expect.poll(() => p.locator('.c-recherche input[type=search]').inputValue(), { timeout: 10_000 }).toBe('');
+    await expect.poll(() => p.locator('.c-table-clients tbody tr').count(), { timeout: 15_000 }).toBeGreaterThan(0);
     await fermer(p);
   }, 90_000);
 
