@@ -5308,3 +5308,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - Le test de la 1.387.7 visait la mauvaise fenêtre (la fiche du salarié au lieu du bulletin) : il est remis au bon
   endroit, et sa preuve rejouée.
 - Reste de ce constat : les flèches à l'arrivée sur la page, et la ligne d'une avance qui s'ouvre sans le montrer.
+
+## 1.387.12 — Le détail d'un bulletin proratisé dit ses jours (issue 10, CABPAIE-29)
+
+- **« Brut de base 511,538 » ne disait pas d'où il venait.** La première ligne du détail du calcul s'appelle « Salaire
+  de base », comme dans le bulletin ouvert à droite, et dit son prorata : « entrée le 14/10/2026 · 15 j sur 26 ».
+- Reste de ce constat : au pointage, avec les colonnes d'heures supplémentaires, les derniers jours du mois sortent de
+  la carte sans barre de défilement visible.

@@ -30720,6 +30720,9 @@ prouver $'la paie de tous mes dossiers perd son retour' modules/personnel/ecrans
 # (1.387.11, issue 10, CABPAIE-33) Échap ferme le panneau de droite de la paie.
 prouver $'Échap ne ferme plus le panneau de la paie' modules/personnel/ecrans/cabinet/paie.js $'if (croix) { e.preventDefault(); croix.click(); }' $'if (croix) { e.preventDefault(); }' $'1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir'
 
+# (1.387.12, issue 10, CABPAIE-29) Le détail d'un bulletin proratisé dit ses jours.
+prouver $'le détail du calcul tait le prorata' modules/personnel/ecrans/cabinet/paie.js $'ligne(\'Salaire de base\', c.baseGross, b.prorata ?' $'ligne(\'Salaire de base\', c.baseGross, false ?' $'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

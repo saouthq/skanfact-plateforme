@@ -2340,7 +2340,8 @@
     const ligne = (lab, val, sub) => `<tr><td>${esc(lab)}${sub ? `<div class="small muted">${esc(sub)}</div>` : ''}</td><td class="r nw">${esc(money(val))}</td></tr>`;
     modal(`<h2>${esc(nom)} — ${esc(KC.moisPaie(b.mois))} ${esc(b.annee)}</h2>
       <table class="list compact"><tbody>
-        ${ligne('Brut de base', c.baseGross)}
+        ${/* (1.387.12, issue 10, CABPAIE-29) Un mois proratisé dit ses jours : « 511,538 » sans « 14 jours sur 26 » ne se refait pas. */''}
+        ${ligne('Salaire de base', c.baseGross, b.prorata ? `${b.prorata.motif || 'prorata'} · ${joursFr(b.prorata.jours)} j sur ${joursFr(b.prorata.sur)}` : '')}
         ${c.absenceCut ? ligne('Absence non rémunérée', -c.absenceCut, `${pl(c.absentDays, 'jour')} sur ${c.workedDays}`) : ''}
         ${(c.bonuses || []).map(p => ligne(p.label, p.amount, p.taxable ? 'imposable' : 'non imposable')).join('')}
         <tr class="dc-total"><td><b>Brut du mois</b></td><td class="r nw"><b>${esc(money(c.gross))}</b></td></tr>

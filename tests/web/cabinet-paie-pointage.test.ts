@@ -181,6 +181,17 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     // L'aperçu disait le net que le serveur a recalculé, au millime (le seul bulletin d'octobre du client).
     const auServeur = ((await api('GET', `/entreprises/${boulangerie}/paie/bulletins?annee=2026&mois=10`, associe)).corps.lignes as { net: string }[])[0];
     expect(net).toBe(`Netàpayer${String(auServeur?.net).replace('.', ',')}DT`);
+    // (1.387.12, issue 10, CABPAIE-29) Le détail du calcul d'un mois proratisé dit ses jours, sous le salaire de base.
+    if (!await p.locator('[data-rowmenu^="PAIE:"]').count()) await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await p.locator('[data-rowmenu^="PAIE:"]').first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Voir le détail du calcul' }).click();
+    const detail = p.locator('#modal-root .modal').last();
+    await expect.poll(async () => (await detail.locator('tbody tr').first().innerText()).replace(/\s+/g, ' ')).toBe('Salaire de base entrée le 14/10/2026 · 15 j sur 26 712,250 DT');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    if (await p.locator('#pa-volet-x').count()) await p.locator('#pa-volet-x').click();
+    if (!await p.locator('#pt-grille').count()) await p.locator('#pa-frise li[data-pa-vue="pointage"]').click();
+    await p.locator('#pt-grille').waitFor({ timeout: 15_000 });
 
     // ── Un jour d'absence de plus : le bulletin ne suit plus le pointage, et le reprend d'un geste ────────────────
     await caseDu(p, 'Numéro Un', 26).focus();
