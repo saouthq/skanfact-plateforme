@@ -4194,10 +4194,12 @@
   // `refusDe` ({ sel, message }) : un refus qui mène aux Réglages MONTRE son champ une fois le panneau
   // chargé (règle 7.0.0) — le curseur dedans, marqué. Sans lui, « Nomme d'abord ton cabinet »
   // remontait au panneau et laissait le curseur nulle part, le champ blanc parmi cinq autres.
-  function versReglages(panneau, refusDe) {
+  function versReglages(panneau, refusDe, retour) {
     const p = REG_PANNEAUX[panneau];
     if (p) { reglagesTab = p.onglet; reglagesFocus = panneau; }
     reglagesRefus = refusDe || null;
+    // (1.386.0 ; issue 11, CABSAISIE-20) Venu d'un dossier, on y revient d'un geste : les Réglages gardent le chemin.
+    reglagesRetour = retour || null;
     if (location.hash.startsWith('#/reglages')) render();
     else location.hash = '#/reglages';
   }

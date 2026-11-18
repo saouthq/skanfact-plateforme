@@ -857,3 +857,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
   #sa-lignes > tr > td.sa-sup .btn { min-width: 44px; min-height: 44px; }
   #sa-lignes > tr > td.sa-sup { position: absolute; inset-block-start: 30px; inset-inline-end: 16px; inset-inline-start: auto; width: auto; }
 }
+
+/* (1.386.0) Venu d'un dossier aux Réglages : le retour, au-dessus des onglets. */
+.set-retour { margin: 0 0 12px; }

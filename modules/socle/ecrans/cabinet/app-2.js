@@ -4757,7 +4757,7 @@
       box.innerHTML = `<div class="sa-vide">Une écriture qui revient s'appuie sur un guide d'écritures, et il n'y en a aucun pour l'instant.</div>
         <div class="modal-actions"><button type="button" class="btn" id="ab-guides">Écrire un premier guide…</button></div>`;
       const b = $('#ab-guides', box);
-      if (b) b.onclick = () => versReglages('pan-guides');
+      if (b) b.onclick = () => versReglages('pan-guides', null, { hash: location.hash, nom: `la saisie ${/^[aeiouhéèAEIOUHÉÈ]/.test(dossier.name || '') ? 'd\'' : 'de '}${dossier.name || 'ce dossier'}` });
       return;
     }
     box.innerHTML = `${abos.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
@@ -7957,6 +7957,10 @@
   let reglagesTab = 'cabinet';
   let reglagesFocus = '';
   let reglagesRefus = null;
+  // (1.386.0 ; issue 11, CABSAISIE-20) « Écrire un premier guide… » quittait le dossier sans retour : le chemin du
+  // retour se garde le temps de la visite aux Réglages, et s'oublie dès qu'on va ailleurs.
+  let reglagesRetour = null;
+  window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#/reglages')) reglagesRetour = null; });
   // (plateforme, abonnement du cabinet) Au démarrage, les Réglages se redessinent quand une relecture arrive après le
   // premier dessin (la boîte de réception, la clé de secours, les questions). Le second dessin ne savait plus quel
   // panneau amener, et remettait la page en haut : au retour d'un paiement, loin de « Ton abonnement », sur une machine
@@ -7974,6 +7978,7 @@
         <div class="actions set-search">
           <input type="search" id="set-q" placeholder="Chercher un réglage…" autocomplete="off" spellcheck="false">
         </div></div>
+      ${reglagesRetour ? `<p class="set-retour"><a class="btn btn-sm" id="set-retour" href="${esc(reglagesRetour.hash)}">← Revenir à ${esc(reglagesRetour.nom)}</a></p>` : ''}
       <div id="set-res" class="set-res" hidden></div>
       ${/* U-13 — le bandeau existe pour que l'alerte ne se cache pas derrière un onglet (7.32.0).
             Sur l'onglet qui porte le panneau Sécurité, elle y est dite en entier : le bandeau se tait,

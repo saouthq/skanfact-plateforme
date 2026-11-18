@@ -5150,3 +5150,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   un écran de 390. Chaque onglet le retient désormais chez lui. Le défaut ne se voyait que lorsqu'un onglet portait un
   compteur — d'où des tests verts seuls et rouges à la suite.
 - Le test du tiroir de caisse attend plus longtemps l'écriture de l'écart au Cabinet (elle arrive après le geste).
+
+## 1.386.0 — Des Réglages, on revient au dossier (issue 11, CABSAISIE-20)
+
+- **« Écrire un premier guide… »** quittait la saisie du dossier pour les Réglages, sans chemin de retour. Les Réglages
+  affichent « ← Revenir à la saisie de … » au-dessus des onglets ; le retour s'oublie dès qu'on va ailleurs.

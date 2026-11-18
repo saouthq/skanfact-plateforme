@@ -30619,6 +30619,11 @@ prouver $'console 1.385.9 : un texte caché dans un onglet n\'élargit pas la pa
   $'' \
   $'au téléphone, les onglets du Service tiennent sur une rangée, et l\'onglet ouvert s\'y voit'
 
+prouver $'saisie 1.386.0 : « Écrire un premier guide… » garde le retour au dossier' modules/socle/ecrans/cabinet/app-1.js \
+  $'    reglagesRetour = retour || null;' \
+  $'    reglagesRetour = null;' \
+  $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

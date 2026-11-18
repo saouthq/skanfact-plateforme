@@ -75,6 +75,20 @@ describe('les guides d\'écritures, à la souris', () => {
       return p.locator(dedans).isVisible();
     }, { timeout: 30_000 }).toBe(true);
 
+    // ── (1.386.0, issue 11 constat 20) Depuis la saisie d'un dossier, « Écrire un premier guide… » mène aux Réglages
+    // et garde le chemin du retour (on quittait le dossier sans moyen d'y revenir) ; ailleurs, le retour s'oublie. ──
+    await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
+    if (await p.locator('#sx-abos[aria-expanded="false"]').count()) await p.locator('#sx-abos').click();
+    await p.locator('#ab-guides').click();
+    await expect.poll(() => p.locator('#set-retour').innerText().catch(() => ''), { timeout: 15_000 }).toBe('← Revenir à la saisie de Garage du Port');
+    await expect.poll(() => p.locator('#sr-guide-new').isVisible()).toBe(true);
+    await p.locator('#set-retour').click();
+    await expect.poll(() => p.url()).toContain(`#/dossier/${garage}/comptabilite/saisie/2026`);
+    await p.locator('#ab-guides').waitFor({ timeout: 15_000 });
+    await p.evaluate(() => { location.hash = '#/reglages'; });
+    await p.locator('#set-tabs').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#set-retour').count()).toBe(0);
+
     // ── Un guide : le loyer (la base), sa TVA à 19 %, le fournisseur au solde ─────────────────────
     await aller('#/reglages');
     await ouvrir('#set-tabs [data-tab="compta"]', '#sr-guide-new');
