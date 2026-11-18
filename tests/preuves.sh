@@ -30559,6 +30559,10 @@ prouver $'banque 1.384.3 a : le 32/13 est pris pour une date' modules/socle/mote
   $" || !jourQuiExiste(date)) { ignorees.push(" $") { ignorees.push(" \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+prouver $'saisie 1.384.4 a : « Une écriture » sans effet sur un exercice clos' modules/socle/ecrans/cabinet/app-1.js \
+  $"if (livresState.livre && livresState.livre.exercice && livresState.livre.exercice.clos) {" $"if (false) {" \
+  $'un exercice clos montre sa liasse sans rien laisser changer, et dit comment rouvrir'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

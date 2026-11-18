@@ -5046,3 +5046,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« 32/13/2026 » n'est pas une date** : la ligne est écartée (« date illisible »), elle ne donne plus un mouvement
   « du 32/13 » sous une coche verte. Le 30 février non plus.
 - **Aucune ligne lisible : « Ce fichier n'est pas un relevé »** — la fenêtre le dit, au lieu d'un aperçu vide.
+
+## 1.384.4 — La saisie d'un exercice clos (issue 11, CABSAISIE-27)
+
+- **« + Une écriture » sur un exercice clos** n'est plus un bouton sans effet : il mène à la raison (« L'exercice est
+  clos : on n'y saisit plus »), et le curseur va au bouton qui suit.
+- **« Rouvre-le » a son bouton** : « Voir l'exercice 2025 » ouvre l'onglet Exercice, où la réouverture demande son motif.

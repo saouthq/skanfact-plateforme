@@ -84,6 +84,13 @@ describe('la liasse d\'un exercice clos, à la souris', () => {
     // 21/10/2026 : « Element is not attached to the DOM ») ; le panneau se reprend à chaque essai.
     const panneau = p.locator('#li-close').locator('xpath=ancestor::div[contains(@class, "panel")][1]');
     await expect.poll(() => panneau.screenshot({ path: path.join(PHOTOS, 'cabinet-liasse-close-fiscal.png'), timeout: 5_000 }).then(() => true, () => false), { timeout: 20_000 }).toBe(true);
+    // (1.384.4, issue 11 constat 27) « Une écriture » sur l'exercice clos n'est plus un bouton sans effet : il mène à la
+    // raison, et le bouton de la raison mène à l'onglet Exercice.
+    await p.locator('#cp-ecrire').click();
+    await expect.poll(() => p.evaluate(() => [location.hash.includes('/saisie'), document.activeElement?.id]), { timeout: 10_000 }).toEqual([true, 'sa-rouvrir']);
+    expect(await p.locator('#toast').innerText()).toMatch(/L'exercice 2025 est clos/);
+    await p.locator('#sa-rouvrir').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toMatch(/\/comptabilite\/exercice/);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

@@ -3869,7 +3869,8 @@
         <p class="muted small">Crée-le à partir des paquets reçus, ou reprends le dossier par sa balance d'ouverture — les deux boutons sont en haut de cette page.</p></div>`;
     }
     if (s.livre.exercice.clos) {
-      return `<div class="warn-box"><b>L'exercice ${esc(s.annee)} est clos.</b> On n'y saisit plus. Rouvre-le si tu dois vraiment y toucher : la réouverture demande un motif, et c'est elle qui expliquera plus tard pourquoi un chiffre a changé.</div>`;
+      return `<div class="warn-box"><b>L'exercice ${esc(s.annee)} est clos.</b> On n'y saisit plus. Rouvre-le si tu dois vraiment y toucher : la réouverture demande un motif, et c'est elle qui expliquera plus tard pourquoi un chiffre a changé.
+        <div class="ctrl-geste"><button type="button" class="btn" id="sa-rouvrir">Voir l'exercice ${esc(s.annee)}</button></div></div>`;
     }
     if (!saisieState.piece || saisieState.dossierId !== dossier.id) {
       // Une pièce commencée pour un AUTRE client se gare, elle ne s'écrase pas (U-09) : on la
@@ -4073,6 +4074,8 @@
 
   function brancherSaisie(el, root, dossier) {
     const s = livresState;
+    // (1.384.4, issue 11, CABSAISIE-27) L'exercice clos dit « Rouvre-le » : le bouton y mène.
+    const rv = $('#sa-rouvrir', el); if (rv) rv.onclick = () => allerSousOnglet(root, dossier, 'exercice');
     if (!s.livre || !saisieState.piece) return;
     brancherSx(el, root, dossier);
     const abos = $('#sx-abos', el);

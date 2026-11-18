@@ -7541,7 +7541,16 @@
     $$('#d-tabs button', view).forEach(b => b.onclick = () => versOnglet(b.dataset.tab));
     $$('[data-vers]', view).forEach(b => b.onclick = () => versOnglet(b.dataset.vers));
     const ed = $('#edit'); if (ed) ed.onclick = () => dossierForm(dossier);
-    const ce = $('#cp-ecrire', view); if (ce) ce.onclick = () => { if (sxState.mode === 'km' && !sxState.grille) { sxState.grille = true; if (livresState.onglet === 'saisie') drawLivres(view, dossier); } if (livresState.onglet !== 'saisie') allerSousOnglet(view, dossier, 'saisie'); const champ = $('#sa-date'); if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } };
+    const ce = $('#cp-ecrire', view); if (ce) ce.onclick = () => {
+      // (1.384.4, issue 11, CABSAISIE-27) Sur un exercice clos, le bouton ne restait pas sans effet : il mène à la raison
+      // (« L'exercice est clos »), et le curseur va au bouton qui ouvre l'exercice.
+      if (livresState.livre && livresState.livre.exercice && livresState.livre.exercice.clos) {
+        if (livresState.onglet !== 'saisie') allerSousOnglet(view, dossier, 'saisie');
+        const b = $('#sa-rouvrir'); if (b) { b.scrollIntoView({ block: 'center' }); b.focus(); }
+        toast(`L'exercice ${livresState.annee} est clos : on n'y saisit plus.`);
+        return;
+      }
+      if (sxState.mode === 'km' && !sxState.grille) { sxState.grille = true; if (livresState.onglet === 'saisie') drawLivres(view, dossier); } if (livresState.onglet !== 'saisie') allerSousOnglet(view, dossier, 'saisie'); const champ = $('#sa-date'); if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } };
     $$('[data-ident]', view).forEach(b3 => { b3.onclick = () => dossierForm(dossier); });
     const cy = $('#ca-year');
     if (cy) cy.onchange = e => { ficheYear = e.target.value; render(); };
