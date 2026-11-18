@@ -30629,6 +30629,11 @@ prouver $'banque 1.386.1 : hors SkanFact, une ligne sans rien en face offre le c
   $'(!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : \'\')' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+prouver $'saisie 1.386.2 : un guide choisi avant le montant attend son montant' modules/socle/ecrans/cabinet/app-2.js \
+  $'        if (champG && !String(champG.value).trim()) { champG.placeholder = \'Montant, puis Entrée\'; champG.classList.add(\'sa-attend\'); champG.focus(); return; }' \
+  $'' \
+  $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

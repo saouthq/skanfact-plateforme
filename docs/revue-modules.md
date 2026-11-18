@@ -5161,3 +5161,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Une ligne sans rien en face** invitait à « demander au client », sans bouton : un dossier tenu hors SkanFact n'a
   pas de conversation. La phrase propose le compte d'attente (471) le temps de demander, et le bouton « Mettre en
   attente (471) » est là.
+
+## 1.386.2 — La saisie : un guide attend son montant (issue 11, CABSAISIE-13)
+
+- **Choisi avant le montant, le guide s'appliquait pour zéro**, et le montant tapé ensuite partait dans le libellé. Le
+  guide attend : le curseur va dans la case du montant (« Montant, puis Entrée »), Entrée l'applique. Le montant
+  tapé d'abord, puis le guide, marche comme avant.

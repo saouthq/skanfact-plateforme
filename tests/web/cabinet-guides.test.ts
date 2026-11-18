@@ -114,8 +114,14 @@ describe('les guides d\'écritures, à la souris', () => {
 
     // ── Dans la grille : le guide préremplit la pièce ; le serveur tient les mêmes lignes ───────────
     await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
-    await p.locator('#sa-guide-montant').fill('1000,250');
+    // (1.386.2, issue 11 constat 13) Le guide choisi AVANT le montant attend son montant : rien ne s'applique pour zéro,
+    // le curseur va dans la case du montant, et Entrée l'applique (le montant tapé partait dans le libellé).
     await p.locator('#sa-guide').selectOption({ label: 'Loyer du garage' });
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('sa-guide-montant');
+    expect(await p.locator('#sa-guide-montant').getAttribute('placeholder')).toBe('Montant, puis Entrée');
+    expect(await p.locator('#sa-lignes tr').count()).toBeLessThanOrEqual(2);
+    await p.keyboard.type('1000,250');
+    await p.keyboard.press('Enter');
     await expect.poll(() => p.locator('#sa-lignes tr[data-i="0"] input[data-k="compte"]').inputValue()).toBe('6132');
     const lignesEcran = await p.locator('#sa-lignes tr[data-i]').evaluateAll((trs) => trs.map((tr) => ({
       compte: (tr.querySelector('input[data-k="compte"]') as HTMLInputElement).value,

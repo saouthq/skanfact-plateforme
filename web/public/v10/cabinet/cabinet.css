@@ -860,3 +860,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 
 /* (1.386.0) Venu d'un dossier aux Réglages : le retour, au-dessus des onglets. */
 .set-retour { margin: 0 0 12px; }
+
+/* (1.386.2) Le guide choisi attend son montant : la case se montre. */
+#sa-guide-montant.sa-attend { border-color: var(--accent, #0f9d8f); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0f9d8f) 22%, transparent); }

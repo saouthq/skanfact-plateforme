@@ -4415,9 +4415,17 @@
     // utiliser.
     const gs = $('#sa-guide', el);
     if (gs) {
+      // (1.386.2 ; issue 11, CABSAISIE-13) Le guide choisi AVANT le montant s'appliquait pour zéro, et le montant tapé
+      // ensuite partait dans le libellé : le guide attend son montant (le curseur y va), Entrée l'applique.
+      const champG = $('#sa-guide-montant', el);
+      if (champG) {
+        champG.addEventListener('keydown', e => { if (e.key === 'Enter' && gs.value) { e.preventDefault(); e.stopPropagation(); gs.onchange(); } });
+        champG.addEventListener('change', () => { if (gs.value && String(champG.value).trim()) gs.onchange(); });
+      }
       gs.onchange = () => {
         const g = K.guidesDuDossier(S, dossier).find(x => x.id === gs.value);
         if (!g) return;
+        if (champG && !String(champG.value).trim()) { champG.placeholder = 'Montant, puis Entrée'; champG.classList.add('sa-attend'); champG.focus(); return; }
         // Un montant qu'on ne sait pas lire ne s'applique pas pour zéro : le guide répartirait
         // « 1 250 DT » en lignes à 0,000 sans un mot (10.14.1).
         const champM = $('#sa-guide-montant', el);
