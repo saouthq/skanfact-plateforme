@@ -613,6 +613,10 @@ describe('la console de l\'équipe, à la souris', () => {
     const jeton = await jetonConsole(technique);
     const p = await ouvrir(jeton, '#/clients');
     expect(net(await p.locator('h1').first().innerText())).toBe('Cet écran n\'est pas dans ton rôle');
+    // (1.383.6, issue 5, CONSOLE-15) le refus est une carte : qui ouvre l'écran, à qui demander, et le bouton du retour.
+    const ferme = p.locator('.c-ferme');
+    expect(net(await ferme.innerText())).toMatch(/Cet écran s.ouvre à la direction et le support\. Si tu en as besoin pour ton travail, demande à la direction\./);
+    expect(await ferme.locator('a.c-btn-principal').getAttribute('href')).toBe('#/');
     // « Équipe » lui ouvre son propre compte (1.24.0, C40) ; ni les clients, ni le journal.
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toContain('Équipe');
     expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Clients|Journal/.test(t))).toBe(false);

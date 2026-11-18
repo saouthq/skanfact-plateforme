@@ -2,7 +2,7 @@
 // (la barre de gauche, la recherche, la page). La barre ne montre que les écrans qui existent, et seulement ceux que le
 // rôle ouvre : jamais un lien qui mène à un refus. Les écrans vivent dans l'adresse (#/clients, #/clients/<id>…) :
 // « Précédent » revient en arrière, une adresse se recopie.
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dire, phrase, titre, typo } from './langue.ts';
 import { appeler, session } from './api.ts';
 import { ContexteConsole, panneDe, useApi, type Ctx, type Moi, type Role } from './contexte.ts';
@@ -30,7 +30,7 @@ import { Mesure } from './ecrans/Mesure.tsx';
 import { Reglages } from './ecrans/Reglages.tsx';
 import { Service } from './ecrans/Service.tsx';
 import { Support } from './ecrans/Support.tsx';
-import { Alerte, Avatar, Bouton, Icone, Toast, retenuParUneFenetre, type NomIcone } from './ui.tsx';
+import { Alerte, Avatar, Bouton, Icone, Lien, Toast, retenuParUneFenetre, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
 type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'donnees' | 'support' | 'journal' | 'equipe' | 'service' | 'mesure' | 'reglages';
@@ -221,17 +221,27 @@ function useToucheRecherche(role: Role | null, page: Route['page']) {
   }, [role, page]);
 }
 
+// Un écran qui ne s'ouvre pas (hors du rôle, ou adresse inconnue) : une carte tenue comme les autres écrans — ce qui se
+// passe, qui l'ouvre, à qui demander, et le bouton qui ramène (issue 5, CONSOLE-15).
+function Ferme({ icone, titre: t, children }: { icone: NomIcone; titre: string; children: ReactNode }) {
+  return (
+    <section className="c-carte c-ferme">
+      <span className="c-ferme-icone"><Icone nom={icone} taille={26} /></span>
+      <h1>{t}</h1>
+      {children}
+      <p><Lien href="#/" ton="principal" fleche>{titre('console.ecran.retour_accueil')}</Lien></p>
+    </section>
+  );
+}
 function Page({ route, role }: { route: Route; role: Role }) {
-  if (route.page === 'inconnue') return <Alerte ton="info"><span>{phrase('console.ecran.introuvable')}</span><span><a href="#/">{titre('console.ecran.retour_accueil')}</a></span></Alerte>;
+  if (route.page === 'inconnue') return <Ferme icone="info" titre={titre('console.ecran.introuvable_titre')}><p>{phrase('console.ecran.introuvable')}</p></Ferme>;
   if (!OUVRE[route.page].includes(role)) {
+    const qui = OUVRE[route.page].map((r) => dire(`console.ecran.role.article.${r}`));
     return (
-      <header className="c-entete">
-        <div className="c-entete-texte">
-          <h1>{titre('console.ecran.interdit_titre')}</h1>
-          <p className="c-entete-sous">{phrase('console.ecran.interdit', { role: dire(`console.ecran.role.${role}`) })}</p>
-          <p><a href="#/">{titre('console.ecran.retour_accueil')}</a></p>
-        </div>
-      </header>
+      <Ferme icone="cadenas" titre={titre('console.ecran.interdit_titre')}>
+        <p>{phrase('console.ecran.interdit', { role: dire(`console.ecran.role.${role}`) })}</p>
+        <p className="c-ferme-qui">{phrase(qui.length > 1 ? 'console.ecran.interdit_qui_n' : 'console.ecran.interdit_qui_1', { qui: qui.join(' et ') })}</p>
+      </Ferme>
     );
   }
   switch (route.page) {

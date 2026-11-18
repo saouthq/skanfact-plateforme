@@ -4973,3 +4973,10 @@ sortait de 45 points par la gauche (mesuré : de −45 à 215 sur 390). Il se d�
 (`MenuGestes`, `Fiche.tsx`). Le menu commun des lignes (`MenuLigne`) reçoit la même borne à gauche, et se mesure collé au
 bord droit le temps d'être posé. Test : `console-recette` (au téléphone, le menu entier entre 8 et 382). Preuve
 « console 1.383.5 a ».
+
+## 1.383.6 — La console : l'écran « pas dans ton rôle » devient une carte (issue 5, CONSOLE-15)
+
+Hors de son rôle, on lisait un titre, une phrase et un lien souligné sur une page vide ; une adresse inconnue donnait un
+simple bandeau. Les deux sont maintenant la même carte (`Ferme`, `Console.tsx`) : une icône, le titre, ce qui se passe,
+**qui ouvre l'écran** (lu dans la table des rôles, jamais recopié) et à qui demander, puis le bouton principal du retour.
+Vue en capture (clair, ordinateur). Test : `console` (la technique devant Clients). Preuve « console 1.383.6 a ».

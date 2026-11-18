@@ -30519,6 +30519,10 @@ prouver $'console 1.383.5 a : le menu Gestes sort de l\'écran au téléphone' w
   $'    if (depasse > 0) liste.style.insetInlineEnd' $'    if (depasse > 9999) liste.style.insetInlineEnd' \
   $'au téléphone, le menu « Gestes » d\'une fiche tient tout entier dans l\'écran'
 
+prouver $'console 1.383.6 a : l\'écran fermé ne dit pas qui l\'ouvre' web/console/src/Console.tsx \
+  $"{ qui: qui.join(' et ') }" $"{ qui: '' }" \
+  $'la technique : l\'accueil et le service seulement ; les clients ne sont pas dans son rôle'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

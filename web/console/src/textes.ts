@@ -30,7 +30,13 @@ declarerTextes({
   'console.ecran.interdit_titre': 'cet écran n\'est pas dans ton rôle',
   'console.ecran.interdit': 'ton rôle dans l\'équipe ({role}) n\'ouvre pas cet écran',
   'console.ecran.retour_accueil': 'revenir à « À décider »',
-  'console.ecran.introuvable': 'cette page de la console n\'existe pas',
+  'console.ecran.introuvable_titre': 'cette page n\'existe pas',
+  'console.ecran.introuvable': 'l\'adresse ne mène à aucun écran de la console : elle a pu changer, ou être mal recopiée',
+  'console.ecran.interdit_qui_1': 'cet écran s\'ouvre à {qui} seulement. Si tu en as besoin pour ton travail, demande à la direction',
+  'console.ecran.interdit_qui_n': 'cet écran s\'ouvre à {qui}. Si tu en as besoin pour ton travail, demande à la direction',
+  'console.ecran.role.article.direction': 'la direction',
+  'console.ecran.role.article.support': 'le support',
+  'console.ecran.role.article.technique': 'la technique',
 
   // Les rôles de l'équipe, et ce que chacun ouvre (03 § 5).
   'console.ecran.role.direction': 'direction',
