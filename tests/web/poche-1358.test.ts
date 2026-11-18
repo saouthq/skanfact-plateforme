@@ -150,6 +150,11 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     const v = p.locator('.modal').filter({ has: p.locator('#mf2') });
     await v.waitFor({ timeout: 10_000 });
     await v.locator('[name=kind]').selectOption('virement');
+    // (1.387.33, issue 16, constat 8) « Vers le compte » porte l'étoile, et son refus s'écrit dans la fenêtre, sous lui.
+    expect(await v.locator('#mf-vers').evaluate((x) => x.classList.contains('obligatoire'))).toBe(true);
+    await v.locator('[name=amount]').fill('10');
+    await v.locator('#ok').click();
+    await expect.poll(() => v.locator('#mf-vers + .refus-sous').innerText().catch(() => '')).toBe('Choisis le compte qui reçoit l\'argent.');
     await v.locator('[name=versAccountId]').selectOption('caisse');
     await v.locator('[name=amount]').fill('6000');
     await v.locator('[name=label]').fill('Fonds de caisse');

@@ -5422,3 +5422,7 @@ De l'étape « Payer » d'octobre, choisir novembre ouvrait un écran vide : « 
 ### 1.387.32 — la déclaration annuelle d'employeur n'a plus qu'une date (issue 16, constat 14)
 
 La paie en donnait quatre (« début 2027 (À VÉRIFIER) », « février 2027 », « 30/04/2027 », et celle du calendrier fiscal). Tous les écrans lisent maintenant la date que le calendrier fiscal règle, par la même fonction (`dateLimiteSociale`) : la déplacer dans le calendrier la déplace partout. Test : `date-employeur-une-1387`, une preuve.
+
+### 1.387.33 — « Vers le compte » porte son étoile (issue 16, constat 8)
+
+Un virement entre comptes sans compte d'arrivée était refusé, mais rien ne disait que la case était obligatoire. Elle porte maintenant l'étoile, et le refus s'écrit dans la fenêtre, sous la case (la règle des fenêtres depuis la 1.379.8, qui couvre aussi la date de sortie d'un salarié). Test : `poche-1358`, une preuve.
