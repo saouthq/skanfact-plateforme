@@ -4904,3 +4904,11 @@ sa raison écrite à sa place. Le code ne change pas.
   qui contiennent… » arrivait cochée : une règle se créait d'office, parfois sur un mot mal choisi. Elle arrive
   décochée.
 - Test : `tests/web/cabinet-banque-1375.test.ts` ; preuve « saisie 1.382.0 a ».
+
+## 1.382.1 — La touche réglée agit, une date illisible se dit (issue 11, constats 7 et 10)
+
+- **La touche choisie pour « Solder » solde.** Régler « F9 » dans les Réglages ne changeait que la légende : c'est
+  toujours Tab qui agissait. La grille lit maintenant le réglage, et l'invite de la dernière case nomme la touche.
+- **Une date illisible se dit.** « 32/13 » rougissait la case, et la phrase sous la grille disait « la date manque »
+  d'une case pleine. Elle dit ce qui est tapé et les trois formes acceptées (4, 4/3, 04/03/2026).
+- Test : `tests/web/cabinet-banque-1375.test.ts` ; preuve « saisie 1.382.1 a ».

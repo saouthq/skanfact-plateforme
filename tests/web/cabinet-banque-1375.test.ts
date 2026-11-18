@@ -154,6 +154,12 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
     expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').map((e) => e.statut)).toEqual(['brouillard']);
 
+    // ── (1.382.1, issue 11 constat 10) une date illisible se dit, avec ce qui est tapé ──────────────────────
+    await p.locator('#sa-date').fill('32/13');
+    await p.locator('#sa-piece').focus();
+    await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^«\s32\/13\s» n'est pas une date de \d{4}/);
+    expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
+
     // ── (1.382.0, issue 11 constat 5) un compte que ni le dossier ni le plan de référence ne connaît se demande ──
     await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
     await p.locator('#sa-piece').fill('OD-FAUTE');

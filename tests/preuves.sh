@@ -30489,6 +30489,10 @@ prouver $'saisie 1.382.0 a : un compte mal tapé entre au plan sans question' mo
   $'        if (inconnus.length && !(await confirmDialog(' $'        if (false && !(await confirmDialog(' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+prouver $'saisie 1.382.1 a : une date illisible rougit sans un mot' modules/socle/ecrans/cabinet/app-2.js \
+  $'        if (ko && mref) { mref.hidden = false;' $'        if (false && mref) { mref.hidden = false;' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

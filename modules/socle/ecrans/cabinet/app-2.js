@@ -4167,7 +4167,7 @@
       const derniere = $(`tr[data-i="${(p.lignes || []).length - 1}"] input[data-k="credit"]`, corps);
       if (derniere) {
         derniere.placeholder = prop
-          ? `⇥ ${montant(prop.debit || prop.credit)}${prop.debit ? ' au débit' : ''}`
+          ? `${!t.solder || t.solder === 'Tab' ? '⇥' : nomTouche(t.solder)} ${montant(prop.debit || prop.credit)}${prop.debit ? ' au débit' : ''}`
           : '';
       }
     };
@@ -4246,7 +4246,9 @@
           // Tab depuis le CRÉDIT de la dernière ligne : on solde. C'est le geste qui fait gagner le
           // plus de temps de toute la grille — et il ne s'invente pas : `soldeDeLignes` calcule,
           // l'écran pose. Si la pièce tombe déjà juste, Tab reprend son comportement normal.
-          if (ev.key === 'Tab' && !ev.shiftKey && k === 'credit' && i === p.lignes.length - 1) {
+          // 1.382.1 (issue 11, constat 7) — la touche RÉGLÉE solde : « F9 » choisi dans les Réglages ne changeait
+          // que la légende, c'est toujours Tab qui agissait.
+          if (touche === (t.solder || 'Tab') && !ev.shiftKey && k === 'credit' && i === p.lignes.length - 1) {
             const prop = soldeProposable();
             if (prop && prop.i === i) {
               ev.preventDefault();
@@ -4313,6 +4315,11 @@
         if (iso) dt.value = dateAffichee(iso, r);
         majSolde();
         majDecl();
+        // 1.382.1 (issue 11, constat 10) — une date illisible se DIT, avec ce qui est tapé : la case
+        // rougissait seule, et la phrase sous la grille disait « la date manque » d'une case pleine.
+        const mref = $('#sa-refus', el);
+        if (ko && mref) { mref.hidden = false; mref.textContent = typoTexte(`« ${dt.value.trim()} » n'est pas une date de ${s.annee} : tape le jour (4), le jour et le mois (4/3) ou la date entière (04/03/${s.annee}).`); }
+        dt.title = ko ? 'Date illisible' : '';
       };
       dt.onblur = lire;
       // Un champ PRÉ-REMPLI se sélectionne au clic : sans ça, cliquer dedans et taper « 4/3 »
