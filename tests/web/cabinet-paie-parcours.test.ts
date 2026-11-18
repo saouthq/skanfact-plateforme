@@ -331,6 +331,13 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(espace(await p.locator('#pa-tous-resume').innerText())).toBe('1 dossier avec une paie · 5 bulletins ce mois');
     expect(espace(await p.locator('#pa-tous-liste tbody tr').first().innerText())).toMatch(/^Boulangerie El Amal 5 \/ 5 .* validés/);
     expect(await p.locator('.pa-so [data-pa-vue="annee"]').getAttribute('aria-pressed')).toBe('true');
+    // (1.387.10, issue 10, CABPAIE-32) La vue du cabinet entier se dit, et un bouton ramène à l'année du dossier.
+    expect(espace(await p.locator('#pa-tous-retour-l').innerText())).toBe('← Revenir à la paie de Boulangerie El Amal Tu regardes tout le cabinet, pas seulement ce dossier.');
+    await p.locator('#pa-tous-retour').click();
+    await expect.poll(() => p.locator('#pa-tous').count()).toBe(0);
+    await expect.poll(() => p.locator('#pa-vers-tous').count()).toBe(1);
+    await p.locator('#pa-vers-tous [data-pa-vue="tous"]').click();
+    await expect.poll(() => p.locator('#pa-tous-liste tbody tr').count(), { timeout: 15_000 }).toBe(1);
     await p.locator('#pa-tous-liste tbody tr').first().click();
     await expect.poll(() => p.locator('#pa-bulletins').count()).toBe(1);
     // 1.238.0 — un mois validé, et le pointage changé après : le bulletin ne bouge pas, l'écran le dit.

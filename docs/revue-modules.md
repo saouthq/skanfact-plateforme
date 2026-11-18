@@ -5295,3 +5295,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« … (la variation de stock) : elle est encore au brouillard : supprime-la… »** portait deux deux-points et aucun
   lien. La phrase n'en porte qu'un, et le refus offre « Voir l'écriture ».
 - Reste de ce constat : au téléphone, la carte d'une ligne d'inventaire est titrée par sa référence.
+
+## 1.387.10 — « La paie de tous mes dossiers » : on sait où l'on est, et on en revient (issue 10, CABPAIE-32)
+
+- La vue du cabinet entier s'ouvrait sous le titre d'un dossier, sans retour. Une ligne le dit (« Tu regardes tout le
+  cabinet, pas seulement ce dossier ») et un bouton ramène à l'année du dossier d'où l'on vient.

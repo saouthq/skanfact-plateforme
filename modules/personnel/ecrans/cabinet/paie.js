@@ -1846,8 +1846,11 @@
         .catch(err => { if (paieTousState.cle === mois) paieTousState.erreur = plainError(err); })
         .then(() => { if ($('#pa-tous')) drawLivres($('#view'), dossier); });
     }
-    if (paieTousState.erreur) return `<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="warn-text small">${esc(paieTousState.erreur)}</p><button type="button" class="btn btn-sm" id="pa-tous-relire">Réessayer</button></div>`;
-    if (!paieTousState.donnees) return `<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="small muted">Lecture de la paie de chaque dossier…</p></div>`;
+    // (1.387.10, issue 10, CABPAIE-32) La vue de tout le cabinet s'ouvrait sous le titre d'UN dossier, sans retour : elle
+    // dit qu'on regarde tous les dossiers, et un bouton ramène à l'année du dossier d'où l'on vient.
+    const retour = `<div class="ctrl-geste" id="pa-tous-retour-l"><button type="button" class="btn btn-sm" id="pa-tous-retour" data-pa-vue="annee">← Revenir à la paie ${esc(deNom(dossier.name))}</button><span class="small muted">Tu regardes tout le cabinet, pas seulement ce dossier.</span></div>`;
+    if (paieTousState.erreur) return `${retour}<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="warn-text small">${esc(paieTousState.erreur)}</p><button type="button" class="btn btn-sm" id="pa-tous-relire">Réessayer</button></div>`;
+    if (!paieTousState.donnees) return `${retour}<div class="panel mt" id="pa-tous"><h2>${esc(titre)}</h2><p class="small muted">Lecture de la paie de chaque dossier…</p></div>`;
     const D = (paieTousState.donnees.dossiers || []).filter(x => x.salaries || x.bulletins);
     const n = D.reduce((a, x) => a + x.bulletins, 0), ici = dossier.id;
     const attendus = D.filter(x => !x.bulletins && !x.pointes && x.salaries && (x.mode === 'tenue') && !x.tenu);
@@ -1855,7 +1858,7 @@
       return `<tr data-pa-tous="${esc(x.entreprise)}" tabindex="0" class="${x.entreprise === ici ? 'sel' : ''}"><td class="tronq"><b>${esc(x.nom)}</b></td><td class="r nw">${x.bulletins} <span class="muted small">/ ${x.salaries}</span></td>
         <td class="small nw">${esc(pointageDuDossierTous(x))}</td><td><span class="cp-pa-etat ${ton}">${esc(mot)}</span></td>
         <td class="small">${!x.bulletins ? '—' : x.payes >= x.bulletins ? 'payés' : x.payes ? `${x.payes} sur ${x.bulletins} payés` : 'à payer'}</td></tr>`; };
-    return `<div class="panel mt" id="pa-tous"><div class="cp-pa-titre-l"><h2>${esc(titre)}</h2><span class="small muted" id="pa-tous-resume">${esc(pl(D.length, 'dossier avec une paie', 'dossiers avec une paie'))} · ${esc(pl(n, 'bulletin'))} ce mois</span></div>
+    return `${retour}<div class="panel mt" id="pa-tous"><div class="cp-pa-titre-l"><h2>${esc(titre)}</h2><span class="small muted" id="pa-tous-resume">${esc(pl(D.length, 'dossier avec une paie', 'dossiers avec une paie'))} · ${esc(pl(n, 'bulletin'))} ce mois</span></div>
       ${D.length ? `<div class="scroll-x"><table class="list compact" id="pa-tous-liste"><thead><tr><th>Dossier</th><th class="r nw">Bulletins / salariés</th><th>Pointage</th><th>Bulletins</th><th>Salaires</th></tr></thead>
         <tbody>${D.map(ligne).join('')}</tbody><tfoot><tr><th>${esc(pl(D.length, 'dossier'))}</th><th class="r nw">${n}</th><th colspan="3"></th></tr></tfoot></table></div>
         <p class="small muted mt">Une ligne ouvre la paie de son dossier. « Sans pointage » : les bulletins sont faits sur des mois complets.</p>`
