@@ -241,6 +241,18 @@ describe('les immobilisations 1.314.0 : le matériel de l\'épicerie, vu de part
     await expect.poll(pied).toBe(`3 biens 67 150,000 DT 12 383,611 DT 13 008,214 DT 25 391,825 DT 41 758,175 DT dont 1 sorti en ${Y} −650,000 DT −563,333 DT −86,667 DT À l'actif au 31/12/${Y} 66 500,000 DT 24 828,492 DT 41 671,508 DT`);
     t = await tableau();
     expect(t).toContain('Total 66 500,000 DT 12 383,611 DT 13 008,214 DT 24 828,492 DT 41 671,508 DT');
+    // (1.387.4, issue 10, CABPAIE-21) Au téléphone, la carte d'un bien garde son nom entier (il passait sous ses marques,
+    // coupé à zéro), et le pied nomme chacun de ses chiffres.
+    await c.setViewportSize({ width: 390, height: 844 });
+    const cartes = c.locator('#c-livres table.list[data-cartes]').filter({ has: c.locator('tfoot') });
+    await expect.poll(() => cartes.locator('tbody td.tronq').first().evaluate((e) => getComputedStyle(e).whiteSpace)).toBe('normal');
+    expect(await cartes.locator('tbody td.tronq').evaluateAll((l) => l.map((e) => {
+      const n = (e.querySelector('.face-p') || e) as HTMLElement;
+      return n.scrollWidth <= n.clientWidth + 1 && n.getBoundingClientRect().width > 80;
+    }))).toEqual([true, true, true]);
+    expect(await cartes.locator('#im-pied-actif th').evaluateAll((l) => l.filter((e) => getComputedStyle(e).display !== 'none')
+      .map((e) => getComputedStyle(e, '::before').content.replace(/"/g, '')))).toEqual(['none', 'Valeur', 'Cumul', 'VNC']);
+    await c.setViewportSize({ width: 1440, height: 900 });
 
     // F. Les écritures d'inventaire de l'exercice (trois dotations, la sortie de la balance) ; puis le client change encore
     // d'avis (6 ans) : le Cabinet le voit, mais une dotation écrite ne se recalcule pas en silence — le refus le dit.

@@ -868,3 +868,15 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 .im-avant-l { display: block; }
 /* (1.387.2) Le pied des immobilisations : la ligne des sorties, plus légère que les deux totaux. */
 .im-pied-sorties th { font-weight: 500; color: var(--sb-gris-2, var(--muted)); }
+/* (1.387.4, issue 10, CABPAIE-21) Au téléphone, la carte d'un bien perdait son nom : la case tronquée gardait sa largeur
+   de tableau, et les marques (« repris de 2024 ») prenaient toute la place. En carte, le nom passe à la ligne, entier,
+   ses marques dessous. Le pied dit le nom de chaque chiffre, comme les cartes du dessus. */
+@media (max-width: 760px) {
+  #c-livres table.list[data-cartes] > tbody > tr > td.tronq { max-width: none; width: auto; min-width: 0; overflow: visible; white-space: normal; text-overflow: clip; }
+  #c-livres table.list[data-cartes] td.tronq .face { flex-wrap: wrap; row-gap: 4px; }
+  #c-livres table.list[data-cartes] td.tronq .face-p { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+  #c-livres table.list[data-cartes] td.tronq .face-m { margin-inline-start: 0; }
+  #c-livres table.list[data-cartes] > tfoot > tr > th { display: block; min-width: 0; padding: 0; border: 0; background: none; text-align: start; font-size: 14px; font-variant-numeric: tabular-nums; }
+  #c-livres table.list[data-cartes] > tfoot > tr > th[data-tel="vide"] { display: none; }
+  #c-livres table.list[data-cartes] > tfoot > tr > th[data-label]:not([data-label=""])::before { content: attr(data-label); display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+}

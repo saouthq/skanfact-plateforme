@@ -5250,3 +5250,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   leurs trois groupes (Saisir, Consulter, Déclarer et clôturer), sur deux colonnes — tout tient sans défiler.
 - Un collaborateur « Saisie » n'y voit pas le groupe « Déclarer et clôturer », comme dans la barre.
 - La pastille « nouveau » du classeur part : il a plusieurs mois.
+
+## 1.387.4 — Immobilisations au téléphone : la carte d'un bien garde son nom (issue 10, CABPAIE-21)
+
+- **La carte d'un bien n'affichait que « repris de 2024 »** : la case du nom gardait sa largeur de tableau, et ses
+  marques prenaient la place. En carte, le nom passe à la ligne, entier, ses marques dessous — dans les deux tableaux
+  (les biens du client, les biens de l'exercice).
+- **Le pied nomme ses chiffres** (Valeur, Cumul au 01/01, Dotation, Cumul, VNC), comme les cartes du dessus ; les cases
+  vides ne prennent plus de place.

@@ -30695,6 +30695,9 @@ prouver $'le pied des immobilisations oublie le cumul des biens sortis' modules/
 # (1.387.3, issue 10, CABPAIE-20) « Tout le dossier » liste chaque écran de la comptabilité, sous le nom de son onglet.
 prouver $'le volet Tout le dossier oublie le premier écran de chaque groupe' modules/socle/ecrans/cabinet/app-1.js $'x.onglets.map(o => `<a class="pl-c"' $'x.onglets.slice(1).map(o => `<a class="pl-c"' $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 
+# (1.387.4, issue 10, CABPAIE-21) Au téléphone, la carte d'un bien garde son nom.
+prouver $'la carte d\'un bien perd son nom au téléphone' web/public/v10/cabinet/cabinet.css $'#c-livres table.list[data-cartes] > tbody > tr > td.tronq { max-width: none; width: auto; min-width: 0; overflow: visible; white-space: normal;' $'#c-livres table.list[data-cartes] > tbody > tr > td.tronq-non { max-width: none; width: auto; min-width: 0; overflow: visible; white-space: normal;' $'l\'épicerie de Sfax tient son matériel : la vitrine achetée en mars, l\'utilitaire, la balance revendue, et le comptable lit le même plan'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
