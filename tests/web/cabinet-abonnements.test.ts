@@ -147,6 +147,25 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     await expect.poll(toast).toBe('Écriture qui revient supprimée.');
     expect(await abos()).toEqual([]);
     expect((await ecritures()).length).toBe(dus.length);
+
+    // ── (1.385.7, issue 11 constat 12) La période validée : le départ proposé est le premier jour ouvert, et une
+    // génération écrit ce qui peut l'être en nommant le reste (elle était refusée en entier). ─────────────────────
+    expect((await api('POST', `/entreprises/${garage}/compta/valider`, associe, { jusqua: '2026-02-28' })).statut).toBe(200);
+    await p.reload();
+    await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
+    await ouvrir('#ab-new', '#ab-nom');
+    await expect.poll(() => fenetre.locator('#ab-depuis').inputValue()).toBe('01/03/2026');
+    await fenetre.locator('#ab-nom').fill('Assurance du local');
+    await fenetre.locator('#ab-depuis').fill('05012026');
+    await fenetre.locator('#ab-montant').fill('100');
+    await fenetre.locator('#ab-piece').fill('ASSUR');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Écriture qui revient enregistrée.');
+    await p.locator('#ab-gen').click();
+    const compteRendu = () => p.locator('#modal-root .modal').first().innerText().then((t) => t.replace(/\s+/g, ' '));
+    await expect.poll(compteRendu, { timeout: 30_000 }).toMatch(new RegExp(`${dus.length - 2} écritures? créées? en brouillard`));
+    expect(await compteRendu()).toMatch(/2 occurrences tombent dans la période validée \(janvier, février\) : elles ne se sont pas écrites/);
+    expect((await ecritures()).filter((e) => e.piece.startsWith('ASSUR')).map((e) => e.date.slice(0, 7))).toEqual(dus.slice(2));
     expect(erreurs).toEqual([]);
   }, 240_000);
 });

@@ -30600,6 +30600,15 @@ prouver $'fiche 1.385.6 : un solde par compte de banque' modules/socle/ecrans/ca
   $'const plusieursBq = false;' \
   $'(1.343.0) la bande réservée, les pastilles et le filtre, la réponse du client qui nomme son fournisseur, Entrée qui choisit sans enregistrer, le geste annoncé dans la carte'
 
+prouver $'saisie 1.385.7 a : le départ proposé est le premier jour ouvert' modules/socle/ecrans/cabinet/app-2.js \
+  $'      depuis: premierJourOuvertSa(), jusqua: \'\'' \
+  $'      depuis: `${new Date().getFullYear()}-01-01`, jusqua: \'\'' \
+  $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
+prouver $'saisie 1.385.7 b : la génération passe la période validée et la nomme' web/public/plateforme/pont-cabinet.js \
+  $'          if (valideJusqua && date <= valideJusqua) { bilan.validees.push(date); continue; }' \
+  $'' \
+  $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

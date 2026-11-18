@@ -414,8 +414,11 @@
     if (!d) throw new Error('Dossier introuvable.');
     const livre = await livreDe(o.dossierId, o.annee);
     const guides = K.guidesDuDossier(etat, d);
-    /** @type {{ crees: number, sansGuide: string[], horsExercice: number, details: any[] }} */
-    const bilan = { crees: 0, sansGuide: [], horsExercice: 0, details: [] };
+    /** @type {{ crees: number, sansGuide: string[], horsExercice: number, details: any[], validees: string[] }} */
+    const bilan = { crees: 0, sansGuide: [], horsExercice: 0, details: [], validees: [] };
+    // (1.385.7 ; issue 11, CABSAISIE-12) Une occurrence dans la période validée faisait refuser toute la génération :
+    // elle se passe, se nomme, et le reste s'écrit.
+    const valideJusqua = String((livre.exercice || {}).valideJusqua || '');
     const abonnements = (d.abonnements || []).map((/** @type {any} */ a) => ({ ...a, faites: [...(a.faites || [])] }));
     let notes = 0;
     try {
@@ -424,6 +427,7 @@
         if (!g) { if (a.actif) bilan.sansGuide.push(a.nom || a.id); continue; }
         for (const date of KC.occurrencesAGenerer(a, o.jusquA || K.today())) {
           if (date < livre.exercice.du || date > livre.exercice.au) { bilan.horsExercice++; continue; }
+          if (valideJusqua && date <= valideJusqua) { bilan.validees.push(date); continue; }
           const ecr = KC.ecritureDepuisGuide(g, { date, journal: g.journal, montant: a.montant, piece: a.piece ? `${a.piece}-${date.slice(0, 7)}` : '', libelle: a.libelle || a.nom });
           a.faites.push(date.slice(0, 7));
           notes++;

@@ -4824,6 +4824,9 @@
       livresState.livre = r.livre;
       const lignes = [r.crees ? `${pl(r.crees, 'écriture créée', 'écritures créées')} en brouillard.` : 'Rien de plus à générer : ce qui était dû est déjà au brouillard ou au livre.'];
       if (r.crees) lignes.push('Elles n\'ont pas de numéro : relis-les, puis valide-les.');
+      // (1.385.7 ; 11-12) Ce que la période validée a retenu se nomme, mois par mois.
+      const retenues = r.validees || [];
+      if (retenues.length) lignes.push(`${pl(retenues.length, 'occurrence tombe', 'occurrences tombent')} dans la période validée (${[...new Set(retenues.map(x => moisLong(x.slice(0, 7))))].join(', ')}) : ${retenues.length > 1 ? 'elles ne se sont pas écrites' : 'elle ne s\'est pas écrite'}. Si ${retenues.length > 1 ? 'elles manquent' : 'elle manque'} au livre, passe-${retenues.length > 1 ? 'les' : 'la'} à la main, à une date ouverte.`);
       if (r.horsExercice) lignes.push(`${pl(r.horsExercice, 'occurrence tombait', 'occurrences tombaient')} hors de l'exercice ${annee} : elles se génèreront dans le livre de leur année.`);
       if (r.sansGuide.length) lignes.push(`Guide introuvable pour : ${r.sansGuide.join(', ')}.`);
       await infoDialog('Écritures qui reviennent', lignes.join('\n\n'));
@@ -4832,11 +4835,21 @@
     finally { generationAbos = false; const b2 = $('#ab-gen', root); if (b2) b2.disabled = false; }
   }
 
+  // (1.385.7 ; issue 11, CABSAISIE-12) Le départ proposé d'une écriture qui revient : le premier jour ouvert — le
+  // lendemain de la période validée, sinon le 1er janvier de l'exercice ouvert à l'écran.
+  function premierJourOuvertSa() {
+    const ex = ((livresState.livre || {}).exercice) || {}, vj = String(ex.valideJusqua || '');
+    const debut = `${livresState.annee || new Date().getFullYear()}-01-01`;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(vj) || vj < debut) return debut;
+    const d = new Date(vj + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1);
+    return d.toISOString().slice(0, 10);
+  }
+
   function abonnementForm(root, dossier, abo) {
     const guides = K.guidesDuDossier(S, dossier);
     const a = abo ? { ...abo } : {
       id: '', nom: '', guideId: (guides[0] || {}).id || '', actif: true,
-      depuis: `${new Date().getFullYear()}-01-01`, jusqua: '', tousLesMois: 1, montant: 0, piece: '', libelle: '', faites: []
+      depuis: premierJourOuvertSa(), jusqua: '', tousLesMois: 1, montant: 0, piece: '', libelle: '', faites: []
     };
     modal(
       `<h2>${abo ? 'Modifier l\'écriture qui revient' : 'Nouvelle écriture qui revient'}</h2>

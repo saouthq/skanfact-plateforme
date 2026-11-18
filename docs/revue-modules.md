@@ -5127,3 +5127,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   reprend ses mots, « Banque rapprochée au … ».
 - **Les rapprochées « à la main »** comptaient aussi les propositions acceptées en lot : le résumé dit « acceptées ou
   pointées par le cabinet ».
+
+## 1.385.7 — Les écritures qui reviennent et la période validée (issue 11, CABSAISIE-12)
+
+- **Le départ proposé est le premier jour ouvert** : le lendemain de la période validée, sinon le 1er janvier de
+  l'exercice ouvert à l'écran (c'était toujours le 1er janvier de l'année en cours).
+- **Générer écrit ce qui peut l'être.** Une occurrence tombée dans la période validée faisait refuser toute la
+  génération : elle se passe, le compte rendu nomme ses mois, et les autres s'écrivent au brouillard.
