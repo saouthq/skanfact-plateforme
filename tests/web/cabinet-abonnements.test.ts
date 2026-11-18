@@ -103,7 +103,9 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     // Un double-clic pressé : la seconde génération attend la première, relit les mois faits, n'écrit rien.
     await p.locator('#ab-gen').dblclick();
     await expect.poll(() => p.locator('#modal-root .modal').first().innerText(), { timeout: 30_000 }).toMatch(new RegExp(`${dus.length}\\s+écritures? créées? en brouillard`));
-    // Les deux comptes rendus peuvent s'empiler : on ferme celui qui est au-dessus, quel qu'il soit.
+    // (1.385.0, issue 11 constat 12) UN compte rendu : le second clic ne lance pas une seconde génération (« 0 écriture créée »).
+    await p.waitForTimeout(1_500);
+    expect(await p.locator('#modal-root .modal').count()).toBe(1);
     for (let i = 0; i < 8 && await p.locator('#modal-root .modal').count(); i++) {
       for (const m of [p.locator('#modal-root .modal').last(), p.locator('#modal-root .modal').first()]) {
         if (await m.getByRole('button').last().click({ timeout: 1_500 }).then(() => true, () => false)) break;

@@ -5083,3 +5083,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« Depuis » s'écrit « 05/01/2026 »**, comme partout : la liste montrait « 2026-01-05 ».
 - **« Supprimer cette écriture qui revient » est au menu de la ligne**, en dernier, avec sa question. Il n'était que
   dans la fenêtre « Modifier ». Ce qu'elle a déjà créé reste au livre.
+
+## 1.385.0 — Les écritures qui reviennent : le double clic sur « Générer ce qui manque » (issue 11, CABSAISIE-12)
+
+- **Une seule génération à la fois** : un double clic lançait la seconde par-dessus la première, et sa fenêtre disait
+  « 0 écriture créée » alors qu'une venait de l'être. Le bouton s'éteint le temps du travail.
+- **Quand il n'y a rien à générer**, la fenêtre le dit (« Rien de plus à générer… ») au lieu de « 0 écriture créée ».

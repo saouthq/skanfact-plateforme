@@ -11003,8 +11003,8 @@ prouver 'un refus effacé à la frappe, qui fait remonter le bouton (alertes)' '
   'valeur={motif} changer={(v) => { setMotif(v); setRefus(null); }}' \
   'un seul bouton principal, qui passe à la suivante ; un motif vide se refuse, et le refus reste jusqu'"'"'au clic suivant'
 prouver 'un menu de règle qui sort de l'"'"'écran' 'web/console/src/ui.tsx' \
-  '    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });' \
-  '    setPlace({ top: b.bottom + 6, right: Math.max(8, window.innerWidth - b.right), haut });' \
+  '    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, Math.min(window.innerWidth - b.right, window.innerWidth - l - 8)), haut });' \
+  '    setPlace({ top: b.bottom + 6, right: Math.max(8, Math.min(window.innerWidth - b.right, window.innerWidth - l - 8)), haut });' \
   'la sourdine d'"'"'une règle, depuis son menu : la même fin dans le message et sur la ligne ; le menu reste dans l'"'"'écran'
 # (« un menu de règle qui fait sauter la page sous la souris » est retirée : le menu se pose sur la fenêtre depuis la
 # C20, il est toujours dans l'écran, et le focus n'a plus rien à faire défiler.)
@@ -14417,11 +14417,11 @@ prouver 'une première facture illisible devinée' 'serveur/console/clients.ts' 
   'une première facture illisible vaut « rien », jamais une date devinée'
 prouver 'la ligne tait son arrivée' 'serveur/console/routes.ts' \
   'ville: s.identites.get(e.id)?.ville ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e), surFiche: gestesSurLaFiche(role, e),
             // Son arrivée (0127), tant qu'"'"'elle dure : les marches franchies, la suivante, si elle est bloquée.
             arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),' \
   'ville: s.identites.get(e.id)?.ville ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            vues: VUES_CLIENTS.filter((v) => v !== '"'"'tout'"'"' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e), surFiche: gestesSurLaFiche(role, e),
             // Son arrivée (0127), tant qu'"'"'elle dure : les marches franchies, la suivante, si elle est bloquée.
             arrivee: null })),' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
@@ -30573,6 +30573,10 @@ prouver $'banque 1.384.6 b : l\'écart d\'une fin fausse ne se chiffre pas' modu
 
 prouver $'saisie 1.384.9 a : la date d\'une écriture qui revient en AAAA-MM-JJ' modules/socle/ecrans/cabinet/app-2.js \
   $"esc(a.depuis ? fmtJour(a.depuis) : '—')" $"esc(a.depuis || '—')" \
+  $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
+
+prouver $'saisie 1.385.0 a : un double clic lance deux générations' modules/socle/ecrans/cabinet/app-2.js \
+  $'    if (generationAbos) return;\n    generationAbos = true;\n    const bouton = $(\'#ab-gen\', root); if (bouton) bouton.disabled = true;' $'' \
   $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été

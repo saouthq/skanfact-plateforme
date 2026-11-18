@@ -4806,18 +4806,25 @@
     } catch (e) { toast(plainError(e), 'error'); }
   }
 
+  let generationAbos = false;
   async function genererAbonnements(root, dossier) {
+    // (1.385.0, issue 11, CABSAISIE-12) Un double clic lançait deux générations : la seconde répondait « 0 écriture
+    // créée » par-dessus la première, qui en avait créé une. Une seule à la fois, et le bouton le montre.
+    if (generationAbos) return;
+    generationAbos = true;
+    const bouton = $('#ab-gen', root); if (bouton) bouton.disabled = true;
     const annee = livresState.annee || String(new Date().getFullYear());
     try {
       const r = await api.genererAbonnements({ dossierId: dossier.id, annee, jusquA: K.today() });
       livresState.livre = r.livre;
-      const lignes = [`${pl(r.crees, 'écriture créée', 'écritures créées')} en brouillard.`];
+      const lignes = [r.crees ? `${pl(r.crees, 'écriture créée', 'écritures créées')} en brouillard.` : 'Rien de plus à générer : ce qui était dû est déjà au brouillard ou au livre.'];
       if (r.crees) lignes.push('Elles n\'ont pas de numéro : relis-les, puis valide-les.');
       if (r.horsExercice) lignes.push(`${pl(r.horsExercice, 'occurrence tombait', 'occurrences tombaient')} hors de l'exercice ${annee} : elles se génèreront dans le livre de leur année.`);
       if (r.sansGuide.length) lignes.push(`Guide introuvable pour : ${r.sansGuide.join(', ')}.`);
       await infoDialog('Écritures qui reviennent', lignes.join('\n\n'));
       render();
     } catch (e) { await infoDialog('Génération impossible', plainError(e)); }
+    finally { generationAbos = false; const b2 = $('#ab-gen', root); if (b2) b2.disabled = false; }
   }
 
   function abonnementForm(root, dossier, abo) {
