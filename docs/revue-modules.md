@@ -5440,3 +5440,10 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - Avant le 25, le panneau vide de la paie ne propose plus « Établir » : un bulletin ne s'établit pas avant la fin du mois, et un bouton qui sera refusé ne se montre pas.
 - « + H. sup » sans majoration réglée ne se contente plus d'un refus : la question dit pourquoi (« Les heures sup n'ont pas encore de majoration »), et « Régler les majorations » ouvre « Les horaires », le curseur dans la case. À VÉRIFIER : les taux de majoration auprès du comptable.
 - Deux preuves : hs-mene-au-reglage, etablir-vide-avant-25.
+
+## 1.387.37 — La fiche du salarié, constat 9 (issue 16), dans les deux applications
+
+- Un CIN « abc » se refuse sur sa case : un numéro de pièce d'identité porte des chiffres (un passeport garde ses lettres).
+- Un brut de plus de 50 000 DT par mois (99 999 999 999 tapé par erreur) se DEMANDE avant d'enregistrer, « Annuler » ramène à la case ; on ne refuse pas, un dirigeant peut gagner beaucoup. Même règle au Cabinet.
+- Les enfants à charge (0 à 20) et un CIN de chiffres à huit chiffres étaient déjà contrôlés (1.382.2).
+- Trois preuves : cin-sans-chiffre, brut-enorme-demande, cin-sans-chiffre-cabinet.

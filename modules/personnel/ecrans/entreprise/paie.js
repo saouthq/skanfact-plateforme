@@ -782,7 +782,13 @@
           { const en = String(v.children == null ? '' : v.children).trim(); const ce = $('#ef [name=children]', root);
             if (ce && en && (!/^\d{1,2}$/.test(en) || Number(en) > 20)) return refus(ce, 'Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');
             const ci = String(v.cin || '').replace(/\s/g, ''); const cc = $('#ef [name=cin]', root);
-            if (cc && ci && /^\d+$/.test(ci) && ci.length !== 8) return refus(cc, `Une carte d'identité compte huit chiffres : « ${ci} » en compte ${ci.length}. Pour un passeport ou une carte de séjour, écris le numéro avec ses lettres.`); }
+            if (cc && ci && /^\d+$/.test(ci) && ci.length !== 8) return refus(cc, `Une carte d'identité compte huit chiffres : « ${ci} » en compte ${ci.length}. Pour un passeport ou une carte de séjour, écris le numéro avec ses lettres.`);
+            // (1.387.37, issue 16, constat 9) « abc » passait pour un CIN : un numéro de pièce d'identité porte des chiffres.
+            if (cc && ci && !/\d/.test(ci)) return refus(cc, `« ${ci} » n'est pas un numéro de pièce d'identité : une carte d'identité compte huit chiffres, un passeport porte des lettres et des chiffres.`); }
+          // (1.387.37, issue 16, constat 9) 99 999 999 999 DT de brut s'enregistrait sans un mot : au-delà de 50 000 DT par
+          // mois, c'est presque toujours un zéro de trop. On demande, on ne refuse pas (un dirigeant peut gagner beaucoup).
+          if (Number(v.grossSalary) > 50000 && C.round3(Number(v.grossSalary)) !== C.round3(Number(e.grossSalary) || 0)
+            && !await confirmDialog(`Un salaire brut de ${C.money(Number(v.grossSalary))} par mois, c'est inhabituel : un zéro de trop ? Il entrera tel quel dans chaque bulletin et dans le coût de l'équipe.`, 'Enregistrer ce salaire', undefined, { titre: 'Ce salaire est très élevé', prudent: true })) return refus($('[name=grossSalary]', root), 'Vérifie le salaire brut mensuel.');
           // Ce que le fichier CNSS refuserait se refuse ICI, où l'on peut le corriger (10.14.1) : le
           // découvrir au moment de déclarer, c'est rouvrir la fiche sous l'échéance.
           if (String(v.cnss || '').trim() && !C.lireMatriculeCnss(v.cnss).ok) return refus($('[name=cnss]', root), 'Le matricule CNSS s\'écrit 12345678-90 : huit chiffres au plus, puis la clé sur deux (comme sur la carte d\'assuré).');

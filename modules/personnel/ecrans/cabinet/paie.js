@@ -2672,6 +2672,11 @@
         if (enfantsTxt && (!/^\d{1,2}$/.test(enfantsTxt) || Number(enfantsTxt) > 20)) return refus($('[name=enfants]', f), 'Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');
         const cinTxt = String(v.cin || '').replace(/\s/g, '');
         if (cinTxt && /^\d+$/.test(cinTxt) && cinTxt.length !== 8) return refus($('[name=cin]', f), `Une carte d'identité compte huit chiffres : « ${cinTxt} » en compte ${cinTxt.length}. Pour un passeport ou une carte de séjour, écris le numéro avec ses lettres.`);
+        // (1.387.37, issue 16, constat 9, le jumeau de l'entreprise) « abc » n'est pas un numéro de pièce d'identité, et un brut
+        // de plus de 50 000 DT par mois est presque toujours un zéro de trop : on demande, on ne refuse pas.
+        if (cinTxt && !/\d/.test(cinTxt)) return refus($('[name=cin]', f), `« ${cinTxt} » n'est pas un numéro de pièce d'identité : une carte d'identité compte huit chiffres, un passeport porte des lettres et des chiffres.`);
+        if (Number(v.brut) > 50000 && !(x && Number(x.brut) === Number(v.brut))
+          && !await confirmDialog('Ce salaire est très élevé', `Un salaire brut de ${money(Number(v.brut))} par mois, c'est inhabituel : un zéro de trop ? Il entrera tel quel dans chaque bulletin et dans l'écriture de paie.`, 'Enregistrer ce salaire')) return refus($('[name=brut]', f), 'Vérifie le salaire brut mensuel.');
         const ok = KC.salarieValide(v);
         if (!ok.ok) {
           const champ = /nom/.test(ok.motif) ? 'nom' : /sortie/.test(ok.motif) ? 'sortie' : /embauche/.test(ok.motif) ? 'embauche' : /brut/.test(ok.motif) ? 'brut' : '';

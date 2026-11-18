@@ -714,6 +714,20 @@ describe('le parcours, à la souris', () => {
     const largeur = () => p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width));
     const auDepart = await largeur();
     await p.locator('#ef input[name=name]').fill('Nour Ben Salah');
+    // (1.387.37, issue 16, constat 9) « abc » n'est pas un numéro de pièce ; un brut de 99 999 999 999 se demande, et
+    // « Annuler » ramène à sa case.
+    await p.locator('#ef input[name=grossSalary]').fill('612');
+    await p.locator('#ef input[name=cin]').fill('abc');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^« abc » n'est pas un numéro de pièce d'identité/);
+    await p.locator('#ef input[name=cin]').fill('');
+    await p.locator('#ef input[name=grossSalary]').fill('99999999999');
+    await p.locator('#modal-root #ok').click();
+    const tropHaut = p.locator('.modal').filter({ hasText: 'Ce salaire est très élevé' });
+    await tropHaut.waitFor({ timeout: 10_000 });
+    await tropHaut.locator('[data-close]').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('Vérifie le salaire brut mensuel.');
+    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('grossSalary');
     await p.locator('#ef input[name=grossSalary]').fill('612');
     const embauche = p.locator('#ef .datefield').filter({ has: p.locator('input[name=hireDate]') }).locator('.d-txt');
     await embauche.fill('01/01/2026');
