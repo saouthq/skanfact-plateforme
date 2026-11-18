@@ -77,6 +77,7 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     // La BIAT à 5 000 DT ; une facture de papeterie impayée de 101,150 DT (85 HT + 19 %).
     await api('POST', `/entreprises/${ent}/dossier-v10`, sarra, { changements: [
       { collection: 'accounts', cle: 'biat', rang: 0, revision: null, contenu: { id: 'biat', name: 'BIAT', kind: 'banque', bank: 'BIAT', rib: '', opening: n('5000'), openingDate: '2026-01-01', isDefault: true, statementBalance: '', notes: '' } },
+      { collection: 'accounts', cle: 'caisse', rang: 1, revision: null, contenu: { id: 'caisse', name: 'Caisse', kind: 'caisse', opening: n('0'), openingDate: '2026-01-01', isDefault: false } },
       { collection: 'suppliers', cle: 's2', rang: 0, revision: null, contenu: { id: 's2', name: 'Papeterie El Manar', paymentTermsDays: 0 } },
       { collection: 'purchases', cle: 'a2', rang: 0, revision: null, contenu: { id: 'a2', kind: 'facture', number: 'PEM-2611-17', date: '2026-11-12', dueDate: '2026-11-12', supplierId: 's2', currency: 'DT', fees: 0, withholdingRate: 0,
         category: 'Fournitures de bureau', createdAt: Date.parse('2026-11-12T09:00:00Z'), attachments: [], payments: [], lines: [{ label: 'Papier thermique (carton de 50)', qty: n('1'), unitPrice: n('85.000'), vatRate: 19, destination: 'charge' }] } },
@@ -112,7 +113,7 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     await p.getByRole('button', { name: 'Enregistrer un règlement' }).first().click({ timeout: 20_000 });
     const f = p.locator('.modal').filter({ has: p.locator('#spf') });
     await f.waitFor({ timeout: 10_000 });
-    expect((await f.locator('[name=accountId] option').allInnerTexts()).map(net)).toEqual(['BIAT', 'De ta poche : l\'entreprise te le doit']);
+    expect((await f.locator('[name=accountId] option').allInnerTexts()).map(net)).toEqual(['BIAT', 'Caisse', 'De ta poche : l\'entreprise te le doit']);
     await f.locator('[name=accountId]').selectOption('@poche');
     await f.locator('[data-mode=carte]').click();
     expect(await f.locator('[name=accountId]').inputValue()).toBe('@poche');
@@ -139,6 +140,29 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toBe('Remboursement noté : 160,650 DT rendus le 13/11/2026.');
     await expect.poll(() => p.locator('#tr-s-avances-l').count(), { timeout: 10_000 }).toBe(0);
     await expect.poll(async () => net(await p.locator('#tr-resume .mg-chiffre b').first().innerText()), { timeout: 10_000 }).toMatch(/^4 839,350 ?DT$/);
+
+    // 4 bis. (1.387.24, issue 16, constat 3) Un virement plus gros que ce que la BIAT porte (4 839,350) : SkanFact demande
+    // avant d'enregistrer ; « Annuler » ne laisse rien derrière.
+    const nMv = () => p.evaluate(() => ((window as unknown as { __data: { movements?: unknown[] } }).__data.movements || []).length);
+    const avantVir = await nMv();
+    await p.locator('#tr-comptes [data-rowmenu]').first().click();
+    await p.getByRole('menuitem', { name: /^Noter un mouvement sur ce compte/ }).click();
+    const v = p.locator('.modal').filter({ has: p.locator('#mf2') });
+    await v.waitFor({ timeout: 10_000 });
+    await v.locator('[name=kind]').selectOption('virement');
+    await v.locator('[name=versAccountId]').selectOption('caisse');
+    await v.locator('[name=amount]').fill('6000');
+    await v.locator('[name=label]').fill('Fonds de caisse');
+    await v.locator('#ok').click();
+    const q = p.locator('.modal').filter({ hasText: 'Le compte passe dans le rouge' });
+    await q.waitFor({ timeout: 10_000 });
+    expect(net(await q.innerText())).toContain('porte 4 839,350 DT au 13/11/2026 : après ce virement, il serait à');
+    await q.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await v.waitFor({ timeout: 5_000 });
+    expect(await nMv()).toBe(avantVir);
+    await v.locator('[name=amount]').fill('100');
+    await v.locator('#ok').click();
+    await expect.poll(() => nMv(), { timeout: 10_000 }).toBe(avantVir + 1);
 
     // 5. Deux chemins, un chiffre : les écritures de l'application et celles du brouillard du Cabinet.
     type Ligne = { compte: string; debit: string; credit: string };

@@ -30752,6 +30752,7 @@ prouver $'le taux dégressif n\'a pas son étoile' modules/socle/ecrans/cabinet/
 prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
 prouver $'frise-paie' modules/socle/ecrans/cabinet/app-1.js $"        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; }" $'' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 prouver $'paie-sans-avis-ordinateur' modules/socle/ecrans/cabinet/app-1.js $'      if (/\\/comptabilite\\/paie(\\/|$)/.test(location.hash)) return;' $'' $'faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde'
+prouver $'virement-dans-le-rouge' modules/socle/ecrans/entreprise/app-2.js $'            if (dep && apres < -0.0005 && !await confirmDialog(' $'            if (false && !await confirmDialog(' $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

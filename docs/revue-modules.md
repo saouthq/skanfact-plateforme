@@ -5386,3 +5386,7 @@ Au Cabinet, cliquer « nov. » dans la bande des mois l'entourait, et la Paie re
 ### 1.387.23 — la Paie au téléphone sans l'avis « Pensé pour un ordinateur » (issue 10, CABPAIE-37)
 
 La Paie d'un dossier est refaite en cartes au téléphone, mais l'avis « Pensé pour un ordinateur » s'ajoutait aux bandeaux et repoussait le mois sous un deuxième écran. Il ne se pose plus sur la Paie (il reste sur les autres écrans de comptabilité, qui sont à l'étroit). Test : `cabinet-paie-parcours` (« faite par le client seul… au téléphone »), prouvé. Reste ouvert : les onglets des vues coupés (la charte décide qu'une rangée trop longue défile de côté ; un indice de défilement est à proposer).
+
+### 1.387.24 — un virement qui met le compte dans le rouge se demande (issue 16, constat 3)
+
+Dans la Trésorerie de l'entreprise, un virement de 100 000 DT partait d'un compte à 50 000 sans un mot. Avant d'enregistrer, SkanFact dit ce que le compte de départ porte à la date du virement et ce qu'il porterait après, et demande « Enregistrer quand même ? » : un découvert autorisé existe, on ne bloque pas. Une modification d'un virement déjà rangé compte son montant d'avant. Test : `poche-1358` (étape 4 bis : 6 000 DT d'une BIAT à 4 839,350, la question, « Annuler » qui ne laisse rien, puis 100 DT qui passent), prouvé. V-11 de l'issue 15 (une lettre hors champ qui ouvre la Caisse) est couvert par la correction de l'issue 12 et la Caisse désactivée.

@@ -3409,6 +3409,15 @@
           // Lu AVANT de ranger : `m` est le mouvement rangé lui-même quand on le modifie.
           const dvM = valideDuMouvement(v);
           const vir = v.kind === 'virement';
+          // (1.387.24, issue 16, constat 3) Un virement plus gros que ce que le compte de départ porte à sa date : on demande,
+          // on ne refuse pas (un découvert autorisé existe). 100 000 partaient d'un compte à 50 000 sans un mot.
+          if (vir) {
+            const dep = data.accounts.find(x => x.id === v.accountId);
+            const deja = mv && mv.kind === 'virement' && mv.accountId === v.accountId && String(mv.date) <= String(v.date) ? Math.abs(Number(mv.amount)) || 0 : 0;
+            const porte = C.round3(C.accountBalance(data, company(), v.accountId, v.date).balance + deja);
+            const apres = C.round3(porte - Math.abs(Number(v.amount)));
+            if (dep && apres < -0.0005 && !await confirmDialog(`Le compte « ${dep.name || 'de départ'} » porte ${C.money(porte, company().currency)} au ${C.fmtDate(v.date)} : après ce virement, il serait à ${C.money(apres, company().currency)}. Enregistrer quand même ?`, 'Enregistrer le virement', undefined, { titre: 'Le compte passe dans le rouge' })) return;
+          }
           Object.assign(m, v, { amount: Math.abs(Number(v.amount)), compte: vir ? '' : String(v.compte || '').trim() });
           if (!vir) { delete m.versAccountId; delete m.reconciledVers; }
           if (v.kind === 'emprunt' && Number(v.interets) > 0) m.interets = C.round3(Number(v.interets)); else delete m.interets;
