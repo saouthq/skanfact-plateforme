@@ -5434,3 +5434,9 @@ Depuis la 1.385.0, l'écran ne lance plus qu'une génération à la fois : le do
 ### 1.387.35 — une retenue d'avance plus grande que le net se refuse ; « Annuler ce départ » (issue 16, constats 10 et 12)
 
 La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et enregistrait quand même : le bulletin suivant aurait été négatif. Elle se refuse maintenant en montrant la case, et propose un étalement. Le bouton qui défait la sortie d'un salarié s'appelait « Il reste finalement », lu comme un titre : il dit le geste, « Annuler ce départ ». Tests : `paie-avance-fenetre`, `libelles-gest19-1387` ; deux preuves.
+
+## 1.387.36 — La paie, constats 6 et 7 (issue 16)
+
+- Avant le 25, le panneau vide de la paie ne propose plus « Établir » : un bulletin ne s'établit pas avant la fin du mois, et un bouton qui sera refusé ne se montre pas.
+- « + H. sup » sans majoration réglée ne se contente plus d'un refus : la question dit pourquoi (« Les heures sup n'ont pas encore de majoration »), et « Régler les majorations » ouvre « Les horaires », le curseur dans la case. À VÉRIFIER : les taux de majoration auprès du comptable.
+- Deux preuves : hs-mene-au-reglage, etablir-vide-avant-25.

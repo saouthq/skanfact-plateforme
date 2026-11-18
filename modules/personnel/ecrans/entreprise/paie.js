@@ -2621,7 +2621,7 @@
             : `<div class="empty" id="p-vide">${missing.length
               ? modeDuMois(y, m) === 'tenue'
                 ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ton cabinet prépare les ${missing.length > 1 ? `${missing.length} bulletins` : 'bulletin'} ${ptEnvoye(y, m) ? (missing.length > 1 ? 'et te les envoie' : 'et te l\'envoie') : 'dès que tu lui envoies le pointage'}.`
-                : `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ${pl(missing.length, 'salarié')} à payer ce mois-là.${enLecture('payslips') ? ''
+                : `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : ${pl(missing.length, 'salarié')} à payer ce mois-là.${enLecture('payslips') || avant25(y, m) ? ''
                 : `<div class="mt"><button class="btn" id="p-gen-vide">Établir ${missing.length > 1 ? `les ${missing.length} bulletins` : 'le bulletin'}</button></div>`}`
               : `Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : il n'y a pas de bulletin à établir ce mois-là.${ailleurs
                 ? `<div class="mt"><button class="btn btn-primary" id="p-vers-mois">Voir ${h(MONTHS_LONG[ailleurs.month - 1])} ${ailleurs.year}</button></div>` : ''}`}</div>`}
@@ -3423,7 +3423,13 @@
     function ouvrirAjout(e, iso, quoi, apres) {
       const x = etatJour(e, iso); if (!x || !peutPointerLe(iso)) return;
       if (x.j.code !== 'P' || x.j.repos) { toast(`${e.name} n'est pas noté « Là » ce jour-là : ${quoi === 'retard' ? 'un retard ne s\'ajoute' : 'des heures sup ne s\'ajoutent'} qu'à une journée de présence.`, true); return; }
-      if (quoi === 'hs' && !C.majorationsHs(C.payrollSettings(data)).length) { toast('Pour noter des heures sup, règle d\'abord leur majoration dans « Les horaires » (À VÉRIFIER : le Code du travail et ta convention).', true); return; }
+      // (1.387.36, issue 16, constats 6 et 7) Le refus mène au réglage qui le lève : une bulle sans bouton laissait chercher
+      // « Les horaires », et les quatre questions du pointage ne parlent pas des majorations.
+      if (quoi === 'hs' && !C.majorationsHs(C.payrollSettings(data)).length) {
+        confirmDialog('Pour noter des heures sup, règle d\'abord leur majoration (le pourcentage ajouté à l\'heure normale) dans « Les horaires ». À VÉRIFIER : le Code du travail et ta convention.', 'Régler les majorations', false, { titre: 'Les heures sup n\'ont pas encore de majoration' })
+          .then(async ok => { if (!ok) return; await allerVue('pt-horaires'); const c = $('#pt-h input[name="hsMaj1"]'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); c.select(); } });
+        return;
+      }
       if (quoi === 'retard' && x.j.retardBadge) { toast(`Le retard de ${e.name} vient de ses badges (arrivée à ${x.b ? x.b.arrivee : '—'}) : il reste noté ; il ne se retient que si ton réglage le dit.`, true); return; }
       s.ptjOuvre = { id: e.id, iso, quoi }; apres();
     }

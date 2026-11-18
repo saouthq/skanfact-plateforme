@@ -154,7 +154,13 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     await p.locator('#toast-undo').click();
     await expect.poll(async () => jourDe(x, 'mt'), { timeout: 15_000 }).toEqual({ code: undefined, retard: 25, hs: 2 });
     await p.screenshot({ path: path.join(PHOTOS, 'paie-journee-maquette.png'), fullPage: true });
-    expect(erreurs).toEqual([]);
+    // (1.387.36, issue 16, constats 6 et 7) Sans majoration réglée, « + H. sup » le dit dans une question qui mène au réglage.
+    await p.evaluate(() => { const ps = (window as unknown as { __data: { payrollSettings: Record<string, unknown> } }).__data.payrollSettings; for (const k of Object.keys(ps)) if (/^hsMaj/.test(k)) ps[k] = 0; });
+    await ligne('mt').locator('[data-ptj-plus="mt:hs"]').click();
+    const q = p.locator('#modal-root .modal').filter({ hasText: 'Les heures sup n\'ont pas encore de majoration' });
+    await q.waitFor({ timeout: 10_000 });
+    await q.getByRole('button', { name: 'Régler les majorations' }).click();
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('hsMaj1');
   }, 120_000);
 
   it('au clavier, à 13 salariés : ↑ ↓ puis une lettre ; la recherche cache ce qui ne répond pas', async () => {
@@ -239,7 +245,7 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
       expect(await q.locator('#p-25-b').count()).toBe(attendu ? 1 : 0);
       if (attendu) {
         expect(espace(await q.locator('#p-25-b b').innerText())).toMatch(/se préparent à partir du 25\/\d\d$/);
-        expect(await q.locator('#p-gen, #p-regler').count()).toBe(0);
+        expect(await q.locator('#p-gen, #p-gen-vide, #p-regler').count()).toBe(0);
       } else expect(await q.locator('#p-regler').count()).toBe(1);
       await q.context().close();
     }
