@@ -4951,6 +4951,9 @@
     // (1.378.6 ; issue 9, CABDECLARER-19) Les tuiles comptent les brouillards, la balance non : la fiche le dit, avec
     // leur nombre, pour que ses chiffres se retrouvent dans la balance (« Compter les écritures en brouillard »).
     let brVente = 0, brBanque = 0;
+    // (1.385.6 ; issue 11-19) Un solde par compte de banque : deux comptes fondus en un chiffre ne se retrouvaient sur
+    // aucun relevé.
+    const parCompteBq = {};
     for (const e of (livre && livre.ecritures) || []) {
       if (e.statut === 'contrepassee') continue;
       const x = m0(String(e.date).slice(0, 7));
@@ -4963,7 +4966,7 @@
       for (const l of e.lignes || []) {
         const c = String(l.compte || ''), d = Number(l.debit) || 0, k = Number(l.credit) || 0;
         if (/^70/.test(c)) { x.ca += k - d; lignesVente++; }
-        if (/^532/.test(c)) { banque += d - k; x.banque++; lignesBanque++; }
+        if (/^532/.test(c)) { banque += d - k; x.banque++; lignesBanque++; parCompteBq[c] = (parCompteBq[c] || 0) + d - k; }
         if (/^471/.test(c)) { attente += d - k; if (!l.lettre) attenteLignes++; }
       }
     }
@@ -4986,7 +4989,9 @@
     // (1.371.0) Ce que « Par où commencer » coche : le livre existe-t-il, ses soldes repris, ses salariés, ses biens.
     const debut = { existe: !!livre, soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ((livre && livre.ecritures) || []).some(e => e.journal === 'AN' && e.statut !== 'contrepassee'),
       salaries: ((livre && livre.salaries) || []).length, biens: ((livre && livre.immobilisations) || []).length };
-    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque };
+    const nomDuCompte = c => String((((livre && livre.plan) || []).find(x => x.compte === c) || {}).libelle || '').trim();
+    const comptesBq = Object.keys(parCompteBq).sort().map(c => ({ compte: c, nom: nomDuCompte(c), solde: Math.round(parCompteBq[c] * 1000) / 1000 }));
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque, comptesBq };
   }
   async function chargerLivreFd(d, annee) {
     const cle = `${d.id}:${annee}`;
@@ -5096,13 +5101,14 @@
     const nDecl = deposees.length, nPayees = deposees.filter(v => v.payee).length;
     const tile = (lab, val, sous, ton = '') => `<div class="fd-ch-t ${ton}"><span class="fd-ch-l">${lab}</span><b>${val}</b><small>${sous}</small></div>`;
     const dtFd = v => `${esc(dtCd(v))} <i>DT</i>`;
+    const plusieursBq = ((L && L.comptesBq) || []).length > 1;
     const brDit = n => (n ? ` · ${pl(n, 'brouillard compris', 'brouillards compris')}` : '');
     const chiffres = refus ? `<div class="panel fd-ch-err" role="status"><b>Ses livres n'ont pas pu se lire</b><span>${esc(refus)} Rien n'est perdu : la page se remplit dès que la lecture réussit.</span><button type="button" class="btn btn-sm" id="fd-relire"${hors ? ' disabled' : ''}>Réessayer</button></div>`
       : !L ? '<div class="fd-ch fd-ch-sq" aria-busy="true"><i></i><i></i><i></i><i></i></div>'
         : `<div class="fd-ch" role="group" aria-label="En un coup d'œil">
           ${L.lignesVente ? tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses livres${brDit(L.brVente)}`) : tile(`Chiffre d'affaires ${annee}`, '—', 'aucune vente dans ses livres')}
           ${tile(`Déclaré à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')}${nDecl ? ` · ${nPayees === nDecl ? (nDecl > 1 ? 'toutes notées payées' : 'notée payée') : nPayees ? `${nPayees} ${nPayees > 1 ? 'notées payées' : 'notée payée'}` : 'aucune notée payée'}` : ''} · sans la CNSS`, 'ok')}
-          ${tile(`Banque${L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', (L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé') + brDit(L.brBanque), L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
+          ${tile(`Banque${plusieursBq ? ` · ${L.comptesBq.length} comptes` : L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', (plusieursBq ? `<span class="fd-ch-cb">${L.comptesBq.map(c => `<span>${esc(c.compte)}${c.nom && L.comptesBq.filter(x => x.nom === c.nom).length === 1 ? ` ${esc(c.nom)}` : ''} : <b>${esc(dtCd(c.solde))}</b></span>`).join('')}</span>` : '') + (L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé') + brDit(L.brBanque), L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
           ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
 
     // La révision du dernier mois, point par point.

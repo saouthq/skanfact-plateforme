@@ -71,6 +71,8 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
       await saisir('2026-03-01', 'AC', 'EM-12', 'Sachets', [['6061', '80', ''], ['401', '', '80', 'Emballages du Sahel']]),
       await saisir('2026-03-02', 'BQ', 'VIR-1', 'Virement du client Dupont', [['532', '1190,250', ''], ['411', '', '1190,250', 'Dupont']]),
       await saisir('2026-03-10', 'BQ', 'CHQ-1234', 'Chèque 1234', [['6061', '700', ''], ['532', '', '700']]),
+      // (1.385.6 ; issue 11-19) Un second compte de banque : la fiche du dossier donne un solde par compte.
+      await saisir('2026-01-01', 'AN', 'AN-2', 'Solde du second compte repris', [['5322', '3000', ''], ['101', '', '3000']]),
     ];
     expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids })).statut).toBe(200);
     // Le relevé de mars : le virement et le chèque se proposent, les frais sont à traiter, le chèque 4410 072 est au client.
@@ -150,7 +152,7 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
     expect(await pastille('tout').getAttribute('aria-pressed')).toBe('true');
     expect(await p.locator('table.bq-t').innerText()).not.toMatch(/Aucune ligne dans cet état/);
     const ecrites = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as { id: string; piece: string; statut: string; lignes: { compte: string; tiers: string | null }[] }[];
-    const nouvelle = ecrites.find((e) => !['AN-1', 'FA-0901', 'LV-77', 'EM-12', 'VIR-1', 'CHQ-1234'].includes(e.piece));
+    const nouvelle = ecrites.find((e) => !['AN-1', 'AN-2', 'FA-0901', 'LV-77', 'EM-12', 'VIR-1', 'CHQ-1234'].includes(e.piece));
     expect(nouvelle?.statut).toBe('brouillard');
     expect(nouvelle?.lignes.map((l) => [l.compte, l.tiers])).toEqual([['532', null], ['401', 'Minoterie du Cap Bon']]);
     expect((await releves(ent, associe))[0]?.lignes[1]?.rapprochement?.ecriture).toBe(nouvelle?.id);
@@ -169,6 +171,15 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
     expect(await p.locator('#bq-voir-faites').count()).toBe(0);
     expect(await choisie()).not.toBe('');
 
+    // (1.385.6 ; issue 11-19) La fiche du dossier : deux comptes de banque, un solde chacun sous le total — plus un seul
+    // chiffre fondu sous le nom d'une seule banque.
+    const net = (t: string) => t.replace(/\s+/g, ' ');
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}`; }, ent);
+    const tuileBq = p.locator('.fd-ch-t').filter({ hasText: /^\s*Banque/ });
+    await expect.poll(async () => net(await tuileBq.innerText().catch(() => '')), { timeout: 30_000 }).toMatch(/Banque · 2 comptes/i);
+    expect(await tuileBq.locator('.fd-ch-cb > span').count()).toBe(2);
+    expect(net(await tuileBq.locator('.fd-ch-cb').innerText())).toMatch(/532 : 10\s071,870 5322 : 3\s000,000/);
+    await p.screenshot({ path: path.join(PHOTOS, 'banque-1385-6-fiche-deux-comptes.png') });
     expect(erreurs).toEqual([]);
     await ctx.close();
   }, 180_000);

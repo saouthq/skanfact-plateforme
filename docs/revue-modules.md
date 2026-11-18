@@ -5117,3 +5117,13 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **« Importer le relevé de décembre »** restait au-dessus d'un fichier de novembre : une fois le fichier lu, le titre
   nomme son mois (et le compte choisi).
+
+## 1.385.6 — La fiche du dossier : un solde par compte de banque (issue 11, CABSAISIE-19 et 17)
+
+- **Deux comptes de banque, deux soldes.** La tuile « Banque » fondait les comptes en un seul chiffre, sous le nom de
+  la dernière banque importée : ce total ne se retrouvait sur aucun relevé. Elle dit « Banque · 2 comptes », le total,
+  et le solde de chaque compte dessous (son numéro, son nom quand il le distingue).
+- **« Le Tableau de bord le dit »** citait une phrase que le Tableau de bord n'écrit pas : la bande d'un mois rapproché
+  reprend ses mots, « Banque rapprochée au … ».
+- **Les rapprochées « à la main »** comptaient aussi les propositions acceptées en lot : le résumé dit « acceptées ou
+  pointées par le cabinet ».

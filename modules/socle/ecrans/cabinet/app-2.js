@@ -741,7 +741,7 @@
         <div class="bq-fini2" role="status"><span class="bq-fini-ic">${svgBq(BQ_IC.ok, 22)}</span><b>${esc(mois)} est rapproché${R.banque ? ` à la ${esc(R.banque)}` : ''}</b>
           <p>${pl(R.lignes.length - att, 'mouvement')} sur ${R.lignes.length} ${R.lignes.length - att > 1 ? 'ont leur écriture' : 'a son écriture'}.${att ? ` ${att > 1 ? `${att} attendent` : '1 attend'} la réponse ${esc(deClientBq(dossier))}, au compte d'attente (471) : rien ne bloque, cela se réglera de sa réponse.` : ''}</p>
           <div class="cp-gestes"><button type="button" class="btn btn-primary" data-bq-etat>L'état de rapprochement (PDF)</button>${lect ? '' : `<button type="button" class="btn" id="bq-import">Importer le relevé${suivant ? ` ${/^[aeiou]/i.test(suivant) ? 'd\'' : 'de '}${esc(suivant)}` : ''}…</button>`}<button type="button" class="btn btn-ghost" id="bq-revoir">Revoir ${esc(moisCourt)}</button></div>
-          <span class="mu">Le Tableau de bord le dit : « banque à jour au ${esc(fmtJour(R.au).slice(0, 5))} ».</span></div>
+          <span class="mu">Le Tableau de bord le dit : « Banque rapprochée au ${esc(fmtJour(R.au).slice(0, 5))} ».</span></div>
         ${piedBanque(R, EC)}</div>`;
     }
     return `<div class="bq-ecran"><div class="bq-h"><div><b>Relevé ${esc(R.banque || 'de banque')} · ${esc(moisDuReleve(R))}
@@ -778,7 +778,8 @@
     const sf = faites.filter(x => x.e && x.e.source === 'skanfact').length;
     // (1.384.7, issue 11, CABSAISIE-17) « 14 à la main, 1 depuis SkanFact » faisait quinze pour quatorze : l'écriture née
     // dans SkanFact est l'une des quatorze, pas une de plus. Elle se dit « dont ».
-    const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} à la main` : ''].filter(Boolean);
+    // (1.385.6 ; 11-17) Un lot accepté d'après la proposition n'est pas « à la main » : le cabinet l'a accepté ou pointé.
+    const parts = [auto ? `${auto} d'office` : '', faites.length - auto ? `${faites.length - auto} ${faites.length - auto > 1 ? 'acceptées ou pointées' : 'acceptée ou pointée'} par le cabinet` : ''].filter(Boolean);
     return parts.length ? ` · ${parts.join(', ')}${sf ? ` — dont ${sf} sur une écriture venue de SkanFact` : ''}` : '';
   }
   // (1.208.0, B6) D'où vient une rapprochée, comme la maquette : ce que son écriture paie ou porte (la paie du mois, le

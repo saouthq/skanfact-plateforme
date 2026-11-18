@@ -169,7 +169,7 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
         const al = Number((cs.borderTopColor.match(/[\d.]+(?=\)$)/) ?? ['1'])[0]);
         return { bord: cs.borderTopWidth, alpha: cs.borderTopColor.startsWith('rgba') ? al : 1, fond: cs.backgroundColor, panneau: pan.backgroundColor };
       });
-      expect(parseFloat(c.bord)).toBeGreaterThanOrEqual(1);
+      expect(Number(c.bord.replace('px', ''))).toBeGreaterThanOrEqual(1);
       expect(c.alpha).toBeGreaterThan(0.15);
       await p.screenshot({ path: path.join(PHOTOS, `cabinet-saisie-grille-${sombre ? 'sombre' : 'clair'}.png`) });
     }
@@ -248,7 +248,7 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('.c-barre').isVisible(), { timeout: 10_000 }).toBe(true);
     await p.evaluate(() => document.getElementById('view')?.scrollTo(0, 0));
     expect(Math.abs(await hautDesOnglets() - enSaisir)).toBeLessThanOrEqual(2);
-    expect(await p.evaluate(() => { const n = document.querySelector('.c-nav')!.getBoundingClientRect(), b = document.querySelector('.c-barre')!.getBoundingClientRect(); return b.top >= n.bottom; })).toBe(true);
+    expect(await p.evaluate(() => { const n = document.querySelector('.c-nav')?.getBoundingClientRect(), b = document.querySelector('.c-barre')?.getBoundingClientRect(); return !!n && !!b && b.top >= n.bottom; })).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-consulter-periode.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);

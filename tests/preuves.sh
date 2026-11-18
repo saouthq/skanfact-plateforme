@@ -30595,6 +30595,11 @@ prouver $'banque 1.385.5 a : le titre de l\'import garde le mois attendu' module
   $"          if (titreRv && premierJour) titreRv.textContent" $"          if (false) titreRv.textContent" \
   $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
 
+prouver $'fiche 1.385.6 : un solde par compte de banque' modules/socle/ecrans/cabinet/app-1.js \
+  $'const plusieursBq = ((L && L.comptesBq) || []).length > 1;' \
+  $'const plusieursBq = false;' \
+  $'(1.343.0) la bande réservée, les pastilles et le filtre, la réponse du client qui nomme son fournisseur, Entrée qui choisit sans enregistrer, le geste annoncé dans la carte'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -116,6 +116,9 @@
 .fd-ch-t b i { font-style: normal; font-size: 12px; font-weight: 600; color: var(--sb-gris); }
 .fd-ch-t small { font-size: 12px; color: var(--sb-gris); }
 .fd-ch-t.ambre small { color: var(--sb-ambre-texte); }
+/* (1.385.6) Un solde par compte de banque, sous le total. */
+.fd-ch-cb { display: grid; gap: 1px; margin-block-end: 2px; color: var(--sb-gris); }
+.fd-ch-cb b { font-size: 12px; font-weight: 600; letter-spacing: 0; color: inherit; }
 .fd-m { position: relative; padding-bottom: 12px; overflow: hidden; }
 .fd-m-ca { position: absolute; left: 7px; bottom: 6px; height: 4px; width: calc((100% - 14px) * var(--w) / 100); border-radius: 3px; background: color-mix(in srgb, var(--sb-encre) 22%, transparent); }
 .fd-m.fait .fd-m-ca { background: color-mix(in srgb, var(--sb-sarcelle) 55%, transparent); }
