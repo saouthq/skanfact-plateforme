@@ -5241,3 +5241,12 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   Chaque ligne s'additionne de gauche à droite (valeur − cumul = valeur nette).
 - Les mentions « hors total » des lignes disparaissent : elles n'ont plus rien à expliquer.
 - Sans bien sorti, le pied reste sur une ligne, comme avant. Le moteur ne change pas : c'est l'écran qui additionne.
+
+## 1.387.3 — « Tout le dossier » : chaque page, sous le nom de son onglet (issue 10, CABPAIE-20)
+
+- **Le volet portait sept entrées sous d'autres noms que les onglets** (« Banque et lettrage », « Paie du dossier »,
+  « Bilan et clôture ») et oubliait la Saisie, les Immobilisations et l'Inventaire. Il se déduit maintenant des deux
+  tables de la comptabilité : la fiche, le classeur, les pièces, les messages, puis les quatorze écrans rangés dans
+  leurs trois groupes (Saisir, Consulter, Déclarer et clôturer), sur deux colonnes — tout tient sans défiler.
+- Un collaborateur « Saisie » n'y voit pas le groupe « Déclarer et clôturer », comme dans la barre.
+- La pastille « nouveau » du classeur part : il a plusieurs mois.

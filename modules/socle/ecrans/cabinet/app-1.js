@@ -2490,6 +2490,17 @@
   // La comptabilité d'un dossier dans la barre (1.207.0, maquette) : son titre (« Comptabilité · Banque »), les trois groupes
   // (Saisir, Consulter, Déclarer) et les écrans du groupe ouvert, chacun avec ce qui l'attend quand le livre de ce dossier
   // est lu. Un groupe ouvre l'écran qu'on y avait laissé, sinon son premier.
+  // (1.387.3) Le volet « Tout le dossier » : l'icône et la phrase de chaque écran de la comptabilité. Une clé par écran de
+  // ONGLETS_COMPTA — un test confronte les tables, sinon un écran neuf naîtrait sans phrase dans le volet.
+  const IC_VOLET = { saisir: 'ecritures', consulter: 'livres', cloturer: 'bilan', banque: 'banque', paie: 'paie', lettrage: 'lettrage', declaration: 'declaration', revision: 'revision' };
+  const DIT_VOLET = {
+    saisie: 'Les écritures, le brouillard, la validation', banque: 'Relevés et rapprochement', paie: 'Salariés, bulletins, CNSS',
+    immobilisations: 'Les biens, leurs dotations, leurs sorties', inventaire: 'Le stock compté, sa variation',
+    journal: 'Chaque pièce, dans l\'ordre', 'grand-livre': 'Compte par compte', balance: 'Les soldes, générale et auxiliaire',
+    lettrage: 'Ce qui reste ouvert chez les tiers', recherche: 'Une pièce, un montant, un libellé',
+    declaration: 'La TVA et les retenues du mois', revision: 'Les comptes revus, les questions au client',
+    exercice: 'Clôture, à-nouveaux, exercice suivant', liasse: 'Les états de fin d\'exercice'
+  };
   function comptaDansBarre(D, base, ouvert) {
     const memeDossier = livresState.dossierId === D.id && !!livresState.livre;
     const g = groupeCompta(ouvert || 'saisie');
@@ -2561,14 +2572,16 @@
       const n = comptesBarre.piecesParDossier.get(D.id) || 0;
       const lienD = (id, ic, nom, href, on, meta, ton) => `<a href="${href}" data-route="${id}" class="lien${on ? ' active' : ''}" data-tip="${esc(nom + (meta ? ` · ${meta}` : ''))}"><span class="ic">${icB(ic)}</span>${esc(nom)}${meta ? `<span class="nav-count compte ${ton || 'calme'}">${esc(meta)}</span>` : ''}<span class="point"></span></a>`;
       const volet = `<div class="nav-fam" data-famille="Tout le dossier"><button type="button" class="lien nav-volet" data-famille="Tout le dossier" aria-expanded="false" data-tip="Tout le dossier · le classeur, les livres, la paie, la fiche"><span class="ic">${icB('plus')}</span>Tout le dossier<span class="chev">${icB('chevron', 15, 2.2)}</span><span class="point"></span></button>`
-        + `<div class="panneau volet" role="dialog" aria-label="Tout le dossier" hidden><h3>${esc(D.name)}</h3><p class="sous">Tout le dossier : son classeur, ses livres, sa paie, sa clôture, sa fiche</p><div class="panneau-liste">`
-        + ligneVolet('classeur', 'Le classeur', 'Chaque pièce, mois par mois, et ce qui manque', { href: `${base}/classeur`, compte: '<span class="pl-neuf">nouveau</span>' })
-        + ligneVolet('lettrage', 'Banque et lettrage', 'Relevés, rapprochement, lettrage', { href: `${base}/comptabilite/lettrage` })
-        + ligneVolet('paie', 'Paie du dossier', 'Bulletins, CNSS', { href: `${base}/comptabilite/paie` })
-        + ligneVolet('livres', 'Les livres', 'Journal, grand livre, balance', { href: `${base}/comptabilite/journal` })
-        + (role !== 'saisie' ? ligneVolet('revision', 'Révision', 'Les comptes revus, les questions au client', { href: `${base}/comptabilite/revision` }) : '')
-        + (role !== 'saisie' ? ligneVolet('bilan', 'Bilan et clôture', 'Fin d\'exercice, liasse', { href: `${base}/comptabilite/exercice` }) : '')
+        + `<div class="panneau volet" role="dialog" aria-label="Tout le dossier" hidden><h3>${esc(D.name)}</h3><p class="sous">Chaque page du dossier, sous le nom de son onglet</p><div class="panneau-liste">`
+        // (1.387.3, issue 10, CABPAIE-20) Le volet portait sept entrées sous d'autres noms que les onglets (« Banque et
+        // lettrage », « Paie du dossier », « Bilan et clôture ») et oubliait la Saisie, les Immobilisations et l'Inventaire.
+        // Il se DÉDUIT des deux tables de la comptabilité : chaque écran, sous son nom, dans son groupe.
         + ligneVolet('fiche', 'Fiche du dossier', 'Ses mois, ce qui attend, la mission, l\'équipe', { href: base })
+        + ligneVolet('classeur', 'Le classeur', 'Chaque pièce, mois par mois, et ce qui manque', { href: `${base}/classeur` })
+        + ligneVolet('pieces', 'Pièces du dossier', 'Ce que le client a envoyé, à classer', { href: `#/pieces/${encodeURIComponent(D.id)}` })
+        + (D.manual ? '' : ligneVolet('messages', 'Messages', 'La conversation avec le client', { href: `#/messages/${encodeURIComponent(D.id)}` }))
+        + GROUPES_COMPTA.filter(x => role !== 'saisie' || x.id !== 'cloturer').map(x => `<p class="pl-groupe">${esc(x.label)}</p>`
+          + `<div class="pl-grille">${x.onglets.map(o => `<a class="pl-c" href="${base}/comptabilite/${o}" title="${esc(DIT_VOLET[o])}"><span class="tuile-ic">${icB(IC_VOLET[o] || IC_VOLET[x.id], 16)}</span>${esc(ONGLETS_COMPTA[o])}</a>`).join('')}</div>`).join('')
         + '</div></div></div>';
       html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
         + `<button type="button" class="dossier" id="b-dossier" data-nom="${esc(D.name)}" aria-haspopup="menu" aria-expanded="false" data-tip="Dossier ouvert · ${esc(D.name)} · Ctrl 1 à 9 pour tes dossiers">${marqueD(D)}<span class="lib"><small>Dossier ouvert · ${typeD(D)}</small><b>${esc(D.name)}</b><small class="clos">${e.clos ? icB('cadenas', 11, 2.4) + ' ' : ''}${esc(e.texte)}</small></span><span class="chev">${icB('haut', 15, 2)}</span></button>`

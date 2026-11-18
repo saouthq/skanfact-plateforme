@@ -169,6 +169,20 @@ describe('la barre du Cabinet, à la souris', () => {
     await ecrans.filter({ hasText: 'Banque' }).click();
     await expect.poll(() => ecrans.filter({ hasText: 'Banque' }).getAttribute('aria-current')).toBe('page');
     expect(await p.locator('#nav-dossier .cp-nav-t').innerText()).toMatch(/Comptabilité · Banque/i);
+    // (1.387.3, issue 10, CABPAIE-20) « Tout le dossier » : chaque page du dossier, sous le nom de son onglet, par groupe —
+    // la Saisie, les Immobilisations et l'Inventaire y manquaient, et trois entrées portaient un autre nom que leur onglet.
+    await p.locator('#nav .nav-volet[data-famille="Tout le dossier"]').click();
+    const toutD = p.locator('.sb-panneau');
+    expect(await toutD.locator('.pl-groupe').allInnerTexts().then((t) => t.map((x) => x.toLowerCase()))).toEqual(['saisir', 'consulter', 'déclarer et clôturer']);
+    expect(await toutD.locator('.pl-l b, .pl-c').allInnerTexts().then((t) => t.map((x) => x.trim()))).toEqual(['Fiche du dossier', 'Le classeur', 'Pièces du dossier', 'Messages',
+      'Saisie', 'Banque', 'Paie', 'Immobilisations', 'Inventaire', 'Livre-journal', 'Grand livre', 'Balance', 'Lettrage', 'Recherche',
+      'Déclaration', 'Révision', 'Exercice', 'Liasse']);
+    expect(await toutD.locator('.pl-c').evaluateAll((l) => l.filter((x) => !(x.getAttribute('title') || '').trim()).length)).toBe(0);
+    // Tout tient sans défiler : le dernier écran (la Liasse) est dans la fenêtre, et un titre de groupe est en capitales.
+    expect(await toutD.evaluate((e) => e.scrollHeight <= e.clientHeight + 1)).toBe(true);
+    expect(await toutD.locator('.pl-groupe').first().evaluate((e) => getComputedStyle(e).textTransform)).toBe('uppercase');
+    expect(await toutD.locator('.pl-c').filter({ hasText: 'Immobilisations' }).getAttribute('href')).toBe(`#/dossier/${boulangerie.ent}/comptabilite/immobilisations`);
+    await p.keyboard.press('Escape');
 
     // ── Changer de dossier : la recherche, puis Entrée ; on garde l'écran (la banque) ──
     await carte.click();

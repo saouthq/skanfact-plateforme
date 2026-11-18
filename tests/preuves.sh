@@ -30692,6 +30692,9 @@ prouver $'immos 1.387.1 b : les dotations se montrent avant de s\'écrire' modul
 # (1.387.2, issue 10, CABPAIE-16) Le pied des immobilisations additionne tout, sorties comprises, puis les retire.
 prouver $'le pied des immobilisations oublie le cumul des biens sortis' modules/socle/ecrans/cabinet/app-1.js $'esc(money(KC.round3(e.cumul + cS)))' $'esc(money(e.cumul))' $'l\'épicerie de Sfax tient son matériel : la vitrine achetée en mars, l\'utilitaire, la balance revendue, et le comptable lit le même plan'
 
+# (1.387.3, issue 10, CABPAIE-20) « Tout le dossier » liste chaque écran de la comptabilité, sous le nom de son onglet.
+prouver $'le volet Tout le dossier oublie le premier écran de chaque groupe' modules/socle/ecrans/cabinet/app-1.js $'x.onglets.map(o => `<a class="pl-c"' $'x.onglets.slice(1).map(o => `<a class="pl-c"' $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
