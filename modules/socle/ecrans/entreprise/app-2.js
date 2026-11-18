@@ -3256,6 +3256,7 @@
       garde: () => (champs ? champs() : false) || ajoutes.length > 0,
       perte: 'Ce que tu viens de saisir dans cette fenêtre ne sera pas enregistré.'
     };
+    const paieIci = (data.payslips || []).length > 0;
     modal(`<h2>${mv ? 'Modifier le mouvement' : 'Nouveau mouvement'}</h2>
       <p class="small muted">Ce qui n'a ni facture ni achat : salaires, impôts, frais bancaires, apport, retrait${data.accounts.length > 1 ? ', virement entre tes comptes' : ''}. Les encaissements clients et les règlements fournisseurs n'ont <b>pas</b> à être saisis ici — ils remontent tout seuls.</p>
       <form id="mf2" class="grid-2">
@@ -3264,6 +3265,9 @@
           // Un virement entre deux comptes ne se propose qu'avec deux comptes (10.14.0) : on ne propose
           // pas un geste qui sera refusé. Un virement déjà saisi garde sa nature, quoi qu'il arrive.
           .filter(([v]) => v !== 'virement' || data.accounts.length > 1 || m.kind === 'virement')
+          // (1.387.38, issue 16, constat 16) Quand la paie est tenue ici, « Salaires et charges » ne passe plus en tête : la
+          // Paie fait déjà sortir les salaires de la banque, et un mouvement « Salaires » en plus compterait deux fois.
+          .sort((x, y) => paieIci ? (x[0] === 'salaire' && y[0] !== 'virement') - (y[0] === 'salaire' && x[0] !== 'virement') : 0)
           .map(([v, l, s]) => `<option value="${v}" ${m.kind === v ? 'selected' : ''}>${v === 'virement' ? '⇄' : s > 0 ? '↑' : '↓'} ${l}</option>`).join('')}</select></label>
         ${obligatoire(field(lbl(`Montant (${h(C.normCurrency(company().currency))})`, 'tre.moveAmount'), 'amount', Math.abs(m.amount) || 0, 'number', 'step="0.001" min="0" class="num"'))}
         <label class="field">${lbl('<span class="mf-compte-t">Compte</span>', 'tre.moveAccount')}<select name="accountId">${data.accounts.map(a => `<option value="${a.id}" ${m.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
@@ -3271,7 +3275,7 @@
            rangée n'existe que pour cette nature, juste sous le montant qu'elle partage. */''}
         ${field(lbl(`Dont intérêts (${h(C.normCurrency(company().currency))})`, 'tre.moveInterets'), 'interets', Number(m.interets) > 0 ? Number(m.interets) : '', 'number', 'step="0.001" min="0" class="num" placeholder="0,000"').replace('<label class="field"', `<label class="field" id="mf-int" ${m.kind === 'emprunt' ? '' : 'hidden'}`)}
         <p class="small muted" id="mf-int-cap" ${m.kind === 'emprunt' ? '' : 'hidden'}></p>
-        <label class="field span-2">${lbl('Libellé', 'tre.moveLabel')}<input type="text" name="label" value="${h(m.label || '')}" placeholder="Salaires de septembre"></label>
+        <label class="field span-2">${lbl('Libellé', 'tre.moveLabel')}<input type="text" name="label" value="${h(m.label || '')}" placeholder="${m.kind === 'salaire' ? 'Salaires de septembre' : 'Assurance du local'}"></label>
         ${field(lbl('Référence', 'tre.moveRef'), 'reference', m.reference || '', 'text', 'placeholder="N° de chèque, référence du virement…"')}
         <label class="field">${lbl('Mode', 'tre.moveMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${m.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${/* (1.357.6, bout en bout joué à la souris : les espèces versées à la banque) « Vers le compte » prend la place de
@@ -3283,6 +3287,7 @@
       </form>
       ${avertValideHtml('mf-valide')}
       ${avertValideHtml('mf-avant')}
+      <p class="small warn-text" id="mf-sal-paie" ${paieIci && m.kind === 'salaire' ? '' : 'hidden'}>Les salaires payés depuis la Paie sortent déjà de la banque : ne note ici qu'un salaire que la Paie ne connaît pas, sinon il compterait deux fois.</p>
       <div class="mv-pj"><div class="field">${lbl('Justificatifs', 'tre.moveJustif')}</div><div id="mv-pj"></div></div>
       <div class="modal-actions">
         ${mv ? '<button class="btn btn-danger" id="del-mv" style="margin-inline-end:auto">Supprimer</button>' : ''}
@@ -3307,6 +3312,7 @@
             ? `Capital remboursé : ${C.money(C.round3(total - int), company().currency)} · les intérêts sont une charge.`
             : 'Le montant de l\'échéance d\'abord : le capital remboursé se calcule.';
           $('#mf-cp', root).hidden = vir; $('#mf-vers', root).hidden = !vir;
+          $('#mf-sal-paie', root).hidden = !(paieIci && kindSel.value === 'salaire');
           texteCompte.textContent = vir ? 'Depuis le compte' : 'Compte';
           // Le compte d'où l'argent part ne se propose pas comme compte d'arrivée : l'enregistrement le
           // refuserait (10.14.1 — on ne propose pas un choix qui sera refusé).
@@ -3315,7 +3321,7 @@
           if (versSel.value && versSel.value === depuis) versSel.value = '';
           const cible = data.accounts.find(a => a.id === versSel.value);
           libelle.placeholder = vir ? (cible ? `Virement vers ${cible.name}` : 'Virement vers le compte choisi')
-            : ({ emprunt: 'Échéance mensuelle du prêt', pret: 'Prêt de la banque pour le matériel', impot: 'TVA du mois', banque: 'Frais de tenue de compte', apport: 'Apport de l\'associé', retrait: 'Retrait de l\'associé' })[kindSel.value] || 'Salaires de septembre';
+            : ({ emprunt: 'Échéance mensuelle du prêt', pret: 'Prêt de la banque pour le matériel', impot: 'TVA du mois', banque: 'Frais de tenue de compte', apport: 'Apport de l\'associé', retrait: 'Retrait de l\'associé', salaire: 'Salaires de septembre', avances: 'Remboursement de mon compte courant' })[kindSel.value] || 'Assurance du local';
           // (1.266.0) Un virement entre tes comptes ne se répète pas ici ; « jusqu'au » n'a de sens que pour ce qui revient.
           // Les deux gardent leur place (visibilité seule) : rien ne bouge sous le curseur.
           // (1.357.6) « Se répète » cède sa place à « Vers le compte » (même rangée) ; « jusqu'au » garde la sienne.

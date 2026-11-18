@@ -5447,3 +5447,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - Un brut de plus de 50 000 DT par mois (99 999 999 999 tapé par erreur) se DEMANDE avant d'enregistrer, « Annuler » ramène à la case ; on ne refuse pas, un dirigeant peut gagner beaucoup. Même règle au Cabinet.
 - Les enfants à charge (0 à 20) et un CIN de chiffres à huit chiffres étaient déjà contrôlés (1.382.2).
 - Trois preuves : cin-sans-chiffre, brut-enorme-demande, cin-sans-chiffre-cabinet.
+
+## 1.387.38 — Trésorerie et CNSS, constats 15 et 16 (issue 16)
+
+- L'état récapitulatif CNSS : « Arrêtée à la somme de », posé sous « Total des cotisations », se lisait comme ces cotisations. La phrase dit désormais « Déclaration arrêtée au montant des salaires déclarés (…) », puis que les cotisations à payer sont le total au-dessus. À VÉRIFIER sur un vrai état avec le comptable.
+- « + Mouvement » : quand la paie est tenue dans SkanFact, « Salaires et charges » passe en fin de liste, et le choisir affiche « Les salaires payés depuis la Paie sortent déjà de la banque : … sinon il compterait deux fois ». L'invite du libellé suit la nature (« Assurance du local » pour une autre sortie, plus « Salaires de septembre » partout).
+- Deux preuves : salaire-pas-en-tete, cnss-arretee-salaires.

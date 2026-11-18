@@ -1089,6 +1089,8 @@ describe('le parcours, à la souris', () => {
     expect(await etat.innerText()).toMatch(/Sécurité sociale\s+26,75\s%/);
     const KC = ecranDeLaPlateforme('core.js') as { amountToWords: (n: number, c: string) => string };
     expect(await etat.locator('[data-etat=lettres]').innerText()).toBe(KC.amountToWords(salaires, 'DT'));
+    // (1.387.37, issue 16, constat 15) La somme en lettres dit qu'elle est celle des SALAIRES, pas des cotisations.
+    expect((await etat.locator('#cn-arrete').innerText()).replace(/\s+/g, ' ')).toMatch(/^Déclaration arrêtée au montant des salaires déclarés \(/);
     const etatImprime = await pdfTelecharge(p, () => p.locator('#cn-etat-pdf').click());
     expect(etatImprime.texte).toContain('État récapitulatif des salaires déclarés');
     expect(etatImprime.texte).toContain(KC.amountToWords(salaires, 'DT').replace(/[\u00a0\u202f]/g, ' '));

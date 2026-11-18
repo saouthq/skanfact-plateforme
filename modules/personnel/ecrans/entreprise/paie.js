@@ -4889,7 +4889,9 @@
               ${etat.lignes.map(l => `<tr><td>${h(l.libelle)}</td><td class="r nw">${l.taux === null ? '<span class="muted" title="Le taux n\'est pas le même sur tous les bulletins du trimestre : le montant est leur somme">—</span>' : pct(l.taux) + ' %'}</td><td class="r nw" data-etat="${l.cle}">${C.money(l.montant, cur)}</td></tr>`).join('')}
               <tr class="total-row"><td colspan="2"><strong>Total des cotisations</strong></td><td class="r nw" data-etat="total"><strong>${C.money(etat.total, cur)}</strong></td></tr>
             </tbody></table></div>
-            <p class="small mt">Arrêtée à la somme de : <em data-etat="lettres">${h(etat.enLettres)}</em>.</p>
+            ${/* (1.387.37, issue 16, constat 15) Posée sous « Total des cotisations », « Arrêtée à la somme de » se lisait comme
+                 ces cotisations, alors que la déclaration de salaires s'arrête au montant des SALAIRES déclarés : on le nomme. */''}
+            <p class="small mt" id="cn-arrete">Déclaration arrêtée au montant des salaires déclarés (${C.money(etat.salaires, cur)}) : <em data-etat="lettres">${h(etat.enLettres)}</em>. Les cotisations à payer sont le total ci-dessus.</p>
             ${Math.abs(etat.ecart) > 0.0005 ? `<p class="small muted" id="cn-ecart">Les bulletins du trimestre retiennent ${C.money(etat.bulletins, cur)} : l'état, calculé sur le total des salaires, dit ${C.money(etat.total, cur)}. L'écart (${C.money(Math.abs(etat.ecart), cur)}) vient des arrondis de chaque bulletin.</p>` : ''}
           </div>
           <div class="inline mt">

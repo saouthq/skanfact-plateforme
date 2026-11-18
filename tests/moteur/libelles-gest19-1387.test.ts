@@ -21,3 +21,21 @@ describe('le départ d\'un salarié (issue 16, constat 12)', () => {
     expect(bouton && bouton[1]).toBe('Annuler ce départ');
   });
 });
+
+describe('le nouveau mouvement de trésorerie quand la paie est tenue ici (issue 16, constat 16)', () => {
+  it('« Salaires et charges » ne passe plus en tête, une phrase dit le double compte, l\'invite n\'est plus « Salaires de septembre »', () => {
+    const app = sansCommentaires('modules/socle/ecrans/entreprise/app-2.js');
+    const tri = app.match(/\.sort\(\(x, y\) => (paieIci \? \(x\[0\] === 'salaire'[^\n]*: 0)\)\n/);
+    expect(tri).not.toBeNull();
+    const corps = tri ? tri[1] : '';
+    const KINDS = ['salaire', 'impot', 'banque', 'retrait', 'avances', 'emprunt', 'autre-sortie', 'apport', 'pret', 'autre-entree', 'virement'].map((k) => [k]);
+    const comparer = (paieIci: boolean) => new Function('paieIci', `return (x, y) => ${corps};`)(paieIci);
+    const ordre = (paieIci: boolean) => KINDS.slice().sort(comparer(paieIci)).map((k) => k[0]);
+    expect(ordre(false)[0]).toBe('salaire');
+    expect(ordre(true)[0]).toBe('impot');
+    expect(ordre(true).slice(-2)).toEqual(['salaire', 'virement']);
+    expect(app).toMatch(/id="mf-sal-paie" \$\{paieIci && m\.kind === 'salaire' \? '' : 'hidden'\}>Les salaires payés depuis la Paie sortent déjà de la banque/);
+    expect(app).toContain("$('#mf-sal-paie', root).hidden = !(paieIci && kindSel.value === 'salaire');");
+    expect(app).toContain("[kindSel.value] || 'Assurance du local';");
+  });
+});
