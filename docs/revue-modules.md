@@ -5430,3 +5430,7 @@ Un virement entre comptes sans compte d'arrivée était refusé, mais rien ne di
 ### 1.387.34 — la preuve des deux générations d'abonnements retrouve sa prise (rouge GitHub de 92566058)
 
 Depuis la 1.385.0, l'écran ne lance plus qu'une génération à la fois : le double-clic du test n'atteignait donc plus le pont, et la preuve qui retire la garde du pont (deux générations côte à côte qui doublent les mois) restait verte — elle ne prouvait plus rien. Le test appelle maintenant le pont deux fois en même temps, sur un abonnement de plus, et exige qu'aucun mois ne soit écrit deux fois. Les deux gardes sont tenues, chacune par son test.
+
+### 1.387.35 — une retenue d'avance plus grande que le net se refuse ; « Annuler ce départ » (issue 16, constats 10 et 12)
+
+La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et enregistrait quand même : le bulletin suivant aurait été négatif. Elle se refuse maintenant en montrant la case, et propose un étalement. Le bouton qui défait la sortie d'un salarié s'appelait « Il reste finalement », lu comme un titre : il dit le geste, « Annuler ce départ ». Tests : `paie-avance-fenetre`, `libelles-gest19-1387` ; deux preuves.

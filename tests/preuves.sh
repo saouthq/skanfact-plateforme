@@ -30766,6 +30766,8 @@ prouver $'payer-ne-suit-pas' modules/personnel/ecrans/entreprise/paie.js $'(s.ta
 prouver $'annee-sans-etapes' modules/personnel/ecrans/entreprise/paie.js $'vueP === \'bulletins\' && s.tab !== \'annee\' && data' $'vueP === \'bulletins\' && data' $'la frise du mois, le brut tapé après un clic, l\'absence du mois regardé, la case du RIB visible et enregistrée sans espaces'
 prouver $'employeur-une-date' modules/personnel/ecrans/entreprise/paie.js $'`avant le ${C.fmtDate(C.dateLimiteSociale(data, \'employeur\', ty))}`' $'`début ${ty + 1} (À VÉRIFIER)`' $'les écrans de la paie la lisent tous par cette fonction, sans date écrite à côté'
 prouver $'vers-obligatoire' modules/socle/ecrans/entreprise/app-2.js $'<label class="field obligatoire" id="mf-vers"' $'<label class="field" id="mf-vers"' $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver $'retenue-plus-que-net' modules/personnel/ecrans/entreprise/paie.js $'if (netR > 0 && Number(v.monthly) > netR + 0.0005) {' $'if (false) {' $'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
+prouver $'annuler-ce-depart' modules/personnel/ecrans/entreprise/paie.js $'14)} Annuler ce départ</button>' $'14)} Il reste finalement</button>' $'le bouton qui défait la sortie dit ce qu\'il fait : « Annuler ce départ », plus « Il reste finalement »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

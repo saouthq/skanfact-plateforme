@@ -117,6 +117,15 @@ describe('la fenêtre d\'une avance de l\'entreprise', () => {
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('La sortie de Salarié Numéro Deux est le 30/11/2025 : aucun bulletin ne retiendrait une avance versée après.');
     expect((await avances()).map((a) => a.id)).toEqual(['a1']);
+    // (1.387.35, issue 16, constat 10) Une retenue plus grande que le net : refusée, avec l'étalement proposé.
+    await fenetre.locator('[data-combo=employeeId] .combo-btn').click();
+    await fenetre.locator('[data-combo=employeeId] .combo-q').fill('Un');
+    await fenetre.locator('[data-combo=employeeId] .combo-list [role=option]').first().click();
+    await fenetre.locator('[name=amount]').fill('5000');
+    await fenetre.locator('[name=monthly]').fill('3000');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toMatch(/^La retenue \(3\s000,000\sDT\) dépasse le net habituel de Salarié Numéro Un \([\d\s,]+\sDT\) : son bulletin serait négatif\. Étale-la, par exemple [\d\s,]+\sDT par mois sur \d+ mois\.$/);
+    expect((await avances()).map((a) => a.id)).toEqual(['a1']);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });
