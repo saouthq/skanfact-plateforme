@@ -5378,3 +5378,7 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 ### 1.387.21 — le bulletin imprimé au Cabinet porte la date de sa validation
 
 Un bulletin validé le 31/10 s'imprimait « Établi le 16/11/2026 » : la fiche envoyée au client prenait la date du jour de l'envoi. Elle prend maintenant le jour de la validation ; un bulletin pas encore validé garde la date déjà connue. Test : `tests/moteur/bulletin-etabli-le-valide-1387.test.ts`, prouvé.
+
+### 1.387.22 — la bande des mois commande la Paie (issue 10, CABPAIE-5)
+
+Au Cabinet, cliquer « nov. » dans la bande des mois l'entourait, et la Paie restait sur octobre : seul le menu déroulant changeait le mois. Sur la Paie, la bande entoure maintenant le mois de paie regardé, et un clic le change. Et le mois choisi ne suit plus d'un dossier à l'autre : chaque dossier s'ouvre sur son mois à faire. Test : `cabinet-paie-parcours` (« tenue au cabinet »), prouvé (la bande ; le mois propre à chaque dossier n'a pas encore de test). Reste : la bande sur Immobilisations et Inventaire, sans effet.

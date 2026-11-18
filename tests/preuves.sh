@@ -29282,8 +29282,8 @@ prouver $'paie 1.362.3 i : la frise réclame la CNSS d\'un trimestre où personn
   $'const personneAuTrim = false &&' \
   "$W"
 prouver $'paie 1.362.3 j : changer d\'exercice garde le mois qu\'on regardait (un mois qui n\'existe pas encore)' modules/personnel/ecrans/cabinet/paie.js \
-  $'if (s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) s.paieMois = 0;' \
-  $'if (false) s.paieMois = 0;' \
+  $'if ((s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) ||' \
+  $'if (false ||' \
   "$W"
 prouver $'paie 1.362.3 k : la comptabilité s\'ouvre sur l\'exercice d\'une écriture de l\'an prochain' modules/socle/ecrans/cabinet/app-1.js \
   $'const m = (brut.tousLesMois || []).filter(x => String(x).slice(0, 7) <= auj.slice(0, 7));' \
@@ -30750,6 +30750,7 @@ prouver $'le livre neuf dépose toujours dans la Saisie' modules/socle/ecrans/ca
 prouver $'le taux dégressif n\'a pas son étoile' modules/socle/ecrans/cabinet/app-1.js $'<label class="field obligatoire" id="im-taux-l">' $'<label class="field" id="im-taux-l">' $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 
 prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
+prouver $'frise-paie' modules/socle/ecrans/cabinet/app-1.js $"        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; }" $'' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

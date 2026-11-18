@@ -8465,11 +8465,13 @@
     // (1.350.0) Sur la Déclaration, la frise cercle le mois DÉCLARÉ à l'écran, comme elle cercle le mois du relevé sur la
     // Banque : l'écran s'ouvrait sur août pendant que la frise disait « Toute l'année ».
     const deLaDecl = s.onglet === 'declaration' ? (moisDeLaDeclaration()) : '';
+    const laPaie = s.onglet === 'paie' && s.paieMois ? `${an}-${String(s.paieMois).padStart(2, '0')}` : '';
     const cases = moisDeLaFrise(dossier).map(({ m, nom, ton, dit }) => {
-      const on = deLaDecl ? deLaDecl === m : s.mode === 'mois' ? s.mois === m : duReleve === m;
+      // (1.387.22, CABPAIE-5) Sur la Paie, la frise cercle le mois de PAIE regardé, et un clic le change (ci-dessous).
+      const on = deLaDecl ? deLaDecl === m : laPaie ? laPaie === m : s.mode === 'mois' ? s.mois === m : duReleve === m;
       return `<button type="button" class="cp-mo ${ton}${on ? ' on' : ''}" data-cp-mois="${m}" aria-pressed="${on}" title="${esc(`${moisLong(m)} ${an} : ${dit}`)}"><b>${esc(nom)}</b><small>${esc(dit)}</small></button>`;
     }).join('');
-    const tout = !deLaDecl && s.mode === 'exercice' && !duReleve;
+    const tout = !deLaDecl && !laPaie && s.mode === 'exercice' && !duReleve;
     return `<div class="cp-an" role="group" aria-label="L'année ${esc(an)}"><span class="cp-an-t">${esc(an)} ${info('fd.mois')}</span>${cases}<button type="button" class="cp-ex${tout ? ' on' : ''}" data-cp-mois="" aria-pressed="${tout}">Toute l'année</button></div>`;
   }
   const ongletDispo = o => !!ONGLETS_COMPTA[o] && (!!livresState.livre || ONGLETS_SANS_LIVRE.includes(o));
@@ -8875,6 +8877,7 @@
         // 1.350.0 — sur la Déclaration, un mois de la frise ouvre la déclaration de CE mois : la frise passait à juillet
         // et l'écran gardait la déclaration de septembre, deux mois affichés pour une seule page.
         if (s.onglet === 'declaration') { declState.mois = m; declState.ouverte = ''; }
+        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; }
       }
       s.page = 1;
       render();

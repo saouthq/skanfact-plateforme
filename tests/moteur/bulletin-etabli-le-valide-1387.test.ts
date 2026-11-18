@@ -1,10 +1,10 @@
 // (1.387.21) Le bulletin imprimé au Cabinet disait « Établi le 16/11/2026 » pour un bulletin validé le 31/10 : la fiche
 // envoyée au client prenait la date du jour de l'envoi. Un bulletin validé est établi le jour de sa validation.
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { lireEcran } from '../../commun/assemblage.ts';
 
-const source = readFileSync(new URL('../../web/public/plateforme/pont-cabinet.js', import.meta.url), 'utf8');
+const source = lireEcran('plateforme/pont-cabinet.js');
 const debut = source.indexOf('const fichePayeDe = ');
 const fin = source.indexOf('\n  });', debut);
 const corps = source.slice(debut, fin + 6);

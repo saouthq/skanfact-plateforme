@@ -366,6 +366,15 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
     await p.locator('#pa-mois').selectOption(String(A.mo % 12 + 1));
     await expect.poll(() => p.locator('#pa-pt-attendu').count()).toBe(1);
+    // (1.387.22, CABPAIE-5) La frise cercle le mois de paie regardé, et un clic sur un mois de la frise change la Paie : la frise
+    // entourait « nov. » pendant que l'écran restait sur octobre.
+    const mSuiv = `${A.an}-${String(A.mo % 12 + 1).padStart(2, '0')}`, mIci = `${A.an}-${String(A.mo).padStart(2, '0')}`;
+    expect(await p.locator(`.cp-mo[data-cp-mois="${mSuiv}"]`).getAttribute('aria-pressed')).toBe('true');
+    await p.locator(`.cp-mo[data-cp-mois="${mIci}"]`).click();
+    await expect.poll(() => p.locator('#pa-mois').inputValue()).toBe(String(A.mo));
+    expect(await p.locator(`.cp-mo[data-cp-mois="${mIci}"]`).getAttribute('aria-pressed')).toBe('true');
+    await p.locator(`.cp-mo[data-cp-mois="${mSuiv}"]`).click();
+    await expect.poll(() => p.locator('#pa-pt-attendu').count()).toBe(1);
     expect(espace(await p.locator('#pa-demander-pt').innerText())).toBe('Le demander à Sarra');
     await p.locator('#pa-demander-pt').click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(1);

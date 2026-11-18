@@ -37,8 +37,9 @@
     // (1.362.3, bout en bout 27) Le mois regardé appartient à l'exercice où il a été choisi : changer d'exercice le refait —
     // une garde au dessin, jamais une par porte. Revenu de 2027 à 2026, la Paie restait sur janvier, le premier mois de 2027,
     // pendant qu'octobre attendait le premier bulletin d'un salarié.
-    if (s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) s.paieMois = 0;
-    s.paieMoisAnnee = String(s.annee);
+    // (1.387.22, CABPAIE-5) … et au dossier où il a été choisi : décembre choisi dans l'exemple ouvrait le dossier vide sur décembre.
+    if ((s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) || (s.paieMoisDossier && s.paieMoisDossier !== dossier.id)) s.paieMois = 0;
+    s.paieMoisAnnee = String(s.annee); s.paieMoisDossier = dossier.id;
     if (!s.paieMois) s.paieMois = KC.moisPaieEnRetard(L, s.annee, K.today())
       || K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
     const m = s.paieMois;
