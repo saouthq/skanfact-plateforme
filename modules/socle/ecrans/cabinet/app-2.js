@@ -591,6 +591,8 @@
     });
   }
   // Pourquoi une écriture est proposée : le montant, l'écart de jours, les mots que la banque et le livre partagent.
+  // (1.386.7, issue 11, CABSAISIE-29) Le pourquoi d'une ligne garde ses guillemets et sa ponctuation collés au mot.
+  const typoBq = t => typoTexte(t == null ? '' : t);
   function pourquoiBq(l, c, niveau) {
     const j = Math.abs(Math.round((Date.parse(l.date + 'T00:00:00Z') - Date.parse(c.date + 'T00:00:00Z')) / 86400000));
     // Un mot partagé ne dit quelque chose que s'il n'est pas un mot de banque (« virement », « reçu », « chèque »).
@@ -700,7 +702,7 @@
         <td class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</td>
         <td><div class="bq-lb">${icNature(l.libelle, l.montant)}<div><span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok'
           ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${(x.autres || []).length ? ` et ${pl(x.autres.length, 'autre écriture', 'autres écritures')} (une remise)` : x.e && x.e.libelle ? ` · ${esc(x.e.libelle)}` : ''}${origineBq(x)}</small>`
-          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div></div></td>
+          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(typoBq(x.titre))}</b> · ${esc(typoBq(x.pq))}</small>`}</div></div></td>
         <td class="r">${montantSigne(l.montant)}</td>
         <td class="r bq-mc">${x.g === 'ok' && !lect ? `<button type="button" class="cp-plus bq-defaire1" data-bq-defaire="${esc(l.id)}" title="Défaire ce rapprochement : la ligne revient « À traiter », l'écriture reste">Défaire</button>` : RowMenu.bouton('LIG:' + l.id, '⋯', 'bq-menu btn-ghost')}</td></tr>`;
     };
@@ -709,7 +711,7 @@
       return `<div class="bq-k1${l.id === banqueState.sel ? ' on' : ''}" data-bq-ligne="${esc(l.id)}" data-groupe="${x.g}" role="button" tabindex="0">
         <div class="bq-k1h"><span class="bq-lb">${icNature(l.libelle, l.montant)}<span class="bq-d">${esc(fmtJour(l.date).slice(0, 5))}</span></span>${montantSigne(l.montant)}</div>
         <span class="mono">${esc(l.libelle || '—')}</span>${x.g === 'ok' ? `<small class="bq-p">${svgBq(BQ_IC.ok, 12)} avec <b>${esc(pieceBq(x.e))}</b>${(x.autres || []).length ? ` + ${x.autres.length}` : ''}</small>`
-          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(x.titre)}</b> · ${esc(x.pq)}</small>`}</div>`;
+          : `<small class="bq-p"><i class="bq-pt ${x.ton}"></i><b>${esc(typoBq(x.titre))}</b> · ${esc(typoBq(x.pq))}</small>`}</div>`;
     };
     const valider = n('prop') && !lect ? `<button type="button" class="btn btn-sm" data-bq-valider>${svgBq(BQ_IC.ok, 14)} Valider ${coches.length ? `les ${coches.length} cochées` : n('prop') > 1 ? `les ${n('prop')}` : 'la proposée'}</button>` : '';
     const groupesTab = GROUPES_BQ.map(([g, titre]) => {
@@ -863,7 +865,7 @@
       const on = cle(c) === choisi;
       return `<tr class="${on ? 'on' : ''}" data-bq-choix="${esc(cle(c))}"><td class="bq-c"><input type="radio" name="bq-choix" value="${esc(cle(c))}"${on ? ' checked' : ''} aria-label="${esc(c.piece || pieceBq(e))}"></td>
         <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(c.piece || pieceBq(e) || '—')}</b> <small>du ${esc(fmtJour(c.date))}${e && e.statut === 'brouillard' ? ' · brouillard' : ''}</small></span>
-          <small class="bq-p">${esc(c.libelle || '')}${enTete.some(y => cle(y) === cle(c)) ? ` · ${esc(pourquoiBq(l, c, x.c && cle(x.c) === cle(c) ? jug.niveau : 'probable').replace(/^même montant, la (seule|plus probable)/, 'même montant'))}` : ''}</small></div></div></td>
+          <small class="bq-p">${esc(c.libelle || '')}${enTete.some(y => cle(y) === cle(c)) ? ` · ${esc(typoBq(pourquoiBq(l, c, x.c && cle(x.c) === cle(c) ? jug.niveau : 'probable').replace(/^même montant, la (seule|plus probable)/, 'même montant')))}` : ''}</small></div></div></td>
         <td class="r">${esc(montant(c.montant))}</td></tr>`;
     }).join('')}</tbody></table>
       ${cc ? `<div class="bq-som ${ecart ? 'ko' : 'ok'}"><span>La ligne ${esc(money(l.montant))}</span><span>cochée ${esc(money(cc.montant))}</span><b>${ecart ? `écart ${esc(money(ecart))}` : `${svgBq(BQ_IC.ok, 13)} écart 0`}</b></div>`
@@ -897,7 +899,7 @@
         const prop1 = (x.fact || []).some(y => cleP(y) === cleP(p));
         return `<tr class="${on ? 'on' : ''}" data-bq-piece="${esc(cleP(p))}"><td class="bq-c"><input type="checkbox"${on ? ' checked' : ''} aria-label="${esc(p.piece || p.tiers || 'la facture')}"></td>
         <td><div class="bq-lb"><span class="bqx doc">${svgBq(BQ_IC.doc)}</span><div><span><b class="mono">${esc(p.piece || '—')}</b> <small>du ${esc(fmtJour(p.date))}${p.statut === 'brouillard' ? ' · brouillard' : ''}${p.entiere ? '' : ' · déjà payée en partie'}</small></span>
-          <small class="bq-p">${esc([p.tiers, p.compte].filter(Boolean).join(' · '))}${prop1 && rep.pourquoi ? ` · ${esc(rep.pourquoi)}` : ''}</small></div></div></td>
+          <small class="bq-p">${esc([p.tiers, p.compte].filter(Boolean).join(' · '))}${prop1 && rep.pourquoi ? ` · ${esc(typoBq(rep.pourquoi))}` : ''}</small></div></div></td>
         <td class="r">${esc(montant(Math.abs(p.reste)))}</td></tr>`;
       }).join('')}</tbody></table>`
       : (sansRien && rep.ouvertes.length ? `<p class="bq-rien">${pl(rep.ouvertes.length, 'facture', 'factures')} ${deQui} non réglée${rep.ouvertes.length > 1 ? 's' : ''} : cherche un tiers, une pièce ou un montant, ou ${voirToutes || 'les voir toutes'}.</p>` : '');

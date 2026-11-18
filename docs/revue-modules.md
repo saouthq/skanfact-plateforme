@@ -5197,3 +5197,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   comme le numéro de pièce qu'on venait de taper).
 - **Rouge GitHub de la 1.385.9** : `pont-cabinet.js` dépassait son plafond de trois lignes (frontières, F12) depuis la
   1.385.7. Les mêmes instructions tiennent en trois lignes de moins ; le plafond n'a pas bougé.
+
+## 1.386.7 — Les lignes du relevé ne se coupent plus dans leurs guillemets (issue 11, CABSAISIE-29)
+
+- **« … même jour · « » en fin de ligne, « menzah » » à la suivante** : le pourquoi d'une ligne (à gauche comme en face)
+  garde ses guillemets et sa ponctuation collés au mot, comme le reste des phrases du Cabinet.
+- Laissé : le message du bas de l'écran recouvre le pied du relevé quelques secondes — c'est le même message partout
+  dans les deux applications ; le déplacer pour un seul écran romprait l'habitude.

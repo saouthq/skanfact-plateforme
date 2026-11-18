@@ -30654,6 +30654,11 @@ prouver $'saisie 1.386.6 : l\'écart se dit une fois sous la grille' modules/soc
   $'motif.hidden = !phrase;' \
   $'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
 
+prouver $'banque 1.386.7 : les guillemets d\'une ligne du relevé ne se coupent plus' modules/socle/ecrans/cabinet/app-2.js \
+  $'const typoBq = t => typoTexte(t == null ? \'\' : t);' \
+  $'const typoBq = t => String(t == null ? \'\' : t);' \
+  $'la remise se rapproche et se lettre d\'un geste ; le prélèvement s\'écrit au brouillard et s\'annule ; la retenue se lit une fois son taux réglé ; une somme fausse se refuse'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

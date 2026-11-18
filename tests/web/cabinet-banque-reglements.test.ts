@@ -95,9 +95,9 @@ describe('la Banque : ce qu\'une ligne paie', () => {
     // ── Ce qui se propose : la remise (trois factures dont la somme fait la ligne), la STEG (la seule non réglée). La
     // Minoterie paie 27,693 de moins que sa facture : sans taux réglé, ce n'est pas une retenue, la ligne est à traiter.
     await expect.poll(() => groupe('REMISE CHQ')).toBe('prop');
-    expect(await ligne('REMISE CHQ').innerText()).toMatch(/FV-0379 · FV-0391 · FV-0398 · 3 pièces : leur somme fait la ligne/);
+    expect(await ligne('REMISE CHQ').innerText()).toMatch(/FV-0379 · FV-0391 · FV-0398 · 3 pièces\s: leur somme fait la ligne/);
     expect(await groupe('PRLV STEG 0298 4471')).toBe('prop');
-    expect(await ligne('PRLV STEG 0298 4471').innerText()).toMatch(/FA-0919 · STEG · même montant · « STEG » · la seule non réglée/);
+    expect(await ligne('PRLV STEG 0298 4471').innerText()).toMatch(/FA-0919 · STEG · même montant · «\u202fSTEG\u202f» · la seule non réglée/);
     expect(await groupe('Minoterie')).toBe('dec');
     expect(await groupe('PRLV STEG 0298 4472')).toBe('dec');
 
