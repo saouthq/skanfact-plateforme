@@ -5394,3 +5394,7 @@ Dans la Trésorerie de l'entreprise, un virement de 100 000 DT partait d'un comp
 ### 1.387.25 — des salaires notés payés avant leur mois se demandent (issue 16, constat 4)
 
 Des salaires d'octobre notés payés le 05/09 passaient sans un mot. Avant le mois payé ou dans le futur, « Marquer payé » demande (« Ce jour de paiement surprend ») ; on ne bloque pas (une avance existe). Et la fenêtre « Période clôturée » ne dit plus « pour corriger une facture, c'est un avoir » d'un paiement de salaire, d'un mouvement ou d'une absence : elle dit de dater d'un jour encore ouvert. Test : `compta-1305` (05/08 pour des salaires de septembre, la question, « Annuler » qui ne note rien), prouvé. La phrase de la clôture n'a pas de test.
+
+### 1.387.26 — le code du cabinet refusé en français (issue 16, constat 21)
+
+Un code de cabinet de mauvaise forme renvoyait « Le champ « codeCabinet » ne va pas », le nom technique du champ. Les deux portes de « Mon comptable » (la page et les Réglages) refusent maintenant avant l'envoi : « Le code de ton cabinet compte six à dix lettres ou chiffres : recopie-le tel que ton comptable te l'a donné ». Un code dicté avec des espaces ou des tirets (« AB12 CD34 ») est compris. Test : `inviter-comptable`, prouvé sur la page « Mon comptable » (la porte des Réglages porte la même ligne, sans test propre).

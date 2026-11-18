@@ -65,6 +65,12 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     expect(await e.locator('.cpt-garde').innerText()).toContain('Ce qu\'il ne fait jamais');
     expect(await e.locator('#p-questions').count()).toBe(0);
     await expect.poll(verts, { timeout: 10_000 }).toEqual(['Inviter mon comptable']);
+    // (1.387.26, issue 16, constat 21) Un code de mauvaise forme se refuse en français avant l'envoi, jamais « le champ
+    // « codeCabinet » ne va pas » ; un code dicté avec des espaces ou des tirets est compris.
+    await e.locator('#mandat-code').fill('AB-1');
+    await e.getByRole('button', { name: 'Confier mon dossier', exact: true }).click();
+    await expect.poll(() => e.locator('#view').innerText(), { timeout: 10_000 }).toContain('Le code de ton cabinet compte six à dix lettres ou chiffres');
+    expect(await e.locator('#view').innerText()).not.toContain('codeCabinet');
     await e.locator('#mandat-code').fill('ABC123');
     expect(await verts()).toEqual(['Confier mon dossier']);
     // Revenu dans l'adresse, le vert revient à « Inviter mon comptable » (le chemin qu'on reprend) ; puis au code.

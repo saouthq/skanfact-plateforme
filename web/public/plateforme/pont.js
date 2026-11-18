@@ -912,8 +912,8 @@
         </div>`);
       const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-confier'));
       b.onclick = () => agir(async () => {
-        const codeCabinet = String(/** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).value).trim();
-        if (!codeCabinet) { /** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); }
+        const codeCabinet = String(/** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).value).replace(/[\s-]/g, ''); // (1.387.26, issue 16, constat 21) dicté « AB12 CD34 »
+        if (!codeCabinet) { /** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); } if (!/^[A-Za-z0-9]{6,10}$/.test(codeCabinet)) { /** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).focus(); throw new Error('Le code de ton cabinet compte six à dix lettres ou chiffres : recopie-le tel que ton comptable te l\'a donné. Rien n\'a été envoyé.'); }
         const perimetre = [...el.querySelectorAll('[data-perimetre]')].filter((x) => /** @type {HTMLInputElement} */ (x).checked).map((x) => String(/** @type {HTMLElement} */ (x).dataset.perimetre));
         if (!perimetre.length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
         await appel('POST', '/mandat', { codeCabinet, perimetre });
@@ -1177,8 +1177,8 @@
       lienDeSecours = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
     }, bInv, '#mandat-refus-email', '#mandat-lien-copier, #mandat-invite');
     bCode.onclick = () => faire(async () => {
-      const codeCabinet = String(code.value).trim();
-      if (!codeCabinet) { code.focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); }
+      const codeCabinet = String(code.value).replace(/[\s-]/g, '');
+      if (!codeCabinet) { code.focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); } if (!/^[A-Za-z0-9]{6,10}$/.test(codeCabinet)) { code.focus(); throw new Error('Le code de ton cabinet compte six à dix lettres ou chiffres : recopie-le tel que ton comptable te l\'a donné. Rien n\'a été envoyé.'); }
       if (!perimetre().length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
       await appel('POST', '/mandat', { codeCabinet, perimetre: perimetre() });
     }, bCode, '#mandat-refus-code', '#mandat-arreter');
