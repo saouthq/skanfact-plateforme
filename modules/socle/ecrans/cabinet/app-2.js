@@ -1951,8 +1951,14 @@
       const t = tiersNommeBq(repTexte, s.livre.ecritures || []);
       if (t) { tiersR = t; contre = { ...contre, compte: tiersR.compte, tiers: tiersR.nom }; }
     }
+    // (1.385.8 ; issue 11, CABSAISIE-11) Le mois du relevé est validé : le serveur refusait au clic, en bas de l'écran,
+    // hors de la fenêtre. La fenêtre le dit avant, date l'écriture du premier jour ouvert, et refuse sur sa case.
+    const dateReleve = brouillon.date, fermee = motifPeriodeValidee(dateReleve);
+    if (fermee) brouillon.date = premierJourOuvertSa();
     modal(`<h2>Écrire ${esc(fmtJour(ligne.date))} · ${esc(money(ligne.montant))}</h2>
       <p class="small muted">${esc(ligne.libelle)}</p>
+      ${fermee ? `<div class="warn-box mb" id="bf-fermee">La période est validée jusqu'au ${esc(fmtJour(((s.livre || {}).exercice || {}).valideJusqua))} : l'écriture ne peut plus se dater du ${esc(fmtJour(dateReleve))}. Elle est proposée au ${esc(fmtJour(brouillon.date))}, premier jour ouvert ; la ligne du relevé se rapproche quand même.</div>` : ''}
+      <div class="warn-box mb" id="bf-err" role="alert" hidden></div>
       ${repTexte ? `<div class="ok-box mb" id="bf-reponse"><b>${esc(contactBq(dossier) || 'Le client')} a répondu :</b> «\u00a0${esc(repTexte.trim().slice(0, 300)).replace(/(\w)-(?=\d)/g, '$1\u2011')}\u00a0»${tiersR ? `<br>Le compte de ${esc(tiersR.nom)} (${esc(tiersR.compte)}) est proposé.` : ''}</div>`
       : brouillon.regle
         ? `<div class="ok-box mb">Le libellé contient « ${esc(brouillon.regle)} » : le compte ${esc(contre.compte)} est proposé.</div>`
@@ -1990,6 +1996,8 @@
         $('#ok', rootModal).onclick = async () => {
           const v = n => (($(`[name=${n}]`, rootModal) || {}).value || '').trim();
           const compte = v('compte');
+          const mv = motifPeriodeValidee(v('date'));
+          if (mv) { const z = $('#bf-err', rootModal); z.textContent = mv; z.hidden = false; const cd = $('[name=date]', rootModal); if (cd) cd.focus(); return; }
           if (!compte) return refus($('[name=compte]', rootModal), 'Choisis le compte de contrepartie : sans lui, l\'écriture ne s\'enregistre pas.');
           if (!/^\d{1,12}$/.test(compte)) return refus($('[name=compte]', rootModal), `« ${compte} » n'est pas un numéro de compte : cherche-le par son nom dans la liste qui s'ouvre sous la case.`);
           const cocheR = $('[name=retenir]', rootModal);
@@ -2034,7 +2042,7 @@
             banqueState.sel = suivante; banqueState.cherche = ''; delete banqueState.choix[ligne.id]; banqueState.coches.delete(ligne.id);
             banqueState.annonce = { sel: suivante, msg: `${ligne.libelle ? `« ${String(ligne.libelle).slice(0, 40)} » : ` : ''}brouillard créé au compte ${compte} et rapproché${suivante && suivante !== ligne.id ? ' ; la ligne suivante est choisie.' : '.'}`, defaire: null };
             drawLivres(root, dossier);
-          } catch (e) { toast(plainError(e), 'error'); }
+          } catch (e) { const z = $('#bf-err', rootModal); if (z) { z.textContent = plainError(e); z.hidden = false; } else toast(plainError(e), 'error'); }
         };
       });
   }

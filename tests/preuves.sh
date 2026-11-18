@@ -30609,6 +30609,11 @@ prouver $'saisie 1.385.7 b : la génération passe la période validée et la no
   $'' \
   $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
 
+prouver $'banque 1.385.8 : un mois validé se dit dans la fenêtre, au premier jour ouvert' modules/socle/ecrans/cabinet/app-2.js \
+  $'    if (fermee) brouillon.date = premierJourOuvertSa();' \
+  $'' \
+  "$BQ1343"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

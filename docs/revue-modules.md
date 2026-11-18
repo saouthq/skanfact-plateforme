@@ -5134,3 +5134,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   l'exercice ouvert à l'écran (c'était toujours le 1er janvier de l'année en cours).
 - **Générer écrit ce qui peut l'être.** Une occurrence tombée dans la période validée faisait refuser toute la
   génération : elle se passe, le compte rendu nomme ses mois, et les autres s'écrivent au brouillard.
+
+## 1.385.8 — La banque d'un mois validé : écrire depuis une ligne (issue 11, CABSAISIE-11)
+
+- **La fenêtre le dit avant le geste.** « Écrire autre chose… » sur une ligne d'un mois validé datait l'écriture du
+  jour du relevé, et le refus tombait en bas de l'écran, hors de la fenêtre. Elle annonce la période validée, propose
+  le premier jour ouvert, et rappelle que la ligne du relevé se rapproche quand même.
+- **Le refus se lit dans la fenêtre** (une date remise dans la période validée, ou un refus du serveur), plus en bas
+  de l'écran.

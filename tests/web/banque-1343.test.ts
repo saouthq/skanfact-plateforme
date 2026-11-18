@@ -180,6 +180,29 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
     expect(await tuileBq.locator('.fd-ch-cb > span').count()).toBe(2);
     expect(net(await tuileBq.locator('.fd-ch-cb').innerText())).toMatch(/532 : 10\s071,870 5322 : 3\s000,000/);
     await p.screenshot({ path: path.join(PHOTOS, 'banque-1385-6-fiche-deux-comptes.png') });
+    // (1.385.8 ; issue 11-11) Mars validé : « Écrire autre chose… » le dit DANS la fenêtre, propose le premier jour ouvert,
+    // et refuse sur place une date de mars (le refus tombait en bas de l'écran, hors de la fenêtre).
+    expect((await api('POST', `/entreprises/${ent}/compta/valider`, associe, { jusqua: '2026-03-31' })).statut).toBe(200);
+    const avantFrais = ((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as unknown[]).length;
+    await p.reload();
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}/comptabilite/banque/2026`; }, ent);
+    await p.locator('[data-cp-mois="2026-03"]').click();
+    // Le mois est rapproché en entier : on le revoit, et on défait la ligne des frais pour la réécrire.
+    await p.locator('#bq-revoir').click();
+    const frais = p.locator('table.bq-t tr').filter({ hasText: 'FRAIS TENUE DE COMPTE' });
+    await frais.locator('[data-bq-defaire]').click();
+    await expect.poll(() => frais.locator('[data-rowmenu]').count(), { timeout: 15_000 }).toBe(1);
+    await frais.locator('[data-rowmenu]').first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Écrire autre chose…' }).click();
+    const fenF = p.locator('#modal-root .modal').first();
+    await expect.poll(() => fenF.locator('#bf-fermee').innerText().then(net).catch(() => '')).toMatch(/La période est validée jusqu'au 31\/03\/2026 .* proposée au 01\/04\/2026, premier jour ouvert/);
+    expect(await fenF.locator('[name=date]').inputValue()).toBe('01/04/2026');
+    await p.screenshot({ path: path.join(PHOTOS, 'banque-1385-8-mois-valide.png') });
+    await fenF.locator('[name=date]').fill('15032026');
+    await fenF.locator('[name=compte]').fill('627');
+    await fenF.getByRole('button', { name: 'Créer le brouillard' }).click();
+    await expect.poll(() => fenF.locator('#bf-err').innerText().then(net).catch(() => '')).toMatch(/La période est validée jusqu'au 31\/03\/2026 : une écriture ne s'y écrit plus/);
+    expect(((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as unknown[]).length).toBe(avantFrais);
     expect(erreurs).toEqual([]);
     await ctx.close();
   }, 180_000);
