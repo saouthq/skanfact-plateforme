@@ -5052,3 +5052,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« + Une écriture » sur un exercice clos** n'est plus un bouton sans effet : il mène à la raison (« L'exercice est
   clos : on n'y saisit plus »), et le curseur va au bouton qui suit.
 - **« Rouvre-le » a son bouton** : « Voir l'exercice 2025 » ouvre l'onglet Exercice, où la réouverture demande son motif.
+
+## 1.384.5 — La banque : des mots pour le comptable (issue 11, CABSAISIE-24 et 25)
+
+- **« de la Attijari »** : un sigle prend l'article (« de la BIAT », « de l'UIB »), un nom non (« d'Attijari bank »).
+- **Des notes de travail sorties de l'écran** : « Le relevé en PDF : pas encore. » (sans la parenthèse), la TVA d'une
+  règle dit « à vérifier » avec sa raison au survol, et le refus d'un compte de TVA ne renvoie plus au « plan » en
+  majuscules.

@@ -483,6 +483,14 @@
     const k = natureBq(libelle, montant);
     return `<span class="bqx ${k === 'frais' ? 'frais' : Number(montant) >= 0 ? 'in' : 'out'}" title="${esc(NAT_DIT[k])}" aria-label="${esc(NAT_DIT[k])}">${svgBq(BQ_IC[k])}</span>`;
   };
+  // (1.384.5, issue 11, CABSAISIE-24) « de la Attijari » : un sigle prend l'article (« de la BIAT », « de l'UIB »), un
+  // nom non (« d'Attijari bank », « de Zitouna »).
+  function deBanqueBq(nom) {
+    const n = String(nom || '').trim(), premier = n.split(/\s+/)[0] || '';
+    const voyelle = /^[aeiouyhàâéèêîôû]/i.test(n);
+    if (premier.length > 1 && premier === premier.toUpperCase() && /[A-Z]/.test(premier)) return voyelle ? `de l'${n}` : `de la ${n}`;
+    return voyelle ? `d'${n}` : `de ${n}`;
+  }
   // Une écriture se nomme par sa pièce, comme la maquette (« FA-0919 ») : le code du journal devant (« BQ BQ-0922 ») se
   // répète sans rien dire. Sans pièce, le journal et la date la nomment.
   const pieceBq = e => (e ? String(e.piece || '').trim() || `${e.journal || ''} du ${fmtJour(e.date || '').slice(0, 5)}`.trim() : '');
@@ -494,7 +502,7 @@
   function importeBq(R) {
     const f = String(R.fichier || '').toLowerCase();
     const fmt = /\.xlsx?$/.test(f) ? 'Excel' : /\.csv$/.test(f) ? 'CSV' : /\.ofx$/.test(f) ? 'OFX' : '';
-    const de = fmt ? ` (${fmt}${R.banque ? ` de la ${R.banque}` : ''})` : '';
+    const de = fmt ? ` (${fmt}${R.banque ? ` ${deBanqueBq(R.banque)}` : ''})` : '';
     if (!R.importeLe) return '';
     const t = new Date(R.importeLe);
     if (Number.isNaN(t.getTime())) return '';
@@ -1069,9 +1077,9 @@
       <div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(5)}</div>
         <div class="apx-2"><div class="apx-r">${lignesAp(6)}</div><div class="apx-r apx-cad"><span class="apx-b" style="width:40%"></span><span class="apx-b" style="height:30px"></span>${lignesAp(2)}<span class="apx-b apx-btn"></span></div></div></div>
         <div class="apx-c"><span class="apx-ic">${svgBq(BQ_IC.banque, 22)}</span><b>Le relevé ${esc(mois ? deMois(mois) : '')}${mois ? ' ' : ''}n'est pas encore là</b>
-          <p>Importe le fichier ${esc(nomBq ? `de la ${nomBq}` : 'de la banque')} tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec sa pièce en face, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
+          <p>Importe le fichier ${esc(nomBq ? deBanqueBq(nomBq) : 'de la banque')} tel qu'elle le donne (Excel ou CSV). Chaque ligne arrive avec sa pièce en face, et pourquoi ; ce qui est sûr se confirme d'un coup.</p>
           <div class="cp-gestes">${lectureSeuleLivre() ? '' : `<button type="button" class="btn btn-primary" id="bq-import">Importer le relevé…</button>`}${!dossier.manual && api.messagerie ? '<button type="button" class="btn" id="bq-demander-releve">Le demander au client</button>' : ''}</div>
-          <span class="apx-mini">Le relevé en PDF : pas encore (À VÉRIFIER : les banques qui ne donnent que le PDF).</span></div></div></div>`;
+          <span class="apx-mini">Le relevé en PDF : pas encore.</span></div></div></div>`;
   }
 
   // Le geste d'une ligne, puis la ligne SUIVANTE (celle d'après dans l'ordre des groupes) : on ne revient jamais chercher
@@ -1560,7 +1568,7 @@
       return `<tr><td><div class="bq-lb">${icNature(x.motif, x.sens === 'credit' ? 1 : -1)}<b class="mono" style="align-self:center">${esc(x.motif)}</b></div>${KC.motifDeLibelle(x.motif) ? '' : ' <small class="mu">trop courant : ne propose plus rien</small>'}</td>
         <td>${esc(sensBq(x))}${auPlusBq(x) ? `<small class="bq-p">${esc(auPlusBq(x))}</small>` : ''}</td>
         <td><span class="mono">${esc(x.compte)}</span> <span class="mu">${esc(nom(x.compte))}</span></td>
-        <td>${x.tva ? `${esc(String(x.tva.taux).replace('.', ','))} % · <span class="mono">${esc(x.tva.compte)}</span> <small class="bq-p">À VÉRIFIER</small>` : '<span class="mu">—</span>'}</td>
+        <td>${x.tva ? `${esc(String(x.tva.taux).replace('.', ','))} % · <span class="mono">${esc(x.tva.compte)}</span> <small class="bq-p" title="Le taux et le compte de TVA d'une règle sont à vérifier dans les textes en vigueur">à vérifier</small>` : '<span class="mu">—</span>'}</td>
         <td class="r"><b>${ps.length}</b><small class="bq-p">${ps.length ? `ici · la dernière le ${esc(fmtJour(der).slice(0, 5))}` : 'aucune ligne ici'}</small></td>
         ${lect ? '<td></td>' : `<td class="actions row-actions bqr-act"><button type="button" class="cp-plus" data-bqr-modifier="${i}">Modifier</button>${RowMenu.bouton('REG:' + i, '⋯', 'bqr-plus').replace('<button ', `<button aria-label="Plus de gestes pour la règle ${esc(x.motif)}" `)}</td>`}</tr>`;
     };
@@ -1650,7 +1658,7 @@
       if (String(n.auPlus || '').trim() && !x.auPlusMillimes) { refus($('#bqr-auplus', el), `« ${n.auPlus} » n'est pas un montant : laisse vide pour tous les montants, ou écris par exemple 50,000.`); return; }
       const tTxt = String(n.tvaTaux || '').trim();
       if (tTxt && (!/^\d{1,2}([.,]\d{1,4})?$/.test(tTxt) || !(Number(tTxt.replace(',', '.')) > 0))) { refus($('#bqr-tva', el), `« ${tTxt} » n'est pas un taux : écris un nombre entre 0 et 100 (par exemple 19), ou laisse vide.`); return; }
-      if (tTxt && !/^\d{1,12}$/.test(String(n.tvaCompte || '').trim())) { refus($('#bqr-tvac', el), 'Une TVA va à un compte : écris-le en chiffres (À VÉRIFIER avec le plan du dossier).'); return; }
+      if (tTxt && !/^\d{1,12}$/.test(String(n.tvaCompte || '').trim())) { refus($('#bqr-tvac', el), 'Une TVA va à un compte : écris-le en chiffres, comme dans le plan du dossier.'); return; }
       const avant = reglesBq();
       const autres = avant.filter((y, i) => i !== n.index);
       if (autres.some(y => cleRegleBq(y) === cleRegleBq(x))) { refus($('#bqr-motif', el), `Une règle « ${x.motif} » avec ce sens et ce montant existe déjà : modifie-la dans le tableau.`); return; }
@@ -2225,7 +2233,7 @@
               <div class="bqk-f"><div><small>Dernier relevé importé</small><b>${esc(moisLong(String(prec.au).slice(0, 7)))} · fin ${esc(money(prec.soldeFin))}</b><small>du ${esc(fmtJour(prec.du))} au ${esc(fmtJour(prec.au))}</small></div>
                 <div class="trou"><small>${esc(cap(trou.map(m => moisLong(m)).join(', ')))}</small><b>pas encore importé</b></div>
                 <div><small>Ce fichier</small><b>${esc(moisLong(du.slice(0, 7)))} · ${esc(pl(lignes.length, 'mouvement'))}</b><small>du ${esc(fmtJour(du))} au ${esc(fmtJour(au))}</small></div></div>
-              <ul class="bqk-ok"><li>${svgBq(BQ_IC.ok, 14)}<span>le fichier est bien un relevé${banqueNom ? ` de la ${esc(banqueNom)}` : ''}, ${esc(compte)}</span></li>
+              <ul class="bqk-ok"><li>${svgBq(BQ_IC.ok, 14)}<span>le fichier est bien un relevé${banqueNom ? ` ${esc(deBanqueBq(banqueNom))}` : ''}, ${esc(compte)}</span></li>
                 ${doubles ? `<li class="ko">${svgBq(BQ_IC.alerte, 14)}<span>${esc(pl(doubles, 'ligne déjà importée', 'lignes déjà importées'))}</span></li>` : `<li>${svgBq(BQ_IC.ok, 14)}<span>aucun doublon</span></li>`}</ul>
               <div class="cp-gestes"><button type="button" class="btn btn-primary" id="rv-dabord">Importer d'abord celui ${esc(deMois(trou[0]))}…</button>${!dossier.manual && api.question ? `<button type="button" class="btn" id="rv-demander">Le demander à ${esc(contact)}</button>` : ''}<button type="button" class="btn btn-ghost" id="rv-forcer">L'importer quand même</button></div></div>` : '');
           rootModal.classList.toggle('bqi-bloque', !!htmlTrou);
