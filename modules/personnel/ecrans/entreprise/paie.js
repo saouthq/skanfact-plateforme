@@ -768,12 +768,16 @@
           const c = c0 && c0.type === 'hidden' && c0.closest('.datefield') ? $('.d-txt', c0.closest('.datefield')) : c0;
           if (c) c.focus();
         }
-        $('#ok', root).onclick = () => {
+        $('#ok', root).onclick = async () => {
           if (enLecture('employees')) return refus('#ef input[name=name]', refusLecture('employees'));
           const v = formValues($('#ef', root));
           if (!v.name.trim()) return refus('#ef input[name=name]', 'Le nom du salarié est obligatoire : il figure sur chaque bulletin.');
           if (!(Number(v.grossSalary) > 0)) return refus($('[name=grossSalary]', root), 'Le salaire brut doit être supérieur à zéro.');
           if (v.endDate && v.hireDate && v.endDate < v.hireDate) return refus($('[name=endDate]', root), 'La sortie ne peut pas précéder l\'embauche.');
+          // (1.387.28, issue 16, constat 17) Un CDD sans date de fin passait sans un mot : rien ne préviendrait de son terme. On
+          // demande (un CDD en cours de renouvellement existe), une fois : pas à chaque modification d'une fiche déjà ainsi.
+          if (v.contract === 'cdd' && !v.endDate && !(employee && employee.contract === 'cdd' && !employee.endDate)
+            && !await confirmDialog('Un CDD a une date de fin : sans elle, SkanFact ne te préviendra pas de son terme ni du dernier bulletin qui solde ses congés. Enregistrer sans date de fin ?', 'Enregistrer sans date', undefined, { titre: 'Ce CDD n\'a pas de date de fin' })) return refus($('[name=endDate]', root), 'La date de fin du CDD : celle écrite sur son contrat.');
           // 1.382.2 (issue 10, CABPAIE-10, le jumeau du Cabinet) — « 99 » enfants, une CIN de chiffres qui n'en compte pas huit.
           { const en = String(v.children == null ? '' : v.children).trim(); const ce = $('#ef [name=children]', root);
             if (ce && en && (!/^\d{1,2}$/.test(en) || Number(en) > 20)) return refus(ce, 'Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');

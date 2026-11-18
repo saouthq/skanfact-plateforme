@@ -5402,3 +5402,7 @@ Un code de cabinet de mauvaise forme renvoyait « Le champ « codeCabinet » ne 
 ### 1.387.27 — le solde de tout compte ne se dit plus « net » (issue 16, constat 13)
 
 Le solde additionne des montants bruts (l'indemnité de congés non pris est calculée sur le dernier salaire brut ; les retenues se font sur le dernier bulletin) sous le titre « Net à percevoir ». Il s'appelle « Total du solde », sur le document imprimé et dans les deux fenêtres (entreprise, Cabinet). Test : `cabinet-documents-personnel`, prouvé. Le constat 15 (la somme en lettres de l'état CNSS) n'est pas changé : la formule « déclaration de salaires arrêtée à la somme de » vise les salaires déclarés — À VÉRIFIER avec le cabinet pilote.
+
+### 1.387.28 — un CDD sans date de fin se demande (issue 16, constat 17)
+
+La fiche d'un salarié acceptait un CDD sans date de fin : rien ne prévenait ensuite de son terme ni du dernier bulletin qui solde ses congés. À l'enregistrement, SkanFact demande « Enregistrer sans date ? » (un CDD en cours de renouvellement existe) ; « Annuler » ramène à la case de la date. La question ne revient pas à chaque modification d'une fiche déjà enregistrée ainsi. Test : `parcours` (« les primes de chaque mois… »), prouvé.

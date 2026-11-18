@@ -30756,6 +30756,7 @@ prouver $'virement-dans-le-rouge' modules/socle/ecrans/entreprise/app-2.js $'   
 prouver $'salaires-payes-avant-le-mois' modules/personnel/ecrans/entreprise/paie.js $'        if (bizarre && !await confirmDialog(' $'        if (false && !await confirmDialog(' $'début novembre, le bulletin de septembre d\'une nouvelle n\'avait jamais été établi : chaque geste de la paie le dit avant, et la comptable lit septembre réécrit au 1er octobre'
 prouver $'code-cabinet-forme' web/public/plateforme/pont.js $' if (!/^[A-Za-z0-9]{6,10}$/.test(codeCabinet)) { code.focus();' $' if (false) { code.focus();' $'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver $'solde-total-pas-net' modules/personnel/moteur/core-paie.js $'<tr class="tot"><td>Total du solde</td>' $'<tr class="tot"><td>Net à percevoir</td>' $'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver $'cdd-sans-fin' modules/personnel/ecrans/entreprise/paie.js $'          if (v.contract === \'cdd\' && !v.endDate &&' $'          if (false &&' $'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d\'avant 2026 se disent'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

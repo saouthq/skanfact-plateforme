@@ -687,6 +687,16 @@ describe('le parcours, à la souris', () => {
     expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.dataset.p)).toBe('amount');
     expect(await fiche()).toBeUndefined();
     await p.locator('#ef-primes input[data-p=amount]').nth(1).fill('50');
+    // (1.387.28, issue 16, constat 17) Un CDD sans date de fin : SkanFact demande ; « Annuler » ramène à la case de la date.
+    await p.locator('#ef [name=contract]').selectOption('cdd');
+    await p.locator('#modal-root #ok').click();
+    const sansFin = p.locator('.modal').filter({ hasText: 'Ce CDD n\'a pas de date de fin' });
+    await sansFin.waitFor({ timeout: 10_000 });
+    await sansFin.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => sansFin.count(), { timeout: 5_000 }).toBe(0);
+    expect(await p.locator('#ef').count()).toBe(1);
+    expect(await fiche()).toBeUndefined();
+    await p.locator('#ef [name=contract]').selectOption('cdi');
     // L'aide de la fiche compte les primes.
     await expect.poll(() => p.locator('#ef-hint').innerText()).toMatch(/Sur ce brut et ses primes/);
     await p.locator('#modal-root #ok').click();
