@@ -30535,6 +30535,10 @@ prouver $'console 1.383.8 b : « Noter un appel » manque au menu de la fiche' w
   $'appel={f.faits.tenuParCabinet ? undefined : () => setAppel(true)}' $'appel={undefined}' \
   $'le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
 
+prouver $'console 1.383.9 a : des factures à préparer sans entreprise qui les émet' serveur/console/decider.ts \
+  $'    if (argent.sansEditeur) {' $'    if (argent.sansEditeur && liste.length > 9999) {' \
+  $'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

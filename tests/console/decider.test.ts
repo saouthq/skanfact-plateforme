@@ -177,6 +177,11 @@ describe('« À décider » : le renouvellement à facturer (1.83.0)', () => {
     expect(d[1]).toMatchObject({ ouvre: 'fiche', entreprise: qui(annuel), jusquAu: plusJours(JOUR, 30), jours: 30, offre: 'complet', periodicite: 'annuel' });
     // Le support ne facture pas ; sans l'argent de la direction, rien.
     expect(aDecider(liste, veilleOk, JOUR, 'support', [], MAINTENANT, argent)).toEqual([]);
+    // (1.383.9, issue 5, CONSOLE-13) sans entreprise SkanFact désignée, aucune de ces factures ne peut se préparer : les
+    // deux lignes cèdent la place à UNE, qui les compte et mène aux Réglages.
+    expect(aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, { ...argent, sansEditeur: true })).toEqual([{ sorte: 'designer_editeur', ouvre: 'reglages', bloquees: 2 }]);
+    // Désignée ou non, rien à facturer : aucune ligne ne se fabrique.
+    expect(aDecider([], veilleOk, JOUR, 'direction', [], MAINTENANT, { ...argent, sansEditeur: true })).toEqual([]);
     // Une offre choisie dans l'application (1.84.0) tient lieu de « à facturer » : une seule ligne, la sienne.
     const choisie = { ...argent, choisies: [{ entreprise: qui(annuel), offre: 'essentiel' as const, periodicite: 'mensuel' as const, le: '2026-10-13T07:00:00Z', par: 'Proprio' }] };
     expect(aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, choisie).filter((l) => 'entreprise' in l && l.entreprise.id === annuel.id).map((l) => l.sorte)).toEqual(['offre_choisie']);

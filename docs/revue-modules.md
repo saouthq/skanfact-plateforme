@@ -5001,3 +5001,14 @@ menu de la liste porte « Sur sa fiche… », dont la phrase nomme les gestes qu
 gagne « Noter un appel… », avant ce qui détruit ; au support qui a déjà prolongé, il reste ce choix et la phrase qui dit
 pourquoi. Tests : `console-clients` (le contenu du menu, le parcours au clavier), `console` (la fiche du support).
 Preuves « console 1.383.8 a » et « b ».
+
+## 1.383.9 — La console : « À décider » ne propose plus de facture qu'on ne peut pas préparer (issue 5, CONSOLE-13)
+
+Tant que l'entreprise SkanFact n'est pas désignée, aucune facture ne se prépare — et l'accueil alignait pourtant
+« son renouvellement est à facturer », une ligne par client, qui menait à une fiche, puis aux Réglages. Sans elle, les
+lignes bloquées (renouvellement à facturer, offre choisie dans l'application, facture de cabinet refusée) cèdent la place à
+**une** ligne : « Désigner l'entreprise SkanFact, pour pouvoir facturer », qui dit combien de factures attendent et ouvre
+l'onglet des Réglages où cela se fait. La fiche d'un client garde sa propre phrase (son onglet Factures le dit déjà).
+Test : `decider` (deux lignes deviennent une, qui en compte deux ; rien à facturer, rien d'affiché). Preuve
+« console 1.383.9 a ». **À VÉRIFIER par Skander** : désigner l'entreprise SkanFact dans la console de production avant de
+vendre le premier abonnement.

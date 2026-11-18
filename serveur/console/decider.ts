@@ -194,6 +194,8 @@ export type Ligne =
   | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null; refus: string | null }
   // La facture d'une période de cabinet que le serveur n'a pas pu faire seul (lot 3, 0172) : son motif.
   | { sorte: 'facture_cabinet'; ouvre: 'cabinet'; cabinet: { id: string; nom: string }; debut: string; le: string; motif: string }
+  // L'entreprise SkanFact n'est pas désignée : UNE ligne, à la place de celles qu'elle bloque (les factures à préparer).
+  | { sorte: 'designer_editeur'; ouvre: 'reglages'; bloquees: number }
   | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
@@ -243,6 +245,8 @@ export function lireChoisies(brut: unknown): NonNullable<Argent['choisies']>[num
 // et premier jour de leur période (une facture payée a déjà poussé la période payée).
 export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[];
   facturees?: readonly { entreprise: string; debut: string }[];
+  // `sansEditeur` (1.383.9) : l'entreprise SkanFact n'est pas désignée — rien ne se facture tant qu'elle manque.
+  sansEditeur?: boolean;
   // `choisies` (1.84.0) : les offres choisies dans l'application qui attendent leur facture.
   choisies?: readonly { entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null; refus?: string | null }[];
   // `cabinets` (lot 3, 0172) : les périodes de cabinet qui ne se sont pas facturées seules, et pourquoi.
@@ -340,6 +344,16 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
       if (s.etat !== 'actif' || s.resilie || partent.has(e.id) || choisies.has(e.id) || s.jours < 0 || s.jours > A_FACTURER_JOURS[s.periodicite]) continue;
       if ((argent.facturees ?? []).some((f) => f.entreprise === e.id && f.debut > s.jusquAu)) continue;
       lignes.push([2.6, s.jours, { sorte: 'a_facturer', ouvre: 'fiche', entreprise: { id: e.id, nom: e.raisonSociale }, jusquAu: s.jusquAu, jours: s.jours, offre: s.offre, periodicite: s.periodicite }]);
+    }
+    // Sans entreprise SkanFact désignée, aucune de ces factures ne peut se préparer : les lignes qu'on ne peut pas
+    // régler cèdent la place à UNE ligne qui dit quoi faire d'abord (issue 5, CONSOLE-13).
+    if (argent.sansEditeur) {
+      const BLOQUEES = new Set(['a_facturer', 'offre_choisie', 'facture_cabinet']);
+      const bloquees = lignes.filter(([, , l]) => BLOQUEES.has(l.sorte)).length;
+      if (bloquees) {
+        for (let i = lignes.length - 1; i >= 0; i--) if (BLOQUEES.has((lignes[i] as [number, number, Ligne])[2].sorte)) lignes.splice(i, 1);
+        lignes.push([2.4, 0, { sorte: 'designer_editeur', ouvre: 'reglages', bloquees }]);
+      }
     }
   }
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);

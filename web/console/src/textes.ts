@@ -6137,6 +6137,10 @@ declarerTextes({
   // 1.119.0 : sa facture ne s'est pas faite seule (0171) : pourquoi, et ce qui reste à faire.
   'console.ecran.decider.offre_choisie_refus': 'choisie dans l\'application par {qui}, le {le}, mais sa facture ne s\'est pas faite seule : {motif} Prépare-la sur cette offre ; elle arrive dans son onglet « Ton abonnement »',
   'console.ecran.decider.a_facturer_titre': '{nom} : son renouvellement est à facturer',
+  'console.ecran.decider.designer_titre': 'désigner l\'entreprise SkanFact, pour pouvoir facturer',
+  'console.ecran.decider.designer_1': 'une facture attend d\'être préparée, et aucune ne peut l\'être tant que l\'entreprise qui les émet n\'est pas désignée. Cela se fait une fois, dans les Réglages',
+  'console.ecran.decider.designer_n': '{n} factures attendent d\'être préparées, et aucune ne peut l\'être tant que l\'entreprise qui les émet n\'est pas désignée. Cela se fait une fois, dans les Réglages',
+  'console.ecran.decider.designer_bouton': 'la désigner',
   'console.ecran.decider.a_facturer': '{quoi}, payé jusqu\'au {jusquAu} ({dans}) : la facture de la période suivante n\'est pas encore préparée',
   'console.ecran.decider.a_emettre_titre': '{nom} : une facture attend d\'être émise',
   'console.ecran.decider.a_emettre': 'préparée le {le} pour la période du {debut} au {fin} : émets-la dans l\'application de SkanFact, ou supprime-la',

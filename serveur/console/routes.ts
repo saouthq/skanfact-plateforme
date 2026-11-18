@@ -351,7 +351,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
         lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
         sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])),
         choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')),
-        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')) } : null;
+        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')),
+        // À l'accueil seulement (la fiche le dit déjà dans son onglet Factures) : sans entreprise SkanFact désignée, les
+        // factures à préparer cèdent la place à une seule ligne (issue 5, CONSOLE-13).
+        sansEditeur: !paiements.editeur } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = base ? selectionClients(base.valeur, jour, { nouvelles: '1' }).dansVue.length : 0;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);

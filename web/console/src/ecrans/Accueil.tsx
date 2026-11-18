@@ -34,6 +34,7 @@ export type Ligne =
   // L'argent (0113), pour la direction : une facture payée puis défaite, une facture qui attend d'être émise, un trop-perçu.
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'designer_editeur'; ouvre: 'reglages'; bloquees: number }
   | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: Qui; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null; refus?: string | null }
   // 0172 : la facture d'une période de cabinet que le serveur n'a pas pu faire seul, et pourquoi.
@@ -183,6 +184,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'facture', titre: titre('console.ecran.decider.facture_cabinet_titre', { nom: l.cabinet.nom }),
         desc: phrase('console.ecran.decider.facture_cabinet', { debut: jourCourt(l.debut), motif: l.motif }),
         meta: null, urgence: 'aujourdhui', href: `#/cabinets/${l.cabinet.id}`, bouton: titre('console.ecran.decider.ouvrir_cabinet') };
+    case 'designer_editeur':
+      return { icone: 'facture', titre: titre('console.ecran.decider.designer_titre'),
+        desc: phrase(l.bloquees > 1 ? 'console.ecran.decider.designer_n' : 'console.ecran.decider.designer_1', { n: String(l.bloquees) }),
+        meta: null, urgence: 'aujourdhui', href: '#/reglages?onglet=factures', bouton: titre('console.ecran.decider.designer_bouton') };
     case 'a_facturer':
       return { icone: 'calendrier', titre: titre('console.ecran.decider.a_facturer_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.a_facturer', { quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${l.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${l.periodicite}`) }),
@@ -265,7 +270,7 @@ function ADecider({ lignes, role, aujourdhui, calculeLe = null }: { lignes: Lign
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
                 <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'secret' ? `secret-${l.nom}` : l.sorte === 'urgence' ? `urgence-${l.id}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
-                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : l.sorte === 'effacement' ? `effacement-${l.id}` : l.sorte === 'pause' ? `pause-${l.partenaire}` : l.sorte === 'envois_en_panne' ? 'envois-en-panne' : l.sorte === 'facture_cabinet' ? `facture-cabinet-${l.cabinet.id}-${l.debut}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
+                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : l.sorte === 'effacement' ? `effacement-${l.id}` : l.sorte === 'pause' ? `pause-${l.partenaire}` : l.sorte === 'envois_en_panne' ? 'envois-en-panne' : l.sorte === 'facture_cabinet' ? `facture-cabinet-${l.cabinet.id}-${l.debut}` : l.sorte === 'designer_editeur' ? l.sorte : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">
                     <span className="c-ligne-titre"><span {...(donnee ? { 'data-donnee': true } : {})}>{v.titre}</span> <Puce ton={ton}>{titre(`console.ecran.urgence.${v.urgence}`)}</Puce></span>
