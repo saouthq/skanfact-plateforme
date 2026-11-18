@@ -30493,6 +30493,14 @@ prouver $'saisie 1.382.1 a : une date illisible rougit sans un mot' modules/socl
   $'        if (ko && mref) { mref.hidden = false;' $'        if (false && mref) { mref.hidden = false;' \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+# 1.382.2 (issue 10, CABPAIE-10) — la fiche d'un salarié refuse sur la case.
+prouver $'paie 1.382.2 a : une CIN de cinq chiffres enregistrée' modules/personnel/ecrans/cabinet/paie.js \
+  $'        if (cinTxt && /^\\d+$/.test(cinTxt) && cinTxt.length !== 8) return' $'        if (false) return' \
+  $'(1.344.0) l\'écriture validée depuis la Paie, la paie passée au journal comptée dans l\'année, le fichier CNSS une ligne par salarié'
+prouver $'paie 1.382.2 b : le brut vide refusé par un bandeau, sans montrer la case' modules/personnel/ecrans/cabinet/paie.js \
+  $'          return c ? refus(c, ok.motif) : toast(ok.motif, \'error\');' $'          return toast(ok.motif, \'error\');' \
+  $'(1.344.0) l\'écriture validée depuis la Paie, la paie passée au journal comptée dans l\'année, le fichier CNSS une ligne par salarié'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

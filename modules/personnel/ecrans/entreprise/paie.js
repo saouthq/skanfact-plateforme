@@ -774,6 +774,11 @@
           if (!v.name.trim()) return refus('#ef input[name=name]', 'Le nom du salarié est obligatoire : il figure sur chaque bulletin.');
           if (!(Number(v.grossSalary) > 0)) return refus($('[name=grossSalary]', root), 'Le salaire brut doit être supérieur à zéro.');
           if (v.endDate && v.hireDate && v.endDate < v.hireDate) return refus($('[name=endDate]', root), 'La sortie ne peut pas précéder l\'embauche.');
+          // 1.382.2 (issue 10, CABPAIE-10, le jumeau du Cabinet) — « 99 » enfants, une CIN de chiffres qui n'en compte pas huit.
+          { const en = String(v.children == null ? '' : v.children).trim(); const ce = $('#ef [name=children]', root);
+            if (ce && en && (!/^\d{1,2}$/.test(en) || Number(en) > 20)) return refus(ce, 'Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');
+            const ci = String(v.cin || '').replace(/\s/g, ''); const cc = $('#ef [name=cin]', root);
+            if (cc && ci && /^\d+$/.test(ci) && ci.length !== 8) return refus(cc, `Une carte d'identité compte huit chiffres : « ${ci} » en compte ${ci.length}. Pour un passeport ou une carte de séjour, écris le numéro avec ses lettres.`); }
           // Ce que le fichier CNSS refuserait se refuse ICI, où l'on peut le corriger (10.14.1) : le
           // découvrir au moment de déclarer, c'est rouvrir la fiche sous l'échéance.
           if (String(v.cnss || '').trim() && !C.lireMatriculeCnss(v.cnss).ok) return refus($('[name=cnss]', root), 'Le matricule CNSS s\'écrit 12345678-90 : huit chiffres au plus, puis la clé sur deux (comme sur la carte d\'assuré).');

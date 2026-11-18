@@ -2628,8 +2628,19 @@
         // Ce que le fichier CNSS refuserait se refuse ICI, où l'on peut le corriger (10.14.1).
         if (String(v.cnss || '').trim() && !KC.lireMatriculeCnss(v.cnss).ok) return refus($('[name=cnss]', f), 'Le matricule CNSS s\'écrit 12345678-90 : huit chiffres au plus, puis la clé sur deux (comme sur la carte d\'assuré).');
         if (String(v.identiteCnss || '').trim()) { const idc = KC.identiteCnss(v.identiteCnss); if (!idc.ok) return refus($('[name=identiteCnss]', f), KC.motifIdentiteCnss(idc)); }
+        // 1.382.2 (issue 10, CABPAIE-10) — chaque refus se MONTRE sur sa case : le nom, l'embauche, la sortie et
+        // le brut passaient par un bandeau qui disparaissait, un par un. Et deux saisies impossibles se refusent :
+        // « 99 » enfants à charge, une CIN de chiffres qui n'en compte pas huit (un passeport, avec ses lettres, passe).
+        const enfantsTxt = $('[name=enfants]', f).value.trim();
+        if (enfantsTxt && (!/^\d{1,2}$/.test(enfantsTxt) || Number(enfantsTxt) > 20)) return refus($('[name=enfants]', f), 'Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');
+        const cinTxt = String(v.cin || '').replace(/\s/g, '');
+        if (cinTxt && /^\d+$/.test(cinTxt) && cinTxt.length !== 8) return refus($('[name=cin]', f), `Une carte d'identité compte huit chiffres : « ${cinTxt} » en compte ${cinTxt.length}. Pour un passeport ou une carte de séjour, écris le numéro avec ses lettres.`);
         const ok = KC.salarieValide(v);
-        if (!ok.ok) return toast(ok.motif, 'error');
+        if (!ok.ok) {
+          const champ = /nom/.test(ok.motif) ? 'nom' : /sortie/.test(ok.motif) ? 'sortie' : /embauche/.test(ok.motif) ? 'embauche' : /brut/.test(ok.motif) ? 'brut' : '';
+          const c = champ && $(`[name=${champ}]`, f);
+          return c ? refus(c, ok.motif) : toast(ok.motif, 'error');
+        }
         try {
           const r = await api.saveSalarie({ dossierId: dossier.id, annee: s.annee, salarie: v });
           s.livre = r.livre; close(); toast('Salarié enregistré.'); drawLivres(root, dossier);

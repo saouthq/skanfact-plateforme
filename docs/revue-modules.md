@@ -4912,3 +4912,12 @@ sa raison écrite à sa place. Le code ne change pas.
 - **Une date illisible se dit.** « 32/13 » rougissait la case, et la phrase sous la grille disait « la date manque »
   d'une case pleine. Elle dit ce qui est tapé et les trois formes acceptées (4, 4/3, 04/03/2026).
 - Test : `tests/web/cabinet-banque-1375.test.ts` ; preuve « saisie 1.382.1 a ».
+
+## 1.382.2 — La fiche d'un salarié refuse sur sa case (issue 10, CABPAIE-10)
+
+- **Chaque refus se montre.** Au Cabinet, le nom, l'embauche, la sortie et le brut manquants passaient par un bandeau
+  qui disparaissait : le curseur va maintenant dans la case fautive.
+- **Deux saisies impossibles se refusent**, au Cabinet et côté entreprise : « 99 » enfants à charge (0 à 20), et une
+  carte d'identité de chiffres qui n'en compte pas huit. Un passeport ou une carte de séjour, avec ses lettres, passe.
+  À VÉRIFIER : huit chiffres pour la CIN tunisienne.
+- Test : `tests/web/paie-1344.test.ts` ; preuves « paie 1.382.2 a » et « b ».

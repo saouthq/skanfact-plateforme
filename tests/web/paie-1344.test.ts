@@ -87,7 +87,21 @@ describe('la paie d\'un dossier au Cabinet, jouée comme un comptable (1.344.0)'
     await fenetre.locator('[name=nom]').fill('Amira Ben Salah');
     await fenetre.locator('[name=brut]').fill('600');
     await fenetre.locator('[name=embauche]').fill('01/01/2025');
+    // (1.382.2, CABPAIE-10) une CIN de cinq chiffres et « 99 » enfants se refusent sur leur case ; le brut vide aussi.
+    await fenetre.locator('[name=cin]').fill('12345');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toMatch(/^Une carte d'identité compte huit chiffres : « 12345 » en compte 5\./);
+    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('cin');
     await fenetre.locator('[name=cin]').fill('07654321');
+    await fenetre.locator('[name=enfants]').fill('99');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Les enfants à charge s\'écrivent en chiffres, de 0 à 20.');
+    await fenetre.locator('[name=enfants]').fill('0');
+    await fenetre.locator('[name=brut]').fill('');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Le salaire brut mensuel doit être supérieur à zéro.');
+    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('brut');
+    await fenetre.locator('[name=brut]').fill('600');
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Salarié enregistré.');
     await vue('mois');
