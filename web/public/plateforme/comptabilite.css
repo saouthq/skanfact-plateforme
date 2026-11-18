@@ -26,8 +26,8 @@
 
 /* La carte de la page : sans fond, l'écran a la sienne. */
 #c-compta.cp-modele { background: none; border: 0; box-shadow: none; padding: 0; }
-.cp-modele > .c-barre { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--sb-trait); border-radius: 12px; background: var(--sb-papier); }
-#c-compta.cp-modele[data-groupe="saisir"] > .c-barre { display: none; }
+.cp-modele .c-barre { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--sb-trait); border-radius: 12px; background: var(--sb-papier); }
+#c-compta.cp-modele[data-groupe="saisir"] .c-barre { display: none; }
 .cp-modele .cp-corps { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); padding: 16px 18px; min-width: 0; }
 
 /* Les groupes (le segment) et les écrans du groupe ouvert (les pilules), dans une carte. */

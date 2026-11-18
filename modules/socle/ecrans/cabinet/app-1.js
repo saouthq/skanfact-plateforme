@@ -8574,6 +8574,11 @@
     const el = $('#c-livres', root);
     s.dossierVu = dossier;
     if (!el) return;
+    // (1.385.4, issue 11, CABSAISIE-26) La bande « Période » se range SOUS les onglets : au-dessus, elle les faisait sauter
+    // de soixante pixels en passant de « Saisir » (où elle se cache) à « Consulter ». Elle rentre chez elle avant chaque
+    // dessin (le dessin réécrit `el`), et se repose sous la barre des onglets une fois celle-ci dessinée.
+    const bandePeriode = el.parentElement ? el.parentElement.querySelector('.c-barre') : null;
+    if (bandePeriode && bandePeriode.parentElement !== el.parentElement) el.parentElement.insertBefore(bandePeriode, el);
     // (1.368.1) Le titre et le fil suivent l'écran dès l'entrée : sans livre encore, le dessin sortait plus bas avant de
     // les poser, et « Saisie » s'ouvrait sous le titre de l'écran d'avant (« Liasse », « Déclarer et clôturer »).
     { const t0 = $('#cp-titre'); if (t0) t0.textContent = ONGLETS_COMPTA[s.onglet] || 'La comptabilité'; const f0 = $('#cp-fil'); if (f0) f0.textContent = filCompta(s.onglet); }
@@ -8814,6 +8819,7 @@
     // pendant la visite, sur le livre-journal). La hauteur se mesure : la barre passe sur deux
     // rangées à 1280 px.
     const navCompta = $('.c-nav', el), vue = document.getElementById('view');
+    if (bandePeriode && navCompta) navCompta.after(bandePeriode);
     if (navCompta && vue) {
       const poserHauteur = () => { if (navCompta.isConnected) vue.style.setProperty('--c-nav-h', navCompta.offsetHeight + 'px'); };
       poserHauteur();

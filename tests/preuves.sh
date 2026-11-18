@@ -30587,6 +30587,10 @@ prouver $'saisie 1.385.2 a : au téléphone, la case du compte sans étiquette' 
   $"  #sa-lignes > tr > td:first-child::before { content: 'Compte';" $"  #sa-lignes > tr > td:first-child::before { content: '';" \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+prouver $'compta 1.385.4 a : la bande Période au-dessus des onglets les fait sauter' modules/socle/ecrans/cabinet/app-1.js \
+  $"    if (bandePeriode && navCompta) navCompta.after(bandePeriode);" $"" \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

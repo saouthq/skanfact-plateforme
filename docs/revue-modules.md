@@ -5107,3 +5107,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« 1190,500 DT » devient « 1 190,500 DT »** partout où le Cabinet redit le total lu sur une pièce (la fenêtre de
   lecture, le message « Lue : … », le classeur, l'historique d'une pièce, la saisie face à la pièce) : une seule
   fonction (`totalLu`) au lieu de six écritures à la main.
+
+## 1.385.4 — La comptabilité d'un dossier : les onglets ne sautent plus (issue 11, CABSAISIE-26)
+
+- **La bande « Période » se range sous les onglets.** Posée au-dessus, elle les faisait descendre de soixante pixels en
+  passant de « Saisir » (où elle se cache) à « Consulter » : le clic suivant tombait à côté.

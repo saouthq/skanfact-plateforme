@@ -238,6 +238,18 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     expect(docs.filter((d) => d.titre === 'quittance-loyer.pdf').map((d) => [d.periode, d.rubrique, d.raison, d.jointe ?? null]))
       .toEqual([[`${demain.getFullYear()}-01`, 'piece', 'jointe', just?.id ?? '?']]);
     await expect.poll(() => p.locator('#sa-joindre').innerText()).toBe('Justificatif joint ✓');
+
+    // ── (1.385.4, issue 11 constat 26) de « Saisir » à « Consulter », les onglets ne bougent pas : la bande « Période »
+    //    se range sous eux ─────────────────────────────────────────────────────────────────────────────────────────
+    await p.evaluate(() => document.getElementById('view')?.scrollTo(0, 0));
+    const hautDesOnglets = () => p.locator('#c-groupes').evaluate((g) => Math.round(g.getBoundingClientRect().top + (document.getElementById('view')?.scrollTop ?? 0)));
+    const enSaisir = await hautDesOnglets();
+    await p.locator('#c-groupes [data-groupe="consulter"]').click();
+    await expect.poll(() => p.locator('.c-barre').isVisible(), { timeout: 10_000 }).toBe(true);
+    await p.evaluate(() => document.getElementById('view')?.scrollTo(0, 0));
+    expect(Math.abs(await hautDesOnglets() - enSaisir)).toBeLessThanOrEqual(2);
+    expect(await p.evaluate(() => { const n = document.querySelector('.c-nav')!.getBoundingClientRect(), b = document.querySelector('.c-barre')!.getBoundingClientRect(); return b.top >= n.bottom; })).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-consulter-periode.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);
 });
