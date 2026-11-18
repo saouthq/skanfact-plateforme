@@ -202,6 +202,18 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  it('au téléphone, le menu « Gestes » d\'une fiche tient tout entier dans l\'écran', async () => {
+    // (1.383.5, issue 5, CONSOLE-5) le bouton est à gauche : le menu, aligné sur son bord droit, sortait par la gauche.
+    const p = await ouvrir(`#/clients/${ent}`, 390);
+    await cliquer(p.getByRole('button', { name: 'Gestes', exact: true }));
+    const liste = p.locator('.c-menu-liste');
+    await expect.poll(() => liste.evaluate((e) => getComputedStyle(e).visibility)).toBe('visible');
+    const b = await liste.evaluate((e) => { const r = e.getBoundingClientRect(); return { g: r.left, d: r.right, l: innerWidth }; });
+    expect(b.g).toBeGreaterThanOrEqual(8);
+    expect(b.d).toBeLessThanOrEqual(b.l - 8);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
   it('au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier', async () => {
     const p = await ouvrir('#/clients', 390);
     const lignes = p.locator('.c-table-clients tbody tr');

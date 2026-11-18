@@ -30515,6 +30515,10 @@ prouver $'console 1.383.4 a : « Précédent » jette la saisie d\'une fenêtre'
   $'if (retenuParUneFenetre(e)) return; ' $'' \
   $'une fenêtre où l\'on a tapé demande avant de jeter la saisie ; sans rien taper, elle se ferme tout de suite'
 
+prouver $'console 1.383.5 a : le menu Gestes sort de l\'écran au téléphone' web/console/src/ecrans/Fiche.tsx \
+  $'    if (depasse > 0) liste.style.insetInlineEnd' $'    if (depasse > 9999) liste.style.insetInlineEnd' \
+  $'au téléphone, le menu « Gestes » d\'une fiche tient tout entier dans l\'écran'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

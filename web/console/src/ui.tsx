@@ -128,7 +128,8 @@ export function MenuLigne({ etiquette, actions, note, libelle }: { etiquette: st
   const [ouvert, setOuvert] = useState(false);
   // Le menu se pose sur la FENÊTRE (position fixe), jamais dans le tableau : la carte d'une liste coupe ce qui la dépasse,
   // et un menu ouvert vers le haut sur la deuxième ligne n'y montrait que sa moitié. Dessous s'il tient, sinon dessus,
-  // et toujours dans l'écran.
+  // et toujours dans l'écran — à gauche aussi : sous un bouton posé à gauche (« Gestes » d'une fiche, au téléphone), le
+  // menu aligné sur le bord droit du bouton sortait de l'écran (issue 5, CONSOLE-5).
   const [place, setPlace] = useState<{ top: number; right: number; haut: boolean } | null>(null);
   const zone = useRef<HTMLDivElement>(null);
   // Sa place, lue sur le bouton : à l'ouverture, puis chaque fois que la page bouge (il suit son bouton ; si le bouton
@@ -139,11 +140,13 @@ export function MenuLigne({ etiquette, actions, note, libelle }: { etiquette: st
     if (!bouton || !liste) return;
     const b = bouton.getBoundingClientRect();
     if (b.bottom < 0 || b.top > window.innerHeight) { setOuvert(false); return; }
-    const h = liste.getBoundingClientRect().height;
+    // (La liste se mesure collée au bord droit, le temps de la poser : à sa place d'origine, sous un bouton de gauche,
+    // elle se serrait dans ce qui restait d'écran et sa largeur mesurée était fausse.)
+    const { height: h, width: l } = liste.getBoundingClientRect();
     const dessous = window.innerHeight - b.bottom - 6, dessus = b.top - 6;
     const haut = dessous < h + 6 && dessus > dessous;
     const top = haut ? b.top - 6 - h : b.bottom + 6;
-    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, window.innerWidth - b.right), haut });
+    setPlace({ top: Math.max(8, Math.min(top, window.innerHeight - h - 8)), right: Math.max(8, Math.min(window.innerWidth - b.right, window.innerWidth - l - 8)), haut });
   }, []);
   useLayoutEffect(() => {
     if (!ouvert) { setPlace(null); return; }
@@ -183,7 +186,7 @@ export function MenuLigne({ etiquette, actions, note, libelle }: { etiquette: st
       )}
       {ouvert ? (
         <div className={`c-menu-liste c-menu-liste-fixe${place?.haut ? ' c-menu-liste-haut' : ''}`}
-          style={place ? { top: place.top, right: place.right } : { visibility: 'hidden' }} {...parcourirMenu}>
+          style={place ? { top: place.top, right: place.right } : { visibility: 'hidden', right: 8 }} {...parcourirMenu}>
           {actions.map((a, i) => (
             <Fragment key={`${a.section ?? ''}|${a.titre}`}>
               {a.section && a.section !== actions[i - 1]?.section ? <p className={`c-menu-section${i > 0 ? ' c-menu-trait' : ''}`} data-donnee>{a.section}</p> : null}

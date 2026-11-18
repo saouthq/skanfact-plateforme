@@ -9,7 +9,7 @@
 // Un geste (10 § 2.4) passe par sa fenêtre : ses paramètres, son motif, puis l'APERÇU de l'état d'après (le serveur le
 // calcule par la même règle que le geste, sans rien écrire), et seulement alors le geste. La ligne d'abonnement lue
 // part avec lui : changée entre-temps, le serveur refuse au lieu d'écraser (01 R15), et la fiche se relit.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
@@ -816,6 +816,15 @@ function MenuGestes({ gestes, etat, choisir, raison, reserve }: { gestes: Geste[
     document.addEventListener('keydown', echap);
     zone.current?.querySelector<HTMLElement>('.c-menu-liste button')?.focus({ preventScroll: true });
     return () => { document.removeEventListener('mousedown', ailleurs); document.removeEventListener('keydown', echap); };
+  }, [ouvert]);
+  // Au téléphone, le bouton est à gauche : le menu, aligné sur son bord droit, sortait de l'écran par la gauche. On le
+  // décale de ce qui dépasse, avant qu'il se voie (issue 5, CONSOLE-5).
+  useLayoutEffect(() => {
+    const liste = zone.current?.querySelector<HTMLElement>('.c-menu-liste');
+    if (!ouvert || !liste) return;
+    liste.style.insetInlineEnd = '';
+    const depasse = 8 - liste.getBoundingClientRect().left;
+    if (depasse > 0) liste.style.insetInlineEnd = `${-depasse}px`;
   }, [ouvert]);
   return (
     <div className="c-menu" ref={zone}>

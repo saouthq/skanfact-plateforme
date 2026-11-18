@@ -4965,3 +4965,11 @@ sans saisie, la page change comme avant ; pendant un envoi, rien ne bouge. (Éco
 pas : le routeur passait quand même le premier, et la fenêtre était déjà démontée.) Au passage, l'écouteur de la liste des
 clients (1.383.3) lit l'adresse d'ARRIVÉE : retenu par une fenêtre, un départ de « Clients » ne remet plus les filtres.
 Test : `console-versions` (la fenêtre de gel). Preuve « console 1.383.4 a ».
+
+## 1.383.5 — La console au téléphone : le menu « Gestes » d'une fiche tient dans l'écran (issue 5, CONSOLE-5)
+
+Sur la fiche d'un client, au téléphone, le bouton « Gestes » est à gauche ; son menu, aligné sur le bord droit du bouton,
+sortait de 45 points par la gauche (mesuré : de −45 à 215 sur 390). Il se décale de ce qui dépasse avant de se montrer
+(`MenuGestes`, `Fiche.tsx`). Le menu commun des lignes (`MenuLigne`) reçoit la même borne à gauche, et se mesure collé au
+bord droit le temps d'être posé. Test : `console-recette` (au téléphone, le menu entier entre 8 et 382). Preuve
+« console 1.383.5 a ».
