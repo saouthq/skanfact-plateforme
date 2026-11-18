@@ -1936,17 +1936,17 @@ W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le 
 prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0212_effet_recu.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'," "'contre_passation', 'extourne', 'reprise_v10'," \
   "$S1"
-prouver "une saisie déséquilibrée qui entre" base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver "une saisie déséquilibrée qui entre" base/migrations/0221_reprise_garde_le_rapprochement.sql \
   "  if td <> tc then" "  if false then" \
   "$S1"
-prouver "une saisie dans la période close" base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver "une saisie dans la période close" base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'  if c is not null and v_date <= c and not coalesce(p_dans_la_periode, false)\n' \
   $'  if false and not coalesce(p_dans_la_periode, false)\n' \
   "$S1"
-prouver "un compte qui n'est pas un numéro" base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver "un compte qui n'est pas un numéro" base/migrations/0221_reprise_garde_le_rapprochement.sql \
   "    if coalesce(l->>'compte', '') !~ '^[0-9]{1,12}\$' then perform socle.refus(format('ligne %s : le compte doit être un numéro', i)); end if;" "" \
   "$S1"
-prouver "une écriture sans libellé" base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver "une écriture sans libellé" base/migrations/0221_reprise_garde_le_rapprochement.sql \
   "  if v_libelle is null then perform socle.refus('le libellé manque : écris-le sur la pièce ou sur une ligne'); end if;" "" \
   "$S1"
 prouver "un brouillard écrasé par un poste qui ne l'a pas relu" $M21 \
@@ -28743,7 +28743,7 @@ prouver $'achat en euros 1.358.1 m : l\'enregistrement en arrière-plan ne deman
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot }, true);' \
   $'        r = await appel(\'POST\', \'/dossier-v10\', { changements: lot });' \
   'Sarra achète des moules en France : la ligne part à 0 %, l'"'"'avertissement dit la TVA de trop, le règlement se lit en entier ; au Cabinet, la perte de change au 655'
-prouver $'tiers de janvier 1.358.2 a : une ligne garde l\'identifiant d\'un tiers d\'une AUTRE entreprise' base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver $'tiers de janvier 1.358.2 a : une ligne garde l\'identifiant d\'un tiers d\'une AUTRE entreprise' base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'(l->>\'tiersId\')::uuid and t.entreprise = p_entreprise) end);' \
   $'(l->>\'tiersId\')::uuid) end);' \
   'le tiers d'"'"'une ligne se garde par son identifiant, celui de l'"'"'entreprise seulement ; la contre-passation le recopie'
@@ -30116,7 +30116,7 @@ prouver $'issue 9 1.378.0 b : l\'écriture de déclaration laissée au brouillar
   $'    perform compta.numeroter(v_id);\n    perform socle.tracer(p_entreprise, \'compta.ecritures.valider\'' \
   $'    perform socle.tracer(p_entreprise, \'compta.ecritures.valider\'' \
   $'dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste'
-prouver $'issue 9 1.378.0 c : toute saisie passe dans un mois validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver $'issue 9 1.378.0 c : toute saisie passe dans un mois validé' base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'  if c is not null and v_date <= c and not coalesce(p_dans_la_periode, false)\n' \
   $'  if c is not null and v_date <= c and false and not coalesce(p_dans_la_periode, false)\n' \
   $'dans un mois déjà validé, l\'écriture du mois se pose et se valide d\'un geste'
@@ -30124,15 +30124,15 @@ prouver $'issue 9 1.378.0 d : rouvrir l\'exercice recule la période validée' b
   $'  v_dedans := c is not null and c > x.au;' \
   $'  v_dedans := false;' \
   $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
-prouver $'issue 9 1.378.0 e : l\'exercice rouvert reste fermé à l\'écriture' base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver $'issue 9 1.378.0 e : l\'exercice rouvert reste fermé à l\'écriture' base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'and x.clos_le is null and v_date between x.du and x.au)' \
   $'and x.clos_le is null and false)' \
   $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
-prouver $'issue 9 1.378.0 f : les à-nouveaux passent à n\'importe quel jour validé' base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver $'issue 9 1.378.0 f : les à-nouveaux passent à n\'importe quel jour validé' base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'                and x.du = v_date and exists' \
   $'                and exists' \
   $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
-prouver $'issue 9 1.378.0 g : un exercice reclos reste écrivable' base/migrations/0217_portes_de_la_periode_validee.sql \
+prouver $'issue 9 1.378.0 g : un exercice reclos reste écrivable' base/migrations/0221_reprise_garde_le_rapprochement.sql \
   $'(select 1 from compta.exercice x where x.entreprise = p_entreprise and x.rouvert_le is not null\n                       and x.clos_le is null and v_date' \
   $'(select 1 from compta.exercice x where x.entreprise = p_entreprise and x.rouvert_le is not null\n                       and v_date' \
   $'rouvert, la période revient à ce qui était validé avant la clôture ; si des jours d\'après sont validés, ils le restent et seul l\'exercice se rouvre'
