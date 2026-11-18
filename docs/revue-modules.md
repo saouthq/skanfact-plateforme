@@ -5072,3 +5072,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Le compte des rapprochées retombe sur son total** : l'écriture née dans SkanFact est l'une des quatorze, pas une de
   plus. Elle se dit « dont 1 sur une écriture venue de SkanFact ».
 - Le test de l'écart d'une fin fausse (1.384.6) remplit la case sans la souris : le formulaire est caché à cet instant.
+
+## 1.384.8 — Le Cabinet : l'exemple d'une case vide penche (issue 11, CABSAISIE-28)
+
+- **« 607 », « 411 » dans une case vide** se prenaient pour des valeurs déjà saisies (chez le comptable, les cases
+  portent des chiffres). L'exemple est en italique, la valeur tapée reste droite — dans tout le Cabinet.

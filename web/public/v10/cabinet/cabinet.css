@@ -837,3 +837,7 @@ a.lien-aide:hover, a.lien-aide:focus-visible { text-decoration-thickness: 2px; }
 .apercu-liste { margin-block-start: 8px; }
 .apercu-liste:empty { display: none; }
 .apercu-liste td.douteux { color: var(--warning); }
+
+/* (1.384.8, issue 11, CABSAISIE-28) Un exemple dans une case vide — « 607 », « 411 » — se prenait pour une valeur déjà
+   saisie : chez le comptable, les cases portent des chiffres. L'exemple penche, la valeur reste droite. */
+input::placeholder, textarea::placeholder { font-style: italic; }

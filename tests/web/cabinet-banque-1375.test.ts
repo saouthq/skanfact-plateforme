@@ -160,6 +160,10 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^«\s32\/13\s» n'est pas une date de \d{4}/);
     expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
 
+    // ── (1.384.8, issue 11 constat 28) l'exemple d'une case vide penche : il ne se prend pas pour une valeur ──
+    expect(await p.evaluate(() => [...document.styleSheets].some((f) => { try { return [...f.cssRules].some((r) => r instanceof CSSStyleRule && /(^|,\s*)input::placeholder/.test(r.selectorText) && r.style.fontStyle === 'italic'); } catch { return false; } }))).toBe(true);
+    expect(await p.locator('#sa-piece').evaluate((c) => getComputedStyle(c).fontStyle)).toBe('normal');
+
     // ── (1.384.3, issue 11 constat 18) un relevé aux dates impossibles : ses lignes sont illisibles, et il se dit ──
     const lu = await p.evaluate(() => {
       const KC = (window as unknown as { SkanCompta: { releveDepuisCsv: (r: string[][]) => { lignes: { date: string }[]; ignorees: { motif: string }[]; motif: string } } }).SkanCompta;
