@@ -866,3 +866,5 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 /* (1.387.1) L'aperçu des écritures avant de les passer (immobilisations). */
 .im-avant { max-height: 46vh; overflow-y: auto; margin-block: 8px; }
 .im-avant-l { display: block; }
+/* (1.387.2) Le pied des immobilisations : la ligne des sorties, plus légère que les deux totaux. */
+.im-pied-sorties th { font-weight: 500; color: var(--sb-gris-2, var(--muted)); }

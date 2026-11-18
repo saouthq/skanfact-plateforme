@@ -30689,6 +30689,9 @@ prouver $'immos 1.387.1 b : les dotations se montrent avant de s\'écrire' modul
   $'if (false && aPasser.length && !await confirmDialog(' \
   $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
 
+# (1.387.2, issue 10, CABPAIE-16) Le pied des immobilisations additionne tout, sorties comprises, puis les retire.
+prouver $'le pied des immobilisations oublie le cumul des biens sortis' modules/socle/ecrans/cabinet/app-1.js $'esc(money(KC.round3(e.cumul + cS)))' $'esc(money(e.cumul))' $'l\'épicerie de Sfax tient son matériel : la vitrine achetée en mars, l\'utilitaire, la balance revendue, et le comptable lit le même plan'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

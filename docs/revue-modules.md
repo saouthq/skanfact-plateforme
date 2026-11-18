@@ -5232,3 +5232,12 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« Passer les écritures d'inventaire (3) » écrivait tout d'un clic**, sous un nom qui se confondait avec l'onglet
   Inventaire. Il s'appelle « Passer les dotations et les sorties de 2026 » et montre la liste des écritures, lignes
   comprises, avant de les passer au brouillard.
+
+## 1.387.2 — Immobilisations : le pied tombe juste, bien sorti compris (issue 10, CABPAIE-16)
+
+- **« Cumul au 01/01 + dotation » ne retombait pas sur « cumul »** dès qu'un bien était sorti dans l'année : sa dotation
+  restait dans le total, sa valeur et son cumul étaient « hors total ». Le pied tient maintenant en trois lignes : tous
+  les biens, sorties comprises ; « dont N sorti en AAAA », en moins ; « À l'actif au 31/12 », ce qui reste au bilan.
+  Chaque ligne s'additionne de gauche à droite (valeur − cumul = valeur nette).
+- Les mentions « hors total » des lignes disparaissent : elles n'ont plus rien à expliquer.
+- Sans bien sorti, le pied reste sur une ligne, comme avant. Le moteur ne change pas : c'est l'écran qui additionne.

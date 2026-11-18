@@ -11259,16 +11259,28 @@
         <td class="nw">${esc(fmtJour(r.date))}</td>
         <td class="nw">${esc(METHODE_LABEL[r.methode] || r.methode)}</td>
         ${/* Un total sous une colonne est lu comme sa somme (9.8.8) : un bien sorti le DIT. */''}
-        <td class="r nw">${r.cession ? `<span class="muted">${esc(money(r.valeur))}</span><div class="small muted">hors total</div>` : esc(money(r.valeur))}</td>
+        <td class="r nw">${esc(money(r.valeur))}</td>
         <td class="r nw">${esc(money(r.ouverture))}</td>
         <td class="r nw">${esc(money(r.dotation))}</td>
-        <td class="r nw">${r.cession ? `<span class="muted">${esc(money(r.cumul))}</span><div class="small muted">hors total</div>` : esc(money(r.cumul))}</td>
+        <td class="r nw">${esc(money(r.cumul))}</td>
         <td class="r nw">${esc(money(r.vnc))}</td>
         ${RowMenu.cellule('IM:' + r.id)}</tr>`).join('')}</tbody>
-      <tfoot><tr><th colspan="3">${esc(pl(e.rows.length, 'bien'))}</th>
+      ${/* (1.387.2, issue 10, CABPAIE-16) Un bien sorti gardait sa dotation dans le total, sa valeur et son cumul « hors
+            total » : « cumul au 01/01 + dotation » ne retombait plus sur « cumul ». Le pied additionne TOUT, puis retire
+            les sorties sur leur ligne, et finit sur ce qui reste à l'actif : chaque ligne tombe juste, de gauche à droite. */''}
+      <tfoot>${(sortis => !sortis.length ? `<tr><th colspan="3">${esc(pl(e.rows.length, 'bien'))}</th>
         <th class="r nw">${esc(money(e.valeur))}</th><th class="r nw">${esc(money(e.ouverture))}</th>
         <th class="r nw">${esc(money(e.dotation))}</th><th class="r nw">${esc(money(e.cumul))}</th>
-        <th class="r nw">${esc(money(e.vnc))}</th><th></th></tr></tfoot></table></div>${pagerBar(e.rows.length, s, 'bien')}`}
+        <th class="r nw">${esc(money(e.vnc))}</th><th></th></tr>` : ((vS, cS) => `<tr id="im-pied-tout"><th colspan="3">${esc(pl(e.rows.length, 'bien'))}</th>
+        <th class="r nw">${esc(money(KC.round3(e.valeur + vS)))}</th><th class="r nw">${esc(money(e.ouverture))}</th>
+        <th class="r nw">${esc(money(e.dotation))}</th><th class="r nw">${esc(money(KC.round3(e.cumul + cS)))}</th>
+        <th class="r nw">${esc(money(KC.round3(e.vnc + vS - cS)))}</th><th></th></tr>
+        <tr id="im-pied-sorties" class="im-pied-sorties"><th colspan="3">dont ${esc(pl(sortis.length, `sorti en ${s.annee}`, `sortis en ${s.annee}`))}</th>
+        <th class="r nw">${esc(money(-vS))}</th><th></th><th></th><th class="r nw">${esc(money(-cS))}</th>
+        <th class="r nw">${esc(money(-KC.round3(vS - cS)))}</th><th></th></tr>
+        <tr id="im-pied-actif"><th colspan="3">À l'actif au ${esc(fmtJour(au))}</th>
+        <th class="r nw">${esc(money(e.valeur))}</th><th></th><th></th><th class="r nw">${esc(money(e.cumul))}</th>
+        <th class="r nw">${esc(money(e.vnc))}</th><th></th></tr>`)(KC.round3(sortis.reduce((t, r) => t + (Number(r.valeur) || 0), 0)), KC.round3(sortis.reduce((t, r) => t + (Number(r.cumul) || 0), 0))))(e.rows.filter(r => r.cession))}</tfoot></table></div>${pagerBar(e.rows.length, s, 'bien')}`}
     </div>
     ${immoState.ouverte ? panneauPlan(d, immoState.ouverte, y) : ''}`;
   }
