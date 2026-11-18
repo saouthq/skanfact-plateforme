@@ -30659,6 +30659,11 @@ prouver $'banque 1.386.7 : les guillemets d\'une ligne du relevé ne se coupent 
   $'const typoBq = t => String(t == null ? \'\' : t);' \
   $'la remise se rapproche et se lettre d\'un geste ; le prélèvement s\'écrit au brouillard et s\'annule ; la retenue se lit une fois son taux réglé ; une somme fausse se refuse'
 
+prouver $'saisie 1.386.8 : le lot du brouillard compte des écritures' web/public/v10/cabinet/cabcore.js \
+  $'const quoi = n > 1 ? `les ${nbFr(n)} écritures` : \'la seule écriture\';' \
+  $'const quoi = n > 1 ? `les ${nbFr(n)} pièces` : \'la seule pièce\';' \
+  $'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

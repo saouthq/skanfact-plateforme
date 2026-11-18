@@ -103,7 +103,7 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     //    est nommée, avec son jour.
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/saisie/2026`);
     const lots = p.locator('.sa-lot button');
-    await expect.poll(() => lots.allInnerTexts(), { timeout: 15_000 }).toEqual(['Valider la seule pièce de BQ', 'Valider la seule pièce d\'OD', 'Valider les 2 pièces d\'octobre 2026']);
+    await expect.poll(() => lots.allInnerTexts(), { timeout: 15_000 }).toEqual(['Valider la seule écriture de BQ', 'Valider la seule écriture d\'OD', 'Valider les 2 écritures d\'octobre 2026']);
     expect((await p.locator('#sa-attend').innerText()).replace(/\s+/g, ' ')).toMatch(/^L'écriture \S+ du journal PAIE est datée du 31\/10\/2026 : elle se valide à partir de ce jour-là\.$/);
 
     // 3. Au menu de la ligne de paie, « Valider cette écriture » est grisé avec sa date, et le dit au clic.

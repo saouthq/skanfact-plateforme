@@ -5204,3 +5204,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   garde ses guillemets et sa ponctuation collés au mot, comme le reste des phrases du Cabinet.
 - Laissé : le message du bas de l'écran recouvre le pied du relevé quelques secondes — c'est le même message partout
   dans les deux applications ; le déplacer pour un seul écran romprait l'habitude.
+
+## 1.386.8 — Le brouillard : un seul mot, « écritures » (issue 11, CABSAISIE-24)
+
+- **« 12 écritures » au brouillard, « Valider les 11 pièces de novembre » sur son bouton** : deux mots pour la même
+  chose. Les boutons de lot disent « Valider les 11 écritures de novembre », « Valider la seule écriture de BQ »,
+  comme le titre du brouillard et la fenêtre qui confirme.

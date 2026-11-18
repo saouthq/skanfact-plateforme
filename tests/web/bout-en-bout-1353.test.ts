@@ -214,7 +214,7 @@ describe('bout en bout 1.353.0 : la première facture d\'une épicerie neuve, so
     if (await p.locator('#sa-lot-plus').count()) await p.locator('#sa-lot-plus summary').click();
     // Le virement est au journal de banque, pas à la caisse : le lot du mois se valide en un geste.
     expect(await p.locator('.sa-lot button').evaluateAll((l) => l.map((b) => (b.textContent ?? '').trim()))).toEqual(
-      ['Valider la seule pièce d\'AC', 'Valider la seule pièce de BQ', 'Valider la seule pièce de CA', 'Valider la seule pièce de VT', `Valider les 4 pièces de ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' })}`]);
+      ['Valider la seule écriture d\'AC', 'Valider la seule écriture de BQ', 'Valider la seule écriture de CA', 'Valider la seule écriture de VT', `Valider les 4 écritures de ${new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' })}`]);
     await p.locator('.sa-lot [data-lot-mois]').click();
     await p.locator('#modal-root .modal .btn-primary').last().click();
     await expect.poll(async () => Number((await admin.query(`select count(*) n from compta.ecriture where entreprise = $1 and statut = 'validee'`, [ent])).rows[0].n), { timeout: 15_000 }).toBe(4);

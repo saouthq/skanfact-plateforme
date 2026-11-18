@@ -1690,7 +1690,8 @@
   // caractères plus loin. Un code de journal commence par une voyelle une fois sur trois (AC, OD).
   function libelleLot(lot) {
     const n = Number(lot && lot.n) || 0;
-    const quoi = n > 1 ? `les ${nbFr(n)} pièces` : 'la seule pièce';
+    // (1.386.8, issue 11, CABSAISIE-24) Le brouillard compte des « écritures », son bouton aussi (il disait « pièces »).
+    const quoi = n > 1 ? `les ${nbFr(n)} écritures` : 'la seule écriture';
     return `Valider ${quoi} ${de(String((lot && lot.label) || ''))}`;
   }
 

@@ -159,7 +159,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     const idDuPoste = await ligne('OD-HL1').getAttribute('data-br');
     expect(idDuPoste).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
     // Les lots ne la comptent pas : le serveur ne l'a pas encore (seule l'écriture de banque du client s'y valide).
-    expect(await p.locator('.sa-lot button').allInnerTexts()).toEqual(['Valider la seule pièce de BQ']);
+    expect(await p.locator('.sa-lot button').allInnerTexts()).toEqual(['Valider la seule écriture de BQ']);
     // Valider est grisé, et dit pourquoi au clic.
     const valider = (await actions('OD-HL1')).filter({ hasText: 'Valider cette écriture' });
     await expect.poll(() => valider.getAttribute('class')).toMatch(/\boff\b/);
