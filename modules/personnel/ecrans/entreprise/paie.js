@@ -2185,7 +2185,7 @@
         const miss = C.missingPayslips(data, y, m), mo = C.payslipsOf(data, y, m);
         const aPayer = mo.filter(x => !x.paidDate), aRemettre = mo.filter(x => x.paidDate && !x.remisLe);
         const corr = mo.find(x => correctionEnAttente(x)), aApprouver = aApprouverDe(mo, y, m), enPrep = enPreparationDe(mo, y, m);
-        const avantPaie = !miss.length && corr ? `<button class="btn btn-primary" id="p-corr-ok">${lfIc('coche', 15, 2.4)} Accepter la correction${corr.correction.par ? ` de ${h(corr.correction.par)}` : ''}</button>`
+        const avantPaie = !miss.length && corr ? `<button class="btn btn-primary" id="p-corr-ok">${lfIc('coche', 15, 2.4)} Accepter la correction${corr.correction.par ? ` ${/^[aeiouâàéèêîôû]/i.test(String(corr.correction.par).normalize('NFC')) ? 'd\'' : 'de '}${h(corr.correction.par)}` : ''}</button>`
           : !miss.length && enPrep.length && !aApprouver.length ? `<button class="btn btn-primary" id="p-prep" disabled title="Ton cabinet te les envoie quand ils sont prêts : tu les approuves alors">${lfIc('comptable', 15)} Ton cabinet prépare ${enPrep.length > 1 ? `les ${enPrep.length} bulletins` : 'le bulletin'}</button>`
             : !miss.length && aApprouver.length ? `<button class="btn btn-primary" id="p-bap">${lfIc('coche', 15, 2.4)} ${aApprouver.length > 1 ? `J'approuve les ${aApprouver.length} bulletins` : 'J’approuve le bulletin'}</button>`
               : miss.length && modeDuMois(y, m) === 'tenue' ? (ptEnvoye(y, m) ? `<button class="btn btn-primary" id="p-prep" disabled title="Ton cabinet te les envoie quand ils sont prêts : tu les approuves alors">${lfIc('comptable', 15)} Ton cabinet prépare ${miss.length > 1 ? `les ${miss.length} bulletins` : 'le bulletin'}</button>`

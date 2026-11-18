@@ -8138,7 +8138,7 @@
     // (1.371.0) L'exercice affiché existe déjà (un livre commencé sans balance) : on reprend ses soldes, on ne l'ouvre pas.
     const dejaOuvert = livreTenu && api.exerciceOuvert(dossier.id, annee) === true;
     // (1.371.0) L'élision : « le livre de Atelier Zitouna » se lisait sur le premier geste du premier jour.
-    const deNomLv = /^[aeiouyéèêàâîôûh]/i.test(String(dossier.name || '').normalize('NFC')) ? `d'${esc(dossier.name)}` : `de ${esc(dossier.name)}`;
+    const deNomLv = /^[aeiouéèêàâîôûh]/i.test(String(dossier.name || '').normalize('NFC')) ? `d'${esc(dossier.name)}` : `de ${esc(dossier.name)}`;
     modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture' : 'Commencer le livre'} ${deNomLv}</h2>
       <p class="small muted"><b>Un client qui démarre</b> : pose son exercice et laisse la balance d'ouverture vide.
       <b>Un client qui tenait sa comptabilité ailleurs</b> : reprends ce que ses comptes portaient au premier jour

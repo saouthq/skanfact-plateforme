@@ -178,7 +178,7 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     const net0 = Number(hm.computed.net);
     let p = await ouvrir(B);
     await expect.poll(() => p.locator('#p-corr').count()).toBe(1);
-    expect(espace(await p.locator('#p-corr-ok').innerText())).toBe('Accepter la correction de Anis');
+    expect(espace(await p.locator('#p-corr-ok').innerText())).toBe('Accepter la correction d\'Anis');
     expect(espace(await p.locator('#p-sous .pa-etape:nth-child(2)').innerText())).toContain('1 correction proposée');
     expect(espace(await p.locator('#p-corr-detail').innerText())).toContain(`Net à verser ${montant(net0)} DT ${montant(Math.round((net0 - 100) * 1000) / 1000)} DT`);
     expect(espace(await p.locator('#p-bulletins tr[data-bul="' + hm.id + '"]').innerText())).toContain('correction proposée');

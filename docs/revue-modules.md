@@ -5216,3 +5216,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **À côté de « + Une écriture », le menu n'ouvrait que les gestes du dossier** (modifier la fiche, appeler…). Sur la
   Saisie, il ouvre d'abord « Écritures qui reviennent », « Les guides d'écritures » et « Les touches de la grille » ;
   les deux derniers mènent aux Réglages, d'où « ← Revenir à la saisie de … » ramène au dossier.
+
+## 1.387.0 — La paie : « d'Anis », « de Hamza », « de Youssef » (issue 10, finitions)
+
+- **Les noms prennent la bonne liaison.** Au Cabinet, dix-sept phrases de la paie écrivaient « de » devant un prénom
+  en voyelle (« le bulletin de Amel », « la fiche de Amira ») : elles élident. Un prénom en H ou en Y ne s'élide pas
+  (« de Hamza », « de Youssef »), le nom d'un dossier en Y non plus.
+- **Côté entreprise**, « Accepter la correction d'Anis » (c'était « de Anis »).

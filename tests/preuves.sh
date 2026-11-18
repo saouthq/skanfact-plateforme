@@ -30669,6 +30669,16 @@ prouver $'saisie 1.386.9 : le « ⋯ » de la Saisie ouvre ses outils' modules/s
   $'...(false && enCompta && livresState.onglet === \'saisie\' ? (retour => [' \
   $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
 
+prouver $'paie 1.387.0 a : un prénom en H ne s\'élide pas au Cabinet' modules/personnel/ecrans/cabinet/paie.js \
+  $'const deNom = nom => (/^[aeiouâàéèêîôû]/i.test(' \
+  $'const deNom = nom => (/^[aeiouhâàéèêîôû]/i.test(' \
+  $'1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir'
+
+prouver $'paie 1.387.0 b : « Accepter la correction d\'Anis »' modules/personnel/ecrans/entreprise/paie.js \
+  $'? \'d\\\'\' : \'de \'}${h(corr.correction.par)}' \
+  $'? \'de \' : \'de \'}${h(corr.correction.par)}' \
+  $'une correction proposée : accepter change le net et garde la trace ; refuser garde la raison'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

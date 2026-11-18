@@ -534,6 +534,12 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(fiche).toContain('RIB ··· 2359');
     expect(fiche).toMatch(/Congés [\d,]+ j acquis en \d{4} · [\d,]+ j pris · reste [\d,]+ j/);
     expect(await p.locator('#pa-sal-fiche-demander').count()).toBe(0);
+    expect(await p.locator('#pa-sal-fiche').getAttribute('aria-label')).toBe('La fiche de Mourad Trabelsi');
+    await p.locator('#pa-sal-x').click();
+    expect(await p.locator('#pa-sal-fiche').count()).toBe(0);
+    // (1.387.0, issue 10) Un prénom en H ne s'élide pas : « la fiche de Hamza », jamais « d'Hamza ».
+    await p.locator('#pa-salaries tr[data-sal="hm"] td').first().click();
+    expect(await p.locator('#pa-sal-fiche').getAttribute('aria-label')).toBe('La fiche de Hamza Mejri');
     await p.locator('#pa-sal-x').click();
     expect(await p.locator('#pa-sal-fiche').count()).toBe(0);
     // 1.241.0 — le départ du CDD qui finit : son dernier bulletin en projet (le salaire + les congés pas pris = le brut), ce

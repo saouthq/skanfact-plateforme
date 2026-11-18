@@ -935,7 +935,7 @@
     const c = b.correction, nom = ((L.salaries || []).find(x => x.id === b.salarieId) || {}).nom || '';
     return `<div class="panel cp-pa-corr" data-pa-corr="${esc(b.id)}"><h3>La correction proposée à ${esc(P.client)} <small class="muted">envoyée le ${esc(jourCourt(c.le))}${c.relanceLe ? ` · relancée le ${esc(jourCourt(c.relanceLe))}` : ''} · ${esc(P.client)} l'accepte ou la refuse dans SkanFact</small></h3>
       <p><b>${esc(nom)}</b> : ${esc(c.titre || '')}${c.motif ? ` — ${esc(c.motif)}` : ''}</p>
-      <div class="scroll-x"><table class="list compact"><thead><tr><th>Bulletin de ${esc(nom)}</th><th class="r">Fait par ${esc(P.client)}</th><th class="r">Corrigé</th></tr></thead><tbody>
+      <div class="scroll-x"><table class="list compact"><thead><tr><th>Bulletin ${esc(deNom(nom))}</th><th class="r">Fait par ${esc(P.client)}</th><th class="r">Corrigé</th></tr></thead><tbody>
       ${(c.lignes || []).map(l => `<tr><td>${esc(l.libelle)}</td><td class="r nw">${esc(money(l.avant))}</td><td class="r nw">${esc(money(l.apres))}</td></tr>`).join('')}
       <tr class="dc-total"><td><b>Net à payer</b></td><td class="r nw">${esc(money((b.calcul || {}).net))}</td><td class="r nw"><b>${esc(money(c.net))}</b></td></tr></tbody></table></div>
       <div class="ctrl-geste"><button type="button" class="btn btn-sm" data-pa-relancer="${esc(b.id)}">La relancer</button><button type="button" class="btn btn-sm" data-pa-retirer="${esc(b.id)}">Retirer la proposition</button></div></div>`;
@@ -1011,7 +1011,8 @@
     return dem.reponse ? `${qui} a répondu le ${jour(dem.recueLe)} : « ${String(dem.reponse).slice(0, 80)} ».` : `${qui} a envoyé une pièce le ${jour(dem.recueLe)} (Pièces reçues).`;
   }
   // « la fiche d'Amira », jamais « la fiche de Amira » (Cabinet 1.0.0 : l'élision).
-  const deNom = nom => (/^[aeiouhâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\'' : 'de ') + nom;
+  // (1.387.0, issue 10) Un prénom en H ou en Y ne s'élide pas : « de Hatem », « de Youssef ».
+  const deNom = nom => (/^[aeiouâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\'' : 'de ') + nom;
   function panneauFichierCnss(dossier, f, enCours, client) {
     if (!f) return '';
     const geste = r => {
@@ -1268,7 +1269,7 @@
       const b = (L.bulletins || []).find(x => x.id === bt.dataset.ptReprendre);
       if (!b) return;
       const nom = ((L.salaries || []).find(x => x.id === b.salarieId) || {}).nom || '';
-      if (b.payeLe && !await confirmDialog(`Le bulletin de ${nom} est déjà payé`, 'Reprendre le pointage change son net. Continuer ?', 'Reprendre le pointage')) return;
+      if (b.payeLe && !await confirmDialog(`Le bulletin ${deNom(nom)} est déjà payé`, 'Reprendre le pointage change son net. Continuer ?', 'Reprendre le pointage')) return;
       const r = KC.pointageSurBulletin(data, bulletinPourLePointage(b));
       if (!r) return;
       bt.disabled = true;
@@ -1277,7 +1278,7 @@
         const v = { id: b.id, salarieId: b.salarieId, annee: b.annee, mois: b.mois, brut: b.brut, joursTravailles: b.joursTravailles,
           joursAbsence: r.absentDays, primes: r.bonuses, retenues: b.retenues || [], prorata: b.prorata || null };
         const rep = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v });
-        s.livre = rep.livre; toast(`Bulletin de ${nom} mis à jour sur le pointage.`); drawLivres(root, dossier);
+        s.livre = rep.livre; toast(`Bulletin ${deNom(nom)} mis à jour sur le pointage.`); drawLivres(root, dossier);
       } catch (err) { bt.disabled = false; toast(plainError(err), 'error'); }
     }; });
   }
@@ -1421,7 +1422,7 @@
       if (!x) return;
       b.disabled = true;
       try {
-        const r = await api.messagerie.meRappeler(dossier.id, b.dataset.le, `Le contrat de ${x.nom} finit le ${fmtJour(x.sortie)} : le renouveler, ou préparer sa sortie (dernier bulletin, documents).`);
+        const r = await api.messagerie.meRappeler(dossier.id, b.dataset.le, `Le contrat ${deNom(x.nom)} finit le ${fmtJour(x.sortie)} : le renouveler, ou préparer sa sortie (dernier bulletin, documents).`);
         toast(r && r.garde ? `Ton rappel du ${fmtJour(r.garde)} sur ce dossier est plus tôt : il reste, la note est ajoutée.` : `Rappel posé le ${fmtJour(b.dataset.le)} : le dossier remonte ce jour-là dans tes messages.`);
         b.textContent = `Rappel le ${fmtJour(b.dataset.le).slice(0, 5)} ✓`;
       } catch (err) { b.disabled = false; toast(plainError(err), 'error'); }
@@ -1437,7 +1438,7 @@
     const sfm = $('#pa-sal-modifier', el);
     if (sfm) sfm.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) salarieForm(root, dossier, x); };
     const sfd = $('#pa-sal-fiche-demander', el);
-    if (sfd) sfd.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) fenDemanderCl(dossier, { titre: `${[!x.cnss && 'Le n° CNSS', !x.rib && x.methode !== 'especes' && 'le RIB'].filter(Boolean).join(' et ').replace(/^l/, 'L')} de ${x.nom}` }, { hors: true, apres: async () => redraw() }); };
+    if (sfd) sfd.onclick = () => { const x = (s.livre.salaries || []).find(y => y.id === s.paieSal); if (x) fenDemanderCl(dossier, { titre: `${[!x.cnss && 'Le n° CNSS', !x.rib && x.methode !== 'especes' && 'le RIB'].filter(Boolean).join(' et ').replace(/^l/, 'L')} ${deNom(x.nom)}` }, { hors: true, apres: async () => redraw() }); };
     // (1.241.0) Le départ d'un salarié : l'ouvrir, le fermer, l'envoyer au client, ses deux documents.
     $$('[data-pa-depart]', el).forEach(b => { b.onclick = () => { s.paieDepart = b.dataset.paDepart; s.paieSal = null; redraw(); }; });
     const dpx = $('#pa-depart-x', el);
@@ -1451,7 +1452,7 @@
     if (dpe) dpe.onclick = () => {
       const x = leDepart(); if (!x) return;
       const prenom = clientDePaie(dossier, s.livre), brut = ($('#pa-depart-brut', el) || {}).textContent || '';
-      fenDemanderCl(dossier, { titre: `Le départ de ${x.nom}, le ${fmtJour(x.sortie)}`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le contrat de ${x.nom} finit le ${fmtJour(x.sortie)}. Le renouvelles-tu ? Sinon, voici le projet de son dernier bulletin : brut ${brut}, avec ses congés pas pris (l'indemnité de fin de contrat reste à vérifier avec son contrat). Je prépare son certificat de travail et son solde de tout compte.` }, { hors: true, apres: async () => redraw() });
+      fenDemanderCl(dossier, { titre: `Le départ ${deNom(x.nom)}, le ${fmtJour(x.sortie)}`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le contrat ${deNom(x.nom)} finit le ${fmtJour(x.sortie)}. Le renouvelles-tu ? Sinon, voici le projet de son dernier bulletin : brut ${brut}, avec ses congés pas pris (l'indemnité de fin de contrat reste à vérifier avec son contrat). Je prépare son certificat de travail et son solde de tout compte.` }, { hors: true, apres: async () => redraw() });
     };
     // (1.243.0) L'accusé CNSS du trimestre : le ranger (la fenêtre du classeur), l'ouvrir (le classeur, sur lui).
     const tCnss = () => Number(($('#pa-trim', el) || {}).value) || 1;
@@ -1520,7 +1521,7 @@
       if (!x) return;
       const nom = ((s.livre.salaries || []).find(y => y.id === x.salarieId) || {}).nom || 'ce salarié';
       const prenom = clientDePaie(dossier, livresState.livre);
-      fenDemanderCl(dossier, { titre: `Le salaire de ${nom} est revenu`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le virement du salaire de ${nom} (${money(x.net)}, payé le ${jourCourt(x.payeLe)}) est revenu sur le compte le ${jourCourt(x.date)} : le relevé dit « ${x.libelle} ». Peux-tu vérifier son RIB, le payer de nouveau et me dire quand c'est fait ?` }, { hors: true, apres: async () => redraw() });
+      fenDemanderCl(dossier, { titre: `Le salaire ${deNom(nom)} est revenu`, texte: `Bonjour${prenom && prenom !== 'ton client' ? ` ${prenom}` : ''}, le virement du salaire ${deNom(nom)} (${money(x.net)}, payé le ${jourCourt(x.payeLe)}) est revenu sur le compte le ${jourCourt(x.date)} : le relevé dit « ${x.libelle} ». Peux-tu vérifier son RIB, le payer de nouveau et me dire quand c'est fait ?` }, { hors: true, apres: async () => redraw() });
     }; });
     const dpt = $('#pa-demander-pt', el);
     if (dpt) dpt.onclick = () => fenDemanderCl(dossier, { piece: `Le pointage ${mo()}` }, { hors: true, apres: async () => redraw() });
@@ -1740,7 +1741,7 @@
     } catch { conges = '<span class="muted">dans « Congés et avances »</span>'; }
     const dd = (t, v, id) => `<dt>${t}</dt><dd${id ? ` id="${id}"` : ''}>${v}</dd>`;
     const demander = (!x.cnss || sansRib) && x.actif && !dossier.manual && api.messagerie && P.mode !== 'cabinet';
-    return `<aside class="panel cp-pa-volet" id="pa-sal-fiche" aria-label="La fiche de ${esc(x.nom)}">
+    return `<aside class="panel cp-pa-volet" id="pa-sal-fiche" aria-label="La fiche ${esc(deNom(x.nom))}">
       <div class="cp-pa-volet-t"><div><b>${esc(x.nom)}</b><small class="muted">${esc([x.poste, x.embauche ? `entrée le ${fmtJour(x.embauche)}` : ''].filter(Boolean).join(' · ') || '—')}</small></div>
         ${manque.length ? `<span class="badge warn" id="pa-sal-manque-n">${esc(pl(manque.length, 'chose à compléter', 'choses à compléter'))}</span>` : '<span class="badge ok">complète</span>'}
         <button type="button" class="btn btn-sm btn-ghost" id="pa-sal-x" aria-label="Fermer la fiche">✕</button></div>
@@ -1775,8 +1776,8 @@
     const brut = KC.round3(salaire + ic.montant);
     const ligne = (t, sous, v) => `<tr><td>${t}<div class="small muted">${sous}</div></td><td class="r nw">${v}</td></tr>`;
     const envoyer = api.messagerie && !dossier.manual && P.mode !== 'cabinet';
-    return `<section class="panel mt" id="pa-depart" aria-label="Le départ de ${esc(x.nom)}">
-      <div class="cp-pa-volet-t"><div><b>Le départ de ${esc(x.nom)}, le ${esc(fmtJour(x.sortie))}</b><small class="muted">${esc(KC.contractLabel(x.contrat).split(' —')[0])} qui arrive à son terme · le projet se prépare avec ${esc(P.client)} : le renouveler, ou le laisser finir</small></div>
+    return `<section class="panel mt" id="pa-depart" aria-label="Le départ ${esc(deNom(x.nom))}">
+      <div class="cp-pa-volet-t"><div><b>Le départ ${esc(deNom(x.nom))}, le ${esc(fmtJour(x.sortie))}</b><small class="muted">${esc(KC.contractLabel(x.contrat).split(' —')[0])} qui arrive à son terme · le projet se prépare avec ${esc(P.client)} : le renouveler, ou le laisser finir</small></div>
         <button type="button" class="btn btn-sm btn-ghost" id="pa-depart-x" aria-label="Fermer le départ">✕</button></div>
       <div class="cp-pa-grille avec-volet">
         <div><h4>Son dernier bulletin, ${esc(KC.moisPaie(mois))} ${esc(an)} <span class="muted small">· À VÉRIFIER : la règle des congés et l'indemnité de fin de contrat</span></h4>
@@ -1944,8 +1945,8 @@
     // dans l'annonce, et se refuse.
     const horsContrat = v => {
       const x = salaries.find(y => y.id === v.employeeId) || {};
-      return x.embauche && v.from && v.from < x.embauche ? { champ: 'from', motif: `L'entrée de ${x.nom} est le ${fmtJour(x.embauche)} : une absence ne commence pas avant.` }
-        : x.sortie && v.to && v.to > x.sortie ? { champ: 'to', motif: `La sortie de ${x.nom} est le ${fmtJour(x.sortie)} : une absence ne finit pas après.` } : null;
+      return x.embauche && v.from && v.from < x.embauche ? { champ: 'from', motif: `L'entrée ${deNom(x.nom)} est le ${fmtJour(x.embauche)} : une absence ne commence pas avant.` }
+        : x.sortie && v.to && v.to > x.sortie ? { champ: 'to', motif: `La sortie ${deNom(x.nom)} est le ${fmtJour(x.sortie)} : une absence ne finit pas après.` } : null;
     };
     modal(`<h2>${conge ? 'Modifier l\'absence' : 'Congé ou absence'}</h2>
       <form id="cg-form" class="grid-2">
@@ -2137,7 +2138,7 @@
         // test humain).
         zone.innerHTML = `<span class="${lourde ? 'warn-text' : 'muted'}">${deja ? `Déjà retenu : <b>${esc(money(deja))}</b> ; reste ${esc(money(reste))}. ` : ''}`
           + (deja && !reste ? 'Elle est soldée.' : `Remboursée en <b>${Math.ceil((deja ? reste : v.amount) / v.monthly)} mois</b> à ${esc(money(v.monthly))} par bulletin`
-            + (net > 0 ? ` — ${esc(joursFr(Math.round(v.monthly / net * 1000) / 10))} % du net habituel de ${esc(sal.nom || 'ce salarié')} (${esc(money(net))}).` : '.'))
+            + (net > 0 ? ` — ${esc(joursFr(Math.round(v.monthly / net * 1000) / 10))} % du net habituel ${esc(deNom(sal.nom || 'ce salarié'))} (${esc(money(net))}).` : '.'))
           + (lourde ? ' C\'est lourd pour le salarié. <em>À VÉRIFIER : la part du salaire qui peut être retenue.</em>' : '') + '</span>';
       };
       f.oninput = f.onchange = annoncer; annoncer();
@@ -2148,7 +2149,7 @@
         if (!champ('date').value.trim()) return refus(champ('date'), 'Indique le jour où l\'argent a été remis.');
         if (!v.date) return refus(champ('date'), `« ${champ('date').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
         if (v.date.slice(0, 4) !== String(s.annee)) return refus(champ('date'), `Une avance se saisit dans l'année regardée (${s.annee}) : pour une avance de ${v.date.slice(0, 4)}, change d'année en haut de la page.`);
-        if (sal.sortie && v.date > sal.sortie) return refus(champ('date'), `La sortie de ${sal.nom} est le ${fmtJour(sal.sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
+        if (sal.sortie && v.date > sal.sortie) return refus(champ('date'), `La sortie ${deNom(sal.nom)} est le ${fmtJour(sal.sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
         const illisible = ['amount', 'monthly'].map(champ).find(el => montantIllisible(el.value));
         if (illisible) return refus(illisible, motifIllisible(illisible.value));
         if (!(v.amount > 0)) return refus(champ('amount'), 'Indique le montant avancé.');
@@ -2207,7 +2208,7 @@
       </form>
       <p class="small muted" id="dp-desc"></p>
       ${dossier.gerant ? '' : `<div class="warn-box mb" id="dp-gerant">Le document dira « Je soussigné » <b>sans nom</b> : le gérant ${esc(deFr(dossier.name))} n'est pas sur la fiche du dossier. <button type="button" class="btn btn-sm" id="dp-gerant-go">Renseigner le gérant…</button></div>`}
-      ${e.gender ? '' : `<div class="warn-box mb" id="dp-civ">Le document parlera de ${esc(x.nom)} au masculin, sans « Madame » ni « Monsieur » : sa civilité n'est pas renseignée. <button type="button" class="btn btn-sm" id="dp-civ-go">Renseigner sa civilité…</button></div>`}
+      ${e.gender ? '' : `<div class="warn-box mb" id="dp-civ">Le document parlera ${esc(deNom(x.nom))} au masculin, sans « Madame » ni « Monsieur » : sa civilité n'est pas renseignée. <button type="button" class="btn btn-sm" id="dp-civ-go">Renseigner sa civilité…</button></div>`}
       <div class="panel" id="dp-solde" hidden><h2>Solde de tout compte (DT)</h2>
         <p class="small muted mb">Ce qui reste dû au salarié à son départ. Les montants sont à toi : SkanFact propose l'indemnité de congés non pris, sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>
         <div id="dp-lignes"></div>
@@ -2662,7 +2663,7 @@
     const baremes = KC.baremesDuBulletin(L, b, reglagesPaie(dossier, L));
     const NATURES = [['retenue', 'Une retenue oubliée (avance, prêt, acompte)', 'Remboursement d\'avance'], ['prime', 'Une prime ou des heures sup oubliées', 'Prime'], ['absence', 'Des jours sans solde', '']];
     modal(`<h2>Proposer une correction à ${esc(client)}</h2>
-      <p class="small muted">Le bulletin de <b>${esc(sal.nom || '')}</b> (${esc(KC.moisPaie(b.mois))} ${esc(b.annee)}) reste celui de ${esc(client)} : il lit ta proposition dans sa paie, l'accepte d'un geste ou la refuse. La trace reste écrite sur le bulletin.</p>
+      <p class="small muted">Le bulletin de <b>${esc(sal.nom || '')}</b> (${esc(KC.moisPaie(b.mois))} ${esc(b.annee)}) reste celui ${esc(deNom(client))} : il lit ta proposition dans sa paie, l'accepte d'un geste ou la refuse. La trace reste écrite sur le bulletin.</p>
       <form id="pc" class="form-grid">
         <label class="field obligatoire">${lbl('Ce qui manque', 'pa.cNature')}<select name="nature">${NATURES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('')}</select></label>
         <label class="field" id="pc-lib-l">${lbl('Libellé sur le bulletin', 'pa.cLibelle')}<input name="libelle" type="text" maxlength="80" value="${esc((pre && pre.libelle) || NATURES[0][2])}"></label>
