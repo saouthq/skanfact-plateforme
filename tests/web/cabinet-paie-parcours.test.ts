@@ -527,7 +527,8 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     // 1.240.0 — la fiche du salarié, à droite : un clic l'ouvre, la croix la ferme ; rien d'inventé.
     await p.locator('#pa-salaries tr[data-sal="mt"] td').first().click();
     const fiche = espace(await p.locator('#pa-sal-fiche').innerText());
-    expect(fiche).toMatch(/^Mourad Trabelsi Boulanger · entrée le 10\/03\/2023 complète/);
+    // (1.387.8, issue 10, CABPAIE-30) Le CIN qui manque se compte : la fiche ne se dit plus « complète » au-dessus de lui.
+    expect(fiche).toMatch(/^Mourad Trabelsi Boulanger · entrée le 10\/03\/2023 1 chose à compléter/);
     expect(fiche).toContain('Salaire de base 1 450,250 DT par mois');
     expect(fiche).toContain('Situation chef de famille, 2 enfants à charge');
     expect(fiche).toContain('CIN à renseigner');

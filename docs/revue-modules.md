@@ -5281,3 +5281,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **« Total équilibrée »** au pied de l'écriture de paie se lit « Total · écriture équilibrée ».
 - Laissé tel quel, et dit : le signe moins s'écrit « − 159,000 » dans les phrases de la paie et « −159,000 » dans les
   colonnes de montants. Les unifier touche tous les montants des deux applications ; ce n'est pas une finition.
+
+## 1.387.8 — Fiche d'un salarié : le CIN qui manque se compte (issue 10, CABPAIE-30)
+
+- **La fiche se disait « complète » — ou « 2 choses à compléter » — au-dessus de « CIN à renseigner » en orange.** La
+  pastille compte maintenant ce que la fiche montre à compléter : le n° CNSS, le CIN, le RIB.

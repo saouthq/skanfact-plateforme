@@ -1731,7 +1731,9 @@
   // … son n° CNSS et son RIB » (par la conversation) et « Modifier… ». Rien n'y est inventé : un champ vide le dit.
   function paieFicheSalarie(dossier, L, x, P, annee) {
     const sansRib = !x.rib && x.methode !== 'especes';
-    const manque = [!x.cnss && 'n° CNSS', sansRib && 'RIB'].filter(Boolean);
+    // (1.387.8, issue 10, CABPAIE-30) Le CIN compte : la fiche se disait « complète » — ou « 2 choses » — au-dessus de
+    // « CIN à renseigner » en orange. La pastille compte ce que la fiche montre à compléter.
+    const manque = [!x.cnss && 'n° CNSS', !x.cin && 'CIN', sansRib && 'RIB'].filter(Boolean);
     const contrat = KC.contractLabel(x.contrat).split(' —')[0];
     const primes = (x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0);
     let conges = '';

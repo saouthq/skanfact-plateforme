@@ -30707,6 +30707,9 @@ prouver $'signer pendant le chargement signe sur l\'ancienne période' modules/s
 # (1.387.7, issue 10, CABPAIE-27 et 28) Les mots de la paie du Cabinet.
 prouver $'la case du salaire de base se redit « Brut du mois »' modules/personnel/ecrans/cabinet/paie.js $'lbl(\'Salaire de base du mois (DT)\', \'pa.bBrut\')' $'lbl(\'Brut du mois (DT)\', \'pa.bBrut\')' $'un salarié et son bulletin, écrits dans le dossier du client ; le serveur les tient au millime et écrit le mois'
 
+# (1.387.8, issue 10, CABPAIE-30) La fiche d'un salarié compte le CIN qui manque.
+prouver $'la fiche se dit complète sans CIN' modules/personnel/ecrans/cabinet/paie.js $'const manque = [!x.cnss && \'n° CNSS\', !x.cin && \'CIN\', sansRib && \'RIB\'].filter(Boolean);' $'const manque = [!x.cnss && \'n° CNSS\', sansRib && \'RIB\'].filter(Boolean);' $'1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
