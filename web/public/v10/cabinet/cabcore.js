@@ -2111,7 +2111,11 @@
         // (plateforme, 1.370.0) Le dossier d'exemple a payé ses trimestres passés (ses livres le portent) et la CNSS se
         // pointe pour tout le cabinet : il ne réclame donc que le trimestre à venir, jamais un retard inventé.
         const exemplePasse = d => !!d.demo && dayOf(depot, cfg.cnssDay) < t;
-        const employeurs = actifs.filter(d => deposeCnss(state, d) && concerne(d, moisTrim) && employeurDe(d) !== false && !exemplePasse(d));
+        // (1.387.18, issue 10, CABPAIE-34) Un dossier compté seulement par prudence (rien ne dit s'il emploie) et entré au
+        // cabinet APRÈS la date limite n'est pas réclamé pour ce trimestre-là : « en retard de 32 jours » sur un dossier créé
+        // ce matin inventait un retard. Dès que sa Paie dit qu'il emploie, il est compté comme les autres.
+        const entreApres = d => employeurDe(d) === null && !!d.createdAt && String(d.createdAt).slice(0, 10) > dayOf(depot, cfg.cnssDay);
+        const employeurs = actifs.filter(d => deposeCnss(state, d) && concerne(d, moisTrim) && employeurDe(d) !== false && !exemplePasse(d) && !entreApres(d));
         const inconnus = employeurs.filter(d => employeurDe(d) === null).length;
         // La phrase suit ce qui est SU : « leur Paie le dit » ne s'écrit pas au-dessus de clients
         // qui sont tous comptés faute de savoir (trouvé en testant comme un humain).

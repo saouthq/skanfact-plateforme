@@ -5353,3 +5353,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **La carte s'appelait « FAR »** (la référence), la désignation venait en dernier. Une case peut désormais dire qu'elle
   ne titre pas sa carte (`data-tel-nomme="non"`, lu par `telephone.js`, commun aux deux applications) : la référence de
   l'inventaire la porte, et la carte se titre « Farine T55 ».
+
+## 1.387.18 — La CNSS n'invente plus un retard sur un dossier créé ce matin (issue 10, CABPAIE-34)
+
+- **« CNSS du 3ᵉ trimestre, en retard de 32 jours · compté par prudence »** sur un dossier créé le jour même. La règle de
+  prudence reste (un dossier dont on ne sait pas s'il emploie est compté : une CNSS oubliée coûte plus qu'un rappel), mais
+  pas pour un trimestre dont la date limite est passée AVANT que le dossier entre au cabinet. Dès que sa Paie dit qu'il
+  emploie, il est compté comme les autres.

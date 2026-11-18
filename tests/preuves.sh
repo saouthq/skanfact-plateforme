@@ -30740,6 +30740,9 @@ prouver $'la ligne d\'une avance ne dit pas qu\'elle s\'ouvre' modules/personnel
 # (1.387.17, issue 10, CABPAIE-35) Au téléphone, la carte d'une ligne d'inventaire se titre par sa désignation.
 prouver $'la carte d\'inventaire se titre par sa référence' modules/socle/ecrans/cabinet/app-2.js $'<tr><td class="nw" data-tel-nomme="non">${esc(l.ref)}</td>' $'<tr><td class="nw">${esc(l.ref)}</td>' $'l\'inventaire collé s\'enregistre au millime ; la variation s\'écrit au brouillard, liée ; dessous, l\'inventaire ne se refait pas'
 
+# (1.387.18, issue 10, CABPAIE-34) La CNSS ne réclame pas par prudence un trimestre passé avant l'entrée du dossier.
+prouver $'un dossier créé ce matin est en retard de CNSS' web/public/v10/cabinet/cabcore.js $'&& !exemplePasse(d) && !entreApres(d));' $'&& !exemplePasse(d) && true);' $'créé le 16/11 sans rien de saisi : pas dans le 3ᵉ trimestre ; créé en mars, oui ; employeur connu, oui'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
