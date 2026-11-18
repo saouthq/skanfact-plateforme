@@ -84,8 +84,6 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     // ── Un salarié ───────────────────────────────────────────────────────────────────────────────
     await ouvrir('#pa-salarie', '#modal-root [name=nom]');
     await fenetre.locator('[name=nom]').fill('Amel Trabelsi');
-    // (1.387.7, issue 10, CABPAIE-28) La case dit ce qu'elle est : le salaire de base, avant les primes d'en dessous.
-    expect((await fenetre.locator('label.field', { has: fenetre.locator('[name=brut]') }).innerText()).replace(/\s+/g, ' ')).toContain('Salaire de base du mois (DT)');
     await fenetre.locator('[name=brut]').fill('1250,500');
     await fenetre.locator('[name=embauche]').fill('01/01/2025');
     await fenetre.locator('[name=chefDeFamille]').check();
@@ -97,6 +95,8 @@ describe('la paie tenue par le cabinet, à la souris', () => {
 
     // ── Son bulletin de mars ─────────────────────────────────────────────────────────────────────
     await ouvrir('#pa-bulletin', '#bf');
+    // (1.387.7, issue 10, CABPAIE-28) La case dit ce qu'elle est : le salaire de base, avant les primes d'en dessous.
+    expect((await p.locator('#bf label.field').filter({ has: p.locator('[name=brut]') }).innerText()).replace(/\s+/g, ' ')).toContain('Salaire de base du mois (DT)');
     // Les primes du bulletin, une ligne chacune (1.63.0).
     await fenetre.locator('#bf-plus-prime').click();
     await fenetre.locator('#bf-primes [data-l=label]').fill('Prime de rendement');

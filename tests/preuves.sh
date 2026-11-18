@@ -30717,6 +30717,9 @@ prouver $'le refus d\'inventaire n\'ouvre plus son écriture' modules/socle/ecra
 # (1.387.10, issue 10, CABPAIE-32) La paie de tous mes dossiers a son retour.
 prouver $'la paie de tous mes dossiers perd son retour' modules/personnel/ecrans/cabinet/paie.js $'id="pa-tous-retour" data-pa-vue="annee"' $'id="pa-tous-retour" data-pa-vue-non="annee"' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 
+# (1.387.11, issue 10, CABPAIE-33) Échap ferme le panneau de droite de la paie.
+prouver $'Échap ne ferme plus le panneau de la paie' modules/personnel/ecrans/cabinet/paie.js $'if (croix) { e.preventDefault(); croix.click(); }' $'if (croix) { e.preventDefault(); }' $'1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

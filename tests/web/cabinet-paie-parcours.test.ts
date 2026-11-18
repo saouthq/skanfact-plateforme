@@ -543,6 +543,11 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(fiche).toMatch(/Congés [\d,]+ j acquis en \d{4} · [\d,]+ j pris · reste [\d,]+ j/);
     expect(await p.locator('#pa-sal-fiche-demander').count()).toBe(0);
     expect(await p.locator('#pa-sal-fiche').getAttribute('aria-label')).toBe('La fiche de Mourad Trabelsi');
+    // (1.387.11, issue 10, CABPAIE-33) Échap ferme le panneau de droite, comme sa croix.
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#pa-sal-fiche').count()).toBe(0);
+    await p.locator('#pa-salaries tr[data-sal="mt"] td').first().click();
+    await expect.poll(() => p.locator('#pa-sal-fiche').count()).toBe(1);
     await p.locator('#pa-sal-x').click();
     expect(await p.locator('#pa-sal-fiche').count()).toBe(0);
     // (1.387.0, issue 10) Un prénom en H ne s'élide pas : « la fiche de Hamza », jamais « d'Hamza ».

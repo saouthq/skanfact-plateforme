@@ -1012,6 +1012,7 @@
   }
   // « la fiche d'Amira », jamais « la fiche de Amira » (Cabinet 1.0.0 : l'élision).
   // (1.387.0, issue 10) Un prénom en H ou en Y ne s'élide pas : « de Hatem », « de Youssef ».
+  let echapPaiePose = false;
   const deNom = nom => (/^[aeiouâàéèêîôû]/i.test(String(nom || '').normalize('NFC')) ? 'd\'' : 'de ') + nom;
   function panneauFichierCnss(dossier, f, enCours, client) {
     if (!f) return '';
@@ -1353,6 +1354,17 @@
     });
     const vx = $('#pa-volet-x', el);
     if (vx) vx.onclick = () => { s.paieFocus = s.paieBul; s.paieBul = null; redraw(); };
+    // (1.387.11, issue 10, CABPAIE-33) Échap ferme le panneau ouvert à droite (un bulletin, la fiche d'un salarié), comme
+    // sa croix — sauf pendant une frappe dans une case, où Échap appartient à la case.
+    if (!echapPaiePose) {
+      echapPaiePose = true;
+      document.addEventListener('keydown', e => {
+        if (e.key !== 'Escape' || e.defaultPrevented || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
+        if (document.querySelector('#modal-root .modal, .row-menu, .sb-panneau:not([hidden]), .pop-dossier')) return;
+        const croix = document.querySelector('#pa-volet-x, #pa-sal-x, #pa-depart-x');
+        if (croix) { e.preventDefault(); croix.click(); }
+      });
+    }
     const duMois = () => KC.bulletinsDuMois(s.livre, s.annee, s.paieMois);
     const P0 = () => parcoursPaie(dossier, s.livre, s.annee, s.paieMois, duMois());
     const aujourdhui = () => new Date().toISOString().slice(0, 10);
