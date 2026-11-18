@@ -1007,7 +1007,7 @@
           texte: 'Tu compares ton relevé à SkanFact et tu coches ce qui correspond : ce qui reste non coché est ce qu\'il faut regarder.' },
         // — Le personnel
         { chapitre: 'Le personnel', couleur: 'equipe', page: '#/paie', avant: onglet('#p-tabs', 'bulletins'), cible: '#view table.list, #view .panel', cote: 'dessus', titre: 'Les bulletins',
-          texte: 'Chaque mois, les bulletins de tes salariés : SkanFact les calcule à partir de leur fiche, de leurs congés et de leurs avances. <b>Les taux sont réglables</b> (onglet Barèmes) : ton comptable les vérifie une fois.' },
+          texte: 'Chaque mois, les bulletins de tes salariés : SkanFact les calcule à partir de leur fiche, de leurs congés et de leurs avances. <b>Les taux sont réglables</b> (dans les Réglages de la paie) : ton comptable les vérifie une fois.' },
         { page: '#/paie', avant: onglet('#p-tabs', 'declarations'), cible: '#view .panel', cote: 'dessus', titre: 'La CNSS',
           texte: 'La déclaration du trimestre, prête à recopier ou à envoyer à ton comptable. « Marquer déposée » est un pense-bête : SkanFact ne dépose rien à ta place.' },
         // — Stock et biens

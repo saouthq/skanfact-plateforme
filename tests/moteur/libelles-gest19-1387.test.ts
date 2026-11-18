@@ -39,3 +39,14 @@ describe('le nouveau mouvement de trésorerie quand la paie est tenue ici (issue
     expect(app).toContain("[kindSel.value] || 'Assurance du local';");
   });
 });
+
+describe('le bulletin à l\'écran, « depuis janvier » (issue 16, constat 22)', () => {
+  it('le cumul de l\'année compte TOUS les bulletins, payés ou non : il s\'appelle « Net des bulletins », jamais « Net versé »', () => {
+    const paie = sansCommentaires('modules/personnel/ecrans/entreprise/paie.js');
+    const debut = paie.indexOf('function apercuBulletin(');
+    const tranche = paie.slice(debut, paie.indexOf('\n  function ', debut + 30));
+    expect(tranche.length).toBeGreaterThan(1000);
+    expect(tranche).toContain("l('Net des bulletins', f(ytd.net))");
+    expect(tranche).not.toContain("l('Net versé'");
+  });
+});

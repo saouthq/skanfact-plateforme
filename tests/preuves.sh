@@ -30778,6 +30778,7 @@ prouver $'cnss-arretee-salaires' modules/personnel/ecrans/entreprise/paie.js $'<
 prouver $'solde-dit-dernier-bulletin' modules/personnel/ecrans/entreprise/paie.js $'return fait ? \'\' : `<p class="small warn-text mt" id="hf-dernier">' $'return \'\' && `<p class="small warn-text mt" id="hf-dernier">' $'la civilité renseignée depuis le document ; le solde propose l\'indemnité du moteur commun, qui suit la date, et dit les avances'
 prouver $'une-ligne-entree-depart' modules/personnel/ecrans/entreprise/paie.js $'.filter(Boolean).join(\', \');' $'.filter(Boolean).join(\' ; \');' $'entré et parti dans le même mois : une seule ligne, et le compte des jours payés se lit'
 prouver $'jours-hors-contrat' modules/personnel/ecrans/entreprise/paie.js $'jours payés : ${pct(p.total)} moins ${pct(hors)} hors de son contrat' $'jours payés sur ${pct(p.total)}' $'entré et parti dans le même mois : une seule ligne, et le compte des jours payés se lit'
+prouver $'net-des-bulletins' modules/personnel/ecrans/entreprise/paie.js $"l('Net des bulletins', f(ytd.net))" $"l('Net versé', f(ytd.net))" $'le cumul de l\'année compte TOUS les bulletins, payés ou non : il s\'appelle « Net des bulletins », jamais « Net versé »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

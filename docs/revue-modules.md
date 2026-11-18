@@ -5464,3 +5464,10 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Entré le 10 et parti le 20 du même mois, la ligne du pointage s'écrivait deux fois (« entrée », puis « départ »), et « 11 jours payés sur 26 » ne disait pas d'où venait le 11. Une seule ligne désormais (« entrée le 10/11, départ le 20/11 »), qui dit le compte : « 11 jours payés : 26 moins 15 hors de son contrat ». À VÉRIFIER avec le comptable : la règle du prorata (jours ouvrables, base 26).
 - Deux preuves : une-ligne-entree-depart, jours-hors-contrat.
+
+## 1.387.41 — Les mots de la paie, constat 22 (issue 16)
+
+- La fenêtre d'un bulletin disait « Net versé » depuis janvier en comptant un mois pas encore payé : le cumul s'appelle « Net des bulletins ».
+- « l'onglet Barèmes » (une bulle et la visite de la paie) nommait un onglet qui s'appelle « Réglages » : « dans les Réglages de la paie ».
+- Déjà réglé avant : « Le salarié » accentué sur le bulletin imprimé, les élisions (« d'Ahmed »), « Total du solde ».
+- Une preuve : net-des-bulletins.
