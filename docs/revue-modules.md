@@ -5426,3 +5426,7 @@ La paie en donnait quatre (« début 2027 (À VÉRIFIER) », « février 2027 »
 ### 1.387.33 — « Vers le compte » porte son étoile (issue 16, constat 8)
 
 Un virement entre comptes sans compte d'arrivée était refusé, mais rien ne disait que la case était obligatoire. Elle porte maintenant l'étoile, et le refus s'écrit dans la fenêtre, sous la case (la règle des fenêtres depuis la 1.379.8, qui couvre aussi la date de sortie d'un salarié). Test : `poche-1358`, une preuve.
+
+### 1.387.34 — la preuve des deux générations d'abonnements retrouve sa prise (rouge GitHub de 92566058)
+
+Depuis la 1.385.0, l'écran ne lance plus qu'une génération à la fois : le double-clic du test n'atteignait donc plus le pont, et la preuve qui retire la garde du pont (deux générations côte à côte qui doublent les mois) restait verte — elle ne prouvait plus rien. Le test appelle maintenant le pont deux fois en même temps, sur un abonnement de plus, et exige qu'aucun mois ne soit écrit deux fois. Les deux gardes sont tenues, chacune par son test.

@@ -166,6 +166,28 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     await expect.poll(compteRendu, { timeout: 30_000 }).toMatch(new RegExp(`${dus.length - 2} écritures? créées? en brouillard`));
     expect(await compteRendu()).toMatch(/2 occurrences tombent dans la période validée \(janvier, février\) : elles ne se sont pas écrites/);
     expect((await ecritures()).filter((e) => e.piece.startsWith('ASSUR')).map((e) => e.date.slice(0, 7))).toEqual(dus.slice(2));
+
+    // ── Deux générations lancées en même temps AU PONT (l'écran, lui, n'en lance qu'une depuis la 1.385.0) : la seconde
+    // attend la première et relit les mois faits ; aucun mois n'est écrit deux fois. ────────────────────────────────────
+    for (let i = 0; i < 8 && await p.locator('#modal-root .modal').count(); i++) {
+      await p.locator('#modal-root .modal').last().getByRole('button').last().click({ timeout: 1_500 }).catch(() => {});
+      await p.waitForTimeout(300);
+    }
+    await ouvrir('#ab-new', '#ab-nom');
+    await fenetre.locator('#ab-nom').fill('Électricité');
+    await fenetre.locator('#ab-depuis').fill('05032026');
+    await fenetre.locator('#ab-montant').fill('50');
+    await fenetre.locator('#ab-piece').fill('STEG');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Écriture qui revient enregistrée.');
+    const deux = await p.evaluate(async (dossierId) => {
+      const c = (window as unknown as { cabinet: { genererAbonnements: (o: unknown) => Promise<unknown> } }).cabinet;
+      const o = { dossierId, annee: 2026, jusquA: new Date().toISOString().slice(0, 10) };
+      return Promise.all([c.genererAbonnements(o), c.genererAbonnements(o)]).then(() => true, (e) => String(e));
+    }, garage);
+    expect(deux).toBe(true);
+    const steg = (await ecritures()).filter((e) => e.piece.startsWith('STEG')).map((e) => e.date.slice(0, 7)).sort();
+    expect(steg).toEqual(dus.slice(2));
     expect(erreurs).toEqual([]);
   }, 240_000);
 });
