@@ -5089,3 +5089,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Une seule génération à la fois** : un double clic lançait la seconde par-dessus la première, et sa fenêtre disait
   « 0 écriture créée » alors qu'une venait de l'être. Le bouton s'éteint le temps du travail.
 - **Quand il n'y a rien à générer**, la fenêtre le dit (« Rien de plus à générer… ») au lieu de « 0 écriture créée ».
+
+## 1.385.1 — La grille de saisie : des cases qui se voient (issue 11, CABSAISIE-23)
+
+- **Une case de la grille est blanche avec un bord**, en clair comme en sombre : grise et sans bord, elle se lisait
+  « éteinte » en clair et se fondait dans la page en sombre. Le bord se renforce au survol de la ligne.

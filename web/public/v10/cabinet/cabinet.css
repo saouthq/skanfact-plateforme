@@ -486,14 +486,17 @@ input.sa-montant, input.montant, td > input.r { text-align: end; font-variant-nu
    lignes visibles sur un portable. L'identifiant de la grille l'emporte, et c'est voulu. */
 #sa-lignes td { padding-block: 2px; padding-inline: 4px; }
 #sa-lignes input {
-  font-size: 13px; padding-block: 6px; padding-inline: 8px; border: 1px solid transparent;
-  background: var(--ink-soft); border-radius: 8px; box-shadow: none;
+  font-size: 13px; padding-block: 6px; padding-inline: 8px;
+  /* (1.385.1, issue 11, CABSAISIE-23) Une case grise sans bord se lisait « éteinte » en clair, et se fondait dans la
+     page en sombre : la case est blanche (la couleur du panneau), avec un bord qu'on voit dans les deux thèmes. */
+  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);
+  background: var(--panel); border-radius: 8px; box-shadow: none;
 }
 /* 10.12.0 (H-3 bis, vu au test humain) — la règle du survol (1,1,2) battait celle du focus et celle
    de l'erreur (1,1,1 chacune) : la case « 12a » perdait son rouge dès que la souris passait sur sa
    ligne, c'est-à-dire au moment précis où l'on vient la corriger. Le survol ne touche plus ni la case
    active ni la case refusée — l'exclusion est dans le sélecteur, pas dans une surenchère. */
-#sa-lignes tr:hover input:not(:focus):not(.sa-ko) { border-color: var(--border); }
+#sa-lignes tr:hover input:not(:focus):not(.sa-ko) { border-color: color-mix(in srgb, var(--text) 38%, transparent); }
 #sa-lignes input:focus { border-color: var(--primary); background: var(--panel); box-shadow: 0 0 0 3px rgba(15, 157, 143, .15); }
 #sa-lignes input.sa-ko { border-color: var(--danger); }
 /* 10.12.0 (U-26) — des largeurs FIXES. En largeur automatique, l'intitulé du compte qui apparaît

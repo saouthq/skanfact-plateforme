@@ -30579,6 +30579,10 @@ prouver $'saisie 1.385.0 a : un double clic lance deux générations' modules/so
   $'    if (generationAbos) return;\n    generationAbos = true;\n    const bouton = $(\'#ab-gen\', root); if (bouton) bouton.disabled = true;' $'' \
   $'un abonnement créé, ses mois dus générés au brouillard une seule fois, puis suspendu'
 
+prouver $'saisie 1.385.1 a : les cases de la grille sans bord' web/public/v10/cabinet/cabinet.css \
+  $"  border: 1px solid color-mix(in srgb, var(--text) 20%, transparent);" $"  border: 1px solid transparent;" \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

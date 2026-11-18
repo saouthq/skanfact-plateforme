@@ -160,6 +160,21 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^«\s32\/13\s» n'est pas une date de \d{4}/);
     expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
 
+    // ── (1.385.1, issue 11 constat 23) une case de la grille se voit : un bord, et le fond du panneau (clair et sombre) ──
+    for (const sombre of [false, true]) {
+      await p.evaluate((s) => document.body.classList.toggle('dark', s), sombre);
+      await p.waitForTimeout(600);
+      const c = await p.locator('#sa-lignes input[data-k="compte"]').first().evaluate((el) => {
+        const cs = getComputedStyle(el), pan = getComputedStyle(el.closest('.panel, .sx-km, #c-livres') ?? document.body);
+        const al = Number((cs.borderTopColor.match(/[\d.]+(?=\)$)/) ?? ['1'])[0]);
+        return { bord: cs.borderTopWidth, alpha: cs.borderTopColor.startsWith('rgba') ? al : 1, fond: cs.backgroundColor, panneau: pan.backgroundColor };
+      });
+      expect(parseFloat(c.bord)).toBeGreaterThanOrEqual(1);
+      expect(c.alpha).toBeGreaterThan(0.15);
+      await p.screenshot({ path: path.join(PHOTOS, `cabinet-saisie-grille-${sombre ? 'sombre' : 'clair'}.png`) });
+    }
+    await p.evaluate(() => document.body.classList.remove('dark'));
+
     // ── (1.384.8, issue 11 constat 28) l'exemple d'une case vide penche : il ne se prend pas pour une valeur ──
     expect(await p.evaluate(() => [...document.styleSheets].some((f) => { try { return [...f.cssRules].some((r) => r instanceof CSSStyleRule && /(^|,\s*)input::placeholder/.test(r.selectorText) && r.style.fontStyle === 'italic'); } catch { return false; } }))).toBe(true);
     expect(await p.locator('#sa-piece').evaluate((c) => getComputedStyle(c).fontStyle)).toBe('normal');
