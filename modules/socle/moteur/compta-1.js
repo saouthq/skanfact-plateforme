@@ -1281,7 +1281,8 @@
   function gesteQuiLibere(livre, id) {
     const e = (livre.ecritures || []).find(x => x.id === txt(id));
     return e && e.statut === 'brouillard'
-      ? 'elle est encore au brouillard : supprime-la d\'abord dans la Saisie'
+      // (1.387.9, issue 10, CABPAIE-35) Une virgule : la phrase qui l'accueille porte déjà son deux-points.
+      ? 'elle est encore au brouillard, supprime-la d\'abord dans la Saisie'
       : 'contre-passe-la d\'abord';
   }
 
@@ -4653,7 +4654,11 @@
         motifs.push(`Ligne ${k + 1} : la valeur ${fmtMontant(num(l.valeur))} n\'est pas la quantité fois le coût unitaire (${fmtMontant(num(l.quantite) * num(l.cout))}).`);
       }
     });
-    return { ok: !motifs.length, motifs };
+    // (1.387.9, issue 10, CABPAIE-35) Les refus se lisent dans l'ordre des lignes : ceux de la lecture (une quantité
+    // illisible) passaient tous avant ceux du contrôle (une désignation qui manque) — « ligne 2, ligne 4, ligne 3 ».
+    const rang = m => { const x = /^Ligne (\d+)\b/.exec(m); return x ? Number(x[1]) : 0; };
+    const ranges = motifs.map((m, k) => [rang(m), k, m]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);
+    return { ok: !ranges.length, motifs: ranges };
   }
 
   // 10.10.0 (C-16) — les lignes COLLÉES depuis un tableur, lues ici et pas dans l'écran. Une

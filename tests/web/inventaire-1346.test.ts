@@ -193,8 +193,14 @@ describe('l\'inventaire d\'un dossier au Cabinet, et le pont (1.346.0)', () => {
     await c.locator('#iv-saisir').click();
     const f2 = c.locator('#modal-root .modal').last();
     await f2.locator('#iv-bloque').waitFor({ timeout: 10_000 });
-    expect(net(await f2.locator('#iv-bloque').innerText()))
-      .toBe(`L'inventaire de ${annee} est déjà passé en écriture (la variation de stock) : elle est encore au brouillard : supprime-la d'abord dans la Saisie, puis refais-le.`);
+    // (1.387.9, issue 10, CABPAIE-35) Un seul deux-points dans la phrase, et le refus ouvre l'écriture qu'il nomme.
+    expect(net(await f2.locator('#iv-bloque span').first().innerText()))
+      .toBe(`L'inventaire de ${annee} est déjà passé en écriture (la variation de stock) : elle est encore au brouillard, supprime-la d'abord dans la Saisie, puis refais-le.`);
+    await f2.locator('#iv-voir-ecr').click();
+    const vue = c.locator('#modal-root .modal').last();
+    await expect.poll(async () => net(await vue.innerText()), { timeout: 10_000 }).toContain('au brouillard, sans numéro');
+    await c.keyboard.press('Escape');
+    await expect.poll(() => c.locator('#modal-root .modal').count()).toBe(1);
     expect(await f2.locator('#ok').isDisabled()).toBe(true);
     await c.screenshot({ path: path.join(PHOTOS, 'inventaire-1346-f-bloque.png'), fullPage: true });
     await cxC.close();

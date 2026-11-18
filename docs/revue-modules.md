@@ -5286,3 +5286,12 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **La fiche se disait « complète » — ou « 2 choses à compléter » — au-dessus de « CIN à renseigner » en orange.** La
   pastille compte maintenant ce que la fiche montre à compléter : le n° CNSS, le CIN, le RIB.
+
+## 1.387.9 — Inventaire du Cabinet : les refus dans l'ordre, et l'écriture qu'on nomme s'ouvre (issue 10, CABPAIE-35)
+
+- **Les refus de lignes sortaient « 2, 4, 3 »** : ceux de la lecture (une quantité illisible) passaient tous avant ceux
+  du contrôle (une désignation qui manque). Ils se lisent dans l'ordre des lignes ; ce qui ne tient à aucune ligne (la
+  date) se dit d'abord.
+- **« … (la variation de stock) : elle est encore au brouillard : supprime-la… »** portait deux deux-points et aucun
+  lien. La phrase n'en porte qu'un, et le refus offre « Voir l'écriture ».
+- Reste de ce constat : au téléphone, la carte d'une ligne d'inventaire est titrée par sa référence.

@@ -347,7 +347,8 @@
       : null;
     const refusAvant = bloque && !bloque.ok ? bloque.motif : '';
     modal(`<h2>L'inventaire de ${esc(s.annee)}</h2>
-      ${refusAvant ? `<div class="warn-box" id="iv-bloque">${esc(refusAvant)}</div>` : ''}
+      ${/* (1.387.9, issue 10, CABPAIE-35) Le refus nomme une écriture : il l'ouvre. */''}
+      ${refusAvant ? `<div class="warn-box" id="iv-bloque"><span>${esc(refusAvant)}</span>${ecritureDuLivre(s.livre, dejaLa.ecritureId) ? ' <button type="button" class="btn btn-sm" id="iv-voir-ecr">Voir l\'écriture</button>' : ''}</div>` : ''}
       <p class="small muted">Une ligne par référence : <b>référence, désignation, quantité, coût unitaire</b> (et, si tu l'as, sa
       <b>valeur</b>), séparées par une tabulation ou un point-virgule. Colle-les depuis ton tableur.</p>
       ${depuisLeClient ? `<p class="small ligne-ok" id="iv-repris"><span aria-hidden="true">✓</span> Repris de l'état envoyé par ${esc(dossier.name || 'le client')} au ${esc(fmtJour(depuisLeClient.date))} : la dernière colonne est la valeur au coût moyen de son SkanFact.</p>` : ''}
@@ -366,6 +367,8 @@
         <button class="btn btn-primary" id="ok">Enregistrer l'inventaire</button></div>`,
     (rootModal, close) => {
       const apercu = $('#iv-apercu', rootModal);
+      const voirE = $('#iv-voir-ecr', rootModal);
+      if (voirE) voirE.onclick = () => voirEcriture(ecritureDuLivre(s.livre, dejaLa.ecritureId));
       // (1.346.0) La variation que l'onglet écrira, dite AVANT d'enregistrer, par le moteur qui l'écrira : le stock que les
       // comptes portent à la date (lu une fois par date et par compte), contre le total compté.
       const initiaux = new Map();

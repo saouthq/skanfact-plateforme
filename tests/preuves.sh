@@ -30710,6 +30710,10 @@ prouver $'la case du salaire de base se redit « Brut du mois »' modules/person
 # (1.387.8, issue 10, CABPAIE-30) La fiche d'un salarié compte le CIN qui manque.
 prouver $'la fiche se dit complète sans CIN' modules/personnel/ecrans/cabinet/paie.js $'const manque = [!x.cnss && \'n° CNSS\', !x.cin && \'CIN\', sansRib && \'RIB\'].filter(Boolean);' $'const manque = [!x.cnss && \'n° CNSS\', sansRib && \'RIB\'].filter(Boolean);' $'1.237.0 — l\'inventaire de la maquette : l\'avance oubliée trouvée et proposée, les contrôles, le volet, les écarts, le paramétrage, l\'année, les salariés, les absences à venir'
 
+# (1.387.9, issue 10, CABPAIE-35) L'inventaire : les refus dans l'ordre des lignes, le refus qui ouvre son écriture.
+prouver $'les refus d\'inventaire sortent dans le désordre' modules/socle/moteur/compta-1.js $'.sort((x, y) => x[0] - y[0] || x[1] - y[1]).map(x => x[2]);' $'.map(x => x[2]);' $'les refus sortent dans l\'ordre des lignes, la lecture et le contrôle mêlés'
+prouver $'le refus d\'inventaire n\'ouvre plus son écriture' modules/socle/ecrans/cabinet/app-2.js $'if (voirE) voirE.onclick = () => voirEcriture(ecritureDuLivre(s.livre, dejaLa.ecritureId));' $'if (voirE) voirE.onclick = () => {};' $'(1.346.0) l\'état du stock se demande au client, sa demande mène à la page Stock et l\'envoi y répond ; la variation se dit avant'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
