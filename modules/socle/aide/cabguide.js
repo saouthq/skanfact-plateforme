@@ -239,7 +239,7 @@
     'pa.enfants': { t: 'Les enfants à charge', d: 'Ils entrent dans les déductions annuelles du calcul de l\'IRPP. <b>À VÉRIFIER</b> : les montants suivent la loi de finances.' },
     'pa.bSalarie': { t: 'Le salarié', d: 'Seuls les salariés présents ce mois-là se proposent.' },
     'pa.bMois': { t: 'Le mois du bulletin', d: 'Le bulletin compte dans ce mois : l\'écriture de paie, la CNSS du trimestre et la masse de l\'exercice.' },
-    'pa.bBrut': { t: 'Le brut du mois', d: 'Proposé depuis la fiche du salarié. Tout le calcul en part : CNSS, IRPP, CSS, net et charges patronales.' },
+    'pa.bBrut': { t: 'Le salaire de base du mois', d: 'Proposé depuis la fiche du salarié, avant les primes ajoutées plus bas. Le brut du bulletin (base + primes − absences) se lit dans l\'aperçu ; tout le calcul en part : CNSS, IRPP, CSS, net et charges patronales.' },
     'pa.bOuvrables': { t: 'Les jours ouvrables du mois', d: '26 par défaut. Ils servent à retirer une absence : brut × jours d\'absence ÷ jours ouvrables.' },
     'pa.bAbsence': { t: 'Les jours d\'absence non payés', d: 'Ils retirent du brut sa part : brut × jours d\'absence ÷ jours ouvrables.' },
     'pa.cNature': { t: 'Ce qui manque au bulletin', d: 'Une retenue oubliée, une prime, ou le nombre de jours sans solde. Le bulletin du client ne change pas : il lit la proposition et l\'accepte ou la refuse.' },

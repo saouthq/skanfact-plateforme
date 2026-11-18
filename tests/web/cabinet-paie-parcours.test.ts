@@ -203,7 +203,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     await p.goto(laPaie);
     await p.locator('#pa-faits').waitFor({ timeout: 20_000 });
     expect(espace(await p.locator('#pa-ecriture summary').innerText())).toMatch(/^L'écriture de paie, compte par compte/);
-    expect(espace(await p.locator('#pa-ecriture tr.dc-total').innerText())).toContain('équilibrée');
+    expect(espace(await p.locator('#pa-ecriture tr.dc-total').innerText())).toContain('Total · écriture équilibrée');
     expect(espace(await p.locator('#pa-remettre').innerText())).toBe('Marquer les 5 bulletins remis aux salariés');
     await p.locator('#pa-remettre').click();
     await expect.poll(async () => (await A.bulletins()).filter((b) => b.contenu.remisLe === jour).length).toBe(5);

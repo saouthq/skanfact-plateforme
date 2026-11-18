@@ -5273,3 +5273,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   restait « à revoir » après le message « Compte 532 signé. ». La signature porte maintenant sur la période choisie.
 - **Une lecture en retard ne repeint plus l'écran** : seule la dernière demande de révision s'affiche.
 - Le test rejoue la course exprès (les lectures ralenties de 900 ms), au lieu d'attendre qu'elle arrive par hasard.
+
+## 1.387.7 — Paie du Cabinet : deux mots (issue 10, CABPAIE-27 et 28)
+
+- **« Brut du mois (DT) » était le salaire de base** : les primes s'ajoutent en dessous, et le vrai brut se lit dans
+  l'aperçu. La case s'appelle « Salaire de base du mois (DT) », et sa bulle le dit.
+- **« Total équilibrée »** au pied de l'écriture de paie se lit « Total · écriture équilibrée ».
+- Laissé tel quel, et dit : le signe moins s'écrit « − 159,000 » dans les phrases de la paie et « −159,000 » dans les
+  colonnes de montants. Les unifier touche tous les montants des deux applications ; ce n'est pas une finition.

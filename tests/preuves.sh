@@ -30704,6 +30704,9 @@ prouver $'les bornes du livre reviennent au format du navigateur' modules/socle/
 # (1.387.6) Signer aussitôt la période changée signe sur la période choisie.
 prouver $'signer pendant le chargement signe sur l\'ancienne période' modules/socle/ecrans/cabinet/app-1.js $'periode: s.revPeriode || s.revision.dossier.periode, compte: id, revu' $'periode: s.revision.dossier.periode, compte: id, revu' $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
 
+# (1.387.7, issue 10, CABPAIE-27 et 28) Les mots de la paie du Cabinet.
+prouver $'la case du salaire de base se redit « Brut du mois »' modules/personnel/ecrans/cabinet/paie.js $'lbl(\'Salaire de base du mois (DT)\', \'pa.bBrut\')' $'lbl(\'Brut du mois (DT)\', \'pa.bBrut\')' $'un salarié et son bulletin, écrits dans le dossier du client ; le serveur les tient au millime et écrit le mois'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

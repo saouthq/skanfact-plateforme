@@ -682,7 +682,7 @@
         const intitule = c => ((L.plan || []).find(y => String(y.compte) === c) || {}).libelle || ((e.lignes || []).find(l => String(l.compte) === c) || {}).libelle || '';
         return [...par.values()].sort((a, b) => (b.debit > 0) - (a.debit > 0) || a.compte.localeCompare(b.compte)).map(x => `<tr data-compte="${esc(x.compte)}"><td class="mono nw">${esc(x.compte)}</td><td>${esc(intitule(x.compte))}${x.n > 1 ? ` <small class="muted">${x.n} lignes</small>` : ''}</td><td class="r nw">${x.debit ? esc(money(x.debit)) : ''}</td><td class="r nw">${x.credit ? esc(money(x.credit)) : ''}</td></tr>`).join('');
       })()}
-      <tr class="dc-total"><td colspan="2"><b>Total</b>${Math.abs(D - C) < 0.0005 ? ' <span class="ok-text small">équilibrée</span>' : ' <span class="warn-text small">déséquilibrée</span>'}</td><td class="r nw"><b>${esc(money(D))}</b></td><td class="r nw"><b>${esc(money(C))}</b></td></tr></tbody></table></div>
+      <tr class="dc-total"><td colspan="2"><b>Total</b>${Math.abs(D - C) < 0.0005 ? ' <span class="ok-text small">· écriture équilibrée</span>' : ' <span class="warn-text small">· écriture déséquilibrée</span>'}</td><td class="r nw"><b>${esc(money(D))}</b></td><td class="r nw"><b>${esc(money(C))}</b></td></tr></tbody></table></div>
       <p class="small muted">Une ligne par salarié et par compte dans le livre ; ici, par compte. Le net reste au compte du personnel jusqu'au virement, que la Banque solde. Comptes proposés : <b>À VÉRIFIER</b> avec le cabinet.</p></details>`;
   }
   // (plateforme) 1.237.0 — les écarts sur le mois d'avant, ligne à ligne (la maquette, paieecarts) : chaque rubrique qui
@@ -2771,7 +2771,7 @@
         <label class="field obligatoire span-2">${lbl('Salarié', 'pa.bSalarie')}
           <select name="salarieId" ${b ? 'disabled' : ''}>${actifs.map(x => `<option value="${esc(x.id)}" ${x.id === salDefaut ? 'selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>
         <label class="field">${lbl('Mois', 'pa.bMois')}<select name="mois">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === Number(e.mois) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select></label>
-        <label class="field obligatoire">${lbl('Brut du mois (DT)', 'pa.bBrut')}<input name="brut" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(brutDefaut))}"></label>
+        <label class="field obligatoire">${/* (1.387.7, issue 10, CABPAIE-28) « Brut du mois » : c'est le salaire de base, avant les primes d'en dessous — le brut du bulletin, lui, se lit dans l'aperçu. */''}${lbl('Salaire de base du mois (DT)', 'pa.bBrut')}<input name="brut" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(brutDefaut))}"></label>
         <label class="field">${lbl('Jours ouvrables du mois', 'pa.bOuvrables')}<input name="joursTravailles" type="number" min="1" step="1" class="num" value="${esc(String(e.joursTravailles || 26))}"></label>
         <label class="field">${lbl('Jours d\'absence non payés', 'pa.bAbsence')}<input name="joursAbsence" type="text" inputmode="decimal" autocomplete="off" class="num" value="${esc(joursFr(e.joursAbsence || 0))}"></label>
       </form>
