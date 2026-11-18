@@ -844,3 +844,16 @@ a.lien-aide:hover, a.lien-aide:focus-visible { text-decoration-thickness: 2px; }
 /* (1.384.8, issue 11, CABSAISIE-28) Un exemple dans une case vide — « 607 », « 411 » — se prenait pour une valeur déjà
    saisie : chez le comptable, les cases portent des chiffres. L'exemple penche, la valeur reste droite. */
 input::placeholder, textarea::placeholder { font-style: italic; }
+
+/* (1.385.2, issue 11, CABSAISIE-23) Au doigt, la légende des touches du clavier n'aide personne : elle se cache. */
+@media (max-width: 600px), (hover: none) and (pointer: coarse) { .sa-touches { display: none; } }
+/* Et en cartes, la première case de la grille (le compte) dit ce qu'elle attend, comme ses voisines. */
+@media (max-width: 760px) {
+  #sa-lignes > tr > td:first-child::before { content: 'Compte'; display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700;
+    letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+  /* Le libellé prend la largeur, Débit et Crédit vont côte à côte, et la croix se range en haut à droite de la carte. */
+  #sa-lignes > tr > td:nth-child(3) { grid-column: 1 / -1; }
+  #sa-lignes > tr > td:first-child { padding-inline-end: 56px; }
+  #sa-lignes > tr > td.sa-sup .btn { min-width: 44px; min-height: 44px; }
+  #sa-lignes > tr > td.sa-sup { position: absolute; inset-block-start: 30px; inset-inline-end: 16px; inset-inline-start: auto; width: auto; }
+}

@@ -5094,3 +5094,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **Une case de la grille est blanche avec un bord**, en clair comme en sombre : grise et sans bord, elle se lisait
   « éteinte » en clair et se fondait dans la page en sombre. Le bord se renforce au survol de la ligne.
+
+## 1.385.2 — La grille de saisie au téléphone (issue 11, CABSAISIE-23)
+
+- **La case du compte a son étiquette** (« Compte »), comme Libellé, Débit et Crédit.
+- **La carte d'une ligne se range** : le libellé sur toute la largeur, Débit et Crédit côte à côte, la croix en haut à
+  droite, à la taille du doigt.
+- **La légende des touches du clavier se cache** au doigt : elle n'aide personne sans clavier.

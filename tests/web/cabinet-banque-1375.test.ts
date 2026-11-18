@@ -174,6 +174,15 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
       await p.screenshot({ path: path.join(PHOTOS, `cabinet-saisie-grille-${sombre ? 'sombre' : 'clair'}.png`) });
     }
     await p.evaluate(() => document.body.classList.remove('dark'));
+    // (1.385.2) Au téléphone : la légende des touches se cache, et chaque case dit ce qu'elle attend.
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.waitForTimeout(400);
+    expect(await p.locator('#sa-touches').isVisible()).toBe(false);
+    expect(await p.locator('#sa-lignes tr').first().locator('td').first().evaluate((td) => getComputedStyle(td, '::before').content)).toBe('"Compte"');
+    await p.locator('#sa-lignes').scrollIntoViewIfNeeded();
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-grille-telephone.png') });
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.waitForTimeout(300);
 
     // ── (1.384.8, issue 11 constat 28) l'exemple d'une case vide penche : il ne se prend pas pour une valeur ──
     expect(await p.evaluate(() => [...document.styleSheets].some((f) => { try { return [...f.cssRules].some((r) => r instanceof CSSStyleRule && /(^|,\s*)input::placeholder/.test(r.selectorText) && r.style.fontStyle === 'italic'); } catch { return false; } }))).toBe(true);
