@@ -30591,6 +30591,10 @@ prouver $'compta 1.385.4 a : la bande Période au-dessus des onglets les fait sa
   $"    if (bandePeriode && navCompta) navCompta.after(bandePeriode);" $"" \
   $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
 
+prouver $'banque 1.385.5 a : le titre de l\'import garde le mois attendu' modules/socle/ecrans/cabinet/app-2.js \
+  $"          if (titreRv && premierJour) titreRv.textContent" $"          if (false) titreRv.textContent" \
+  $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

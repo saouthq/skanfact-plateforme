@@ -2097,7 +2097,7 @@
     const attendu = derR ? moisSuivant(String(derR.au).slice(0, 7)) : '';
     const courant = (s.livre.releves || []).find(r => r.id === banqueState.releve);
     const nomBq = (dossier.banque || {}).banque || (derR || {}).banque || '';
-    page.innerHTML = `<div class="bq-h"><div><b>${attendu ? `Importer le relevé ${esc(deMois(attendu))}` : 'Importer un relevé'} · ${esc(defaut)}${nomBq ? ` ${esc(nomBq)}` : ''}</b><span class="mu" id="rv-sous">rien n'entre avant que tu aies vu ce que SkanFact a compris</span></div>
+    page.innerHTML = `<div class="bq-h"><div><b id="rv-titre">${attendu ? `Importer le relevé ${esc(deMois(attendu))}` : 'Importer un relevé'} · ${esc(defaut)}${nomBq ? ` ${esc(nomBq)}` : ''}</b><span class="mu" id="rv-sous">rien n'entre avant que tu aies vu ce que SkanFact a compris</span></div>
         <button type="button" class="btn btn-sm btn-ghost" data-close>${courant && courant.au ? `Retour à ${esc(moisLong(String(courant.au).slice(0, 7)))}` : 'Retour au relevé'}</button></div>
       <div id="rv-trou-z"></div>
       <div class="bqi-2">
@@ -2281,6 +2281,10 @@
             }
           }
           const lignes = lu.lignes || [];
+          // (1.385.5, issue 11, CABSAISIE-22) Le titre nomme le mois du FICHIER choisi : il annonçait encore le mois
+          // attendu (« de décembre ») au-dessus d'un relevé de novembre.
+          const titreRv = $('#rv-titre', rootModal), premierJour = lignes.map(l => l.date).filter(Boolean).sort()[0];
+          if (titreRv && premierJour) titreRv.textContent = `Importer le relevé ${deMois(premierJour.slice(0, 7))} · ${v('compte') || defaut}${nomBq ? ` ${nomBq}` : ''}`;
           proposerDebut(lignes);
           const somme = KC.round3(lignes.reduce((a, l) => a + l.montant, 0));
           // Le doublon se dit DÈS que le fichier est choisi (T-08) : l'empreinte est connue à la

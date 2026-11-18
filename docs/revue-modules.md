@@ -5112,3 +5112,8 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **La bande « Période » se range sous les onglets.** Posée au-dessus, elle les faisait descendre de soixante pixels en
   passant de « Saisir » (où elle se cache) à « Consulter » : le clic suivant tombait à côté.
+
+## 1.385.5 — L'import d'un relevé : le titre nomme le mois du fichier (issue 11, CABSAISIE-22)
+
+- **« Importer le relevé de décembre »** restait au-dessus d'un fichier de novembre : une fois le fichier lu, le titre
+  nomme son mois (et le compte choisi).
