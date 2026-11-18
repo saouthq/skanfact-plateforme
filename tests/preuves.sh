@@ -30624,6 +30624,11 @@ prouver $'saisie 1.386.0 : « Écrire un premier guide… » garde le retour au 
   $'    reglagesRetour = null;' \
   $'créer un guide, s\'en servir dans la saisie, retenir le journal, modifier puis supprimer le guide'
 
+prouver $'banque 1.386.1 : hors SkanFact, une ligne sans rien en face offre le compte d\'attente' modules/socle/ecrans/cabinet/app-2.js \
+  $'(!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : \'<button type="button" class="btn" id="bq-attente">Mettre en attente (471)</button>\')' \
+  $'(!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : \'\')' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs, il se dit et s\'oublie ; la TVA d\'une règle part avec l\'écriture ; une validation refusée garde UN brouillard'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

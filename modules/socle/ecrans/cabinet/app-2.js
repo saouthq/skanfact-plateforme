@@ -587,7 +587,7 @@
         const c2 = prop.lignes[1].compte;
         return { l, g: 'dec', jug, rep, prop, titre: `${c2}${nom(c2) ? ` · ${nom(c2)}` : ''}`, pq: `sa règle « ${prop.regle} »`, ton: 'regle' };
       }
-      return { l, g: 'dec', jug, rep, titre: 'Rien dans le livre en face', pq: `l'écrire, ou demander ${aClientBq(dossier)}`, ton: 'rien' };
+      return { l, g: 'dec', jug, rep, titre: 'Rien dans le livre en face', pq: dossier.manual ? 'l\'écrire, ou la mettre en attente' : `l'écrire, ou demander ${aClientBq(dossier)}`, ton: 'rien' };
     });
   }
   // Pourquoi une écriture est proposée : le montant, l'écart de jours, les mots que la banque et le livre partagent.
@@ -970,14 +970,16 @@
       corps = `<p class="bq-rien">Rien dans le livre pour cette ligne. <b>Sa règle « ${esc(prop.regle)} »</b> propose l'écriture${aussi.length ? ` ; elle sert aussi ${aussi.length > 1 ? `à ${aussi.length} autres lignes` : `à « ${esc(String(aussi[0].libelle || '').slice(0, 30))} »`} du relevé` : ''}.</p>${tableEcriture([...prop.lignes].sort((u, v) => (v.debit > 0) - (u.debit > 0)), -1)}${ouvertesHtml}`;
       principal = 'Écrire et rapprocher';
     } else {
-      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ou demander ${esc(aClientBq(dossier))} ce que c'est.${lect ? '' : ' <button type="button" class="cp-plus" id="bq-remise-oui">Plusieurs écritures font cette ligne ?</button>'}</p>${ouvertesHtml}`;
+      corps = `<p class="bq-rien">Rien dans le livre au même montant${q ? ` ni pour « ${esc(banqueState.cherche)} »` : ''}. L'écrire (au brouillard, rapprochée du même geste), ${dossier.manual ? `ou la mettre au compte d'attente (471) le temps de demander ${esc(aClientBq(dossier))} ce que c'est` : `ou demander ${esc(aClientBq(dossier))} ce que c'est`}.${lect ? '' : ' <button type="button" class="cp-plus" id="bq-remise-oui">Plusieurs écritures font cette ligne ?</button>'}</p>${ouvertesHtml}`;
       principal = 'Écrire l\'écriture…';
     }
+    // (1.386.1 ; issue 11, CABSAISIE-21) Un dossier tenu hors SkanFact n'a pas de conversation : « ou demander à … »
+    // restait sans geste. La phrase et le bouton offrent ce qui se fait ici — le compte d'attente, le temps de demander.
     return `<aside class="bq-livre" aria-label="Le livre en face">${tete}
       <label class="bq-ch">${svgBq(BQ_IC.loupe, 15)}<input type="search" id="bq-cherche" value="${esc(banqueState.cherche)}" placeholder="Chercher un montant, un tiers, une pièce…  ( / )" aria-label="Chercher dans le livre"></label>
       ${corps}
       ${lect ? '' : `<div class="cp-gestes">${principal ? `<button type="button" class="btn btn-primary" id="bq-principal">${esc(principal)} <kbd class="bq-k">Entrée</kbd></button>` : ''}
-        ${sansRien && !prop && !rg && !rm ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
+        ${sansRien && !prop && !rg && !rm ? (!dossier.manual && api.question ? `<button type="button" class="btn" id="bq-demander">Demander ${esc(aClientBq(dossier))}</button>` : '<button type="button" class="btn" id="bq-attente">Mettre en attente (471)</button>') : '<button type="button" class="btn" id="bq-autre">Écrire autre chose</button>'}</div>`}
     </aside>`;
   }
   // (1.208.0) Le règlement que la ligne choisie paierait : les factures cochées (celles qu'on a cochées, sinon la proposée),

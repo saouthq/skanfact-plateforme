@@ -5155,3 +5155,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 
 - **« Écrire un premier guide… »** quittait la saisie du dossier pour les Réglages, sans chemin de retour. Les Réglages
   affichent « ← Revenir à la saisie de … » au-dessus des onglets ; le retour s'oublie dès qu'on va ailleurs.
+
+## 1.386.1 — La banque d'un client hors SkanFact : « demander » a son geste (issue 11, CABSAISIE-21)
+
+- **Une ligne sans rien en face** invitait à « demander au client », sans bouton : un dossier tenu hors SkanFact n'a
+  pas de conversation. La phrase propose le compte d'attente (471) le temps de demander, et le bouton « Mettre en
+  attente (471) » est là.

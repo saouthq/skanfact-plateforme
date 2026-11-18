@@ -250,6 +250,20 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     expect(Math.abs(await hautDesOnglets() - enSaisir)).toBeLessThanOrEqual(2);
     expect(await p.evaluate(() => { const n = document.querySelector('.c-nav')?.getBoundingClientRect(), b = document.querySelector('.c-barre')?.getBoundingClientRect(); return !!n && !!b && b.top >= n.bottom; })).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-consulter-periode.png') });
+
+    // ── (1.386.1, issue 11 constat 21) un dossier tenu hors SkanFact n'a pas de conversation : une ligne sans rien en
+    //    face n'invite plus à « demander » sans geste — elle offre le compte d'attente ─────────────────────────────
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}/comptabilite/banque/2026`; }, cafe);
+    await p.locator('table.bq-t').first().waitFor({ timeout: 20_000 });
+    let sansFace = '';
+    for (const id of await p.locator('table.bq-t tr[data-groupe="dec"]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.bqLigne ?? ''))) {
+      await p.locator(`table.bq-t tr[data-bq-ligne="${id}"] td.bq-d`).click();
+      const t = (await p.locator('.bq-livre').innerText()).replace(/\s+/g, ' ');
+      if (/Rien dans le livre au même montant/.test(t)) { sansFace = t; break; }
+    }
+    expect(sansFace).toMatch(/ou la mettre au compte d'attente \(471\) le temps de demander au client ce que c'est/);
+    expect(await p.locator('.bq-livre #bq-attente').innerText()).toBe('Mettre en attente (471)');
+    expect(await p.locator('.bq-livre #bq-demander').count()).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });
