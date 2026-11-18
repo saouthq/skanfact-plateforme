@@ -1201,10 +1201,15 @@
           cote: `<div class="pa-doc-i"><b>${pl(L.length, 'reçu')}</b><span>un par salarié payé en espèces, à faire signer le jour du paiement</span></div>
             <div class="pa-doc-i"><b>À VÉRIFIER</b><span>la durée de conservation du reçu, avec ton comptable.</span></div>` });
       };
-      $('#ps-payer', root).onclick = () => {
+      $('#ps-payer', root).onclick = async () => {
         const v = formValues($('#ps', root));
         if (!v.date) return refus($('[name=date]', root), 'Le jour du paiement est obligatoire.');
         if (closedBlock(v.date, 'Ce paiement de salaires')) return;
+        // (1.387.25, issue 16, constat 4) Des salaires d'octobre notés payés le 05/09 passaient sans un mot : un salaire se paie
+        // à la fin de son mois ou après. Avant le mois, ou dans le futur, on demande (une avance existe) ; on ne refuse pas.
+        const debutMois = `${year}-${String(month).padStart(2, '0')}-01`;
+        const bizarre = v.date < debutMois ? `est avant le mois payé (${MONTHS_LONG[month - 1]} ${year})` : v.date > C.today() ? 'est dans le futur' : '';
+        if (bizarre && !await confirmDialog(`Le ${C.fmtDate(v.date)} ${bizarre}. Un salaire se note payé le jour où l'argent part : à la fin du mois, ou après. Noter quand même ce jour-là ?`, 'Noter ce jour-là', undefined, { titre: 'Ce jour de paiement surprend' })) return;
         const ids = choisies().map(l => l.id);
         if (!ids.length) return;
         const avant = ids.map(id => { const x = data.payslips.find(p => p.id === id); return { id, paidDate: x.paidDate || '', accountId: x.accountId || '' }; });

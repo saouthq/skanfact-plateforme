@@ -240,6 +240,15 @@ describe('la paie 1.305.0 : la période validée par le cabinet dite dans la pai
     await p.waitForTimeout(600);
     // Payés aujourd'hui (novembre) : rien à dire.
     expect(await p.locator(`${fenetre} #ps-valide`).isVisible()).toBe(false);
+    // (1.387.25, issue 16, constat 4) Des salaires de septembre notés payés le 05/08 : SkanFact demande, et « Annuler » ne note rien.
+    await dater(p, `${fenetre} #ps`, '05/08/2026');
+    await p.locator(`${fenetre} #ps-payer`).click();
+    const surprend = p.locator('.modal').filter({ hasText: 'Ce jour de paiement surprend' });
+    await surprend.waitFor({ timeout: 10_000 });
+    expect(net(await surprend.innerText())).toContain('Le 05/08/2026 est avant le mois payé (septembre 2026).');
+    await surprend.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => surprend.count(), { timeout: 5_000 }).toBe(0);
+    expect(await p.locator(`${fenetre} #ps-payer`).isVisible()).toBe(true);
     await dater(p, `${fenetre} #ps`, '30/09/2026');
     await expect.poll(async () => p.locator(`${fenetre} #ps-valide`).isVisible(), { timeout: 10_000 }).toBe(true);
     const avertPayer = net(await p.locator(`${fenetre} #ps-valide`).innerText());

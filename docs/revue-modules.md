@@ -5390,3 +5390,7 @@ La Paie d'un dossier est refaite en cartes au téléphone, mais l'avis « Pensé
 ### 1.387.24 — un virement qui met le compte dans le rouge se demande (issue 16, constat 3)
 
 Dans la Trésorerie de l'entreprise, un virement de 100 000 DT partait d'un compte à 50 000 sans un mot. Avant d'enregistrer, SkanFact dit ce que le compte de départ porte à la date du virement et ce qu'il porterait après, et demande « Enregistrer quand même ? » : un découvert autorisé existe, on ne bloque pas. Une modification d'un virement déjà rangé compte son montant d'avant. Test : `poche-1358` (étape 4 bis : 6 000 DT d'une BIAT à 4 839,350, la question, « Annuler » qui ne laisse rien, puis 100 DT qui passent), prouvé. V-11 de l'issue 15 (une lettre hors champ qui ouvre la Caisse) est couvert par la correction de l'issue 12 et la Caisse désactivée.
+
+### 1.387.25 — des salaires notés payés avant leur mois se demandent (issue 16, constat 4)
+
+Des salaires d'octobre notés payés le 05/09 passaient sans un mot. Avant le mois payé ou dans le futur, « Marquer payé » demande (« Ce jour de paiement surprend ») ; on ne bloque pas (une avance existe). Et la fenêtre « Période clôturée » ne dit plus « pour corriger une facture, c'est un avoir » d'un paiement de salaire, d'un mouvement ou d'une absence : elle dit de dater d'un jour encore ouvert. Test : `compta-1305` (05/08 pour des salaires de septembre, la question, « Annuler » qui ne note rien), prouvé. La phrase de la clôture n'a pas de test.

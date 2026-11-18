@@ -419,7 +419,7 @@
       <p>${h(what)} porte la date du <strong>${C.fmtDate(hit)}</strong>, dans <strong>${h(C.closedPeriodLabel(data, hit))}</strong> — une période clôturée jusqu'au ${C.fmtDate(until)}.</p>
       <p class="small">Ce qui est clôturé a été transmis à ton comptable et ne doit plus bouger. Deux façons d'avancer :</p>
       <ul class="small">
-        <li><strong>Sans toucher au passé</strong> — refais la pièce à la date d'aujourd'hui. Pour corriger une facture déjà émise, c'est un avoir.</li>
+        <li><strong>Sans toucher au passé</strong> — ${/facture|document|pièce|achat|avoir/i.test(what) ? 'refais la pièce à la date d\'aujourd\'hui. Pour corriger une facture déjà émise, c\'est un avoir.' : 'date-le d\'un jour encore ouvert (aujourd\'hui, par exemple).'}</li>
         <li><strong>En rouvrant la période</strong> — Comptabilité → Clôtures, avec un motif. Préviens ton comptable : les chiffres qu'il a reçus vont changer.</li>
       </ul>
       <div class="modal-actions"><button class="btn" data-close>Compris</button><button class="btn btn-primary" id="go-clot">Aller aux clôtures</button></div>`,
