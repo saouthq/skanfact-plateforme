@@ -30762,6 +30762,8 @@ prouver $'nombre-sous-min' modules/socle/ecrans/entreprise/app-2.js $'Number(el.
 prouver $'objectif-changer' modules/socle/ecrans/entreprise/app-2.js $'${obj ? \'Changer l\\\'objectif…\' : \'Se fixer un objectif…\'}' $'Se fixer un objectif…' $'un nombre négatif dans les Paramètres se refuse en montrant sa case, et le signe moins d\'un montant se dit (issue 16, constat 18)'
 prouver $'tva-saut-dit' modules/socle/ecrans/entreprise/app-2.js $'${comptaState.sautTva === comptaState.month ? `<p' $'${false ? `<p' $'Sarra verse la TVA d\'octobre déclarée par Leila : le montant, le geste, le mouvement, l\'écriture du cabinet et son étape'
 prouver $'marquer-recue' modules/socle/ecrans/entreprise/app-2.js $'data-cert="${d.id}">Marquer reçue</button>' $'data-cert="${d.id}">Attestation reçue</button>' $'le bouton de la ligne dit le geste, et la visite le nomme du même mot'
+prouver $'payer-ne-suit-pas' modules/personnel/ecrans/entreprise/paie.js $'(s.tab === \'payer\' && vue2 &&' $'(false && vue2 &&' $'la frise du mois, le brut tapé après un clic, l\'absence du mois regardé, la case du RIB visible et enregistrée sans espaces'
+prouver $'annee-sans-etapes' modules/personnel/ecrans/entreprise/paie.js $'vueP === \'bulletins\' && s.tab !== \'annee\' && data' $'vueP === \'bulletins\' && data' $'la frise du mois, le brut tapé après un clic, l\'absence du mois regardé, la case du RIB visible et enregistrée sans espaces'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

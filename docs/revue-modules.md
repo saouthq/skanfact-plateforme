@@ -5414,3 +5414,7 @@ Taper « -5 » dans l'objectif donnait 5 : le navigateur refuse lui-même le sig
 ### 1.387.30 — l'objectif se change là où on le lit, la TVA dit son mois, « Marquer reçue » (issue 16, constats 18 et 19)
 
 Une fois l'objectif posé, le bouton des Statistiques disparaissait : il devient « Changer l'objectif… », et le pourcentage s'écrit en français (« 907 640 % », plus « 907640 % »). L'onglet « TVA à payer » s'ouvrait sur le mois d'avant sans le dire, et « Ventes » restait sur le mois en cours : la page dit maintenant pourquoi elle s'ouvre sur ce mois, et la période tient d'un onglet à l'autre. Le bouton des attestations de retenue à recevoir s'appelait « Attestation reçue », lu comme un état acquis : il dit le geste, « Marquer reçue » (et la visite le nomme pareil). Restent du constat 19 : le journal centralisateur montré au gérant, et les trois « résultats » des états. Tests : `parcours`, `tva-versee-1359`, `libelles-gest19-1387` ; trois preuves.
+
+### 1.387.31 — la paie ne garde plus « Payer » sur un mois où rien n'est à payer (issue 16, constat 20)
+
+De l'étape « Payer » d'octobre, choisir novembre ouvrait un écran vide : « Tu regardes Payer. L'étape du moment : Pointer ». Un mois où il n'y a encore rien à payer s'ouvre maintenant sur son étape du moment. Les autres étapes suivent comme avant (à venir, « Bulletins » et « Déclarer » disent ce qu'il reste à faire). Et « Toute l'année » ne montre plus les quatre étapes d'un mois au-dessus des chiffres de l'année. Test : `paie-1330` (« la frise du mois… »), deux preuves.

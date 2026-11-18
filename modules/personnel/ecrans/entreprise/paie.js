@@ -5268,7 +5268,11 @@
         const m2 = b2.dataset.pMois;
         if (!m2) { s.tab = 'annee'; marquerVue(); draw(); return; }
         s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3)); s.moisTouche = true;
-        if (s.tab === 'annee') s.tab = (etapesDuMois(Number(s.year), Number(m2)).find(e => e.etat === 'ici') || { id: 'bulletins' }).id;
+        // (1.387.31, issue 16, constat 20) « Payer » ne suit pas dans un mois où il n'y a encore rien à payer : emmené d'octobre
+        // en novembre, il ouvrait un écran vide (« Tu regardes Payer. L'étape du moment : Pointer »). Les autres étapes suivent :
+        // à venir, elles disent ce qu'il reste à faire (« Établir », « la paie n'ajoute rien à la déclaration »).
+        const ET2 = etapesDuMois(Number(s.year), Number(m2)), vue2 = ET2.find(e => e.id === ETAPE_DE[s.tab]);
+        if (s.tab === 'annee' || (s.tab === 'payer' && vue2 && vue2.etat !== 'fait' && vue2.etat !== 'ici')) s.tab = (ET2.find(e => e.etat === 'ici') || { id: 'bulletins' }).id;
         draw(); const f = $(`#p-mois [data-p-mois="${m2}"]`); if (f) f.focus();
       });
       $$('#p-an-prec, #p-an-suiv').forEach(b2 => b2.onclick = () => { const k = years.indexOf(s.year) + (b2.id === 'p-an-prec' ? 1 : -1); if (years[k]) { s.year = years[k]; s.moisTouche = true; draw(); const f = $(`#${b2.id}`); if (f && !f.disabled) f.focus(); } });
@@ -5318,7 +5322,7 @@
       // (1.256.0) Les sous-vues comme la maquette : une rangée d'onglets soulignés (l'icône, le nom ; ce qu'il montre au survol).
       const vueP = PAIE_VUE_DE[s.tab] || s.tab;
       // (1.355.0) Sans salarié, ni « La journée » ni « Congés et absences » : deux onglets sous l'état vide s'allumaient sur rien.
-      $('#p-sous').innerHTML = (friseVue = vueP === 'bulletins' && data.employees.length ? etapesHtml() : '') || (PAIE_SOUS[vueP] && data.employees.length ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b>${id === 'pointage' && !ptVerrouille(ymPt(s.ptY, s.ptM)) ? (n => n ? ` <span class="pm-nb" title="${pl(n, 'chose')} à régler">${n}</span>` : '')(aReglerMois(Number(s.ptY), Number(s.ptM)).length) : ''}</button>`).join('')}</div>` : '');
+      $('#p-sous').innerHTML = (friseVue = vueP === 'bulletins' && s.tab !== 'annee' && data.employees.length ? etapesHtml() : '') || (PAIE_SOUS[vueP] && data.employees.length ? `<div class="onglets-f pa-sous pm-sous" role="tablist" aria-label="${h((PAIE_VUES.find(v => v[0] === (PAIE_VUE_DE[s.tab] || s.tab)) || [])[1] || '')}">${PAIE_SOUS[PAIE_VUE_DE[s.tab] || s.tab].map(([id, l, ic, d]) => `<button type="button" role="tab" data-sous="${id}" aria-selected="${s.tab === id}" title="${h(d || '')}">${ic ? lfIc(ic, 15) : ''}<b>${l}</b>${id === 'pointage' && !ptVerrouille(ymPt(s.ptY, s.ptM)) ? (n => n ? ` <span class="pm-nb" title="${pl(n, 'chose')} à régler">${n}</span>` : '')(aReglerMois(Number(s.ptY), Number(s.ptM)).length) : ''}</button>`).join('')}</div>` : '');
       $$('#p-sous [data-sous]').forEach(b2 => b2.onclick = async () => { if (b2.dataset.sous === s.tab || !await leaveOk()) return; clearGuard(); s.tab = b2.dataset.sous; draw(); });
       // (1.330.0) « Aller à « Bulletins » » : son propre attribut, pour qu'une étape de la frise reste UN élément.
       $$('#p-sous [data-aller-sous]').forEach(b2 => b2.onclick = async () => { if (!await leaveOk()) return; clearGuard(); s.tab = b2.dataset.allerSous; draw(); });

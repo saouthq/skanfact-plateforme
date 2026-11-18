@@ -107,6 +107,17 @@ describe('le mois de la paie, en frise, et la fiche d\'un salarié tapée à la 
     expect(E[0]?.[1]).toBe('ici');
     expect(String(E[0]?.[3])).toMatch(/^1 chose à régler avant les bulletins$/);
     expect(E.map((e) => e[3]).join(' ')).not.toMatch(/facultatif/);
+    // (1.387.31, issue 16, constat 20) « Payer » regardé ne suit pas dans un mois où rien n'est encore à payer : le mois s'ouvre
+    // sur son étape du moment. Et « Toute l'année » ne montre pas les quatre étapes d'un mois au-dessus de l'année.
+    await p.locator('#p-sous .pa-etape[data-sous="payer"]').click();
+    await expect.poll(() => p.locator('#pa-ou').count()).toBe(1);
+    await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
+    await expect.poll(async () => (await etapes()).filter((e) => e[2]).map((e) => e[0])).toEqual(['pointage']);
+    expect(await p.locator('#pa-ou').count()).toBe(0);
+    await p.locator('#p-mois [data-p-mois=""]').click();
+    await expect.poll(() => p.locator('#p-sous .pa-chemin').count()).toBe(0);
+    await p.locator(`#p-mois [data-p-mois="${m}"]`).click();
+    await expect.poll(async () => (await etapes()).filter((e) => e[2]).map((e) => e[0])).toEqual(['pointage']);
     // La frise relie ses étapes : un trait, pas des cartes (aucune bordure autour d'une étape).
     expect(await p.locator('#p-sous .pa-etape').first().evaluate((x) => getComputedStyle(x).borderTopWidth)).toBe('0px');
     // « Une absence sur plusieurs jours » depuis le mois écoulé propose son 1er, pas aujourd'hui.
