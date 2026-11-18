@@ -805,7 +805,8 @@ const ORDRE_DU_MENU: readonly Geste[] = ['payer', 'prolonger', 'accorder-delai',
 export const nomDuGeste = (g: Geste, etat: Etat) => titre(`console.ecran.geste.${cleGeste(g)}${g === 'accorder-delai' && etat.etat === 'lecture_seule' ? '_lecture' : ''}`);
 export const libelleDuGeste = (g: Geste, etat: Etat) => `${nomDuGeste(g, etat)}…`;
 // `reserve` : ce que ce rôle ne fait pas ici, sous le dernier choix (comme le menu d'une ligne de la liste).
-function MenuGestes({ gestes, etat, choisir, raison, reserve }: { gestes: Geste[]; etat: Etat; choisir: (g: Geste) => void; raison: string | null; reserve: string | null }) {
+// `appel` : noter un appel, le même choix que dans le menu « … » de la liste (issue 5, CONSOLE-10), avant ce qui détruit.
+function MenuGestes({ gestes, etat, choisir, raison, reserve, appel }: { gestes: Geste[]; etat: Etat; choisir: (g: Geste) => void; raison: string | null; reserve: string | null; appel?: (() => void) | undefined }) {
   const [ouvert, setOuvert] = useState(false);
   const zone = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -837,8 +838,12 @@ function MenuGestes({ gestes, etat, choisir, raison, reserve }: { gestes: Geste[
         <div className="c-menu-liste" {...parcourirMenu}>
           <p className="c-menu-note">{gestes.length ? phrase('console.ecran.fiche.gestes_aide') : raison}</p>
           {/* Ce qui détruit en dernier, en rouge, après un trait (la maquette). */}
-          {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).map((g, i, tous) => (
-            <button key={g} type="button" className={[DETRUIT.has(g) ? 'c-menu-danger' : '', DETRUIT.has(g) && i > 0 && !DETRUIT.has(tous[i - 1] as Geste) ? 'c-menu-trait' : ''].filter(Boolean).join(' ') || undefined}
+          {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).filter((g) => !DETRUIT.has(g)).map((g) => (
+            <button key={g} type="button" onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
+          ))}
+          {appel ? <button type="button" className={gestes.some((g) => !DETRUIT.has(g)) ? 'c-menu-trait' : undefined} onClick={() => { setOuvert(false); appel(); }}>{titre('console.ecran.clients.m.appel')}</button> : null}
+          {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).filter((g) => DETRUIT.has(g)).map((g, i) => (
+            <button key={g} type="button" className={['c-menu-danger', i === 0 && (appel || gestes.some((x) => !DETRUIT.has(x))) ? 'c-menu-trait' : ''].filter(Boolean).join(' ')}
               onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
           ))}
           {gestes.length && reserve ? <p className="c-menu-note">{reserve}</p> : null}
@@ -967,7 +972,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
         </div>
         <div className="c-entete-actions">
           {f.membres.length ? <Bouton onClick={() => setEcrireA(true)}>{titre('console.ecran.fiche.ecrire_court')}</Bouton> : null}
-          <MenuGestes gestes={f.gestes} etat={f.etat} choisir={setGeste} raison={raisonSansGeste} reserve={f.faits.tenuParCabinet ? null : reserve} />
+          <MenuGestes gestes={f.gestes} etat={f.etat} choisir={setGeste} raison={raisonSansGeste} reserve={f.faits.tenuParCabinet ? null : reserve} appel={f.faits.tenuParCabinet ? undefined : () => setAppel(true)} />
         </div>
       </header>
 

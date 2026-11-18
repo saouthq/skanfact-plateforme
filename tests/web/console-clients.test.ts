@@ -120,8 +120,10 @@ describe('la liste des clients, à la souris', () => {
     const menu = p.locator('.c-menu-liste');
     await expect.poll(() => menu.count(), { timeout: 10_000 }).toBe(1);
     // Les gestes de l'abonnement, nos échanges, ce qui détruit, l'accès : chaque famille après un trait (la maquette Clients).
-    expect((await menu.locator('button b').allInnerTexts()).map(net)).toEqual(['Prolonger l\'essai…', 'Noter un appel…', 'Écrire au contact…', 'Passer en lecture seule…',
+    expect((await menu.locator('button b').allInnerTexts()).map(net)).toEqual(['Prolonger l\'essai…', 'Sur sa fiche…', 'Noter un appel…', 'Écrire au contact…', 'Passer en lecture seule…',
       'Demander l\'accès au dossier…']);
+    // (1.383.8, issue 5, CONSOLE-10) ce que la fiche propose en plus est nommé ici, et mène à la fiche.
+    expect(net(await menu.locator('button', { hasText: 'Sur sa fiche…' }).locator('.c-menu-action > span').innerText())).toMatch(/^Noter un paiement reçu, .*offrir l.abonnement/i);
     expect((await menu.locator('button.c-menu-trait b').allInnerTexts()).map(net)).toEqual(['Noter un appel…', 'Passer en lecture seule…', 'Demander l\'accès au dossier…']);
     // « Passer en lecture seule » détruit : il est dit en rouge ; pas de note pour la direction.
     expect(await menu.locator('button.c-menu-danger b').innerText()).toBe('Passer en lecture seule…');
@@ -268,7 +270,7 @@ describe('la liste des clients, à la souris', () => {
     // mène au premier.
     await expect.poll(auClavier, { timeout: 10_000 }).toBe('Prolonger l\'essai…');
     await p.keyboard.press('ArrowDown');
-    expect(await auClavier()).toBe('Noter un appel…');
+    expect(await auClavier()).toBe('Sur sa fiche…');
     await p.keyboard.press('End');
     expect(await auClavier()).toBe('Demander l\'accès au dossier…');
     await p.keyboard.press('ArrowDown');
@@ -282,6 +284,8 @@ describe('la liste des clients, à la souris', () => {
     await p.keyboard.press('Enter');
     await expect.poll(auClavier, { timeout: 10_000 }).toBe('Prolonger l\'essai…');
     await p.keyboard.press('ArrowDown');
+    await p.keyboard.press('ArrowDown');
+    expect(await auClavier()).toBe('Noter un appel…');
     await p.keyboard.press('Enter');
     // La fenêtre nomme le client au-dessus de son titre : ouverte d'une liste, elle ne laisse rien deviner.
     const fenetre = p.locator('.c-dialogue');

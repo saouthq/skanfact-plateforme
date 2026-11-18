@@ -5740,6 +5740,7 @@ declarerTextes({
   // ── Le lot Clients (docs/console.md C32–C34) ─────────────────────────────────────────────────────────────────────
   // Le menu « … » d'une ligne : nos échanges, et les gestes de 0111 (la maquette Clients).
   'console.ecran.clients.m.appel': 'noter un appel…',
+  'console.ecran.clients.m.sur_fiche': 'sur sa fiche…',
   'console.ecran.clients.m.appel_sous': 'rangé dans « Nos échanges », sur sa fiche',
   'console.ecran.clients.m.ecrire': 'écrire au contact…',
   'console.ecran.clients.m.ecrire_sous': 'dans son application, à la personne choisie',

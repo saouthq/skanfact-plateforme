@@ -30527,6 +30527,14 @@ prouver $'console 1.383.7 a : un message à venir titré « affiché en ce momen
   $'titre(futur ? `${K}.m.titre_futur` : `${K}.m.titre`)' $'titre(`${K}.m.titre`)' \
   $'écrire, remplacer, retirer : le bandeau du client suit ; « Plus tard » garde la place, un message neuf reparaît'
 
+prouver $'console 1.383.8 a : le menu de la liste tait ce que la fiche propose' web/console/src/ecrans/Clients.tsx \
+  $'  if (ailleurs.length) {' $'  if (ailleurs.length > 99) {' \
+  $'le menu d\'une ligne : les gestes permis, ce qui détruit après un trait ; un geste s\'ouvre sur la liste et la ligne le dit'
+
+prouver $'console 1.383.8 b : « Noter un appel » manque au menu de la fiche' web/console/src/ecrans/Fiche.tsx \
+  $'appel={f.faits.tenuParCabinet ? undefined : () => setAppel(true)}' $'appel={undefined}' \
+  $'le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

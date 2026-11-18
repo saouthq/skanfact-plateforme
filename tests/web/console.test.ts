@@ -509,7 +509,8 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(await p.locator('main .c-btn-principal').count()).toBe(1);
     expect(await attend.locator('.c-btn-principal').count()).toBe(1);
     await cliquer(p.locator('.c-menu > button'));
-    expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Prolonger l\'essai…']);
+    // (1.383.8, issue 5, CONSOLE-10) « Noter un appel… » est aussi dans le menu de la fiche, comme dans celui de la liste.
+    expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Prolonger l\'essai…', 'Noter un appel…']);
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Prolonger l\'essai' }));
     const fenetre = p.getByRole('dialog');
     const motif = fenetre.getByLabel('Motif', { exact: true });
@@ -536,7 +537,8 @@ describe('la console de l\'équipe, à la souris', () => {
     // Un second « prolonger » n'est plus permis au support : le menu le dit, et n'est plus le bouton principal.
     await expect.poll(() => p.locator('.c-menu > button').getAttribute('class'), { timeout: 10_000 }).not.toContain('c-btn-principal');
     await cliquer(p.locator('.c-menu > button'));
-    expect(await p.locator('.c-menu-liste button').count()).toBe(0);
+    // Il lui reste « Noter un appel… » (1.383.8) : aucun geste d'abonnement, et la phrase qui dit pourquoi.
+    expect(await p.locator('.c-menu-liste button').allInnerTexts()).toEqual(['Noter un appel…']);
     expect(net(await p.locator('.c-menu-note').innerText())).toMatch(/une fois par entreprise/);
     await fermer(p);
   }, 90_000);

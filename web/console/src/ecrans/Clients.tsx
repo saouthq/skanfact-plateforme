@@ -12,7 +12,7 @@ import { montant } from '../argent.ts';
 import { deMois, heureDe, jourCourt, jourDe, jourMois, joursEntre } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Vide, Zone, type ActionLigne } from '../ui.tsx';
 import { EnteteClients } from './Cabinets.tsx';
-import { DETRUIT, GesteDuMenu, libelleDuGeste, type Geste } from './Fiche.tsx';
+import { DETRUIT, GesteDuMenu, libelleDuGeste, nomDuGeste, type Geste } from './Fiche.tsx';
 import { Demander } from './AccesDossier.tsx';
 import { contexteDe, EcrireAuContact, NoterAppel, type Contexte } from './Echanges.tsx';
 
@@ -35,7 +35,7 @@ export type Ligne = Entreprise & {
   echeance: string | null; parAn: { montantHt: string; attendu: boolean; remise: { nature: 'groupe' | 'cabinet'; taux: number } | null } | null;
   remise?: { nature: 'groupe' | 'cabinet'; taux: number } | null;
   enPlus: { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; attend: FactureQuiAttend | null };
-  vues: VueClients[]; gestes: Geste[];
+  vues: VueClients[]; gestes: Geste[]; surFiche?: Geste[];
   numero: string | null; ville: string | null;
   // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts) ; vide passé ce temps.
   arrivee?: Arrivee | null;
@@ -266,6 +266,12 @@ export function actionsDe(e: Ligne, role: string, faire: FaireDuMenu): ActionLig
     return { titre: libelleDuGeste(g, e.etat), sous, faire: () => faire.geste(g), danger: DETRUIT.has(g) };
   };
   out.push(...e.gestes.filter((g) => !DETRUIT.has(g)).map(action));
+  // Ce que sa fiche propose en plus (noter un paiement, offrir, un module) : nommé ici, fait là-bas, où se lit ce que
+  // le geste change (issue 5, CONSOLE-10).
+  const ailleurs = (e.surFiche ?? []).filter((g) => !DETRUIT.has(g));
+  if (ailleurs.length) {
+    out.push({ titre: titre('console.ecran.clients.m.sur_fiche'), sous: maj(ailleurs.map((g) => nomDuGeste(g, e.etat)).join(', ')), faire: () => { location.hash = `#/clients/${e.id}`; } });
+  }
   // Un dossier qu'un cabinet tient : on parle au cabinet, depuis sa fiche à lui.
   const tenu = e.etat.etat === 'hors' && e.etat.raison === 'tenu_par_cabinet';
   if (!tenu) {

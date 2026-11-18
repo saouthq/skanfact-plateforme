@@ -4990,3 +4990,14 @@ d'avoir paru : elle s'appelle « Le message ». Le Support renvoyait à l'onglet
 « Support et échanges » (CONSOLE-20). Laissé tel quel : le refus de date qui reste après la correction — c'est la règle
 des fenêtres (un refus reste en retrait jusqu'au clic suivant, pour ne pas faire bouger le bouton sous le curseur).
 Test : `console-reglages`. Preuve « console 1.383.7 a ».
+
+## 1.383.8 — La console : le menu de la liste et celui de la fiche se répondent (issue 5, CONSOLE-10)
+
+Le menu « … » d'une ligne et le menu « Gestes » de la fiche ne proposaient pas les mêmes choses, sans le dire : « Noter un
+paiement », « Offrir », « Ouvrir un module » manquaient dans la liste ; « Noter un appel » manquait sur la fiche. Le
+choix d'origine reste (ces trois gestes se font sur la fiche, où se lit ce qu'ils changent), mais il se **dit** : le
+menu de la liste porte « Sur sa fiche… », dont la phrase nomme les gestes que la fiche ajoute pour CE client et CE rôle
+(`gestesSurLaFiche`, par la même règle que la fiche — jamais une liste recopiée), et qui y mène. Le menu de la fiche
+gagne « Noter un appel… », avant ce qui détruit ; au support qui a déjà prolongé, il reste ce choix et la phrase qui dit
+pourquoi. Tests : `console-clients` (le contenu du menu, le parcours au clavier), `console` (la fiche du support).
+Preuves « console 1.383.8 a » et « b ».

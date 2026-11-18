@@ -234,6 +234,18 @@ export function gestesDeLaListe(role: RoleConsole, e: Entreprise): GesteAbonneme
   const permis = gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false, e.enPlus?.moisOffertRecent ?? false);
   return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));
 }
+// Ceux que sa fiche propose EN PLUS (payer, offrir, un module) : le menu de la liste les nomme et mène à la fiche, au lieu
+// de les taire (issue 5, CONSOLE-10 : « Offrir » et « Noter un paiement » manquaient sans un mot).
+export function gestesSurLaFiche(role: RoleConsole, e: Entreprise): GesteAbonnement[] {
+  const f = e.faits;
+  if (!f.connu) return [];
+  const ligne: LigneAbonnement = { essai_jusqu_au: f.essaiJusquAu ?? '', paye_jusqu_au: f.payeJusquAu, offre: f.offre, periodicite: f.periodicite,
+    resilie_le: f.resilieLe, suspendu_le: f.suspenduLe, offert: f.offert, modules: [...(f.modules ?? [])], suivante_offre: f.offreSuivante?.offre ?? null,
+    mois_offerts: f.moisOffert ? 1 : 0, modules_a_retirer: [...(f.modulesARetirer ?? [])],
+    a_venir_le: f.aVenir?.le ?? null, a_venir_offre: f.aVenir?.offre ?? null, a_venir_periodicite: f.aVenir?.periodicite ?? null,
+    a_venir_retraits: [...(f.aVenir?.retraits ?? [])] };
+  return gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false, e.enPlus?.moisOffertRecent ?? false).filter((g) => !GESTES_DE_LA_LISTE.includes(g));
+}
 
 // Ce que la liste des clients calcule pour toutes les organisations, avant la recherche, les filtres et la page (C65).
 type BaseDesClients = {
@@ -445,7 +457,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
           societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e), surFiche: gestesSurLaFiche(role, e),
             // Son arrivée (0127), tant qu'elle dure : les marches franchies, la suivante, si elle est bloquée.
             arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),
         };
@@ -688,7 +700,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           personnes: await lireJson<number>(transaction(tx), 'select plateforme.console_personnes($1::uuid[]) v', [o.societes.map((e) => e.id)]),
           societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
             telephone: s.identites.get(e.id)?.telephone ?? null, dernierAppel: s.identites.get(e.id)?.dernierAppel ?? null,
-            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),
+            vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e), surFiche: gestesSurLaFiche(role, e),
             // Son arrivée (0127), tant qu'elle dure : les marches franchies, la suivante, si elle est bloquée.
             arrivee: enArrivee(e, jour) ? arrivee(e, jour) : null })),
         },
