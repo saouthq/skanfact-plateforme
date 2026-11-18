@@ -190,7 +190,10 @@ describe('la reprise d\'un client, à la souris', () => {
     await aller(`#/dossier/${boulangerie}/comptabilite/journal/2026`);
     await p.getByRole('button', { name: 'Commencer le livre de 2026…' }).click();
     await fenetre.locator('input[name=annee]').fill('2025');
-    await fenetre.locator('input[name=du]').fill('2025-06-01');
+    // (1.387.5, issue 10, CABPAIE-34) Les bornes se lisent et se tapent en JJ/MM/AAAA, et suivent l'exercice tapé.
+    expect([await fenetre.locator('input[name=du]').inputValue(), await fenetre.locator('input[name=au]').inputValue()]).toEqual(['01/01/2025', '31/12/2025']);
+    expect(await fenetre.locator('input[name=du]').getAttribute('type')).toBeNull();
+    await fenetre.locator('input[name=du]').fill('01/06/2025');
     await expect.poll(() => p.locator('#rf-exo').innerText())
       .toBe('Le livre ouvrira le 01/06/2025 et finira le 31/12/2025. La balance d\'ouverture ci-dessous est celle du 01/06/2025.');
     await fenetre.getByRole('button', { name: 'Créer le livre' }).click();

@@ -260,6 +260,10 @@
 
   // 10.14.0 — un NOM dans une cellule tronquée, et ses marques à côté : le nom se coupe, les marques
   // jamais (le motif « En face » du livre-journal, T-12). `nomHtml` et les marques sont déjà échappés.
+  // (1.387.5, issue 10, CABPAIE-34) Les bornes d'un exercice se tapent comme toutes les dates du Cabinet (JJ/MM/AAAA) : la
+  // fenêtre « Commencer le livre » montrait « 2026-01-01 », le format du navigateur. Le jour tapé se lit ici ; une date
+  // déjà au format du livre passe telle quelle.
+  const jourRp = (t, annee) => { const x = String(t || '').trim(); return /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : (K.dateTapee(x, annee, `${annee}-01`) || x); };
   function marquesDuNom(nomHtml, marques) {
     const m = (marques || []).filter(Boolean);
     return m.length ? `<span class="face"><span class="face-p">${nomHtml}</span><span class="face-m">${m.join(' ')}</span></span>` : nomHtml;
@@ -8160,8 +8164,8 @@
       fausse l'exercice entier, et on ne s'en aperçoit qu'au bilan.</p>
       <form id="rf" class="grid-3">
         <label class="field">${lbl('Exercice', 'rp.exercice')}<input name="annee" value="${esc(annee)}" class="num"></label>
-        <label class="field">${lbl('Du', 'rp.bornes')}<input type="date" name="du" value="${esc(annee)}-01-01"></label>
-        <label class="field">${lbl('Au', 'rp.bornes')}<input type="date" name="au" value="${esc(annee)}-12-31"></label>
+        <label class="field">${lbl('Du', 'rp.bornes')}<input name="du" placeholder="JJ/MM/AAAA" inputmode="numeric" value="01/01/${esc(annee)}"></label>
+        <label class="field">${lbl('Au', 'rp.bornes')}<input name="au" placeholder="JJ/MM/AAAA" inputmode="numeric" value="31/12/${esc(annee)}"></label>
         <p id="rf-exo" class="annonce-stable span-3 muted" aria-live="polite"></p>
       </form>
       <h3 class="sub-h">Balance d'ouverture ${info('rp.balance')}</h3>
@@ -8229,7 +8233,7 @@
         const champ = n => $(`input[name=${n}]`, fRf);
         let anneeVue = champ('annee').value.trim();
         const majExo = () => {
-          const ex = KC.exerciceDeReprise(champ('annee').value, champ('du').value, champ('au').value);
+          const ex = KC.exerciceDeReprise(champ('annee').value, jourRp(champ('du').value, champ('annee').value), jourRp(champ('au').value, champ('annee').value));
           const lb = $('#rf-exo', rootModal);
           lb.textContent = ex.ok ? `Le livre ouvrira le ${KC.fmtJour(ex.du)} et finira le ${KC.fmtJour(ex.au)}. La balance d'ouverture ci-dessous est celle du ${KC.fmtJour(ex.du)}.` : ex.motif;
           lb.className = 'annonce-stable span-3 ' + (ex.ok ? 'muted' : 'err-inline');
@@ -8237,8 +8241,8 @@
         champ('annee').addEventListener('input', () => {
           const a = champ('annee').value.trim();
           if (/^\d{4}$/.test(a) && /^\d{4}$/.test(anneeVue)) {
-            if (champ('du').value === `${anneeVue}-01-01`) champ('du').value = `${a}-01-01`;
-            if (champ('au').value === `${anneeVue}-12-31`) champ('au').value = `${a}-12-31`;
+            if (champ('du').value.trim() === `01/01/${anneeVue}`) champ('du').value = `01/01/${a}`;
+            if (champ('au').value.trim() === `31/12/${anneeVue}`) champ('au').value = `31/12/${a}`;
           }
           if (/^\d{4}$/.test(a)) anneeVue = a;
           majExo();
@@ -8249,7 +8253,7 @@
         $('#rf-add', rootModal).onclick = () => { lignes = lireRangees().concat([{ compte: '', libelle: '', debit: '', credit: '' }]); redessine(); };
         $('#rf-csv', rootModal).onclick = async () => {
           try {
-            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value, du: $('input[name=du]', rootModal).value });
+            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value, du: jourRp($('input[name=du]', rootModal).value, $('input[name=annee]', rootModal).value) });
             if (r.annule) return;
             // (plateforme) Un FEC : ce qu'il porte et ce qui est repris, lu avant que la balance change (C61).
             if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
@@ -8263,7 +8267,7 @@
         };
         $('#ok', rootModal).onclick = async () => {
           const f = $('#rf', rootModal);
-          const v = { annee: $('input[name=annee]', f).value.trim(), du: $('input[name=du]', f).value, au: $('input[name=au]', f).value };
+          const v = { annee: $('input[name=annee]', f).value.trim(), du: jourRp($('input[name=du]', f).value, $('input[name=annee]', f).value), au: jourRp($('input[name=au]', f).value, $('input[name=annee]', f).value) };
           // 10.14.1 (CA-01) — l'exercice se juge par la MÊME fonction que le pont, et le refus montre la
           // case (règle 7.20.0) : un exercice du 1er avril au 31 mars s'acceptait, et le suivant naissait
           // le 1er janvier d'après.

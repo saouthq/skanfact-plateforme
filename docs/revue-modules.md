@@ -5258,3 +5258,10 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   (les biens du client, les biens de l'exercice).
 - **Le pied nomme ses chiffres** (Valeur, Cumul au 01/01, Dotation, Cumul, VNC), comme les cartes du dessus ; les cases
   vides ne prennent plus de place.
+
+## 1.387.5 — « Commencer le livre » : les bornes en JJ/MM/AAAA (issue 10, CABPAIE-34)
+
+- **La fenêtre montrait « 2026-01-01 »**, le format du navigateur, quand toutes les dates du Cabinet se lisent et se
+  tapent en JJ/MM/AAAA. Les deux bornes sont des cases ordinaires : « 01/06/2025 », « 1/6 » ou « 010625 » se lisent
+  pareil, et elles suivent toujours l'exercice tapé.
+- Reste de ce constat, non rejoué : « repris de 2025 » sur un dossier né en 2026 (À VÉRIFIER sur le cas d'origine).

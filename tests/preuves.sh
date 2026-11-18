@@ -30698,6 +30698,9 @@ prouver $'le volet Tout le dossier oublie le premier écran de chaque groupe' mo
 # (1.387.4, issue 10, CABPAIE-21) Au téléphone, la carte d'un bien garde son nom.
 prouver $'la carte d\'un bien perd son nom au téléphone' web/public/v10/cabinet/cabinet.css $'#c-livres table.list[data-cartes] > tbody > tr > td.tronq { max-width: none; width: auto; min-width: 0; overflow: visible; white-space: normal;' $'#c-livres table.list[data-cartes] > tbody > tr > td.tronq-non { max-width: none; width: auto; min-width: 0; overflow: visible; white-space: normal;' $'l\'épicerie de Sfax tient son matériel : la vitrine achetée en mars, l\'utilitaire, la balance revendue, et le comptable lit le même plan'
 
+# (1.387.5, issue 10, CABPAIE-34) Les bornes de l'exercice se tapent en JJ/MM/AAAA.
+prouver $'les bornes du livre reviennent au format du navigateur' modules/socle/ecrans/cabinet/app-1.js $'<input name="du" placeholder="JJ/MM/AAAA" inputmode="numeric" value="01/01/${esc(annee)}">' $'<input type="date" name="du" value="${esc(annee)}-01-01">' $'un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
