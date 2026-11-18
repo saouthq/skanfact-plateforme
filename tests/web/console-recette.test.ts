@@ -222,6 +222,10 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect((await barre.boundingBox())?.height ?? 999).toBeLessThan(64);
     await expect.poll(() => barre.locator('[aria-current="page"]').evaluate((e) => { const r = e.getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth; }), { timeout: 5_000 }).toBe(true);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    // (1.385.9) Un compteur caché dans le DERNIER onglet (« 2 alertes », pour les lecteurs d'écran) reste dans sa rangée :
+    // posé en absolu, il en sortait et élargissait la page — seulement les jours où un onglet portait un compteur.
+    await barre.evaluate((b) => { b.scrollLeft = 0; const s2 = document.createElement('span'); s2.className = 'c-cache'; s2.textContent = '2 alertes'; b.lastElementChild?.append(s2); });
+    expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

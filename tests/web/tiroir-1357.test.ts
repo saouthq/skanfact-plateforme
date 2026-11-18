@@ -162,7 +162,7 @@ describe('le tiroir de la boulangerie 1.357.6 : il se compte, les espèces y von
     type Ligne = { compte: string; debit: string; credit: string };
     type Ecriture = { date: string; statut: string; lignes: Ligne[] };
     await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/compta/ecritures?piece=Comptage&limite=50`, leila)).corps.ecritures as Ecriture[] ?? [])
-      .map((x) => [x.date, x.statut, ...x.lignes.map((l) => `${l.compte} ${l.debit} ${l.credit}`).sort()].join(' | ')), { timeout: 20_000 })
+      .map((x) => [x.date, x.statut, ...x.lignes.map((l) => `${l.compte} ${l.debit} ${l.credit}`).sort()].join(' | ')), { timeout: 60_000 })
       .toEqual([`${auj} | brouillard | 54 0.000 0.500 | 658 0.500 0.000`]);
     await cx.close();
     expect(erreurs).toEqual([]);

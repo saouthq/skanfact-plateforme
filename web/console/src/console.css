@@ -3289,6 +3289,9 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-onglets { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .c-onglets::-webkit-scrollbar { display: none; }
   .c-onglets a, .c-onglets button { flex: none; white-space: nowrap; }
+  /* (1.385.9) Un texte caché (« 2 alertes », pour les lecteurs d'écran) est posé en absolu : sans ancre dans son onglet,
+     il sortait de la rangée qui défile et élargissait toute la page (575 points pour 390). */
+  .c-onglets a, .c-onglets button { position: relative; }
 }
 @media (max-width: 600px) {
   .c-vues-8 { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x proximity; margin-inline: -16px; padding-inline: 16px; scroll-padding-inline: 16px; scrollbar-width: none; }

@@ -5142,3 +5142,11 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
   le premier jour ouvert, et rappelle que la ligne du relevé se rapproche quand même.
 - **Le refus se lit dans la fenêtre** (une date remise dans la période validée, ou un refus du serveur), plus en bas
   de l'écran.
+
+## 1.385.9 — La console au téléphone : la page ne s'élargit plus (rouge de la 1.385.0)
+
+- **Un texte caché dans un onglet élargissait toute la page.** Depuis que les onglets tiennent sur une rangée qui
+  défile (1.384.1), le petit texte réservé aux lecteurs d'écran (« 2 alertes ») sortait de la rangée : 575 points pour
+  un écran de 390. Chaque onglet le retient désormais chez lui. Le défaut ne se voyait que lorsqu'un onglet portait un
+  compteur — d'où des tests verts seuls et rouges à la suite.
+- Le test du tiroir de caisse attend plus longtemps l'écriture de l'écart au Cabinet (elle arrive après le geste).
