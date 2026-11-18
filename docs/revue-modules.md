@@ -5101,3 +5101,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **La carte d'une ligne se range** : le libellé sur toute la largeur, Débit et Crédit côte à côte, la croix en haut à
   droite, à la taille du doigt.
 - **La légende des touches du clavier se cache** au doigt : elle n'aide personne sans clavier.
+
+## 1.385.3 — Le total lu sur une pièce s'écrit comme un montant (issue 11, CABSAISIE-24)
+
+- **« 1190,500 DT » devient « 1 190,500 DT »** partout où le Cabinet redit le total lu sur une pièce (la fenêtre de
+  lecture, le message « Lue : … », le classeur, l'historique d'une pièce, la saisie face à la pièce) : une seule
+  fonction (`totalLu`) au lieu de six écritures à la main.

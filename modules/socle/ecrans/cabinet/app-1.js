@@ -724,6 +724,13 @@
     const corps = a.toFixed(dec).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f');
     return (v < 0 && a ? '−' : '') + corps + '\u00a0' + (cur || 'DT');
   };
+  // (1.385.3, issue 11, CABSAISIE-24) Le total LU sur une pièce s'écrit comme tous les montants : « 1 190,500 DT », pas
+  // « 1190,500 DT ». Ce qui ne se lit pas comme un nombre reste tel quel.
+  const totalLu = lu => {
+    const brut = String((lu && lu.total) || '').trim(), n = Number(brut.replace(/\s/g, '').replace(',', '.'));
+    const dev = !lu || !lu.devise || lu.devise === 'TND' ? 'DT' : lu.devise;
+    return brut && isFinite(n) ? money(n, dev) : `${brut.replace('.', ',')} ${dev}`;
+  };
   // Un montant AFFICHÉ, sans sa devise : la grille de saisie, le brouillard, les abonnements et
   // la recherche écrivaient « 4.500 » à côté d'un total à « 0,000 » (T-28). En français, le point
   // décimal fait lire quatre mille cinq cents — sur l'écran dont le métier est de contrôler des
@@ -5898,7 +5905,7 @@
   // remplissent de ce qui a été lu. Rien n'est inventé : les cases restent « … » tant que la réponse n'est pas là.
   function sceneLectureCl(lit) {
     const r = lit.r || {};
-    const champs = [['Le fournisseur', r.fournisseur], ['Le numéro', r.numero], ['La date', r.date ? jjmmaaCl(r.date) : ''], ['Le total', r.total ? `${String(r.total).replace('.', ',')} ${!r.devise || r.devise === 'TND' ? 'DT' : r.devise}` : '']];
+    const champs = [['Le fournisseur', r.fournisseur], ['Le numéro', r.numero], ['La date', r.date ? jjmmaaCl(r.date) : ''], ['Le total', r.total ? totalLu(r) : '']];
     const trouve = lit.etape === 'trouve';
     return `<div class="cl-ia-scene" role="status" aria-live="polite"><span class="cl-ia-raie" aria-hidden="true"></span><span class="cl-ia-points" aria-hidden="true">${[[18, 14], [62, 11], [40, 27], [76, 34], [24, 42], [55, 50], [33, 62]].map(([x, y], i) => `<i style="--i:${i};--x:${x}%;--y:${y}%"></i>`).join('')}</span>
       <ul class="cl-ia-champs">${champs.map(([n, v], i) => `<li style="--i:${i}"${trouve ? ` class="${v ? 'ok' : 'vide'}"` : ''}><small>${esc(n)}</small><b>${trouve ? esc(v || 'ne se lit pas') : '<span class="cl-ia-luit"></span>'}</b></li>`).join('')}</ul>
@@ -5931,7 +5938,7 @@
           redessinerCl(d);
           await new Promise(ok => setTimeout(ok, 1500));
           clState.lit = null;
-          toast(r.fournisseur || r.total ? `Lue : ${[r.fournisseur, r.total ? `${r.total.replace('.', ',')} ${r.devise === 'TND' || !r.devise ? 'DT' : r.devise}` : ''].filter(Boolean).join(', ')}. À vérifier sur la pièce.` : 'Lue : ni le fournisseur ni le total ne se lisent sur cette pièce.');
+          toast(r.fournisseur || r.total ? `Lue : ${[r.fournisseur, r.total ? totalLu(r) : ''].filter(Boolean).join(', ')}. À vérifier sur la pièce.` : 'Lue : ni le fournisseur ni le total ne se lisent sur cette pièce.');
           await chargerLecturesCl(d, true);
           if (apres) apres();
         } catch (err) { clState.lit = null; redessinerCl(d); toast(plainError(err), 'error'); }
@@ -6909,9 +6916,9 @@
       if (!raison && !['rangee', 'releve'].includes(g) && !(x && x.rubrique !== 'piece') && sel.sorte !== 'releve') {
         // L'achat du même montant le dit déjà (la maquette : un seul bloc) : la lecture ne se répète pas au-dessus.
         if (sel.lu && cands[0] && memeMontant(cands[0], sel)) bloc = bloc.replace('<b>Un achat du même montant existe déjà</b>', `<b>${CL_IC.ia}Un achat du même montant existe déjà</b>`);
-        else if (sel.lu && sel.lu.source === 'teif') bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ok}Lue dans le fichier El Fatoora : ${esc(sel.lu.fournisseur || 'le fournisseur n\'est pas nommé')}</b><span>${esc([sel.lu.numero ? `${sel.lu.detail && sel.lu.detail.avoir ? 'avoir' : 'facture'} n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · '))}. Chaque montant vient du fichier, au millime : rien n'est passé par l'IA.</span></div>${bloc}`;
+        else if (sel.lu && sel.lu.source === 'teif') bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ok}Lue dans le fichier El Fatoora : ${esc(sel.lu.fournisseur || 'le fournisseur n\'est pas nommé')}</b><span>${esc([sel.lu.numero ? `${sel.lu.detail && sel.lu.detail.avoir ? 'avoir' : 'facture'} n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? totalLu(sel.lu) : ''].filter(Boolean).join(' · '))}. Chaque montant vient du fichier, au millime : rien n'est passé par l'IA.</span></div>${bloc}`;
         else if (estEfactureCl(fic)) { /* le fichier se lit tout seul, sur le serveur : ni bouton, ni accord */ }
-        else if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
+        else if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? totalLu(sel.lu) : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
         else if (L.ia) actions = `<button type="button" class="btn btn-sm cl-ia-btn${clState.lit && clState.lit.k === sel.k ? ' cl-ia-encours' : ''}" data-cl-ap="lire"${bloque || clState.lit ? ` disabled title="${esc(bloque || 'La lecture est en cours')}"` : ''}>${CL_IC.ia}${clState.lit && clState.lit.k === sel.k ? 'Lecture en cours…' : 'Lire la pièce'}</button>${actions}`;
         else if (L.coupee) apres += `<small class="cl-ap-n">${esc(cap(qui))} a coupé la lecture de ses pièces par l'IA dans ses réglages : celle-ci se lit à l'œil.</small>`;
       }
@@ -7221,7 +7228,7 @@
       if (p.achat) ev.push([qui, `${qui} la range dans son achat`, String(p.achat), p.recueLe]);
       // (1.173.2) L'achat du même montant, saisi sans pièce, et la lecture qui l'a repéré (la maquette : « SkanFact repère FA-0919 »).
       if (meme && meme.e) ev.push([meme.e.source === 'skanfact' ? qui : 'Le cabinet', `${meme.e.source === 'skanfact' ? qui : 'Le cabinet'} saisit l'achat ${meme.num || ''}`.trim(), `${meme.titre}, ${dtCd(meme.montant)} DT, sans justificatif`, `${meme.date}T12:00:00Z`]);
-      if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce', `à la demande de ${prenomCl(sel.lu.luPar) || 'ton cabinet'} : ${[sel.lu.fournisseur, sel.lu.numero ? `n° ${sel.lu.numero}` : '', sel.lu.total ? `${String(sel.lu.total).replace('.', ',')} ${sel.lu.devise && sel.lu.devise !== 'TND' ? sel.lu.devise : 'DT'}` : ''].filter(Boolean).join(' · ')}`, sel.lu.luLe]);
+      if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce', `à la demande de ${prenomCl(sel.lu.luPar) || 'ton cabinet'} : ${[sel.lu.fournisseur, sel.lu.numero ? `n° ${sel.lu.numero}` : '', sel.lu.total ? totalLu(sel.lu) : ''].filter(Boolean).join(' · ')}`, sel.lu.luLe]);
       if (meme && sel.lu && sel.lu.luLe) ev.push(['SF', `SkanFact repère ${meme.num || meme.titre}`, 'même montant, sans justificatif', sel.lu.luLe]);
       if (p.classeeLe) ev.push([quiCl(p.classeePar), `${quiCl(p.classeePar)} la classe`, ({ saisie: 'saisie', verifiee: 'vérifiée', rien: 'gardée, rien à saisir', double: 'en double', illisible: `illisible${p.note ? ', redemandée' : ''}`, banque: 'rapprochée', client: 'saisie par le client', jointe: 'jointe à son écriture' })[p.raison] || 'classée', p.classeeLe]);
     } else if (x) {

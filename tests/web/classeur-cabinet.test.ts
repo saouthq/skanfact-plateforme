@@ -292,7 +292,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // Son historique dit l'achat saisi sans pièce, la lecture et ce qu'elle a repéré.
     await p.locator('[data-cl-trois]').click();
     await p.locator('[data-cl-menu="historique"]').click();
-    await expect.poll(() => p.locator('.cl-hist').innerText().catch(() => '')).toMatch(/saisit l'achat FA-0919[\s\S]*sans justificatif[\s\S]*SkanFact lit la pièce[\s\S]*STEG · n° 0298 4471 · 113,396 DT[\s\S]*SkanFact repère FA-0919/);
+    await expect.poll(() => p.locator('.cl-hist').innerText().catch(() => '')).toMatch(/saisit l'achat FA-0919[\s\S]*sans justificatif[\s\S]*SkanFact lit la pièce[\s\S]*STEG · n° 0298 4471 · 113,396\sDT[\s\S]*SkanFact repère FA-0919/);
     await p.locator('[data-cl-trois]').click();
     await p.locator('[data-cl-menu="historique"]').click();
     // Jointe, la ligne garde sa place (elle ne file pas sous le curseur), et le bandeau dit « Plus que ».
