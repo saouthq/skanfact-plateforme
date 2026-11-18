@@ -2504,28 +2504,33 @@
     const l = piecesAGarder();
     for (const [id, x] of l) {
       const j = JSON.stringify(x);
-      if (gardeesE.get(id) !== j) { await brouillonE.garder(id, { p: JSON.parse(j), le: Date.now() }).catch(() => { /* la frappe suivante réessaie */ }); gardeesE.set(id, j); }
+      if (gardeesE.get(id) !== j) { repriseLue.delete(id); await brouillonE.garder(id, { p: JSON.parse(j), le: Date.now() }).catch(() => { /* la frappe suivante réessaie */ }); gardeesE.set(id, j); }
     }
-    for (const id of [...gardeesE.keys()]) if (!l.some(([x]) => x === id)) { gardeesE.delete(id); await brouillonE.effacer(id).catch(() => { /* déjà parti */ }); }
+    for (const id of [...gardeesE.keys()]) if (!l.some(([x]) => x === id)) { gardeesE.delete(id); repriseLue.delete(id); await brouillonE.effacer(id).catch(() => { /* déjà parti */ }); }
     signalerSaisies(true);
   }
   // Le bandeau commun aux pièces neuves (maquettes facture, devis, achat : « Reprendre » ou « Le jeter »).
   const quandCommence = ts => { const q = new Date(ts); return `le ${q.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' })} à ${q.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ')}`; };
+  // (1.386.5, issue 11, CABSAISIE-6) Le brouillon du poste se relit dès que le dossier s'ouvre, une fois : la proposition
+  // arrivait après le dessin de la grille (jusqu'à cinq secondes sur un poste lent), par-dessus ce qu'on tapait déjà.
+  const repriseLue = new Map(); // dossier → la lecture du brouillon (promesse), oubliée dès qu'il change
+  const lireReprise = id => { if (!repriseLue.has(id)) repriseLue.set(id, brouillonE.relire(id).catch(() => null)); return repriseLue.get(id); };
+  function preparerReprise(dossier) { if (brouillonE && dossier && dossier.id) lireReprise(dossier.id); }
   function proposerReprise(el, root, dossier) {
     // Ce que ce poste garde de la pièce de CETTE session (enregistrée ou vidée à l'instant) s'efface : rien à proposer.
     if (!brouillonE || pieceEnCours(saisieState.piece) || gardeesE.has(dossier.id)) return;
-    brouillonE.relire(dossier.id).then(b => {
+    lireReprise(dossier.id).then(b => {
       const d = b && b.contenu && b.contenu.p;
       const tete = $('#sa-tete', el);
       if (!d || !tete || !document.contains(tete) || saisieState.dossierId !== dossier.id || pieceEnCours(saisieState.piece) || gardeesE.has(dossier.id) || $('#sa-reprendre')) return;
-      if (Date.now() - (b.contenu.le || 0) > 7 * 86400000) { brouillonE.effacer(dossier.id).catch(() => {}); return; }
+      if (Date.now() - (b.contenu.le || 0) > 7 * 86400000) { (repriseLue.delete(dossier.id), brouillonE.effacer(dossier.id).catch(() => {})); return; }
       // (1.379.0, issue 6, CAB-7) Le brouillon gardé d'une pièce reçue qui a été saisie depuis (face à la pièce, validée) ne
       // se repropose pas : « Reprendre » menait à une saisie en double.
       const dc = d.depuisClasseur;
       if (dc && (dc.message || dc.doc)) {
         const P = piecesSx(dossier);
         const x = P.pret && (P.items || []).find(z => (z.p && dc.message === z.p.id) || (z.doc && dc.doc === z.doc.id));
-        if (x && x.etat && x.etat[2] !== 'traiter') { brouillonE.effacer(dossier.id).catch(() => {}); return; }
+        if (x && x.etat && x.etat[2] !== 'traiter') { (repriseLue.delete(dossier.id), brouillonE.effacer(dossier.id).catch(() => {})); return; }
       }
       const nl = lignesReelles(d).length;
       const ban = document.createElement('div');
@@ -2535,7 +2540,7 @@
         + '<span class="rep-g"><button type="button" class="btn btn-sm rep-ok" id="sa-reprendre-ok">Reprendre</button><button type="button" class="btn btn-sm" id="sa-reprendre-non">Le jeter</button></span>';
       tete.before(ban);
       $('#sa-reprendre-ok', ban).onclick = () => { saisieState.piece = d; gardeesE.set(dossier.id, JSON.stringify(d)); drawLivres(root, dossier); };
-      $('#sa-reprendre-non', ban).onclick = () => { brouillonE.effacer(dossier.id).catch(() => {}); ban.remove(); toast('Brouillon jeté : rien n\'avait été enregistré.'); };
+      $('#sa-reprendre-non', ban).onclick = () => { (repriseLue.delete(dossier.id), brouillonE.effacer(dossier.id).catch(() => {})); ban.remove(); toast('Brouillon jeté : rien n\'avait été enregistré.'); };
     }).catch(() => { /* rien à proposer */ });
   }
 

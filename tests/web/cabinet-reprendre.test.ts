@@ -85,6 +85,13 @@ describe('une écriture commencée au Cabinet se garde et se reprend, à la sour
     // « Mon ordinateur », l'application installée (le navigateur promet de garder : 04 § 4).
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
+    // (1.386.5) Combien de fois le poste relit le brouillon d'écriture : une fois par dossier ouvert, pas une par dessin.
+    await cx.addInitScript(() => {
+      const w = window as unknown as { __lusE: number };
+      w.__lusE = 0;
+      const lire = IDBObjectStore.prototype.get;
+      IDBObjectStore.prototype.get = function (this: IDBObjectStore, k: IDBValidKey | IDBKeyRange) { if (String(k).startsWith('b:ecriture:')) w.__lusE += 1; return lire.call(this, k); };
+    });
     await cx.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
       localStorage.setItem('test.pose', '1');
@@ -120,6 +127,14 @@ describe('une écriture commencée au Cabinet se garde et se reprend, à la sour
     expect(net(await bandeau.innerText())).toMatch(/^Écriture commencée le \d\d\/\d\d à \d\d h \d\d, pas encore enregistrée OD · « Caisse du marché » · 1 ligne\. Gardée sur cet ordinateur seulement : elle n'est au brouillard qu'une fois enregistrée\. Reprendre Le jeter$/);
     expect(await p.locator('#sa-libelle').inputValue()).toBe('');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprendre-1-bandeau.png') });
+    // (1.386.5, issue 11, CABSAISIE-6) Le brouillon est lu dès l'ouverture du dossier, une seule fois : revenir à la saisie
+    // repose le bandeau tout de suite, sans relire le poste (il arrivait après la grille, par-dessus la frappe).
+    expect(await p.evaluate(() => (window as unknown as { __lusE: number }).__lusE)).toBe(1);
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/banque/${annee}`);
+    await expect.poll(() => p.locator('#sa-reprendre').count()).toBe(0);
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/saisie/${annee}`);
+    await p.locator('#sa-reprendre').waitFor({ timeout: 10_000 });
+    expect(await p.evaluate(() => (window as unknown as { __lusE: number }).__lusE)).toBe(1);
     await p.locator('#sa-reprendre-ok').click();
     await expect.poll(() => p.locator('#sa-libelle').inputValue()).toBe('Caisse du marché');
     expect(await p.locator('#sa-lignes tr[data-i="0"] input[data-k="debit"]').inputValue()).toBe('84,375');

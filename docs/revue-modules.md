@@ -5181,3 +5181,9 @@ onglets au téléphone), `console` (le menu du support et de la technique). Preu
 - **Contre-passée le jour même**, une écriture et son miroir portent le même journal, la même référence et la même
   date : le livre-journal les fondait en une seule pièce, sous un seul numéro, débit et crédit doublés. Les lignes du
   livre se groupent maintenant par écriture ; celles d'un paquet (sans identifiant) se groupent comme avant.
+
+## 1.386.5 — La saisie retrouvée se propose tout de suite (issue 11, CABSAISIE-6)
+
+- **Après un rechargement, « Écriture commencée…, pas encore enregistrée » arrivait après la grille** — jusqu'à cinq
+  secondes plus tard, pendant qu'on tapait déjà. Le poste relit son brouillon dès que le dossier s'ouvre, une seule
+  fois : le bandeau (« Reprendre » / « Le jeter ») est là avec la grille, et revenir à la saisie ne relit plus rien.

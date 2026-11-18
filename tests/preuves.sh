@@ -30644,6 +30644,11 @@ prouver $'journal 1.386.4 : une écriture et son miroir du même jour restent de
   $'const k = cleDePiece(e);' \
   $'une écriture et son miroir du même jour restent deux pièces, chacune sous son numéro'
 
+prouver $'saisie 1.386.5 : le brouillon du poste se lit une fois par dossier ouvert' modules/socle/ecrans/cabinet/app-2.js \
+  $'const lireReprise = id => { if (!repriseLue.has(id)) repriseLue.set' \
+  $'const lireReprise = id => { if (true) repriseLue.set' \
+  $'gardée sur « mon ordinateur », elle se reprend après l\'onglet fermé ; ailleurs, fermer l\'onglet demande'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

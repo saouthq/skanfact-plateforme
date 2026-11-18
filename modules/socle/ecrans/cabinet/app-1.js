@@ -8581,6 +8581,7 @@
     const s = livresState;
     const el = $('#c-livres', root);
     s.dossierVu = dossier;
+    preparerReprise(dossier);
     if (!el) return;
     // (1.385.4, issue 11, CABSAISIE-26) La bande « Période » se range SOUS les onglets : au-dessus, elle les faisait sauter
     // de soixante pixels en passant de « Saisir » (où elle se cache) à « Consulter ». Elle rentre chez elle avant chaque
