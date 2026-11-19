@@ -96,6 +96,13 @@ describe('l\'inventaire de fin de mois d\'une boulangerie, et le pont (1.357.5)'
     await p.locator('#st-tabs button[data-tab="inventaire"]').click();
     await p.locator('#st-body .inv-in[data-iid="far"]').fill('15');
     await p.locator('#st-body .inv-in[data-iid="lev"]').fill('6');
+    // (1.387.64, ENTACHATS-15) Effacer le comptage laisse « Annuler » : un toucher de trop ne perd pas deux lignes comptées.
+    await p.locator('#inv-clear').click();
+    await expect.poll(() => p.locator('#st-body .inv-in[data-iid="far"]').inputValue(), { timeout: 10_000 }).toBe('');
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toContain('Comptage effacé : 2 articles comptés');
+    await p.locator('#toast-undo').click();
+    await expect.poll(() => p.locator('#st-body .inv-in[data-iid="far"]').inputValue(), { timeout: 10_000 }).toBe('15');
+    expect(await p.locator('#st-body .inv-in[data-iid="lev"]').inputValue()).toBe('6');
     await p.locator('#inv-apply').click();
     // La question dit CE QUI change et combien, et ce que ça fait ; son bouton n'est pas celui d'une suppression.
     const q = p.locator('#modal-root .modal').last();

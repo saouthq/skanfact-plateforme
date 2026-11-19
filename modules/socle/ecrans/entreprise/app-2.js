@@ -1529,8 +1529,10 @@
     // (règle 7.17.0). Il se redessinait à chaque chiffre, et un champ de nombre recréé rend son curseur
     // au DÉBUT : « 28 » tapé devenait 82 — un écart de +52 planches prêt à être enregistré. On met à
     // jour la ligne, le compte et le bouton ; le champ, lui, reste celui dans lequel on écrit.
+    // (1.387.64, ENTACHATS-4) Avec deux dépôts ou plus, on compte UN lieu : le dépôt choisi en tête de la feuille.
+    const invDepot = () => (C.depotsDe(data).length > 1 ? (C.depotsDe(data).some(d => d.id === s.invDepot) ? s.invDepot : C.DEPOT_PRINCIPAL) : '');
     const etatInventaire = () => {
-      const rows = C.inventoryDiff(data, s.counts, s.countDate);
+      const rows = C.inventoryDiff(data, s.counts, s.countDate, invDepot());
       const counted = rows.filter(r => r.counted != null);
       const gaps = counted.filter(r => r.gap !== 0);
       return { rows, counted, gaps, value: C.round3(gaps.reduce((a, r) => a + r.value, 0)) };
@@ -1643,6 +1645,7 @@
           <p class="small muted mb">Une fois par an au minimum, on compte ce qu'il y a vraiment en rayon et on le compare à ce que dit l'application. Un écart n'est pas une faute : c'est de la casse non déclarée, une sortie oubliée, une erreur de saisie — ou la matière utilisée sans être notée, quand on compte chaque mois ce qui reste. L'important est de le voir.</p>
           <div class="filters">
             <label class="small">${lbl('Date du comptage', 'stk.countDate')} ${dateFieldHtml('', 'countDate', s.countDate, {})}</label>
+            ${invDepot() ? `<label class="small">${lbl('Dépôt compté', 'dep.depots')} <select id="inv-depot">${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === invDepot() ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
             <span class="small muted" id="inv-compte"></span>
           </div>
           <div class="scroll-x"><table class="list compact"><thead><tr>
@@ -1664,9 +1667,21 @@
       brancherEtatPourLeComptable();
       const hid = $('#st-body input[name=countDate]');
       if (hid) hid.onchange = () => { s.countDate = hid.value || C.today(); drawInventory(); };
+      // Changer de dépôt garde le comptage de chacun : on compte la réserve après le magasin, sans rien perdre.
+      if ($('#inv-depot')) $('#inv-depot').onchange = e => {
+        s.comptesParDepot = s.comptesParDepot || {};
+        s.comptesParDepot[invDepot()] = s.counts; s.invDepot = e.target.value; s.counts = s.comptesParDepot[s.invDepot] || {};
+        drawInventory();
+      };
       majInventaire();
       $$('#st-body .inv-in').forEach(el => el.oninput = () => { s.counts[el.dataset.iid] = chiffreLisible(el) ? lireMontant(el.value) : ''; majInventaire(); });
-      $('#inv-clear').onclick = () => { s.counts = {}; drawInventory(); };
+      // (1.387.64, ENTACHATS-15) Effacer un comptage d'une centaine de lignes se faisait d'un toucher, sans retour : il laisse
+      // désormais « Annuler » sous la main (ce qui se répare laisse un Annuler, 7.12.0) et dit combien de lignes il efface.
+      $('#inv-clear').onclick = () => {
+        const avant = { ...s.counts }, n = Object.values(avant).filter(v => v !== '' && v != null).length;
+        s.counts = {}; drawInventory();
+        toastUndo(`Comptage effacé : ${pl(n, 'article compté', 'articles comptés')}.`, () => { s.counts = avant; drawInventory(); });
+      };
       if ($('#inv-fait-ok')) $('#inv-fait-ok').onclick = () => { s.dernierInventaire = null; drawInventory(); };
       if ($('#inv-prevenir')) $('#inv-prevenir').onclick = () => {
         const x = s.dernierInventaire;
@@ -1692,16 +1707,17 @@
         const resteInv = gaps.length > 6 ? `\n… et ${pl(gaps.length - 6, 'autre article', 'autres articles')}.` : '';
         const effetInv = [gaps.some(r => r.gap < 0) ? 'ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois' : '',
           gaps.some(r => r.gap > 0) ? 'ce qui est en plus revient dans le stock' : ''].filter(Boolean).join(' ; ');
-        if (!await confirmDialog(`${lignesInv.join('\n')}${resteInv}\n\nLe stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.`, 'Enregistrer',
-          false, { titre: `Enregistrer l'inventaire du ${C.fmtDate(s.countDate)} ?` })) return;
+        const depInv = invDepot();
+        if (!await confirmDialog(`${depInv ? `Dépôt compté : ${C.nomDepot(data, depInv)}. Les autres dépôts ne bougent pas.\n\n` : ''}${lignesInv.join('\n')}${resteInv}\n\nLe stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.`, 'Enregistrer',
+          false, { titre: `Enregistrer l'inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : ''} ?` })) return;
         if (closedBlock(s.countDate, 'Cet inventaire')) return;
         gaps.forEach(r => data.stockAdjustments.push({ id: C.uid(), createdAt: Date.now(), date: s.countDate, itemId: r.itemId, qty: r.gap,
-          unitCost: '', source: 'inventaire', reference: '', note: `Inventaire du ${C.fmtDate(s.countDate)}` }));
+          unitCost: '', source: 'inventaire', reference: '', ...(depInv ? { depotId: depInv } : {}), note: `Inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` · ${C.nomDepot(data, depInv)}` : ''}` }));
         // (1.284.0, revue du Stock S6) Le résumé reste à l'écran : c'est lui que « Prévenir mon comptable » envoie.
         s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value,
           // (1.357.5) Les écarts eux-mêmes : le message au comptable les nomme (il n'a pas cet écran).
           lignes: gaps.map(r => ({ label: r.label, unit: r.unit, book: r.book, counted: r.counted, gap: r.gap, value: r.value })) };
-        s.counts = {}; save(true); toast(`${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
+        s.counts = {}; if (s.comptesParDepot) delete s.comptesParDepot[depInv]; save(true); toast(`${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
       };
     }
 
@@ -1937,7 +1953,7 @@
           { key: 'warrantyEndDate', label: 'Fin de garantie', type: 'date' }]
       }),
       inventaire: () => ({
-        nom: `inventaire-${s.countDate}.csv`, rows: C.inventoryDiff(data, s.counts, s.countDate), cols: [
+        nom: `inventaire-${s.countDate}.csv`, rows: C.inventoryDiff(data, s.counts, s.countDate, invDepot()), cols: [
           { key: 'label', label: 'Article' }, { key: 'unit', label: 'Unité' },
           { key: 'book', label: 'Selon SkanFact' }, { key: 'counted', label: 'Compté' },
           { key: 'gap', label: 'Écart' }, { key: 'value', label: 'Valeur de l\'écart', type: 'money' }]

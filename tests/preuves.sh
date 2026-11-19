@@ -28455,10 +28455,10 @@ prouver 'relevé 1.357.4 h : l'\''écart ne demande plus d'\''aide' 'modules/soc
   "$RLV"
 INV="(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l'écart, et l'état de mi-mois n'est pas l'inventaire de l'année"
 prouver 'inventaire 1.357.5 a : la question de l'\''inventaire a le bouton rouge d'\''une suppression' 'modules/socle/ecrans/entreprise/app-2.js' \
-  '          false, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)} ?` })) return;' '          true, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)} ?` })) return;' \
+  '          false, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : '\'''\''} ?` })) return;' '          true, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : '\'''\''} ?` })) return;' \
   "$INV"
 prouver 'inventaire 1.357.5 b : la question ne dit ni quel article ni combien' 'modules/socle/ecrans/entreprise/app-2.js' \
-  '`${lignesInv.join('\''\n'\'')}${resteInv}\n\nLe stock' '`${resteInv}Le stock' \
+  '${lignesInv.join('\''\n'\'')}${resteInv}\n\nLe stock' '${resteInv}Le stock' \
   "$INV"
 prouver 'inventaire 1.357.5 c : la question ne dit pas que ce qui manque compte dans le coût du mois' 'modules/socle/ecrans/entreprise/app-2.js' \
   'gaps.some(r => r.gap < 0) ? '\''ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'\''a coûté le mois'\'' : '\'''\''' ''\'''\''' \
@@ -30817,6 +30817,15 @@ prouver $'fournisseur-telephone-refuse' modules/socle/ecrans/entreprise/app-1.js
 prouver $'piece-nom-fournisseur-mene-a-sa-page' modules/socle/ecrans/entreprise/app-1.js \
   $'<b><a class="ed-cl-page" id="sup-page" href="#/fournisseur/${h(sup.id)}"' $'<b><a class="ed-cl-page" id="sup-page" href="#/fournisseurs"' \
   $'(1.387.63, ENTACHATS-18) le téléphone d\'un fournisseur se refuse s\'il n\'a pas de chiffres ; son nom, sur la pièce, mène à sa page'
+prouver $'inventaire-effacer-annulable' modules/socle/ecrans/entreprise/app-2.js \
+  $'        toastUndo(`Comptage effacé : ${pl(n, \'article compté\', \'articles comptés\')}.`, () => { s.counts = avant; drawInventory(); });' $'        toast(`Comptage effacé : ${pl(n, \'article compté\', \'articles comptés\')}.`);' \
+  $'(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l\'écart, et l\'état de mi-mois n\'est pas l\'inventaire de l\'année'
+prouver $'inventaire-par-depot-moteur' modules/socle/moteur/core-1.js \
+  $'      const book = depotId ? ((stockParDepot(data, c.id, d).find(x => x.depotId === depotId) || { qty: 0 }).qty) : s.qty;' $'      const book = s.qty;' \
+  $'le théorique et l\'écart sont ceux du dépôt compté ; sans dépôt, tous lieux confondus'
+prouver $'inventaire-par-depot-ecart-pose' modules/socle/ecrans/entreprise/app-2.js \
+  $"unitCost: '', source: 'inventaire', reference: '', ...(depInv ? { depotId: depInv } : {})," $"unitCost: '', source: 'inventaire', reference: ''," \
+  $'Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

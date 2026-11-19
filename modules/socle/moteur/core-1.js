@@ -4418,15 +4418,18 @@
 
   // Ce qu'un inventaire physique révèle : l'écart entre ce que dit l'application et ce qu'on a compté.
   // `counts` = { itemId: quantité comptée }. On ne modifie rien ici : on décrit, l'appelant décide.
-  function inventoryDiff(data, counts, dateIso) {
+  // (1.387.64, ENTACHATS-4) Avec plusieurs dépôts, on compte UN lieu à la fois : `depotId` donne le stock théorique de ce
+  // dépôt (ses mouvements), et l'écart se pose sur lui. Sans dépôt : le stock de l'article, tous lieux confondus (avant).
+  function inventoryDiff(data, counts, dateIso, depotId) {
     const d = dateIso || today();
     return trackedItems(data).map(c => {
       const s = stockOf(data, c.id, d);
+      const book = depotId ? ((stockParDepot(data, c.id, d).find(x => x.depotId === depotId) || { qty: 0 }).qty) : s.qty;
       const raw = counts && counts[c.id];
       const counted = raw === '' || raw == null ? null : Number(raw);
-      const gap = counted == null ? null : round3(counted - s.qty);
+      const gap = counted == null ? null : round3(counted - book);
       return {
-        itemId: c.id, label: c.label, unit: c.unit || '', book: s.qty, counted, gap,
+        itemId: c.id, label: c.label, unit: c.unit || '', book, counted, gap,
         cmp: s.cmp, value: gap == null ? 0 : round3(gap * s.cmp)
       };
     }).sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'));

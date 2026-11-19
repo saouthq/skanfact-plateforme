@@ -5596,3 +5596,13 @@ métier (« ton premier achat », « ton premier article » pour un commerce).
 - Sur une pièce (achat ou vente), le nom du tiers mène à sa PAGE (achats, règlements) ; « Fiche » corrige sa fiche sans
   quitter la pièce, et le dit au survol.
 - Reste à faire : pays et IBAN/SWIFT pour un fournisseur étranger.
+
+## 1.387.64 — l'inventaire d'un dépôt, et le comptage qui ne s'efface plus d'un toucher (ENTACHATS-4, -15)
+
+- Avec deux dépôts ou plus, la feuille d'inventaire demande le **dépôt compté** : le stock théorique est celui de ce
+  dépôt, et l'écart se pose sur lui (avant, tout était compté ensemble et l'écart tombait sur le dépôt principal). La
+  question avant d'enregistrer nomme le dépôt et dit que les autres ne bougent pas ; changer de dépôt garde le comptage
+  de chacun. L'export CSV suit le dépôt choisi.
+- « Effacer le comptage » laisse « Annuler » sous la main et dit combien d'articles comptés il efface.
+- Restent pour l'inventaire : la liste des inventaires passés (date, écarts, annuler d'un geste) et la saisie au
+  téléphone (une ligne par article, recherche, pied fixe).

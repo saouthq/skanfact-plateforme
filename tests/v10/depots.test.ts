@@ -19,6 +19,7 @@ type Core = {
   stockMovements: (data: unknown, itemId: string) => unknown[];
   stockImpact: (doc: unknown, data: unknown) => { depot: string; have: number; need: number; after: number; total: number }[];
   runningStock: (moves: unknown[]) => { rows: { source: string; qty: number; qtyAfter: number; unitApplied: number }[] };
+  inventoryDiff: (data: unknown, counts: Record<string, unknown>, date?: string, depotId?: string) => { itemId: string; book: number; counted: number | null; gap: number | null }[];
 };
 const module = { exports: {} as unknown };
 const source = lireEcran('v10/core.js');
@@ -83,5 +84,19 @@ describe('le stock par dépôt, dans la v10', () => {
     const seul = { ...data, depots: [] };
     expect(C.stockImpact(brouillon(48), seul)).toEqual([]);
     expect(C.stockImpact(brouillon(53), seul).map((x) => [x.depot, x.have, x.after])).toEqual([['', 51, -2]]);
+  });
+});
+
+// (1.387.64, issue 13, ENTACHATS-4) Avec deux dépôts, on compte UN lieu : le stock théorique est celui de ce dépôt, et
+// l'écart se pose sur lui. Calcul à la main : principal 10 − 5 = 5 ; Sfax 50 + 4 − 8 = 46 ; ensemble 51.
+describe('l\'inventaire d\'un dépôt (ENTACHATS-4)', () => {
+  it('le théorique et l\'écart sont ceux du dépôt compté ; sans dépôt, tous lieux confondus', () => {
+    const data = donnees();
+    const sfax = C.inventoryDiff(data, { ciment: 44 }, '2026-09-30', 'sfax')[0];
+    expect([sfax?.book, sfax?.counted, sfax?.gap]).toEqual([46, 44, -2]);
+    const principal = C.inventoryDiff(data, { ciment: 5 }, '2026-09-30', 'principal')[0];
+    expect([principal?.book, principal?.gap]).toEqual([5, 0]);
+    expect(C.inventoryDiff(data, { ciment: 49 }, '2026-09-30')[0]?.gap).toBe(-2);
+    expect(C.inventoryDiff(data, { ciment: 49 }, '2026-09-30')[0]?.book).toBe(51);
   });
 });

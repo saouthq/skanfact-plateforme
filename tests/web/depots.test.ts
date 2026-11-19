@@ -115,6 +115,17 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await p.locator('#modal-root .btn-danger, #modal-root .btn-primary').last().click();
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 100 sacs · Magasin de Sfax 60 sacs');
     expect(net(await p.locator('#view').innerText())).not.toMatch(/Transfert entre dépôts/);
+    // (1.387.64, ENTACHATS-4) L'inventaire compte UN dépôt : Sfax, 60 au théorique, 58 comptés ; Tunis ne bouge pas.
+    await p.evaluate(() => { location.hash = '#/stock'; });
+    await p.locator('#st-tabs button[data-tab="inventaire"]').click({ timeout: 15_000 });
+    await p.locator('#inv-depot').selectOption({ label: 'Magasin de Sfax' });
+    await expect.poll(async () => net(await p.locator('#st-body tr[data-ligne="ciment"]').innerText()), { timeout: 10_000 }).toContain('60');
+    await p.locator('#st-body .inv-in[data-iid="ciment"]').fill('58');
+    await p.locator('#inv-apply').click();
+    await expect.poll(async () => net(await p.locator('#modal-root').innerText()), { timeout: 10_000 }).toContain('Dépôt compté : Magasin de Sfax. Les autres dépôts ne bougent pas.');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.evaluate(() => { location.hash = '#/article/ciment'; });
+    await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 100 sacs · Magasin de Sfax 58 sacs');
     // La ligne de la réception mène à la réception.
     const lienBR = p.locator('#view tr a', { hasText: /^BR-/ }).first();
     expect(await lienBR.getAttribute('href')).toBe('#/reception/r1');
