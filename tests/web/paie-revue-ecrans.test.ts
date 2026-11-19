@@ -306,6 +306,17 @@ describe('la paie : les écrans de la revue', () => {
     // Le bouton porte un dessin (l'icône « modifier » manquait : le bouton s'affichait sans).
     expect(await p.locator('#fs-sortie-mod svg path').count()).toBeGreaterThan(0);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-sortie-motif.png') });
+    // (1.387.47, issue 16 constat 12) Le dernier bulletin se lit dans « Son départ », et s'établit d'ici s'il manque.
+    const dep = espace(await p.locator('#fs-dep-bul').innerText());
+    expect(dep).toMatch(/^Son dernier bulletin, d.octobre 2026/);
+    if (await p.locator('#fs-dep-etablir').count()) {
+      expect(dep).toContain('n\'est pas encore fait : il paie ses jours jusqu\'au 31/10/2026');
+      await p.locator('#fs-dep-etablir').click();
+      await expect.poll(async () => espace(await p.locator('.modal h2').last().innerText().catch(() => ''))).toMatch(/octobre 2026/i);
+      await p.keyboard.press('Escape');
+      const q = p.locator('.modal').filter({ hasText: 'Abandonner' });
+      if (await q.count()) await q.locator('#ok').click();
+    } else expect(dep).toMatch(/net .* · (payé le|à payer)/);
     // La saisie sur salaire : le premier mois de retenue se choisit dans une liste en toutes lettres.
     await p.locator('[data-onglet="avances"]').click();
     await p.locator('#add-sz').click();

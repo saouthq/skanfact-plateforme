@@ -5498,3 +5498,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 ## 1.387.46 — Un test patient (rouge GitHub de 43704f50)
 
 - `cabinet-premier-jour-1371` attendait la fenêtre « Reprendre les soldes d'ouverture » après UN clic : sur une machine chargée, l'écran Exercice se redessinait à l'arrivée du livre et le clic tombait sur le bouton d'avant, sans son geste. Le test reclique tant que la fenêtre ne s'ouvre pas (deux passages verts en local avant comme après). Aucun changement de l'application.
+
+## 1.387.47 — Le dernier bulletin dans « Son départ » (issue 16, constat 12)
+
+- L'onglet « Son départ » d'un salarié dit maintenant où en est son dernier bulletin (celui du mois de sa sortie) : son net et s'il est payé, avec « Voir » ; ou, s'il manque, qu'il n'est pas encore fait (le salaire de ce mois va sur ce bulletin, pas dans le solde), avec « Établir son dernier bulletin… », qui ouvre le bulletin de ce mois-là, au prorata.
+- Test : `paie-revue-ecrans` (la sortie d'un salarié). Une preuve : dernier-bulletin-au-depart.
