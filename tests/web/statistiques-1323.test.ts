@@ -147,6 +147,12 @@ describe('les statistiques 1.323.0 : le chiffre d\'affaires de la boulangerie, l
     // n'y est pas, la carte le dit. La TVA collectée la garde (80,231 des ventes et 1 795,595 du four).
     await aller('#/stats', '#s-resume .mg-chiffre');
     const chiffre = async (id: string) => net(await p.locator(`#${id}`).innerText());
+    // (1.387.49, issue 16 constat 24) Le graphique s'étire à la largeur de sa carte ; ses lettres gardent leur largeur.
+    await expect.poll(() => p.locator('svg.chart text').first().evaluate((t) => {
+      const svg = t.closest('svg') as SVGSVGElement, vb = svg.viewBox.baseVal;
+      const k = (svg.clientHeight / vb.height) / (svg.clientWidth / vb.width), m = /scaleX\(([\d.]+)\)/.exec((t as SVGElement).style.transform);
+      return Math.abs(k - 1) < 0.01 ? 'pas étiré' : m ? Math.abs(Number(m[1]) - k) < 0.01 : false;
+    }), { timeout: 10_000 }).toBeTruthy();
     await expect.poll(() => chiffre('s-c-ventes'), { timeout: 15_000 }).toBe(`Vendu HT i 905,049 DT rien à comparer en ${Number(an) - 1} hors revente d'un bien : 9 450,500 DT`);
     expect(await chiffre('s-c-marge')).toMatch(/^Marge estimée i 905,049 DT ≈ 100 % de ce qui est vendu/);
     expect(await chiffre('s-c-achats')).toBe(`Acheté HT i 40 542,400 DT rien à comparer en ${Number(an) - 1}`);

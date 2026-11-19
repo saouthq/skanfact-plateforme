@@ -3347,6 +3347,28 @@
     }).observe(document.getElementById('nav'));
   }
 
+  // (1.387.49, issue 16 constat 24) Un graphique s'étire à la largeur de sa carte (preserveAspectRatio="none") : ses
+  // barres doivent s'étirer, ses lettres non (« janv. » et « 23 k » s'élargissaient). On rend à chaque texte sa largeur
+  // en le resserrant autour de son point d'ancrage, à chaque dessin et à chaque changement de taille.
+  const redresserTextes = svg => {
+    const vb = svg.viewBox && svg.viewBox.baseVal, w = svg.clientWidth, hh = svg.clientHeight;
+    if (!vb || !vb.width || !vb.height || !w || !hh) return;
+    const k = (hh / vb.height) / (w / vb.width);
+    svg.querySelectorAll('text').forEach(t => {
+      const a = t.getAttribute('text-anchor');
+      t.style.transformBox = 'fill-box';
+      t.style.transformOrigin = a === 'end' ? 'right' : a === 'middle' ? 'center' : 'left';
+      t.style.transform = Math.abs(k - 1) < 0.01 ? '' : `scaleX(${k.toFixed(4)})`;
+    });
+  };
+  if (typeof ResizeObserver === 'function' && typeof MutationObserver === 'function') {
+    const ro = new ResizeObserver(es => es.forEach(e => redresserTextes(e.target)));
+    const vus = new WeakSet();
+    new MutationObserver(() => document.querySelectorAll('svg.chart[preserveAspectRatio="none"]').forEach(svg => {
+      if (!vus.has(svg)) { vus.add(svg); ro.observe(svg); }
+    })).observe(document.body, { childList: true, subtree: true });
+  }
+
   // On arrive sur la page d'un module retiré du menu (par la recherche, par une adresse, par un lien
   // d'une autre page). Elle marche exactement comme les autres — mais si on ne dit rien, l'utilisateur
   // croira l'avoir trouvée par hasard et ne saura pas la retrouver demain.

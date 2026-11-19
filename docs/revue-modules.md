@@ -5503,3 +5503,13 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - L'onglet « Son départ » d'un salarié dit maintenant où en est son dernier bulletin (celui du mois de sa sortie) : son net et s'il est payé, avec « Voir » ; ou, s'il manque, qu'il n'est pas encore fait (le salaire de ce mois va sur ce bulletin, pas dans le solde), avec « Établir son dernier bulletin… », qui ouvre le bulletin de ce mois-là, au prorata.
 - Test : `paie-revue-ecrans` (la sortie d'un salarié). Une preuve : dernier-bulletin-au-depart.
+
+## 1.387.48 — Le départ dit dans l'en-tête de la fiche (issue 16, constat 12, fin)
+
+- L'en-tête de la fiche d'un salarié disait toujours « CDI depuis le … », sans son départ. Il dit maintenant « sortie prévue le … » ou « parti le … » ; pour un salarié parti, le coût mensuel ne s'y affiche plus.
+- Test : `paie-revue-ecrans` (la sortie d'un salarié). Une preuve : depart-dit-en-tete.
+
+## 1.387.49 — Les lettres des graphiques ne s'étirent plus (issue 16, constat 24)
+
+- Les graphiques de l'application entreprise (accueil, statistiques) s'étirent à la largeur de leur carte : les barres s'étiraient, et les lettres de l'axe aussi (« janv. », « 23 k » élargis). Chaque texte est maintenant resserré autour de son point d'ancrage, au dessin et à chaque changement de taille de la carte.
+- Test : `statistiques-1323`. Une preuve : graphique-lettres-droites.

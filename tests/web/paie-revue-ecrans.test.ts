@@ -306,6 +306,8 @@ describe('la paie : les écrans de la revue', () => {
     // Le bouton porte un dessin (l'icône « modifier » manquait : le bouton s'affichait sans).
     expect(await p.locator('#fs-sortie-mod svg path').count()).toBeGreaterThan(0);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-sortie-motif.png') });
+    // (1.387.48) Le départ se dit dans l'en-tête de la fiche, à côté du contrat.
+    expect(espace(await p.locator('.pa-h1-av + p.sous').innerText())).toMatch(/(parti le|sortie prévue le) 31\/10\/2026/);
     // (1.387.47, issue 16 constat 12) Le dernier bulletin se lit dans « Son départ », et s'établit d'ici s'il manque.
     const dep = espace(await p.locator('#fs-dep-bul').innerText());
     expect(dep).toMatch(/^Son dernier bulletin, d.octobre 2026/);
