@@ -276,6 +276,35 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
+  it('(1.387.57, ENTACHATS-17) la date d\'un achat se dit dans « Avant d\'enregistrer » : dans plus de trois mois, ou dans un mois clôturé', async () => {
+    const { jeton, ent } = await commerce();
+    const cl = (await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: '2026-08-31' }] }));
+    expect(cl.statut, JSON.stringify(cl.corps)).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new`);
+    await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 20_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await p.locator('#ac-main').click();
+    const date = p.locator('#view [name=date]').locator('xpath=ancestor::*[contains(@class,"datefield")][1]').locator('.d-txt');
+    const avant = p.locator('#ac-avant');
+    await date.fill('15/03/2031');
+    await date.press('Tab');
+    await expect.poll(() => avant.innerText().then(net), { timeout: 10_000 }).toContain('Datée du 15/03/2031, dans plus de trois mois');
+    await avant.getByRole('button', { name: 'Changer la date', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => document.activeElement?.classList.contains('d-txt'))).toBe(true);
+    // Un mois clôturé (août) : la ligne dit d'avance que l'achat ne s'enregistrera pas à cette date.
+    await date.fill('15/08/2026');
+    await date.press('Tab');
+    await expect.poll(() => avant.innerText().then(net), { timeout: 10_000 }).toContain('est dans un mois clôturé : l\'achat ne s\'enregistrera pas à cette date');
+    expect(net(await avant.innerText())).not.toContain('dans plus de trois mois');
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 240_000);
+
   it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });

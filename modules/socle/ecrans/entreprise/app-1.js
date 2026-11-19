@@ -18933,6 +18933,11 @@
           ...(tvaEtrangere ? [[false, `TVA sur ${tvaEtrangere > 1 ? `${tvaEtrangere} lignes` : '1 ligne'} : un fournisseur à l'étranger n'en facture pas`, '<button type="button" class="lien" data-avant="tva0">Passer à 0 %</button>']] : []),
           // (1.160.0, maquette) Ce que l'IA n'a pas lu avec sûreté, compté comme les cases en ambre de la pièce.
           ...(marquesLues.length ? [[false, `${pl(marquesLues.length, 'case')} lue${marquesLues.length > 1 ? 's' : ''} ${luParIA && luParIA.pdf ? 'sur le PDF' : 'sur la photo'} à vérifier`, '', 'aide']] : []),
+          // (1.387.57, issue 13, ENTACHATS-17) La date se dit AVANT d'enregistrer : un mois clôturé sera refusé (on le savait dès la
+          // frappe, la liste ne le disait qu'au clic), et une pièce datée de plus de trois mois dans le futur est presque toujours
+          // une faute de frappe (« 2031 » pour « 2026 »). Le geste ramène le curseur dans la date ; rien n'est bloqué ici.
+          ...(p.date && C.isClosedDate(data, p.date) ? [[false, `Le ${lfJm(p.date)} est dans un mois clôturé : l'achat ne s'enregistrera pas à cette date`, '<button type="button" class="lien" data-avant="date">Changer la date</button>']]
+            : p.date && p.date > C.addDays(C.today(), 92) ? [[false, `Datée du ${C.fmtDate(p.date)}, dans plus de trois mois : est-ce bien l'année ?`, '<button type="button" class="lien" data-avant="date">Changer la date</button>', 'aide']] : []),
           ...(cur !== company().currency ? [[!C.missingRate(p, company()), C.missingRate(p, company()) ? `Le taux de change manque : 1 ${h(cur)} = ? ${h(company().currency)}` : `Le taux de change est saisi : 1 ${h(cur)} = ${pct(t.rate)} ${h(company().currency)}`, '']] : []),
           ...lignesAFicher().map(({ l, i }) => { const fi = ficheDe(i, l); return [!!fi.category, fi.category ? `La fiche du bien est prête : ${pl(Number(fi.years) || 0, 'an')}, dès le ${lfJm(fi.date)}` : `La famille de « ${h(l.label)} » est à choisir`, fi.category ? '' : `<button type="button" class="lien" data-avant="fiche-bien" data-i="${i}">Choisir</button>`]; }),
         ];
@@ -18942,6 +18947,7 @@
         if (t0) t0.onclick = () => { p.lines.forEach(l => { if (String(l.label || '').trim() && Number(l.vatRate) > 0) l.vatRate = 0; }); touch(); drawLines(); refresh(); };
         const f = $('[data-avant=fiche]', avant); if (f) f.onclick = () => { const x = supplierById(p.supplierId); if (x) supplierForm(x, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); }); };
         const j = $('[data-avant=joindre]', avant); if (j) j.onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
+        const dt = $('[data-avant=date]', avant); if (dt) dt.onclick = () => { const x = $('#view [name=date]'); const v = x && x.closest('.datefield') ? x.closest('.datefield').querySelector('.d-txt') : null; if (v) { v.scrollIntoView({ block: 'center' }); v.focus(); v.select(); } };
         $$('[data-avant=fiche-bien]', avant).forEach(b => { b.onclick = () => modifierFiche(Number(b.dataset.i)); });
       }
       // Une ligne « stock » dont le libellé ne retrouve aucun article suivi n'entrera dans aucun stock :

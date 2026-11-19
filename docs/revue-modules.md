@@ -5551,3 +5551,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - Solder une commande qui attend encore quelque chose pose la question en nommant le reste (« 25 sac Farine T55 ») ; « Annuler » laisse la commande ouverte.
 - La liste des commandes n'engage plus que ce qui reste à recevoir (`montantResteCommandeFournisseur`, en dinars) : 15 sacs reçus sur 40 à 62,500, ce sont 1 562,500 DT HT engagés, pas 2 500,000. Le seuil d'accord des commandes (serveur) garde le montant entier : c'est la commande qu'on autorise.
 - Tests : `commande-reste-engage-1387` (calcul à la main), `recette-alpha` (ENTACHATS-11). Trois preuves : commande-recue-sans-annuler, commande-solder-demande, commande-engage-le-reste.
+
+## 1.387.57 — La date d'un achat se dit avant d'enregistrer (issue 13, ENTACHATS-17)
+
+- Une facture d'achat datée de « 15/03/2031 » passait sans une remarque, et une date dans un mois clôturé ne se disait qu'au clic sur « Enregistrer » (la fenêtre « Période clôturée »), alors que tout était connu dès la frappe. La liste « Avant d'enregistrer » le dit maintenant : « Le 15 août est dans un mois clôturé : l'achat ne s'enregistrera pas à cette date », ou « Datée du 15/03/2031, dans plus de trois mois : est-ce bien l'année ? ». Les deux portent « Changer la date », qui ramène le curseur dans la date. Rien n'est bloqué : une facture datée loin peut être juste.
+- Test : `recette-alpha` (ENTACHATS-17). Deux preuves : achat-date-mois-clos-dite, achat-date-lointaine-dite.
