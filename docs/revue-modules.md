@@ -5574,3 +5574,10 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - La liste se cherche (article, référence, note, nature) et se filtre par nature, comme la liste des achats ; le compte dit « n sur N ». Chaque ligne s'ouvre : la pièce qui a fait le mouvement, sinon la fiche de l'article.
 - Reste à faire (noté) : « Transférer… » et un choix de dépôt en tête de la page Stock.
 - Test : `recette-alpha` (ENTACHATS-9). Deux preuves : mouvements-retirer-depuis-stock, mouvements-filtre-nature.
+
+## 1.387.61 — le journal centralisateur replié, bord à bord
+
+Rouge GitHub de la 1.387.52 : depuis que le journal centralisateur (Comptabilité › Écritures) est rangé dans un
+volet repliable (1.387.42), son tableau ne touchait plus les bords de la carte (15 px de marge). La règle « bord à
+bord » des tableaux de la Comptabilité vise aussi un tableau posé dans un volet (`.panel > details > .scroll-x`),
+au bureau comme au téléphone. Preuve : retirer cette extension fait tomber le parcours du grossiste.

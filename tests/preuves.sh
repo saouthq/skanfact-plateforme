@@ -25129,7 +25129,7 @@ prouver 'les tableaux de la Comptabilité gardent leur cadre dans la carte' "$LC
   '.lf.mg.cpt .cf-onglet .panel table.list { border: 0; border-top: 1px solid var(--sb-trait); border-radius: 0; box-shadow: none; background: none; }' '/* rien */' \
   "$T302W"
 prouver 'les tableaux de la Comptabilité en retrait des bords de la carte' "$LCSS" \
-  '.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }' '/* rien */' \
+  '.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]), .lf.mg.cpt .cf-onglet .panel > details > .scroll-x { margin-inline: -16px; }' '/* rien */' \
   "$T302W"
 prouver 'au téléphone, les mois vides de la TVA font encore leur carte' "$LCSS" \
   '.lf.mg.cpt .cf-onglet tr.cpt-rien { display: none !important; }' '/* rien */' \
@@ -30805,6 +30805,9 @@ prouver $'alertes-lots-perimes' modules/socle/ecrans/entreprise/app-2.js $'const
 prouver $'commande-sans-email-dite' modules/socle/ecrans/entreprise/app-1.js $'if (!String(supE.email || \'\').trim()) {' $'if (false) {' $'(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement'
 prouver $'mouvements-retirer-depuis-stock' modules/socle/ecrans/entreprise/app-2.js $'${m.manual ? `<button class="btn btn-sm" data-mv-rm=' $'${false ? `<button class="btn btn-sm" data-mv-rm=' $'(1.387.60, ENTACHATS-9) Stock › Mouvements cherche, filtre par nature, ouvre l\'article, et retire un mouvement saisi à la main'
 prouver $'mouvements-filtre-nature' modules/socle/ecrans/entreprise/app-2.js $'const all = dansLAnnee.filter(m => (!s.mvNature || m.source === s.mvNature)' $'const all = dansLAnnee.filter(m => (true)' $'(1.387.60, ENTACHATS-9) Stock › Mouvements cherche, filtre par nature, ouvre l\'article, et retire un mouvement saisi à la main'
+prouver $'compta : le journal centralisateur replié reste bord à bord' web/public/plateforme/liste.css \
+  $'.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]), .lf.mg.cpt .cf-onglet .panel > details > .scroll-x { margin-inline: -16px; }' $'.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }' \
+  $'le grossiste lit chaque onglet dans la DA, au bureau et au téléphone, puis saisit l\'achat de septembre oublié'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

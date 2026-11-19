@@ -1014,11 +1014,11 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg.cpt .cf-onglet .stat[data-cstat]:hover { transform: none; border: 0; background: var(--sb-survol); box-shadow: -1px 0 0 var(--sb-trait), 0 -1px 0 var(--sb-trait); }
 .lf.mg.cpt .cf-onglet .panel table.list { border: 0; border-top: 1px solid var(--sb-trait); border-radius: 0; box-shadow: none; background: none; }
 .lf.mg.cpt .cf-onglet .panel table.list th { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-papier-2); }
-.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }
+.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]), .lf.mg.cpt .cf-onglet .panel > details > .scroll-x { margin-inline: -16px; }
 .lf.mg.cpt .cf-onglet .panel > table.list { width: calc(100% + 32px); }
 .lf.mg.cpt .cf-onglet .panel table.list :is(th, td):first-child { padding-inline-start: 16px; }
 .lf.mg.cpt .cf-onglet .panel table.list :is(th, td):last-child { padding-inline-end: 16px; }
-.lf.mg.cpt .cf-onglet .panel > .scroll-x > table.list, .lf.mg.cpt .cf-onglet .panel > [id$="-wrap"] > table.list { width: 100%; }
+.lf.mg.cpt .cf-onglet .panel > .scroll-x > table.list, .lf.mg.cpt .cf-onglet .panel > details > .scroll-x > table.list, .lf.mg.cpt .cf-onglet .panel > [id$="-wrap"] > table.list { width: 100%; }
 .lf.mg.cpt .cf-onglet > .split { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 0; border-top: 1px solid var(--sb-trait); }
 .lf.mg.cpt .cf-onglet > .split > .panel { margin: 0; padding: 14px 16px 16px; border: 0; border-radius: 0; box-shadow: none; background: none; }
 .lf.mg.cpt .cf-onglet > .split > .panel + .panel { border-inline-start: 1px solid var(--sb-trait); }
@@ -1027,7 +1027,7 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.mg.cpt .cf-onglet .cpt-tel-seul { display: none; }
 @media (max-width: 760px) {
   .lf.mg.cpt .cf-onglet .stats:not(.rangee), .lf.mg.cpt .cf-onglet .pay-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: 0; }
+  .lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]), .lf.mg.cpt .cf-onglet .panel > details > .scroll-x { margin-inline: 0; }
   .lf.mg.cpt .cf-onglet .panel > table.list { width: 100%; }
   .lf.mg.cpt .cf-onglet .panel table.list { border-top: 0; }
   .lf.mg.cpt .cf-onglet > .split { grid-template-columns: 1fr; }
