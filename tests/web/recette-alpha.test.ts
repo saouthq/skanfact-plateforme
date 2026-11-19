@@ -305,6 +305,31 @@ describe('la recette alpha, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  it('(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'supplierOrders', cle: 'o2', rang: 0, revision: null, contenu: { id: 'o2', type: 'commandeFournisseur', number: 'BCF-2026-007', status: 'brouillon', date: aujourdhui, supplierId: 's1', currency: 'DT',
+        lines: [{ label: 'Colle à bois', qty: 10, unit: 'u', unitPrice: { '~n': '5' }, vatRate: 19 }] } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/o2`);
+    await p.locator('#cf-envoyer').click({ timeout: 20_000 });
+    const q = p.locator('#modal-root .modal').last();
+    await expect.poll(() => q.innerText().then(net), { timeout: 10_000 }).toContain('Grossiste du Sahel n\'a pas d\'adresse e-mail dans sa fiche');
+    // « Annuler » ne change rien ; « Partie autrement » télécharge le bon et la passe « envoyée ».
+    await q.getByRole('button', { name: 'Annuler', exact: true }).click();
+    expect(net(await p.locator('#view .ed-h1').innerText())).not.toContain('envoyée');
+    await p.locator('#cf-envoyer').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Partie autrement', exact: true }).click();
+    await expect.poll(() => p.locator('#view .ed-h1').innerText().then(net), { timeout: 15_000 }).toContain('envoyée');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
   it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });

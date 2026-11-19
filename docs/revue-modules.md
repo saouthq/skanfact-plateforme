@@ -5562,3 +5562,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - Une facture qui prenait un article suivi par lot laissait « — Quel lot ? — » ; émise quand même, elle restait « sans lot −10 » sur la fiche pour toujours. Une ligne de facture ou de bon de livraison prend d'office le lot conseillé (celui qui périme le plus tôt sans être périmé, `lotConseille`) ; il se change sur la ligne, et l'avertissement d'émission reste pour une ligne qu'on aurait vidée.
 - Stock › Alertes disait « Rien à signaler » à neuf jours de la péremption d'un lot. Un panneau « Lots qui périment dans les 30 jours » (paginé, chaque ligne ouvre la fiche de l'article) suit la liste des articles, et la phrase vide ne dit « Rien à signaler » que s'il n'y a vraiment rien.
 - Test : `lots` (étape ENTACHATS-14). Deux preuves : facture-lot-conseille, alertes-lots-perimes.
+
+## 1.387.59 — Envoyer une commande à un fournisseur sans e-mail (issue 13, ENTACHATS-10)
+
+- « Envoyer au fournisseur… » ouvrait un message vers personne pour un fournisseur sans adresse e-mail, et la commande passait « envoyée » d'un clic. La page le dit maintenant d'abord, et propose ce qui se fait vraiment : « Ajouter son e-mail… » (sa fiche s'ouvre), ou « Partie autrement » (téléphone, WhatsApp, papier) — le bon de commande se télécharge, et la commande passe « envoyée ». « Annuler » ne change rien. « Marquer envoyée » du bandeau d'accord reste un simple geste, sans question.
+- Test : `recette-alpha` (ENTACHATS-10), `stock-revue` répond à la question. Une preuve : commande-sans-email-dite.

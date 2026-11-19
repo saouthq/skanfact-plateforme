@@ -16961,6 +16961,21 @@
     // choisi à la main (l'accord, au-delà du montant permis, se demande avant).
     if ($('#cf-envoyer')) $('#cf-envoyer').onclick = async () => {
       if (dirty && !enregistrer()) return;
+      // (1.387.59, issue 13, ENTACHATS-10) Un fournisseur sans adresse e-mail : le message partait vers personne et la commande
+      // passait « envoyée » d'un clic. On le dit d'abord, et on propose ce qui se fait vraiment : compléter sa fiche, ou noter
+      // qu'elle est partie autrement (téléphone, WhatsApp, papier) — le bon se télécharge pour être joint ou imprimé.
+      const supE = supplierById(commandeFById(o.id).supplierId) || {};
+      if (!String(supE.email || '').trim()) {
+        const r = await choiceDialog('Envoyer la commande', `${supE.name || 'Ce fournisseur'} n'a pas d'adresse e-mail dans sa fiche : SkanFact ne peut pas lui écrire. Ajoute son adresse, ou note que la commande est partie autrement (téléphone, WhatsApp, sur papier) : le bon de commande se télécharge pour que tu le joignes ou l'imprimes.`,
+          'Ajouter son e-mail…', 'Partie autrement', 'Annuler');
+        if (r === 'a') { supplierForm(supE, () => render(true)); return; }
+        if (r !== 'b') return;
+        if ($('#cf-pdf')) await $('#cf-pdf').onclick();
+        $('[name=status]', tete).value = 'envoyée'; touch();
+        if (!enregistrer()) return;
+        toast(`Bon de commande téléchargé${commandeFById(o.id).status === 'envoyée' ? ' ; la commande passe « envoyée ».' : '.'}`);
+        render(true); return;
+      }
       const mode = await messagerie(); if (!mode) return;
       const cmd = commandeFById(o.id), sup = supplierById(cmd.supplierId) || {};
       const b = $('#cf-envoyer'); b.disabled = true; b.textContent = 'Préparation…';

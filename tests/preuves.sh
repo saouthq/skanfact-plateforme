@@ -30802,6 +30802,7 @@ prouver $'achat-date-mois-clos-dite' modules/socle/ecrans/entreprise/app-1.js $'
 prouver $'achat-date-lointaine-dite' modules/socle/ecrans/entreprise/app-1.js $': p.date && p.date > C.addDays(C.today(), 92) ? [[false,' $': false ? [[false,' $'(1.387.57, ENTACHATS-17) la date d\'un achat se dit dans « Avant d\'enregistrer » : dans plus de trois mois, ou dans un mois clôturé'
 prouver $'facture-lot-conseille' modules/socle/ecrans/entreprise/app-1.js $'...((isInv || isDelivery) && it.tracked && it.parLot ?' $'...(false ?' $'Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien'
 prouver $'alertes-lots-perimes' modules/socle/ecrans/entreprise/app-2.js $'const perimes = C.lotsAPerimer(data, C.today(), 30);' $'const perimes = [];' $'Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien'
+prouver $'commande-sans-email-dite' modules/socle/ecrans/entreprise/app-1.js $'if (!String(supE.email || \'\').trim()) {' $'if (false) {' $'(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -283,6 +283,9 @@ describe('la revue du Stock', () => {
     // Le squelette de l'achat : un seul bouton principal, dans la colonne de droite.
     expect((await p.locator('#view .btn-primary').allInnerTexts()).map(net)).toEqual(['Envoyer au fournisseur…']);
     await p.locator('#cf-envoyer').click();
+    // (1.387.59) Un fournisseur sans e-mail : la commande part « autrement », le bon se télécharge.
+    const autrement = p.locator('#modal-root .modal').last().getByRole('button', { name: 'Partie autrement', exact: true });
+    await autrement.waitFor({ timeout: 5_000 }).then(() => autrement.click()).catch(() => undefined);
     await expect.poll(async () => (await surLeServeur('supplierOrders'))[0]?.status, { timeout: 15_000 }).toBe('envoyée');
     // La frise de la pièce, comme la facture : préparée et envoyée faites, la réception attend.
     await expect.poll(() => p.locator('#cf-frise li.fait').count(), { timeout: 10_000 }).toBe(2);
