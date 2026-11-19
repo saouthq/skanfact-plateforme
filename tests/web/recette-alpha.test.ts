@@ -194,6 +194,17 @@ describe('la recette alpha, à la souris', () => {
     await p.locator('#b-cat .combo-btn').click();
     await p.locator('#b-cat .combo-it').filter({ hasText: 'Colle à bois' }).click();
     await expect.poll(() => p.locator('#view input[data-k=label]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['Colle à bois']);
+    // (1.387.54, issue 13, ENTACHATS-12) Un article qui n'est pas au catalogue se crée depuis la ligne : le nom tapé dans la
+    // recherche préremplit sa fiche, suivie en stock, et la ligne se pose à la fermeture — sans quitter la facture.
+    await p.locator('#b-cat .combo-btn').click();
+    await p.locator('#b-cat .combo-q').fill('Farine T55');
+    await p.locator('#b-cat .combo-add').click();
+    const neuf = p.locator('.modal').filter({ hasText: 'Nouvel article' });
+    await neuf.waitFor({ timeout: 10_000 });
+    expect(await neuf.locator('input[name=label]').inputValue()).toBe('Farine T55');
+    expect(await neuf.locator('input[name=tracked]').isChecked()).toBe(true);
+    await neuf.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#view input[data-k=label]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value)), { timeout: 10_000 }).toEqual(['Colle à bois', 'Farine T55']);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

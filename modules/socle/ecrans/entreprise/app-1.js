@@ -18445,7 +18445,7 @@
             </form>
           </div>
           <div class="panel ed-lignes"><h2>Lignes ${info('buy.lines')}<span class="ed-compte" id="ac-compte"></span></h2>
-            ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…' })}<kbd>Ctrl L</kbd></div>
+            ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…', add: '+ Nouvel article' })}<kbd>Ctrl L</kbd></div>
               <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
             ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="text" inputmode="decimal" data-montant id="b-ttc" class="num montant" placeholder="ce que dit le ticket" autocomplete="off"><span class="unite">${h(cur)}</span></span></label>
@@ -18690,8 +18690,16 @@
         .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? 'suivi en stock' : (c.description || ''),
           right: coutAffiche(c) + ' HT',
           text: `${c.label} ${c.description || ''}` })),
+      // (1.387.54, issue 13, ENTACHATS-12) Le premier achat de marchandise, catalogue vide : « Rien à choisir », et il
+      // fallait quitter la facture pour créer l'article. La commande fournisseur offrait « + Nouvel article » ; l'achat aussi,
+      // le nom tapé dans la recherche prérempli, suivi en stock, et la ligne posée à la fermeture de sa fiche.
+      onAdd: saisi => catalogForm(articleNeuf({ label: saisi, tracked: true }), it => { if (it) ajouterArticleAchat(it); }, { creation: true, titre: 'Nouvel article' }),
       onPick: id => {
-        const it = data.catalog.find(c => c.id === id); if (!it) return;
+        const it = data.catalog.find(c => c.id === id); if (it) ajouterArticleAchat(it);
+      },
+    });
+    function ajouterArticleAchat(it) {
+      {
         // (plateforme) 1.80.0 — la ligne vide du départ cède sa place, comme dans la facture de vente.
         if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];
         p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
@@ -18699,7 +18707,7 @@
           itemId: it.id, destination: it.tracked ? 'stock' : 'charge', deductible: true });
         touch(); drawLines();
       }
-    });
+    }
 
     // (1.155.13) Le bandeau de la maquette pour un avoir ou un acompte : ce qu'il fait à la TVA, au stock et à ce qu'on doit,
     // et le chemin vers la facture qu'il touche. Il suit la facture choisie et les lignes.

@@ -30792,6 +30792,7 @@ prouver $'montants-verses-en-colonne' modules/personnel/styles/paie.css $'#dc-ve
 prouver $'conges-du-mois-du-bulletin' modules/personnel/ecrans/entreprise/paie.js $'C.leaveBalance(data, slip.employeeId, y, finM < C.today() ? finM : C.today())' $'C.leaveBalance(data, slip.employeeId, y)' $'le bulletin lit les congés acquis à la fin de SON mois, jamais au jour où on le relit'
 prouver $'cmp-apres-avoir' modules/socle/moteur/core-1.js $'else if (round3(unit) !== round3(cmp)) cmp = round3(value / qty);' $'else if (false) cmp = round3(value / qty);' $'la sortie au prix de l\'avoir recalcule le coût moyen, et l\'entrée suivante tombe juste'
 prouver $'origine-avoir-fournisseur' modules/socle/moteur/core-1.js $'(mv && mv.avoirFournisseur ? \'Avoir fournisseur\' :' $'(mv && false ? \'Avoir fournisseur\' :' $'la ligne d\'un avoir fournisseur se nomme « Avoir fournisseur », un achat reste « Achat »'
+prouver $'achat-cree-son-article' modules/socle/ecrans/entreprise/app-1.js $'search: \'Rechercher dans le catalogue…\', add: \'+ Nouvel article\' })' $'search: \'Rechercher dans le catalogue…\' })' $'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
