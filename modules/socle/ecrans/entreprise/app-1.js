@@ -7313,7 +7313,10 @@
       return { label: it.label, description: it.description || '', unit: it.unit || '',
         unitPrice: pu === null ? '' : pu, unitCost: cu === null ? '' : cu, vatRate: C.tauxPourRegime(company(), it.vatRate), itemId: it.id,
         // Un produit fabriqué (sa fiche : « Produit fabriqué : FODEC ») la porte d'office, chez une entreprise qui fabrique.
-        ...(fabrique && it.fodec === true ? { fodec: true } : {}) };
+        ...(fabrique && it.fodec === true ? { fodec: true } : {}),
+        // (1.387.58, issue 13, ENTACHATS-14) Un article suivi par lot sort d'office du lot conseillé (celui qui périme le plus
+        // tôt sans être périmé) : une vente laissée « sans lot » restait « sans lot −10 » pour toujours. Il se change sur la ligne.
+        ...((isInv || isDelivery) && it.tracked && it.parLot ? (lc => lc ? { lot: lc.lot } : {})(C.lotConseille(data, it.id, doc.date)) : {}) };
     };
     // (1.317.0) Le prix qu'un article montre dans les choix de ce document est celui que sa ligne prendra : celui de la liste
     // du client (la droguerie jouée : « prix du client (Artisans 2026) » s'affichait à côté de 89,000, la ligne se posait à 78).

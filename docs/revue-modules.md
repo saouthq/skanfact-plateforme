@@ -5556,3 +5556,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Une facture d'achat datée de « 15/03/2031 » passait sans une remarque, et une date dans un mois clôturé ne se disait qu'au clic sur « Enregistrer » (la fenêtre « Période clôturée »), alors que tout était connu dès la frappe. La liste « Avant d'enregistrer » le dit maintenant : « Le 15 août est dans un mois clôturé : l'achat ne s'enregistrera pas à cette date », ou « Datée du 15/03/2031, dans plus de trois mois : est-ce bien l'année ? ». Les deux portent « Changer la date », qui ramène le curseur dans la date. Rien n'est bloqué : une facture datée loin peut être juste.
 - Test : `recette-alpha` (ENTACHATS-17). Deux preuves : achat-date-mois-clos-dite, achat-date-lointaine-dite.
+
+## 1.387.58 — Les lots : le lot conseillé posé d'office, la péremption dans les Alertes (issue 13, ENTACHATS-14)
+
+- Une facture qui prenait un article suivi par lot laissait « — Quel lot ? — » ; émise quand même, elle restait « sans lot −10 » sur la fiche pour toujours. Une ligne de facture ou de bon de livraison prend d'office le lot conseillé (celui qui périme le plus tôt sans être périmé, `lotConseille`) ; il se change sur la ligne, et l'avertissement d'émission reste pour une ligne qu'on aurait vidée.
+- Stock › Alertes disait « Rien à signaler » à neuf jours de la péremption d'un lot. Un panneau « Lots qui périment dans les 30 jours » (paginé, chaque ligne ouvre la fiche de l'article) suit la liste des articles, et la phrase vide ne dit « Rien à signaler » que s'il n'y a vraiment rien.
+- Test : `lots` (étape ENTACHATS-14). Deux preuves : facture-lot-conseille, alertes-lots-perimes.

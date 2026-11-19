@@ -1734,6 +1734,11 @@
     };
 
     function drawAlerts() {
+      // (1.387.58, issue 13, ENTACHATS-14) Les lots qui périment se lisent ici aussi (l'onglet disait « Rien à signaler » à neuf
+      // jours de la péremption d'un lot de yaourts) ; « À faire » les annonçait déjà.
+      const perimes = C.lotsAPerimer(data, C.today(), 30);
+      s.perimes = s.perimes || { page: 1 };
+      const pePage = paginate(perimes, s.perimes);
       const alPage = paginate(alerts, s.alertes);
       const groupes = aCommanderParFournisseur();
       const nbArt = [...groupes.values()].reduce((a, x) => a + x.length, 0);
@@ -1756,9 +1761,17 @@
                 : r.aCommander > 0 ? `<button class="btn btn-sm" data-commander="${h(r.itemId)}">Commander…</button>`
                 : `<button class="btn btn-sm" data-voir-commande="${h(r.enCommande[0].id)}">Voir la commande</button>`}</td></tr>`).join('')}
           </tbody></table></div>${pagerBar(alPage.pg, { noun: 'article' })}`
-            : '<div class="empty">Rien à signaler : aucun stock négatif, aucun article sous son seuil.</div>'}
-        </div>`;
+            : `<div class="empty">${perimes.length ? 'Aucun stock négatif, aucun article sous son seuil.' : 'Rien à signaler : aucun stock négatif, aucun article sous son seuil, aucun lot qui périme dans les 30 jours.'}</div>`}
+        </div>
+        ${perimes.length ? `<div class="panel" id="st-peremption"><h2>Lots qui périment dans les 30 jours</h2>
+          <div class="scroll-x"><table class="list compact"><thead><tr><th>Article</th><th>Lot</th><th>Périme le</th><th class="r">En stock</th></tr></thead><tbody>
+          ${pePage.rows.map(x => `<tr class="clickable ${x.perime ? 'row-warn' : ''}" data-see="${h(x.itemId)}"><td><strong>${h(x.label)}</strong></td><td>${h(x.lot)}</td>
+            <td class="nw">${x.perime ? `<span class="warn-text">périmé depuis le ${C.fmtDate(x.peremption)}</span>` : `${C.fmtDate(x.peremption)} · dans ${pl(Math.max(0, C.daysBetween(C.today(), x.peremption)), 'jour')}`}</td>
+            <td class="r nw">${pct(x.qty)} ${h(x.unit)}</td></tr>`).join('')}
+          </tbody></table></div>${pagerBar(pePage.pg, { noun: 'lot' })}</div>` : ''}`;
       bindPager($('#st-body'), s.alertes, () => drawAlerts(), '#st-body');
+      // Le second pager (les lots) se rebranche sur son panneau, après : ses boutons appartiennent à sa liste.
+      if ($('#st-peremption')) bindPager($('#st-peremption'), s.perimes, () => drawAlerts(), '#st-peremption');
       // L'achat oublié d'un stock négatif : au moins ce qui manque pour revenir à zéro (1.284.2, joué à la main : 1 seau
       // proposé pour -3, le stock restait négatif après l'achat).
       $$('#st-body [data-achat]').forEach(b => b.onclick = e => { e.stopPropagation(); navigate(`#/achat/new/-/facture/-/article/${b.dataset.achat}${Number(b.dataset.qte) > 0 ? '/' + b.dataset.qte : ''}`); });

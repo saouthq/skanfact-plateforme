@@ -116,6 +116,23 @@ describe('les lots, à la souris', () => {
     await plusTard(p);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lots-2-article.png') });
 
+    // (1.387.58, issue 13, ENTACHATS-14) Stock › Alertes dit les lots qui périment (l'onglet disait « Rien à signaler »), et
+    // une nouvelle facture qui prend le yaourt au catalogue sort d'office du lot conseillé, celui qui périme le plus tôt.
+    await p.evaluate(() => { location.hash = '#/stock'; });
+    await p.locator('#st-tabs [data-tab=alertes], [data-tab=alertes]').first().click({ timeout: 10_000 });
+    await expect.poll(async () => net(await p.locator('#st-peremption').innerText().catch(() => '')), { timeout: 10_000 }).toContain('L-0901');
+    expect(net(await p.locator('#st-peremption').innerText())).toContain(`${fr(dans5)} · dans 5 jours`);
+    expect(net(await p.locator('#st-body').innerText())).not.toContain('Rien à signaler');
+    await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture/);
+    await plusTard(p);
+    await p.locator('#ed-ajout').fill('Yaourt');
+    await p.locator('[data-aj]').filter({ hasText: 'Yaourt nature 125 g' }).first().click();
+    await expect.poll(() => p.locator('select[data-k=lot]').first().inputValue(), { timeout: 10_000 }).toBe('L-0901');
+    await p.evaluate(() => { location.hash = '#/catalogue'; });
+    const quitter = p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true });
+    if (await quitter.count().catch(() => 0)) await quitter.click();
+
     // 4. Un nouvel article « suivi par lot » : la case coche « suivi en stock », le départ dit son lot.
     await p.evaluate(() => { location.hash = '#/catalogue'; });
     await expect.poll(() => p.locator('#new').count(), { timeout: 10_000 }).toBe(1);
