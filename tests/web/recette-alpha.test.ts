@@ -305,6 +305,57 @@ describe('la recette alpha, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  it('(1.387.63, ENTACHATS-18) le téléphone d\'un fournisseur se refuse s\'il n\'a pas de chiffres ; son nom, sur la pièce, mène à sa page', async () => {
+    const { jeton, ent } = await commerce();
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a1`);
+    // La pièce enregistrée s'ouvre en résumé ; le nom du fournisseur est un lien vers sa page.
+    const lien = p.locator('#sup-page');
+    if (!(await lien.isVisible().catch(() => false))) {
+      const modifier = p.getByRole('button', { name: 'Modifier la pièce' });
+      if (await modifier.isVisible({ timeout: 15_000 }).catch(() => false)) await modifier.click();
+    }
+    await lien.waitFor({ timeout: 20_000 });
+    await p.locator('#sup-fiche').click();
+    const q = p.locator('#modal-root .modal').last();
+    await q.locator('input[name=phone]').fill('xyz');
+    await q.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('body').innerText().then(net), { timeout: 10_000 }).toContain('« xyz » n\'est pas un numéro de téléphone');
+    await q.locator('input[name=phone]').fill('71 234 567');
+    await q.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(0);
+    await p.locator('#sup-page').click();
+    const quitter = p.getByRole('button', { name: 'Quitter sans enregistrer' });
+    if (await quitter.isVisible({ timeout: 2_000 }).catch(() => false)) await quitter.click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toBe('#/fournisseur/s1');
+    await expect.poll(() => p.locator('#view').innerText().then(net), { timeout: 15_000 }).toContain('71 234 567');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+  it('(1.387.62, ENTACHATS-13) une entreprise qui commence par acheter lit ce qu\'elle doit sur l\'accueil, dès son premier achat', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'purchases', cle: 'a2', rang: 1, revision: null, contenu: {
+        id: 'a2', kind: 'facture', supplierId: 's1', number: 'GS-119', date: aujourdhui, currency: 'DT', exchangeRate: 1, fees: 0, withholdingRate: 0, tvaRecuperable: true,
+        lines: [{ label: 'Farine', qty: 2, unitPrice: { '~n': '50' }, vatRate: 19, destination: 'charge', deductible: true }], payments: [] } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/`);
+    // Aucune facture de vente : « Tu dois » se lit quand même, 2 × 50 + 19 % = 119,000 (l'achat réglé ne compte plus).
+    const dois = p.locator('#view [data-stat="dois"]');
+    await expect.poll(() => dois.innerText().then(net), { timeout: 20_000 }).toContain('119,000');
+    expect(net(await dois.innerText())).toContain('1 achat');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
   it('(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement', async () => {
     const { jeton, ent } = await commerce();
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [

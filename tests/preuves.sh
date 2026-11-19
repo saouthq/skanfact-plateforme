@@ -30808,6 +30808,15 @@ prouver $'mouvements-filtre-nature' modules/socle/ecrans/entreprise/app-2.js $'c
 prouver $'compta : le journal centralisateur replié reste bord à bord' web/public/plateforme/liste.css \
   $'.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]), .lf.mg.cpt .cf-onglet .panel > details > .scroll-x { margin-inline: -16px; }' $'.lf.mg.cpt .cf-onglet .panel > :is(table.list, .scroll-x, [id$="-wrap"]) { margin-inline: -16px; }' \
   $'le grossiste lit chaque onglet dans la DA, au bureau et au téléphone, puis saisit l\'achat de septembre oublié'
+prouver $'accueil-dette-des-le-premier-achat' modules/socle/ecrans/entreprise/app-1.js \
+  $'    const duGrain = data.documents.length > 0 || (data.purchases || []).length > 0;' $'    const duGrain = data.documents.length > 0;' \
+  $'(1.387.62, ENTACHATS-13) une entreprise qui commence par acheter lit ce qu\'elle doit sur l\'accueil, dès son premier achat'
+prouver $'fournisseur-telephone-refuse' modules/socle/ecrans/entreprise/app-1.js \
+  $"          if (telephoneRefuse(v.phone)) return refus('#sf input[name=phone]', telephoneRefuse(v.phone));" "" \
+  $'(1.387.63, ENTACHATS-18) le téléphone d\'un fournisseur se refuse s\'il n\'a pas de chiffres ; son nom, sur la pièce, mène à sa page'
+prouver $'piece-nom-fournisseur-mene-a-sa-page' modules/socle/ecrans/entreprise/app-1.js \
+  $'<b><a class="ed-cl-page" id="sup-page" href="#/fournisseur/${h(sup.id)}"' $'<b><a class="ed-cl-page" id="sup-page" href="#/fournisseurs"' \
+  $'(1.387.63, ENTACHATS-18) le téléphone d\'un fournisseur se refuse s\'il n\'a pas de chiffres ; son nom, sur la pièce, mène à sa page'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

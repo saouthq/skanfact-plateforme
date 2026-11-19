@@ -4209,7 +4209,9 @@
     // Y a-t-il quelque chose à montrer ? Tant que non, quatre compteurs à « 0,000 DT », un graphique
     // de douze mois vides et un « Top clients » vide occupent 548 px avant la première phrase utile.
     // La place revient alors aux premiers pas, qui eux disent quoi faire.
-    const duGrain = data.documents.length > 0;
+    // (1.387.62, ENTACHATS-13) Une entreprise qui commence par ACHETER a du grain aussi : sa première dette se lit
+    // dans « Tu dois » dès le premier achat, pas après sa première facture de vente.
+    const duGrain = data.documents.length > 0 || (data.purchases || []).length > 0;
     const duGraphique = series.some(x => x.invoiced || x.collected);
 
     // UN seul vert (U-11) : tant que « Tes premiers pas » porte l'étape suivante en vert (« + Créer un
@@ -8118,7 +8120,7 @@
         s.delay != null ? `<span class="ed-chip">${Math.round(s.delay) < 1 ? 'paie le jour même, en moyenne' : `paie en ${pl(s.delay, 'jour')} en moyenne`}</span>` : '',
         derniere ? `<span class="ed-chip">dernière : <b>${h(derniere.number)}</b> · ${lfJmA(derniere.date)} · ${C.money(C.computeTotals(derniere, company()).netToPay, docCur(derniere))}${figee ? '' : ` · <button type="button" class="lien" id="cl-refaire" data-refaire="${h(derniere.id)}">la refaire</button>`}</span>` : '',
       ].filter(Boolean).join('');
-      return `<div class="ed-cl-tete">${pastilleClient(c.id)}<div class="ed-cl-nom"><b>${h(c.name)}</b><span>${qui}</span></div>
+      return `<div class="ed-cl-tete">${pastilleClient(c.id)}<div class="ed-cl-nom"><b><a class="ed-cl-page" id="cl-page" href="#/client/${h(c.id)}" title="Ouvrir la page de ${h(c.name)} : ses pièces, ses règlements">${h(c.name)}</a></b><span>${qui}</span></div>
         <div class="ed-cl-gestes">${figee ? '' : '<button type="button" class="btn btn-sm" id="cl-changer">Changer</button>'}<button type="button" class="btn btn-sm" id="cl-edit" title="Corriger l'adresse, le matricule, l'email de ce client">Fiche</button></div></div>
         <div class="ed-cl-puces">${puces}</div>`;
     };
@@ -11100,6 +11102,10 @@
     if (!tete) return;
     tete.insertAdjacentHTML('afterend', `<div class="banner info lock-banner" id="bandeau-lecture"><span><b>Lecture seule.</b> Ton rôle te laisse lire ${h(NOMS_EN_LECTURE[p] || 'cette page')}, pas les modifier : un geste qui les changerait sera refusé, en le disant.</span></div>`);
   }
+  // (1.387.63, ENTACHATS-18) Un téléphone se juge sur ses CHIFFRES : « xyz » s'affichait dans la liste et ouvrait un WhatsApp
+  // vers personne. On ne refuse que ce qui n'est pas un numéro (moins de six chiffres, ou des lettres) ; l'indicatif reste libre.
+  const telephoneRefuse = t => { const v = String(t || '').trim(); if (!v) return ''; const n = (v.match(/\d/g) || []).length;
+    return n < 6 || /[A-Za-zÀ-ÿ]/.test(v.replace(/\b(poste|ext)\b\.?/gi, '')) ? `« ${v} » n'est pas un numéro de téléphone : écris ses chiffres (huit pour la Tunisie, ou l'indicatif du pays devant, +33…).` : ''; };
   function clientForm(client, done, preset) {
     const c = client || C.clientVierge(preset);
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
@@ -11158,6 +11164,7 @@
           // `refus()` amène le champ à l'écran, y met le curseur et le marque (7.0.0). Un toast seul
           // oblige à relire tout le formulaire — et la fenêtre peut avoir défilé.
           if (!v.name.trim()) return refus('#cf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque document.');
+          if (telephoneRefuse(v.phone)) return refus('#cf input[name=phone]', telephoneRefuse(v.phone));
           if (v.paymentTermsDays !== '' && !(Number(v.paymentTermsDays) >= 0)) return refus('#cf input[name=paymentTermsDays]', 'Le délai de paiement est un nombre de jours (0 : à réception), ou vide pour celui des réglages.');
           Object.assign(c, v, { withholdingRate: v.withholdingRate === '' ? '' : Number(v.withholdingRate), creditLimit: Number(v.creditLimit) > 0 ? Number(v.creditLimit) : 0,
             paymentTermsDays: v.paymentTermsDays === '' ? '' : Math.round(Number(v.paymentTermsDays)), code: String(v.code || '').trim() });
@@ -15913,6 +15920,7 @@
           const autre = dejaLa(v.matricule);
           if (autre) return refus('#sf input[name=matricule]', `« ${autre.name} » a déjà ce matricule : c'est sans doute le même fournisseur. Ouvre sa fiche plutôt que d'en créer une seconde.`);
           if (!v.name.trim()) return refus('#sf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque achat.');
+          if (telephoneRefuse(v.phone)) return refus('#sf input[name=phone]', telephoneRefuse(v.phone));
           const exos = lireAttestationRS(s, v, root);
           if (!exos) return;
           // La porte va DANS le formulaire, sur la branche création : il s'ouvre depuis trois pages.
@@ -18166,8 +18174,10 @@
         efacture ? '<span class="ed-chip">factures électroniques : oui (El Fatoora)</span>' : '',
         s.count && isNew ? `<span class="ed-chip">${pl(s.count, 'pièce')} de lui · ${C.money(s.ht, base)} HT</span>` : '',
       ].filter(Boolean).join('');
-      return `<div class="ed-cl-tete">${pastilleClient(sup.id, sup.name)}<div class="ed-cl-nom"><b>${h(sup.name)}</b><span>${qui}</span></div>
-        <div class="ed-cl-gestes">${clos || !isNew ? '' : '<button type="button" class="btn btn-sm" id="sup-changer">Changer</button>'}<button type="button" class="btn btn-sm" id="sup-fiche">Fiche</button></div></div>
+      // (1.387.63, ENTACHATS-18) Le nom mène à la PAGE du fournisseur (ses achats, ses règlements) ; « Fiche » corrige sa fiche
+      // sans quitter la pièce, et le dit.
+      return `<div class="ed-cl-tete">${pastilleClient(sup.id, sup.name)}<div class="ed-cl-nom"><b><a class="ed-cl-page" id="sup-page" href="#/fournisseur/${h(sup.id)}" title="Ouvrir la page de ${h(sup.name)} : ses achats, ses règlements">${h(sup.name)}</a></b><span>${qui}</span></div>
+        <div class="ed-cl-gestes">${clos || !isNew ? '' : '<button type="button" class="btn btn-sm" id="sup-changer">Changer</button>'}<button type="button" class="btn btn-sm" id="sup-fiche" title="Corriger le téléphone, le matricule, l'e-mail de ce fournisseur, sans quitter la pièce">Fiche</button></div></div>
         <div class="ed-cl-puces">${puces}</div>`;
     };
     // (1.155.13) La fiche du bien, déjà remplie (maquette « Immobilisation ») : sur un achat NEUF, une ligne en

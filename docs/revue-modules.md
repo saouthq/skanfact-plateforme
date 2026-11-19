@@ -5581,3 +5581,18 @@ Rouge GitHub de la 1.387.52 : depuis que le journal centralisateur (Comptabilit�
 volet repliable (1.387.42), son tableau ne touchait plus les bords de la carte (15 px de marge). La règle « bord à
 bord » des tableaux de la Comptabilité vise aussi un tableau posé dans un volet (`.panel > details > .scroll-x`),
 au bureau comme au téléphone. Preuve : retirer cette extension fait tomber le parcours du grossiste.
+
+## 1.387.62 — l'accueil d'une entreprise qui commence par acheter (ENTACHATS-13)
+
+L'accueil ne montrait ses chiffres (« On te doit », « Tu dois »…) qu'après la première pièce de VENTE : une épicerie qui
+avait saisi trois achats lisait « Bienvenue » et ses premiers pas, sans un mot sur les 1 500 DT qu'elle doit. Un achat
+compte désormais comme du grain : « Tu dois » se lit dès le premier achat. Reste à faire : des premiers pas selon le
+métier (« ton premier achat », « ton premier article » pour un commerce).
+
+## 1.387.63 — la fiche du fournisseur depuis une pièce (ENTACHATS-18)
+
+- Un téléphone sans chiffres (« xyz ») est refusé, chez un fournisseur comme chez un client, en montrant la case ; un
+  numéro national ou international reste libre (seulement ce qui n'est pas un numéro est refusé).
+- Sur une pièce (achat ou vente), le nom du tiers mène à sa PAGE (achats, règlements) ; « Fiche » corrige sa fiche sans
+  quitter la pièce, et le dit au survol.
+- Reste à faire : pays et IBAN/SWIFT pour un fournisseur étranger.
