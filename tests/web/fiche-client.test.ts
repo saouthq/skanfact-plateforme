@@ -144,9 +144,10 @@ describe('la fiche d\'un client, telle que la maquette', () => {
     expect(net(await p.locator('.row-menu').innerText())).toBe('Hôtel du Lac Modifier la fiche Coordonnées, conditions, retenue LUI ÉCRIRE Par e-mail technique@hotel-lac.tn Par WhatsApp 74 225 700 CRÉER POUR LUI Nouveau devis Pour Hôtel du Lac Nouvelle facture Elle reprend sa fiche Nouveau contrat récurrent Un brouillon préparé à chaque période Nouvelle affaire Pour suivre ce qu\'un chantier rapporte SES DOCUMENTS Relevé de compte… 1 249,541 DT encore dû Un paiement pour plusieurs factures… 2 factures à encaisser, 1 249,541 DT Archiver Il sort de la liste et des choix ; ses documents restent Supprimer ce client impossible : 2 documents liés ; archive-le plutôt');
     await p.keyboard.press('Escape');
 
-    // 2. L'école : deux factures en retard, ni matricule ni e-mail.
+    // 2. L'école : deux factures en retard, ni matricule ni e-mail. Sa première facture est datée de J-49, pas J-50 :
+    // le mois se calcule sur ce jour-là (le 19/11, J-50 était en septembre et J-49 en octobre).
     await ouvrir('c-pins');
-    expect(await titre()).toBe(`Accueil Clients École Les Pins ÉP École Les Pins En retard Tunis · ${depuis.replace(jour(-50).slice(5, 7), jour(-49).slice(5, 7))} · te doit 1 012,155 DT dont 1 012,155 DT en retard`);
+    expect(await titre()).toBe(`Accueil Clients École Les Pins ÉP École Les Pins En retard Tunis · client depuis ${MOIS[Number(jour(-49).slice(5, 7)) - 1]} ${jour(-49).slice(0, 4)} · te doit 1 012,155 DT dont 1 012,155 DT en retard`);
     expect(await principal()).toEqual(['Lui envoyer son relevé · 2 en retard']);
     expect(await bandeaux()).toEqual([
       `1 012,155 DT en retard depuis 45 jours — ${numero('f2')} échue le ${jj(jour(-45))} · jamais relancée. La prochaine est au niveau « Relance ». Voir ses relances`,

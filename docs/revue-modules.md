@@ -5523,3 +5523,7 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - L'aperçu d'un bulletin lisait les congés acquis au jour où on le relit : le bulletin d'octobre, ouvert en novembre, comptait déjà novembre. Il les lit maintenant à la fin de son mois.
 - Test : `libelles-gest19-1387`. Une preuve : conges-du-mois-du-bulletin.
+
+## 1.387.52 — Un test qui dépendait du jour (rouge GitHub de 43704f50)
+
+- `fiche-client` calculait le mois « client depuis » de l'école sur J-50, alors que sa première facture est datée de J-49. Le 19/11, ces deux jours tombent dans deux mois différents. Le test calcule maintenant sur le jour de la pièce. Aucun changement dans l'application.
