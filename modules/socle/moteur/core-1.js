@@ -4025,7 +4025,9 @@
   // Les seuls mouvements qui ne sont PAS une charge de la période : l'achat (c'est de l'argent devenu
   // stock) et le stock de départ (ce qu'on avait avant de commencer à compter).
   const SOURCES_HORS_CHARGE = ['achat', 'reception', 'depart'];
-  const moveSourceLabel = k => (MOVE_SOURCES.find(m => m[0] === k) || [, k])[1];
+  // (1.387.53, ENTACHATS-7) Un avoir fournisseur garde la source « achat » (le coût des ventes l'exclut par elle), mais se
+  // nomme « Avoir fournisseur » : le mouvement passé en second argument le dit.
+  const moveSourceLabel = (k, mv) => (mv && mv.avoirFournisseur ? 'Avoir fournisseur' : (MOVE_SOURCES.find(m => m[0] === k) || [, k])[1]);
 
   // Les articles du catalogue suivis en stock.
   function trackedItems(data) {
@@ -4110,7 +4112,7 @@
           // TVA non déductible comprise : c'est ce que la marchandise a coûté, et ce que l'écriture
           // porte au 607 (10.14.0).
           unitCost: toBase(p, (Number(l.unitPrice) || 0) * (tvaNonDeductible(l, p, data.company) ? 1 + (Number(l.vatRate) || 0) / 100 : 1), data.company || {}),
-          source: 'achat', ref: p.number || '', docId: p.id, note: '', rang: 1, ts: Number(p.createdAt) || 0 });
+          source: 'achat', ...(sens < 0 ? { avoirFournisseur: true } : {}), ref: p.number || '', docId: p.id, note: '', rang: 1, ts: Number(p.createdAt) || 0 });
       });
     });
 
@@ -4278,6 +4280,10 @@
         value = round3(value + q * unit);
         // Un stock retombé à zéro (ou négatif) ne garde aucune valeur : sinon le CMP dérive.
         if (qty <= 0) { value = qty < 0 ? round3(qty * cmp) : 0; }
+        // (1.387.53, issue 13, ENTACHATS-7) Une sortie à un AUTRE coût que le coût moyen (un avoir fournisseur rend la
+        // marchandise au prix de sa facture) change la valeur unitaire de ce qui reste : le coût moyen se recalcule, sinon
+        // la ligne affiche 64,333 pendant que le stock vaut 64,683 l'unité, et l'entrée suivante ne tombe pas juste.
+        else if (round3(unit) !== round3(cmp)) cmp = round3(value / qty);
       }
       return { ...m, unitApplied: unit, qtyAfter: qty, valueAfter: value, cmpAfter: cmp };
     });

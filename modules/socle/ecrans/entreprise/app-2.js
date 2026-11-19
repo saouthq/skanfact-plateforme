@@ -1484,7 +1484,7 @@
             <th>Date</th><th>Article</th><th>Origine</th><th>Référence</th><th class="r">Quantité</th><th class="r">Coût unitaire</th><th class="r">Stock après</th></tr></thead><tbody>
             ${paged.rows.map(m => `<tr class="${m.docId ? 'clickable' : ''}" ${m.docId ? `data-go="${h(m.source === 'achat' ? '#/achat/' : '#/doc/')}${h(m.docId)}"` : ''}>
               <td class="nw">${C.fmtDate(m.date)}</td><td>${h(m.label)}</td>
-              <td>${h(C.moveSourceLabel(m.source))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
+              <td>${h(C.moveSourceLabel(m.source, m))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
               <td class="nw">${h(m.ref) || '<span class="muted">—</span>'}</td>
               <td class="r nw ${m.qty < 0 ? 'warn-text' : 'ok-text'}"><strong>${qteSignee(m.qty)}</strong></td>
               <td class="r nw">${C.money(m.unitApplied, cur)}</td>
@@ -1886,7 +1886,7 @@
         nom: `mouvements-stock-${s.year}.csv`,
         rows: C.stockJournal(data, { from: `${s.year}-01-01`, to: `${s.year}-12-31` }), cols: [
           { key: 'date', label: 'Date', type: 'date' }, { key: 'label', label: 'Article' },
-          { label: 'Origine', get: m => C.moveSourceLabel(m.source) }, { key: 'ref', label: 'Référence' },
+          { label: 'Origine', get: m => C.moveSourceLabel(m.source, m) }, { key: 'ref', label: 'Référence' },
           { key: 'note', label: 'Note' }, { key: 'qty', label: 'Quantité' },
           { key: 'unitApplied', label: 'Coût unitaire', type: 'money' }, { key: 'qtyAfter', label: 'Stock après' }]
       }),
@@ -1978,7 +1978,7 @@
           <th>Date</th><th>Origine</th><th>Référence</th><th class="r">Quantité</th><th class="r">Coût unitaire</th><th class="r">Stock après</th><th class="r">Coût moyen après</th><th></th></tr></thead><tbody>
           ${pg.rows.map(m => `<tr>
             <td class="nw">${C.fmtDate(m.date)}</td>
-            <td>${h(C.moveSourceLabel(m.source))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
+            <td>${h(C.moveSourceLabel(m.source, m))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
             <td class="nw">${m.docId ? `<a href="${m.source === 'achat' ? '#/achat/' : m.source === 'reception' ? '#/reception/' : '#/doc/'}${h(m.docId)}">${h(m.ref) || 'voir'}</a>` : (h(m.ref) || '<span class="muted">—</span>')}${C.depotsDe(data).length > 1 ? `<div class="small muted" data-depot>${h(C.nomDepot(data, m.depotId))}</div>` : ''}</td>
             <td class="r nw ${m.qty < 0 ? 'warn-text' : 'ok-text'}"><strong>${qteSignee(m.qty)}</strong></td>
             <td class="r nw">${C.money(m.unitApplied, cur)}</td>

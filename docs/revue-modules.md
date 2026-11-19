@@ -5527,3 +5527,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 ## 1.387.52 — Un test qui dépendait du jour (rouge GitHub de 43704f50)
 
 - `fiche-client` calculait le mois « client depuis » de l'école sur J-50, alors que sa première facture est datée de J-49. Le 19/11, ces deux jours tombent dans deux mois différents. Le test calcule maintenant sur le jour de la pièce. Aucun changement dans l'application.
+
+## 1.387.53 — Le coût moyen après un avoir fournisseur (issue 13, ENTACHATS-7)
+
+- Un avoir fournisseur rend la marchandise au prix de sa facture, pas au coût moyen : la valeur du stock baissait de ce prix, mais le coût moyen n'était pas recalculé. La fiche stock affichait « coût moyen après 64,333 » pendant que le stock valait 64,615 l'unité, et l'entrée suivante ne tombait juste qu'avec ce dernier. Une sortie à un autre coût que le coût moyen recalcule maintenant le coût moyen ; une vente (sortie au coût moyen) n'y change rien.
+- La ligne de l'avoir se nomme « Avoir fournisseur » (elle disait « Achat »), dans l'historique de l'article, dans Stock › Mouvements et dans leur export. Elle garde sa source « achat » pour le moteur : le coût des ventes l'exclut toujours.
+- Test : `cout-moyen-avoir-1387` (calcul à la main). Deux preuves : cmp-apres-avoir, origine-avoir-fournisseur.
