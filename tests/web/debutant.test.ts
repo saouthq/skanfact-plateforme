@@ -148,7 +148,8 @@ describe('le lot débutant (1), à la souris', () => {
     await p.locator('#st-tabs button[data-tab=mouvements]').click();
     const lignes = p.locator('#st-body table.list tbody tr');
     await expect.poll(() => lignes.count()).toBe(2);
-    const apres = await lignes.evaluateAll((trs) => trs.map((tr) => (tr.lastElementChild?.textContent ?? '').trim()));
+    // (1.387.60) « Stock après » n'est plus la dernière colonne : un mouvement saisi à la main porte « Retirer… » après elle.
+    const apres = await lignes.evaluateAll((trs) => trs.map((tr) => (tr.children[tr.children.length - 2]?.textContent ?? '').trim()));
     expect(apres).toEqual(['9', '10']);
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-2-mouvements.png') });
 

@@ -5567,3 +5567,10 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - « Envoyer au fournisseur… » ouvrait un message vers personne pour un fournisseur sans adresse e-mail, et la commande passait « envoyée » d'un clic. La page le dit maintenant d'abord, et propose ce qui se fait vraiment : « Ajouter son e-mail… » (sa fiche s'ouvre), ou « Partie autrement » (téléphone, WhatsApp, papier) — le bon de commande se télécharge, et la commande passe « envoyée ». « Annuler » ne change rien. « Marquer envoyée » du bandeau d'accord reste un simple geste, sans question.
 - Test : `recette-alpha` (ENTACHATS-10), `stock-revue` répond à la question. Une preuve : commande-sans-email-dite.
+
+## 1.387.60 — Agir depuis Stock › Mouvements (issue 13, ENTACHATS-9)
+
+- Un mouvement saisi à la main (casse, ajustement, inventaire, transfert) ne se retirait que depuis la fiche de l'article, par une croix ; la page Stock › Mouvements le montrait sans rien permettre. Il porte maintenant « Retirer… » sur sa ligne (la même question et la même règle qu'avant : un transfert part avec ses deux mouvements, un mois clôturé refuse) — une seule fonction pour les deux écrans.
+- La liste se cherche (article, référence, note, nature) et se filtre par nature, comme la liste des achats ; le compte dit « n sur N ». Chaque ligne s'ouvre : la pièce qui a fait le mouvement, sinon la fiche de l'article.
+- Reste à faire (noté) : « Transférer… » et un choix de dépôt en tête de la page Stock.
+- Test : `recette-alpha` (ENTACHATS-9). Deux preuves : mouvements-retirer-depuis-stock, mouvements-filtre-nature.

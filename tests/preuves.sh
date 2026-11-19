@@ -4966,7 +4966,7 @@ prouver "un transfert qui ne s'enregistre pas" modules/socle/ecrans/entreprise/a
   "          r.ajustements.forEach(a => data.stockAdjustments.push(a));" "" \
   "$DPW"
 prouver "la moitié d'un transfert supprimée seule" modules/socle/ecrans/entreprise/app-2.js \
-  "      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];" "      const ids = [b.dataset.rm];" \
+  "    const ids = paire.length > 1 ? paire.map(x => x.id) : [id];" "    const ids = [id];" \
   "$DPW"
 prouver "la ligne d'une réception qui mène à une page de vente" modules/socle/ecrans/entreprise/app-2.js \
   " : m.source === 'reception' ? '#/reception/' : '#/doc/'}" " : '#/doc/'}" \
@@ -30803,6 +30803,8 @@ prouver $'achat-date-lointaine-dite' modules/socle/ecrans/entreprise/app-1.js $'
 prouver $'facture-lot-conseille' modules/socle/ecrans/entreprise/app-1.js $'...((isInv || isDelivery) && it.tracked && it.parLot ?' $'...(false ?' $'Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien'
 prouver $'alertes-lots-perimes' modules/socle/ecrans/entreprise/app-2.js $'const perimes = C.lotsAPerimer(data, C.today(), 30);' $'const perimes = [];' $'Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien'
 prouver $'commande-sans-email-dite' modules/socle/ecrans/entreprise/app-1.js $'if (!String(supE.email || \'\').trim()) {' $'if (false) {' $'(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement'
+prouver $'mouvements-retirer-depuis-stock' modules/socle/ecrans/entreprise/app-2.js $'${m.manual ? `<button class="btn btn-sm" data-mv-rm=' $'${false ? `<button class="btn btn-sm" data-mv-rm=' $'(1.387.60, ENTACHATS-9) Stock › Mouvements cherche, filtre par nature, ouvre l\'article, et retire un mouvement saisi à la main'
+prouver $'mouvements-filtre-nature' modules/socle/ecrans/entreprise/app-2.js $'const all = dansLAnnee.filter(m => (!s.mvNature || m.source === s.mvNature)' $'const all = dansLAnnee.filter(m => (true)' $'(1.387.60, ENTACHATS-9) Stock › Mouvements cherche, filtre par nature, ouvre l\'article, et retire un mouvement saisi à la main'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

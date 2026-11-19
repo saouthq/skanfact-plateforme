@@ -16,6 +16,20 @@
   };
 
   // ---------- Stock (4.0.0) ----------
+  // Retirer un mouvement saisi à la main (casse, ajustement, inventaire, transfert), depuis la fiche de l'article ou la page
+  // Stock (1.387.60, issue 13, ENTACHATS-9 : il ne se retirait que depuis la fiche). Un transfert (brique 94) : ses deux
+  // mouvements partent ensemble, sinon un dépôt garderait ce que l'autre a rendu.
+  async function retirerMouvementManuel(id, libelle) {
+    const cible = (data.stockAdjustments || []).find(x => x.id === id);
+    if (!cible) return;
+    const paire = cible.transfertId ? (data.stockAdjustments || []).filter(x => x.transfertId === cible.transfertId) : [];
+    if (!await confirmDialog(paire.length > 1 ? 'Supprimer ce transfert ? Ses deux mouvements (la sortie et l\'entrée) partent ensemble.' : 'Supprimer ce mouvement saisi à la main ?')) return;
+    if (closedBlock(cible.date, 'Ce mouvement de stock')) return;
+    const ids = paire.length > 1 ? paire.map(x => x.id) : [id];
+    ids.forEach(x => forget('stockAdjustments', x, libelle));
+    data.stockAdjustments = data.stockAdjustments.filter(x => !ids.includes(x.id));
+    save(true); render();
+  }
   const stockState = { tab: 'etat', q: '', only: '', counts: {}, countDate: C.today(), year: C.today().slice(0, 4), moves: { page: 1 }, etat: { page: 1 }, inv: { page: 1 }, alertes: { page: 1 },
     ser: { q: '', status: '', page: 1 } };
   let demandeEtatStock = null;
@@ -1474,28 +1488,40 @@
         .concat([C.today().slice(0, 4)]))).sort().reverse();
       if (!annees.includes(s.year)) s.year = annees[0];
       const year = s.year;
-      const all = C.stockJournal(data, { from: `${year}-01-01`, to: `${year}-12-31` });
+      const dansLAnnee = C.stockJournal(data, { from: `${year}-01-01`, to: `${year}-12-31` });
+      // (1.387.60, issue 13, ENTACHATS-9) Chercher un mouvement (article, référence, note) et filtrer par nature, comme dans la
+      // liste des achats ; un mouvement saisi à la main se retire d'ici, et sa ligne ouvre la fiche de l'article.
+      const natures = [...new Set(dansLAnnee.map(m => m.source))];
+      if (s.mvNature && !natures.includes(s.mvNature)) s.mvNature = '';
+      const all = dansLAnnee.filter(m => (!s.mvNature || m.source === s.mvNature)
+        && C.correspondRecherche(`${m.label} ${m.ref || ''} ${m.note || ''} ${C.moveSourceLabel(m.source, m)}`, s.mvq || ''));
       const paged = paginate(all, s.moves);
       $('#st-body').innerHTML = `
         <div class="panel"><h2>Mouvements de ${h(year)} ${info('stk.moves')}</h2>
-          <div class="filters"><select id="st-year">${annees.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
-            <span class="small muted">${pl(all.length, 'mouvement')}</span></div>
+          <div class="filters"><select id="st-year" aria-label="Année">${annees.map(y => `<option ${y === s.year ? 'selected' : ''}>${y}</option>`).join('')}</select>
+            <input type="search" id="st-mvq" placeholder="Article, référence, note…" value="${h(s.mvq || '')}" aria-label="Chercher un mouvement">
+            <select id="st-mvnat" aria-label="Nature du mouvement"><option value="">Toutes les natures</option>${natures.map(n => `<option value="${h(n)}" ${n === s.mvNature ? 'selected' : ''}>${h(C.moveSourceLabel(n))}</option>`).join('')}</select>
+            <span class="small muted">${all.length === dansLAnnee.length ? pl(all.length, 'mouvement') : `${all.length} sur ${pl(dansLAnnee.length, 'mouvement')}`}</span></div>
           ${all.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-            <th>Date</th><th>Article</th><th>Origine</th><th>Référence</th><th class="r">Quantité</th><th class="r">Coût unitaire</th><th class="r">Stock après</th></tr></thead><tbody>
-            ${paged.rows.map(m => `<tr class="${m.docId ? 'clickable' : ''}" ${m.docId ? `data-go="${h(m.source === 'achat' ? '#/achat/' : '#/doc/')}${h(m.docId)}"` : ''}>
+            <th>Date</th><th>Article</th><th>Origine</th><th>Référence</th><th class="r">Quantité</th><th class="r">Coût unitaire</th><th class="r">Stock après</th><th></th></tr></thead><tbody>
+            ${paged.rows.map(m => `<tr class="clickable" data-go="${m.docId ? `${h(m.source === 'achat' ? '#/achat/' : '#/doc/')}${h(m.docId)}` : `#/article/${h(m.itemId)}`}">
               <td class="nw">${C.fmtDate(m.date)}</td><td>${h(m.label)}</td>
               <td>${h(C.moveSourceLabel(m.source, m))}${m.note ? `<div class="small muted">${h(m.note)}</div>` : ''}</td>
               <td class="nw">${h(m.ref) || '<span class="muted">—</span>'}</td>
               <td class="r nw ${m.qty < 0 ? 'warn-text' : 'ok-text'}"><strong>${qteSignee(m.qty)}</strong></td>
               <td class="r nw">${C.money(m.unitApplied, cur)}</td>
-              <td class="r nw ${m.qtyAfter < 0 ? 'warn-text' : ''}">${pct(m.qtyAfter)}</td></tr>`).join('')}
+              <td class="r nw ${m.qtyAfter < 0 ? 'warn-text' : ''}">${pct(m.qtyAfter)}</td>
+              <td class="r nw">${m.manual ? `<button class="btn btn-sm" data-mv-rm="${h(m.id)}" data-mv-label="${h(m.label)}">Retirer…</button>` : ''}</td></tr>`).join('')}
           </tbody></table></div>
           ${paged.pg ? pagerBar(paged.pg, { noun: 'mouvement' }) : ''}
           <p class="small muted mt">Tout vient des pièces déjà saisies : une ligne d'achat en destination « stock » fait une entrée, une facture ou un bon de livraison fait une sortie. Seuls la matière utilisée, la casse, l'inventaire et l'ajustement se saisissent à la main.</p>`
-            : `<div class="empty">Aucun mouvement en ${h(year)}.</div>`}
+            : `<div class="empty">${dansLAnnee.length ? 'Aucun mouvement ne correspond à cette recherche.' : `Aucun mouvement en ${h(year)}.`}</div>`}
         </div>`;
       $('#st-year').onchange = e => { s.year = e.target.value; s.moves.page = 1; drawMoves(); };
-      $$('#st-body tr[data-go]').forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
+      $('#st-mvnat').onchange = e => { s.mvNature = e.target.value; s.moves.page = 1; drawMoves(); };
+      $('#st-mvq').oninput = e => { s.mvq = e.target.value; s.moves.page = 1; sansPerdreLaFrappe(e.target, () => drawMoves()); };
+      $$('#st-body tr[data-go]').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; navigate(tr.dataset.go); });
+      $$('#st-body [data-mv-rm]').forEach(b => b.onclick = () => retirerMouvementManuel(b.dataset.mvRm, b.dataset.mvLabel));
       bindPager($('#st-body'), s.moves, () => drawMoves(), '#st-body');
     }
 
@@ -2030,18 +2056,7 @@
         };
       });
     };
-    function bindRm() { $$('#art-hist [data-rm]').forEach(b => b.onclick = async () => {
-      // Un transfert (brique 94) : ses deux mouvements partent ensemble, sinon un dépôt garderait ce que l'autre a rendu.
-      const cible = (data.stockAdjustments || []).find(x => x.id === b.dataset.rm);
-      const paire = cible && cible.transfertId ? (data.stockAdjustments || []).filter(x => x.transfertId === cible.transfertId) : [];
-      if (!await confirmDialog(paire.length > 1 ? 'Supprimer ce transfert ? Ses deux mouvements (la sortie et l\'entrée) partent ensemble.' : 'Supprimer ce mouvement saisi à la main ?')) return;
-      const gone3 = cible;
-      if (gone3 && closedBlock(gone3.date, 'Ce mouvement de stock')) return;
-      const ids = paire.length > 1 ? paire.map(x => x.id) : [b.dataset.rm];
-      ids.forEach(id => forget('stockAdjustments', id, item.label));
-      data.stockAdjustments = data.stockAdjustments.filter(x => !ids.includes(x.id));
-      save(true); render();
-    }); }
+    function bindRm() { $$('#art-hist [data-rm]').forEach(b => b.onclick = () => retirerMouvementManuel(b.dataset.rm, item.label)); }
     drawHist();
     if ($('#art-commander')) $('#art-commander').onclick = () => ouvrirBonArticle(item.id);
     if ($('#art-achat')) $('#art-achat').onclick = () => navigate(`#/achat/new/-/facture/-/article/${item.id}/${C.round3(Math.abs(st.qty))}`);

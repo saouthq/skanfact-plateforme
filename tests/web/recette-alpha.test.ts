@@ -330,6 +330,42 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
+  it('(1.387.60, ENTACHATS-9) Stock › Mouvements cherche, filtre par nature, ouvre l\'article, et retire un mouvement saisi à la main', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'catalog', cle: 'farine', rang: 2, revision: null, contenu: { id: 'farine', label: 'Farine T55', unit: 'sac', unitPrice: { '~n': '80' }, vatRate: 19, tracked: true, initialQty: 30, initialCost: { '~n': '60' }, initialDate: aujourdhui } },
+      { collection: 'catalog', cle: 'sucre', rang: 3, revision: null, contenu: { id: 'sucre', label: 'Sucre blanc', unit: 'sac', unitPrice: { '~n': '40' }, vatRate: 19, tracked: true, initialQty: 10, initialCost: { '~n': '30' }, initialDate: aujourdhui } },
+      { collection: 'stockAdjustments', cle: 'm1', rang: 0, revision: null, contenu: { id: 'm1', itemId: 'farine', date: aujourdhui, qty: -2, source: 'casse', note: 'Sacs percés', createdAt: Date.now() } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/stock`);
+    await p.locator('#st-tabs button[data-tab="mouvements"]').click({ timeout: 20_000 });
+    const lignes = () => p.locator('#st-body tbody tr').allInnerTexts().then((l) => l.map(net));
+    await expect.poll(async () => (await lignes()).length, { timeout: 10_000 }).toBe(3);
+    // La recherche tape dans le champ sans perdre la frappe ; la nature filtre.
+    await p.locator('#st-mvq').pressSequentially('percés');
+    await expect.poll(lignes).toHaveLength(1);
+    expect(await p.locator('#st-mvq').inputValue()).toBe('percés');
+    await p.locator('#st-mvq').fill('');
+    await p.locator('#st-mvq').dispatchEvent('input');
+    await p.locator('#st-mvnat').selectOption('casse');
+    await expect.poll(lignes).toHaveLength(1);
+    // Retirer… demande, puis le mouvement disparaît.
+    await p.locator('#st-body [data-mv-rm="m1"]').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Supprimer', exact: true }).click();
+    await expect.poll(async () => net(await p.locator('#st-body').innerText()), { timeout: 10_000 }).not.toContain('Sacs percés');
+    // La ligne d'un stock de départ ouvre la fiche de son article.
+    await p.locator('#st-mvnat').selectOption('');
+    await p.locator('#st-body tbody tr').filter({ hasText: 'Sucre blanc' }).first().click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/article/sucre');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
   it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
