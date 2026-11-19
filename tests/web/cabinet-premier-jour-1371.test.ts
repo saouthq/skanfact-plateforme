@@ -150,9 +150,13 @@ describe('le premier jour d\'un client tenu au cabinet (1.371.0)', () => {
     // Ses soldes, repris APRÈS coup sur le livre déjà commencé : l'écran Exercice l'offre en tête, la fenêtre dit « Reprendre
     // ces soldes », et le serveur l'accepte tant que l'exercice n'a aucune ouverture (0215).
     await p.evaluate((h) => { location.hash = h; }, `${base}/exercice`);
-    await p.locator('#cl-reprise-haut').click({ timeout: 30_000 });
     const reprise = p.locator('.modal').filter({ hasText: 'Reprendre les soldes d\'ouverture d\'Atelier Zitouna' });
-    await reprise.waitFor({ timeout: 20_000 });
+    // L'écran Exercice se redessine quand le livre arrive : un clic tombé sur le bouton d'avant (sans son geste) ne fait rien.
+    // Sur une machine chargée, on reclique tant que la fenêtre ne s'ouvre pas (rouge GitHub de 43704f50).
+    await expect.poll(async () => {
+      if (!await reprise.count()) await p.locator('#cl-reprise-haut').click({ timeout: 5_000 }).catch(() => {});
+      return reprise.count();
+    }, { timeout: 60_000, interval: 1_000 }).toBe(1);
     const cellule = (l: number, c: number) => reprise.locator(`tbody tr:nth-child(${l}) td:nth-child(${c}) input`).first();
     await cellule(1, 1).fill('411'); await cellule(1, 2).fill('Client Alpha'); await cellule(1, 3).fill('1 000,000');
     await reprise.getByRole('button', { name: 'Ajouter une ligne', exact: true }).click();

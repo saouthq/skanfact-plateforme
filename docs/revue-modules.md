@@ -5494,3 +5494,7 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - La fiche d'un salarié, le paiement d'un bulletin et une avance proposaient « Traite », « Carte », « Paiement en ligne » : un salaire se paie par virement, chèque ou espèces. Un mode déjà enregistré reste proposé, pour ne rien effacer en silence.
 - Le CDD a sa date de fin demandée depuis la 1.387.28.
 - Une preuve : modes-de-salaire.
+
+## 1.387.46 — Un test patient (rouge GitHub de 43704f50)
+
+- `cabinet-premier-jour-1371` attendait la fenêtre « Reprendre les soldes d'ouverture » après UN clic : sur une machine chargée, l'écran Exercice se redessinait à l'arrivée du livre et le clic tombait sur le bouton d'avant, sans son geste. Le test reclique tant que la fenêtre ne s'ouvre pas (deux passages verts en local avant comme après). Aucun changement de l'application.
