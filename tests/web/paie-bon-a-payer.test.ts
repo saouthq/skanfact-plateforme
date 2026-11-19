@@ -259,6 +259,9 @@ describe('la paie : le bon à payer et la correction proposée', () => {
     // 1.234.0 (la maquette) : plus de panneau « À déposer » ; le geste vit sur la ligne de ce qu'on verse.
     expect(await p.locator('#p-body h2', { hasText: 'À déposer' }).count()).toBe(0);
     expect(await p.locator('#dc-verses li').first().locator('[data-file]').count()).toBe(1);
+    // (1.387.50, issue 16 constat 24) Les montants tombent en colonne, que la ligne porte un bouton ou non.
+    const bords = await p.locator('#dc-verses li .pa-mt').evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().right)));
+    expect(new Set(bords).size, `bords droits des montants : ${bords.join(', ')}`).toBe(1);
     expect(await p.locator('#dm-panneau .pa-carte-t b').first().innerText()).toMatch(/^La déclaration d.\S+, sa part paie/);
     // (1.256.0) « L'année » était une sous-vue de « Déclarations » ; (1.267.0) elle est « Toute l'année », dans la bande du mois.
     await p.locator('#p-mois [data-p-mois=""]').click();

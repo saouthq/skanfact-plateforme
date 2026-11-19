@@ -279,7 +279,9 @@
 #p-compteurs + #cg-avances, #cg-cal + #p-compteurs { margin-top: 14px; }
 
 /* 1.234.0 — Déclarations : le geste sur la ligne de ce qu'on verse ; la déclaration du mois en carte. */
-#dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr) minmax(110px, auto) minmax(120px, auto) minmax(190px, auto); }
+/* (1.387.50, issue 16 constat 24) Chaque ligne est sa propre grille : des colonnes « auto » suivaient le contenu de la
+   ligne, et les montants d'une ligne sans bouton ne tombaient pas sous ceux d'une ligne qui en porte un. Largeurs fixes. */
+#dc-verses .pa-ctl li { grid-template-columns: 22px minmax(0, 1fr) 130px 120px 210px; }
 #dc-verses .pa-ctl li > .btn { justify-self: end; }
 #dc-verses .pa-mt { text-align: right; }
 .pa-dm-f { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0; }

@@ -5513,3 +5513,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Les graphiques de l'application entreprise (accueil, statistiques) s'étirent à la largeur de leur carte : les barres s'étiraient, et les lettres de l'axe aussi (« janv. », « 23 k » élargis). Chaque texte est maintenant resserré autour de son point d'ancrage, au dessin et à chaque changement de taille de la carte.
 - Test : `statistiques-1323`. Une preuve : graphique-lettres-droites.
+
+## 1.387.50 — Les montants de « Ce que tu verses, et quand » en colonne (issue 16, constat 24)
+
+- Chaque ligne de la carte était sa propre grille, avec des colonnes qui suivaient leur contenu : les montants d'une ligne sans bouton tombaient 7 px à côté de ceux d'une ligne qui en porte un. Les colonnes ont maintenant des largeurs fixes, la place du bouton réservée sur toutes les lignes (le téléphone garde sa disposition en une colonne).
+- Test : `paie-bon-a-payer` (mesure les bords droits des montants). Une preuve : montants-verses-en-colonne.
