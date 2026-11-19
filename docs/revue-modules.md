@@ -5544,3 +5544,10 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 - Un article suivi en stock, ajouté à une facture d'achat depuis le catalogue, arrivait au coût écrit sur sa fiche, même quand le dernier achat s'était fait à un autre prix. Il arrive maintenant au prix HT de son dernier achat (`fournisseurDeLArticle`), sur la facture d'achat comme sur la commande fournisseur, et la liste de la facture le dit : « suivi en stock · prix du dernier achat ». Sans achat connu, rien ne change : le coût de la fiche, sinon son prix.
 - La liste du catalogue lit les mouvements de stock une seule fois pour tous les articles (dans un lot), pour rester rapide sur un gros catalogue.
 - Test : `recette-alpha` (ENTACHATS-19). Deux preuves : achat-dernier-prix, commande-dernier-prix.
+
+## 1.387.56 — La commande reçue en partie se solde, elle ne s'annule plus (issue 13, ENTACHATS-11)
+
+- Une commande fournisseur dont une partie était reçue (et même facturée) pouvait passer « Annulée » sans une question : la frise devenait incohérente (« Annulée, plus rien n'est attendu » puis « Reçue en partie », « Facturée »). Dès qu'une réception est validée, « Annulée » n'est plus proposé : on solde, et l'option dit ce que ça fait (« Soldée — ne plus attendre le reste »).
+- Solder une commande qui attend encore quelque chose pose la question en nommant le reste (« 25 sac Farine T55 ») ; « Annuler » laisse la commande ouverte.
+- La liste des commandes n'engage plus que ce qui reste à recevoir (`montantResteCommandeFournisseur`, en dinars) : 15 sacs reçus sur 40 à 62,500, ce sont 1 562,500 DT HT engagés, pas 2 500,000. Le seuil d'accord des commandes (serveur) garde le montant entier : c'est la commande qu'on autorise.
+- Tests : `commande-reste-engage-1387` (calcul à la main), `recette-alpha` (ENTACHATS-11). Trois preuves : commande-recue-sans-annuler, commande-solder-demande, commande-engage-le-reste.

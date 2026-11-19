@@ -16489,7 +16489,7 @@
     // Catalogue : ce qui est en cours (et ce qu'il engage, en dinars), ce qui est en retard, ce qui est reçu sans être
     // facturé, les brouillons. Les deux chiffres qui demandent un geste ouvrent l'onglet où il se fait.
     const enCours = cmds.filter(x => ['envoyée', 'partielle'].includes(C.statutCommandeFournisseur(data, x)));
-    const engage = C.round3(enCours.reduce((a, x) => a + (Number(C.montantCommandeFournisseur(x, company())) || 0), 0));
+    const engage = C.round3(enCours.reduce((a, x) => a + (Number(C.montantResteCommandeFournisseur(data, x, company())) || 0), 0));
     const brouillons = cmds.filter(x => C.statutCommandeFournisseur(data, x) === 'brouillon').length;
     const chiffreCF = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
     $('#view').innerHTML = `
@@ -16727,7 +16727,7 @@
           ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
           ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
-          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s)).map(s => { const mot = MOTS_CF[motStatutCF(s)]; return `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(mot.charAt(0).toUpperCase() + mot.slice(1))}</option>`; }).join('')}</select></label>
+          <label class="field">${lbl('Statut', 'cf.statut')}<select name="status">${C.STATUTS_COMMANDE_FOURNISSEUR.filter(s => !recue || s === o.status || !['demande', 'brouillon', 'annulée'].includes(s)).map(s => { const mot = recue && s === 'soldée' && o.status !== 'soldée' && suivi.lignes.some(x => x.reste > 0) ? 'soldée — ne plus attendre le reste' : MOTS_CF[motStatutCF(s)]; return `<option value="${h(s)}" ${s === o.status ? 'selected' : ''}>${h(mot.charAt(0).toUpperCase() + mot.slice(1))}</option>`; }).join('')}</select></label>
           <label class="field">${lbl('Devise', '')}<select name="currency" ${ro}>${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
           <label class="field obligatoire" id="cf-rate" ${cur === company().currency ? 'hidden' : ''}>${lbl(`1 <span id="cf-rate-dev">${h(cur)}</span> = ? ${h(company().currency)}`, '')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="exchangeRate" value="${h(frChiffre(o.exchangeRate || ''))}" class="num" ${ro}></label>
         </form>
@@ -16885,6 +16885,15 @@
     tete.addEventListener('change', e => {
       touch();
       if (e.target.name === 'currency') { cur = e.target.value; $('#cf-rate').hidden = cur === company().currency; $('#cf-rate-dev').textContent = cur; o.currency = cur; totaux(); }
+      // (1.387.56, issue 13, ENTACHATS-11) Une commande reçue en partie ne s'« annule » plus (l'option disparaît : ce qui est
+      // reçu et facturé reste) ; la solder abandonne le reste, et la page le demande en le nommant.
+      if (e.target.name === 'status' && e.target.value === 'soldée' && o.status !== 'soldée' && suivi && suivi.lignes.some(x => x.reste > 0)) {
+        const avant = o.status, sel = e.target;
+        const restes = suivi.lignes.filter(x => x.reste > 0).map(x => `${frChiffre(x.reste)} ${x.unit || ''} ${x.label || ''}`.replace(/\s+/g, ' ').trim());
+        confirmDialog(`Ne plus attendre le reste de cette commande : ${restes.join(', ')} ? Ce qui est déjà reçu et facturé ne change pas.`, 'Ne plus attendre le reste', false, { titre: 'Solder la commande ?' })
+          .then(ok => { if (ok) { o.status = 'soldée'; totaux(); } else { sel.value = avant; o.status = avant; } });
+        return;
+      }
       if (e.target.name === 'status') { o.status = e.target.value; totaux(); }
       if (e.target.name === 'exchangeRate') { o.exchangeRate = lireChiffre(e.target) || ''; totaux(); }
     });

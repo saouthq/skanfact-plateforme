@@ -275,9 +275,9 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await plusTard(t);
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     // (1.357.2) Le titre, la case Statut et la frise disent la même chose : reçue et facturée (le titre disait « reçue »,
-    // la case « Envoyée », sous une frise cochée jusqu'à « Facturée »). Seuls « Soldée » et « Annulée » restent à choisir.
+    // la case « Envoyée », sous une frise cochée jusqu'à « Facturée »). Seule « Soldée » reste à choisir (1.387.56 : une commande reçue ne s'annule plus).
     expect(net(await t.locator('#view .ed-h1').innerText())).toContain('reçue et facturée');
-    expect(await t.locator('select[name=status] option').allInnerTexts()).toEqual(['Reçue et facturée', 'Soldée', 'Annulée']);
+    expect(await t.locator('select[name=status] option').allInnerTexts()).toEqual(['Reçue et facturée', 'Soldée']);
     expect(await t.locator('select[name=status]').inputValue()).toBe('envoyée');
     // La commande nomme la facture de ses réceptions, et son écart.
     expect(net(await t.locator('#cf-factures').innerText())).toBe('Facture : F-8841 (un écart avec les réceptions)');

@@ -7606,7 +7606,7 @@ prouver "« Recevoir » qui laisse la commande en brouillon" modules/socle/ecran
 " "" \
   "$ACW1"
 prouver "une commande qui a reçu, remise en brouillon" modules/socle/ecrans/entreprise/app-1.js \
-  ".filter(s => !recue || s === o.status || !['demande', 'brouillon'].includes(s))" "" \
+  ".filter(s => !recue || s === o.status || !['demande', 'brouillon', 'annulée'].includes(s))" "" \
   "$ACW1"
 prouver "le serveur qui valide une réception sur une commande pas partie" serveur/v10/dossier.ts \
   "    await controlerReceptions(tx, entreprise, lus);
@@ -30795,6 +30795,9 @@ prouver $'origine-avoir-fournisseur' modules/socle/moteur/core-1.js $'(mv && mv.
 prouver $'achat-cree-son-article' modules/socle/ecrans/entreprise/app-1.js $'search: \'Rechercher dans le catalogue…\', add: \'+ Nouvel article\' })' $'search: \'Rechercher dans le catalogue…\' })' $'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
 prouver $'achat-dernier-prix' modules/socle/ecrans/entreprise/app-1.js $'const coutDeBase = it => dernierPrixAchat(it) ?? (' $'const coutDeBase = it => null ?? (' $'(1.387.55, ENTACHATS-19) un article suivi en stock se propose à l\'achat au prix du dernier achat, pas au coût de sa fiche'
 prouver $'commande-dernier-prix' modules/socle/ecrans/entreprise/app-1.js $'return d && Number(d.unitCost) > 0 ? Number(d.unitCost) : (Number(it.unitCost) || 0); };' $'return (Number(it.unitCost) || 0); };' $'(1.387.55, ENTACHATS-19) un article suivi en stock se propose à l\'achat au prix du dernier achat, pas au coût de sa fiche'
+prouver $'commande-recue-sans-annuler' modules/socle/ecrans/entreprise/app-1.js $"!['demande', 'brouillon', 'annulée'].includes(s)).map(s => { const mot = recue" $"!['demande', 'brouillon'].includes(s)).map(s => { const mot = recue" $'(1.387.56, ENTACHATS-11) une commande reçue en partie ne s\'« annule » plus : la solder demande, en nommant le reste ; la liste n\'engage que ce reste'
+prouver $'commande-solder-demande' modules/socle/ecrans/entreprise/app-1.js $"e.target.value === 'soldée' && o.status !== 'soldée' && suivi" $"e.target.value === 'soldée' && o.status !== 'soldée' && false" $'(1.387.56, ENTACHATS-11) une commande reçue en partie ne s\'« annule » plus : la solder demande, en nommant le reste ; la liste n\'engage que ce reste'
+prouver $'commande-engage-le-reste' modules/socle/moteur/core-2.js $'qty: s.lignes[i] ? s.lignes[i].reste : 0 }));\n    return toBase' $'qty: Number(l.qty) || 0 }));\n    return toBase' $'15 sacs de farine reçus sur 40, le sucre entier : restent 25 × 62,500'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

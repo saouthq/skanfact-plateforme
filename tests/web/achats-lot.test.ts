@@ -159,18 +159,20 @@ describe('le lot achats, à l\'écran', () => {
     await p.locator('#rec-sous a').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).not.toBe(ici);
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
-    // Une commande qui a reçu ne se remet ni en brouillon ni en demande de prix.
-    expect(await p.locator('#cf-head select[name=status] option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))).toEqual(['envoyée', 'soldée', 'annulée']);
+    // Une commande qui a reçu ne se remet ni en brouillon ni en demande de prix, et ne s'« annule » plus : elle se solde
+    // (1.387.56, ENTACHATS-11).
+    expect(await p.locator('#cf-head select[name=status] option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value))).toEqual(['envoyée', 'soldée']);
     // (1.357.2) La case se lit comme ses réceptions : « Reçue en partie », pas « Envoyée » sous un titre « reçue en partie ».
     const motsStatut = () => p.locator('#cf-head select[name=status] option').allInnerTexts();
-    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée', 'Annulée']);
+    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée — ne plus attendre le reste']);
     // Soldée à la main, la commande dit ce qui est reçu et pourquoi le reste n'est plus proposé (« Tout est reçu » se disait
     // d'une commande soldée à moitié) ; l'option qui la rouvre garde le mot de l'état rendu. Rouverte, elle reprend.
     await p.locator('#cf-head select[name=status]').selectOption('soldée');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Ne plus attendre le reste', exact: true }).click();
     await p.locator('#save').click();
     await expect.poll(async () => net(await p.locator('#ed-geste').innerText()), { timeout: 10_000 }).toMatch(/Reçu : .+, le reste n'est plus attendu\. La facture se pré-remplit depuis les réceptions\./);
     expect(net(await p.locator('#view .ed-h1').innerText())).toContain('soldée');
-    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée', 'Annulée']);
+    expect(await motsStatut()).toEqual(['Reçue en partie', 'Soldée']);
     await p.locator('#cf-head select[name=status]').selectOption('envoyée');
     await p.locator('#save').click();
     await expect.poll(async () => net(await p.locator('#view .ed-h1').innerText()), { timeout: 10_000 }).toContain('reçue en partie');

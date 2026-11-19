@@ -3863,6 +3863,13 @@
   function montantCommandeFournisseur(commande, company) {
     return toBase(commande, computeTotals(commande, company).netHT, company);
   }
+  // (1.387.56, issue 13, ENTACHATS-11) Ce qu'une commande engage encore : le HT de ce qui reste à recevoir, en dinars. Une
+  // commande reçue en partie n'engage plus ce qui est déjà arrivé (15 sacs reçus sur 40 : 25 restent engagés).
+  function montantResteCommandeFournisseur(data, commande, company) {
+    const s = suiviCommandeFournisseur(data, commande);
+    const lines = (commande.lines || []).map((l, i) => ({ ...l, qty: s.lignes[i] ? s.lignes[i].reste : 0 }));
+    return toBase(commande, computeTotals({ ...commande, lines }, company).netHT, company);
+  }
   // La réception suivante d'une commande : ce qui reste à recevoir, et rien d'autre. Rien à recevoir : null.
   function receptionDeCommande(data, commande, todayIso) {
     const s = suiviCommandeFournisseur(data, commande);
@@ -7879,7 +7886,7 @@
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,
     BON_LIVRE, suiviCommande, resteALivrerDit, livraisonDeCommande, bonsDeFacture, factureDuBon, bonsAFacturer, factureDeBons,
-    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
+    STATUTS_COMMANDE_FOURNISSEUR, numeroSuivant, suiviCommandeFournisseur, montantResteCommandeFournisseur, statutCommandeFournisseur, receptionDeCommande, receptionsAFacturer, lignesAchatDeReceptions, copieLigneAchat, ecartsAchatReceptions, demandesDuGroupe, comparerDemandes, commandesFournisseurEnRetard, montantCommandeFournisseur, encoursClient, depassementEncours,
     PURCHASE_KINDS, PURCHASE_LIES, piecesLieesAchat, LINE_DESTINATIONS, DEFAULT_EXPENSE_CATEGORIES, PURCHASE_STATUSES, expenseCategories,
     vatReturn, vatChain, declarationsDuCabinet, paiementTvaDe, POCHE, estPoche, avancesDuGerant, reportTvaDebut, DEFAULT_FISCAL_DEADLINES, fiscalDeadlines, nextDeadline, upcomingFiscal, calendrierFiscal, dateLimiteSociale, dateLimiteDeclarationSociale, fiscalFilingId, fiscalDone, echeanceSociale, socialesDeposees, simpleResult,
     ACCOUNT_KINDS, MOVE_KINDS, interetsDeLEcheance, virementVers, virementCotes, tauxDuReglement, montantRegle, ecartDuReglement, compteDepuisFiche, compteSansNom, compteAvantDepart, cashMovements, accountBalance, cashPosition, cashForecast, semainesTreso, delaiClient, portefeuilleEffets, natureDuReleve, apparierReleve, reconciliation,

@@ -242,6 +242,40 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
+  it('(1.387.56, ENTACHATS-11) une commande reçue en partie ne s\'« annule » plus : la solder demande, en nommant le reste ; la liste n\'engage que ce reste', async () => {
+    const { jeton, ent } = await commerce();
+    const ligne = { label: 'Farine T55', qty: 40, unit: 'sac', unitPrice: { '~n': '62.5' }, vatRate: 19 };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'supplierOrders', cle: 'o1', rang: 0, revision: null, contenu: { id: 'o1', type: 'commandeFournisseur', number: 'BCF-2026-001', status: 'envoyée', date: aujourdhui, supplierId: 's1', currency: 'DT', lines: [ligne] } },
+      { collection: 'receptions', cle: 'r1', rang: 0, revision: null, contenu: { id: 'r1', number: 'BR-2026-001', status: 'validée', date: aujourdhui, supplierId: 's1', orderId: 'o1', orderNumber: 'BCF-2026-001', currency: 'DT', lines: [{ ...ligne, qty: 15, ligneCommande: 0 }] } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandesf`);
+    // La liste : 25 sacs restent à recevoir, 25 × 62,500 = 1 562,500 engagés (et non les 2 500,000 de la commande entière).
+    await expect.poll(() => p.locator('#cf-resume').innerText().then(net), { timeout: 20_000 }).toContain('1 562,500 DT HT engagés');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/o1`);
+    const statut = p.locator('#view select[name=status]');
+    await statut.waitFor({ timeout: 20_000 });
+    const options = await statut.locator('option').allInnerTexts();
+    expect(options.some((o) => /annul/i.test(o))).toBe(false);
+    expect(options).toContain('Soldée — ne plus attendre le reste');
+    // Refuser la question laisse la commande ouverte ; l'accepter la solde.
+    await statut.selectOption('soldée');
+    const q = p.locator('#modal-root .modal').last();
+    await expect.poll(() => q.innerText().then(net), { timeout: 10_000 }).toContain('25 sac Farine T55');
+    await q.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => statut.inputValue()).toBe('envoyée');
+    await statut.selectOption('soldée');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Ne plus attendre le reste', exact: true }).click();
+    await expect.poll(() => statut.inputValue()).toBe('soldée');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
   it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
