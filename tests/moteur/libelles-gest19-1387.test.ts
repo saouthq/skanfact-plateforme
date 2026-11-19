@@ -50,3 +50,12 @@ describe('le bulletin à l\'écran, « depuis janvier » (issue 16, constat 22)'
     expect(tranche).not.toContain("l('Net versé'");
   });
 });
+
+describe('les congés sur le bulletin d\'un mois passé (issue 16, constat 24)', () => {
+  it('le bulletin lit les congés acquis à la fin de SON mois, jamais au jour où on le relit', () => {
+    const paie = sansCommentaires('modules/personnel/ecrans/entreprise/paie.js');
+    expect(paie, 'l\'aperçu du bulletin passe la date de fin du mois du bulletin').toContain('C.leaveBalance(data, slip.employeeId, y, finM < C.today() ? finM : C.today())');
+    expect(paie).not.toContain('C.leaveBalance(data, slip.employeeId, y)');
+    expect(paie).toContain('const finM = new Date(Date.UTC(y, Number(slip.month), 0)).toISOString().slice(0, 10);');
+  });
+});

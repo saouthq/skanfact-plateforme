@@ -5518,3 +5518,8 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Chaque ligne de la carte était sa propre grille, avec des colonnes qui suivaient leur contenu : les montants d'une ligne sans bouton tombaient 7 px à côté de ceux d'une ligne qui en porte un. Les colonnes ont maintenant des largeurs fixes, la place du bouton réservée sur toutes les lignes (le téléphone garde sa disposition en une colonne).
 - Test : `paie-bon-a-payer` (mesure les bords droits des montants). Une preuve : montants-verses-en-colonne.
+
+## 1.387.51 — Les congés d'un bulletin passé (issue 16, constat 24)
+
+- L'aperçu d'un bulletin lisait les congés acquis au jour où on le relit : le bulletin d'octobre, ouvert en novembre, comptait déjà novembre. Il les lit maintenant à la fin de son mois.
+- Test : `libelles-gest19-1387`. Une preuve : conges-du-mois-du-bulletin.

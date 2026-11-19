@@ -1315,7 +1315,7 @@
     const base = Number(c.baseGross) || 0, total = Number(st.workedDays) || 26;
     const ytd = (data.payslips || []).filter(p => p.employeeId === slip.employeeId && Number(p.year) === y && Number(p.month) <= m)
       .reduce((a, p) => { const k = p.computed || {}; return { n: a.n + 1, gross: C.round3(a.gross + (k.gross || 0)), ret: C.round3(a.ret + (k.cnssEmployee || 0) + (k.irpp || 0) + (k.css || 0)), net: C.round3(a.net + (k.net || 0)) }; }, { n: 0, gross: 0, ret: 0, net: 0 });
-    const cg = (() => { try { return C.leaveBalance(data, slip.employeeId, y); } catch (_) { return null; } })();
+    const cg = (() => { try { /* (1.387.51, constat 24) les congés acquis à la fin du mois du bulletin, pas au jour où on le relit */ const finM = new Date(Date.UTC(y, Number(slip.month), 0)).toISOString().slice(0, 10); return C.leaveBalance(data, slip.employeeId, y, finM < C.today() ? finM : C.today()); } catch (_) { return null; } })();
     const mode = (v.method || emp.method) === 'especes' ? 'espèces, contre reçu' : `virement${emp.iban ? `, ··· ${h(String(emp.iban).replace(/\s/g, '').slice(-4))}` : ''}`;
     const gestes = [];
     if (!v.paidDate && !v.valideLe) gestes.push(`<button type="button" class="btn" id="bg-mod">${lfIc('modifier', 15)} Modifier ses lignes…</button>`);
