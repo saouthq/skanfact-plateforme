@@ -5538,3 +5538,9 @@ La fenêtre d'une avance annonçait « la retenue en représente 207,8 % » et e
 
 - Premier achat de marchandise, catalogue vide : la liste disait « Rien à choisir pour l'instant », et il fallait quitter la facture pour créer l'article au Catalogue. La liste du catalogue de la facture d'achat porte maintenant « + Nouvel article », comme celle de la commande fournisseur : le nom tapé dans la recherche préremplit la fiche, suivie en stock, et la ligne se pose quand on l'enregistre.
 - Test : `recette-alpha` (au Stock…). Une preuve : achat-cree-son-article.
+
+## 1.387.55 — Le dernier prix d'achat proposé (issue 13, ENTACHATS-19)
+
+- Un article suivi en stock, ajouté à une facture d'achat depuis le catalogue, arrivait au coût écrit sur sa fiche, même quand le dernier achat s'était fait à un autre prix. Il arrive maintenant au prix HT de son dernier achat (`fournisseurDeLArticle`), sur la facture d'achat comme sur la commande fournisseur, et la liste de la facture le dit : « suivi en stock · prix du dernier achat ». Sans achat connu, rien ne change : le coût de la fiche, sinon son prix.
+- La liste du catalogue lit les mouvements de stock une seule fois pour tous les articles (dans un lot), pour rester rapide sur un gros catalogue.
+- Test : `recette-alpha` (ENTACHATS-19). Deux preuves : achat-dernier-prix, commande-dernier-prix.

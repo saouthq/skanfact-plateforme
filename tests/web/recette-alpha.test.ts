@@ -209,6 +209,39 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
+  it('(1.387.55, ENTACHATS-19) un article suivi en stock se propose à l\'achat au prix du dernier achat, pas au coût de sa fiche', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'catalog', cle: 'farine', rang: 2, revision: null, contenu: { id: 'farine', label: 'Farine T55', unit: 'sac', unitPrice: { '~n': '80' }, unitCost: { '~n': '50' }, vatRate: 19, tracked: true } },
+      { collection: 'purchases', cle: 'a2', rang: 1, revision: null, contenu: {
+        id: 'a2', kind: 'facture', supplierId: 's1', number: 'GS-120', date: aujourdhui, currency: 'DT', exchangeRate: 1, fees: 0, withholdingRate: 0, tvaRecuperable: true,
+        lines: [{ label: 'Farine T55', itemId: 'farine', qty: 4, unitPrice: { '~n': '62.5' }, vatRate: 19, destination: 'stock', deductible: true }], payments: [] } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new`);
+    await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 20_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await p.locator('#ac-main').click();
+    await p.locator('#b-cat .combo-btn').click();
+    const choix = p.locator('#b-cat .combo-it').filter({ hasText: 'Farine T55' });
+    expect(net(await choix.innerText())).toContain('prix du dernier achat');
+    await choix.click();
+    await expect.poll(() => p.locator('#view input[data-k=unitPrice]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['62,500']);
+    // La commande fournisseur aussi : le dernier prix d'achat, pas le coût de la fiche.
+    // (La facture en cours n'est pas enregistrée : on la quitte sans l'enregistrer, comme on répondrait à la question.)
+    await p.evaluate(() => { location.hash = '#/commandef/new'; });
+    await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click({ timeout: 15_000 });
+    await p.locator('#cf-cat .combo-btn').click({ timeout: 20_000 });
+    await p.locator('#cf-cat .combo-it').filter({ hasText: 'Farine T55' }).click();
+    await expect.poll(() => p.locator('#cf-lines input[data-k=unitPrice]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['62,500']);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
   it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });

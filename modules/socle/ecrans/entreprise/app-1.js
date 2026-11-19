@@ -16806,7 +16806,10 @@
     const unitesCommande = () => C.usedUnits(data, commandesF().concat([o]).flatMap(c => (c.lines || []).map(l => l.unit))).filter(u => u !== UNIT_OTHER);
     // (1.357.2) Une ligne d'article : son coût d'achat, sa TVA d'achat, et le lien qui fera entrer la marchandise en stock à la
     // réception. Le catalogue, la désignation et l'article créé sur place passent par elle.
-    const ligneArticle = (it, qty) => ({ label: it.label, description: '', qty: Number(qty) || 1, unit: it.unit || '', unitPrice: Number(it.unitCost) || 0, vatRate: C.tauxAchatPropose(company(), it, supplierById(o.supplierId)), itemId: it.id });
+    // (1.387.55, ENTACHATS-19) Un article suivi en stock déjà acheté se commande au prix HT de son dernier achat, pas au
+    // coût écrit sur sa fiche à sa création.
+    const prixCommande = it => { const d = it && it.tracked && it.id ? C.fournisseurDeLArticle(data, it.id) : null; return d && Number(d.unitCost) > 0 ? Number(d.unitCost) : (Number(it.unitCost) || 0); };
+    const ligneArticle = (it, qty) => ({ label: it.label, description: '', qty: Number(qty) || 1, unit: it.unit || '', unitPrice: prixCommande(it), vatRate: C.tauxAchatPropose(company(), it, supplierById(o.supplierId)), itemId: it.id });
     const poserArticleCF = (i, it) => {
       if (!o.lines[i]) return;
       o.lines[i] = ligneArticle(it, o.lines[i].qty);
@@ -18551,8 +18554,12 @@
     // « stock » — c'est ce qu'on venait chercher.
     // Le coût d'achat du catalogue est tenu dans la devise de la société : sur un achat en euros, il
     // se convertit au taux de la pièce (10.14.1) — jamais 60 DT recopiés en 60 €.
-    const coutCatalogue = it => { const v = C.prixDuCatalogue(Number(it.unitCost) || Number(it.unitPrice) || 0, p, company()); if (v === null) toast(`Saisis d'abord le taux de change de la pièce : les prix du catalogue sont en ${company().currency || 'DT'}.`, true); return v === null ? '' : v; };
-    const coutAffiche = c => { const v = C.prixDuCatalogue(Number(c.unitCost) || Number(c.unitPrice) || 0, p, company()); return v === null ? C.money(Number(c.unitCost) || Number(c.unitPrice) || 0, company().currency) : C.money(v, cur); };
+    // (1.387.55, issue 13, ENTACHATS-19) Le prix proposé à l'achat est le DERNIER prix payé pour l'article (achat ou réception,
+    // en dinars), pas le coût saisi sur sa fiche le jour de sa création : la farine achetée 68,000 revenait à 62,500.
+    const dernierPrixAchat = it => { const d = it && it.tracked && it.id ? C.fournisseurDeLArticle(data, it.id) : null; return d && Number(d.unitCost) > 0 ? Number(d.unitCost) : null; };
+    const coutDeBase = it => dernierPrixAchat(it) ?? (Number(it.unitCost) || Number(it.unitPrice) || 0);
+    const coutCatalogue = it => { const v = C.prixDuCatalogue(coutDeBase(it), p, company()); if (v === null) toast(`Saisis d'abord le taux de change de la pièce : les prix du catalogue sont en ${company().currency || 'DT'}.`, true); return v === null ? '' : v; };
+    const coutAffiche = c => { const v = C.prixDuCatalogue(coutDeBase(c), p, company()); return v === null ? C.money(coutDeBase(c), company().currency) : C.money(v, cur); };
     const poserArticle = (i, it) => {
       const l = p.lines[i]; if (!l) return;
       Object.assign(l, { label: it.label, itemId: it.id, unit: it.unit || '',
@@ -18686,10 +18693,11 @@
     };
     if ($('#b-cat')) bindCombo($('.combo', $('#b-cat')), {
       reset: true, placeholder: 'Ajouter un article du catalogue, au coût d\'achat',
-      items: data.catalog.slice().sort((a2, b2) => (a2.label || '').localeCompare(b2.label || '', 'fr'))
-        .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? 'suivi en stock' : (c.description || ''),
+      // Dans un lot : le dernier prix d'achat de chaque article lit les mouvements, calculés une fois pour tout le catalogue.
+      items: C.enLot(() => data.catalog.slice().sort((a2, b2) => (a2.label || '').localeCompare(b2.label || '', 'fr'))
+        .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? (dernierPrixAchat(c) != null ? 'suivi en stock · prix du dernier achat' : 'suivi en stock') : (c.description || ''),
           right: coutAffiche(c) + ' HT',
-          text: `${c.label} ${c.description || ''}` })),
+          text: `${c.label} ${c.description || ''}` }))),
       // (1.387.54, issue 13, ENTACHATS-12) Le premier achat de marchandise, catalogue vide : « Rien à choisir », et il
       // fallait quitter la facture pour créer l'article. La commande fournisseur offrait « + Nouvel article » ; l'achat aussi,
       // le nom tapé dans la recherche prérempli, suivi en stock, et la ligne posée à la fermeture de sa fiche.
