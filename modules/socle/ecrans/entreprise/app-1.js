@@ -10813,8 +10813,8 @@
   // un montant plus grand que le reste d'une facture la mettait en trop-perçu au lieu de solder la suivante. Ici, un
   // paiement par facture, à la même date et avec la même référence ; le montant se répartit sur les factures cochées, la
   // plus ancienne d'abord, chacune recevant au plus ce qui lui reste. Le relevé de la banque rapproche déjà une ligne de
-  // plusieurs paiements (une remise). Une traite a une échéance par effet, et une facture dans une autre devise son taux
-  // du jour : elles se règlent une par une.
+  // plusieurs paiements (une remise). Une facture dans une autre devise a son taux du jour : elle se règle à part.
+  // (1.387.71) Une traite ou un chèque à échéance pour plusieurs factures : la même échéance sur chaque part.
   function facturesAEncaisser(clientId) {
     const cur = company().currency;
     return (data.documents || []).filter(d => d.type === 'facture' && d.clientId === clientId && C.isLocked(d) && effStatus(d) !== 'annulée'
@@ -10828,7 +10828,9 @@
     if (l.length < 2) return;
     const reste = d => C.round3(Math.max(0, balance(d).remaining));
     const nom = clientName(clientId);
-    const modes = C.PAYMENT_METHODS.filter(m => m[0] !== 'traite');
+    // (1.387.71, issue 15 V-13) Les mêmes moyens et les mêmes champs que la fenêtre d'UNE facture : la traite, et
+    // l'échéance d'un effet (un chèque ou une traite remis pour plusieurs factures compte à la banque à son échéance).
+    const modes = C.PAYMENT_METHODS;
     const modeur = modes.some(m => m[0] === o.method) ? o.method : 'virement';
     const echeance = d => !d.dueDate ? '<span class="muted">—</span>' : d.dueDate < C.today() ? `${C.fmtDate(d.dueDate)}<div class="small warn-text">${pl(C.daysBetween(d.dueDate, C.today()), 'jour')} de retard</div>` : C.fmtDate(d.dueDate);
     const total0 = C.round3(l.reduce((a, d) => a + reste(d), 0));
@@ -10839,10 +10841,10 @@
       </tbody></table>
       <form id="ee" class="pf-charte mt" data-devise="${h(cur)}">
         <div class="pf-montant"><label class="field obligatoire">${lbl('Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(o.amount > 0 ? o.amount : total0, null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span class="pf-dev">${h(cur)}</span></span></label></div>
-        <div class="pf-deux">${dateFieldHtml(lbl('Date', 'ed.payDate'), 'date', o.date || C.today(), { obligatoire: true })}${accountFieldHtml(o.accountId || '')}</div>
+        <div class="pf-deux">${dateFieldHtml(lbl('<span data-mot-date>Date</span>', 'ed.payDate'), 'date', o.date || C.today(), { obligatoire: true })}${accountFieldHtml(o.accountId || '')}</div>
         <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${modes.map(([v, lb]) => `<button type="button" data-mode="${h(v)}" class="${v === modeur ? 'on' : ''}">${h(lb)}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
-        <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(o.reference || '')}" placeholder="n° du virement, du chèque…"></label></div>
+        <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(o.reference || '')}" placeholder="n° du virement, du chèque…"></label>${champEffetHtml(null)}</div>
         <div class="pf-rs-boite annonce-stable" id="ee-rs" aria-live="polite"></div>
       </form>
       ${avertValideHtml('ee-valide')}
@@ -10851,6 +10853,7 @@
     (root, close) => {
       const fE = $('#ee', root), mE = $('[name=amount]', root);
       const suivreE = compteSuitLeMode(fE, false);
+      brancherEffet(root, 'Reçu le');
       if (o.exige) { const x = $(`[data-coche="${o.exige}"]`, root); if (x) { x.checked = true; x.disabled = true; x.title = 'La facture d\'où tu viens'; } }
       const cochees = () => l.filter(d => { const x = $(`[data-coche="${d.id}"]`, root); return x && x.checked; });
       const totalC = () => C.round3(cochees().reduce((a, d) => a + reste(d), 0));
@@ -10884,13 +10887,14 @@
         const tc = totalC();
         if (montant > tc + 0.0005) return refus(mE, `Les factures cochées ne doivent plus que ${C.money(tc, cur)} : coche une facture de plus, ou enregistre le surplus sur la facture qu'il règle, pour dire à laquelle il va.`);
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
-        if (v.date > C.today() && !await confirmDialog(`La date du paiement (${C.fmtDate(v.date)}) est dans le futur. Un paiement s'enregistre quand l'argent arrive. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un paiement daté dans le futur' })) return;
-        if (closedBlock(v.date, 'Ce paiement')) return;
+        const echE = echeanceEffet(v);
+        if (!echE && v.date > C.today() && !await confirmDialog(`La date du paiement (${C.fmtDate(v.date)}) est dans le futur. Un paiement s'enregistre quand l'argent arrive. Enregistrer quand même ?`, 'Enregistrer', undefined, { titre: 'Un paiement daté dans le futur' })) return;
+        if (closedBlock(echE || v.date, 'Ce paiement')) return;
         const parts = repartir(montant).filter(([, m]) => m > 0.0005);
-        const note = `${v.method === 'cheque' ? 'Un chèque' : v.method === 'virement' ? 'Un virement' : 'Un paiement'} de ${C.money(montant, cur)} pour ${pl(parts.length, 'facture')} : ${parts.map(([d]) => d.number).join(', ')}`;
+        const note = `${v.method === 'cheque' ? 'Un chèque' : v.method === 'traite' ? 'Une traite' : v.method === 'virement' ? 'Un virement' : 'Un paiement'} de ${C.money(montant, cur)} pour ${pl(parts.length, 'facture')} : ${parts.map(([d]) => d.number).join(', ')}`;
         for (const [d, m] of parts) {
           const stored = docById(d.id) || d;
-          stored.payments = (stored.payments || []).concat([{ id: C.uid(), date: v.date, amount: m, method: v.method, accountId: v.accountId || '', reference: v.reference || '', note }]);
+          stored.payments = (stored.payments || []).concat([{ id: C.uid(), date: echE || v.date, amount: m, method: v.method, accountId: v.accountId || '', reference: v.reference || '', note, ...(echE ? { effet: { recuLe: v.date } } : {}) }]);
         }
         const dvE = dateDansLaPeriodeValidee([v.date]);
         save(true); close();

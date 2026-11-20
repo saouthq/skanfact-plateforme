@@ -109,6 +109,14 @@ describe('un client règle plusieurs factures d\'un seul virement (1.360.0)', ()
     expect(await fenetre().locator('#ee-l tbody tr').evaluateAll((l) => l.map((x) => (x.querySelector('b') as HTMLElement).innerText))).toEqual(['FAC-2026-001', 'FAC-2026-002', 'FAC-2026-003']);
     expect(net(await fenetre().locator('[name=amount]').inputValue())).toBe('2 026,000');
     expect(net(await fenetre().locator('#ok').innerText())).toBe('Enregistrer sur 3 factures · toutes soldées');
+    // (1.387.71, issue 15 V-13) Les mêmes moyens que la fenêtre d'une facture : la traite y est, et un effet a son échéance.
+    expect(await fenetre().locator('[data-mode]').evaluateAll((l) => l.map((b) => (b as HTMLElement).dataset.mode))).toContain('traite');
+    expect(await fenetre().locator('[data-effet] input').first().isDisabled()).toBe(true);
+    await fenetre().locator('[data-mode="traite"]').click();
+    await expect.poll(async () => fenetre().locator('[data-effet] input').first().isDisabled(), { timeout: 5_000 }).toBe(false);
+    expect(net(await fenetre().locator('[data-mot-date]').innerText())).toBe('Reçu le');
+    await fenetre().locator('[data-mode="virement"]').click();
+    await expect.poll(async () => fenetre().locator('[data-effet] input').first().isDisabled(), { timeout: 5_000 }).toBe(true);
     await fenetre().locator('[name=amount]').fill('3000');
     await fenetre().locator('#ok').click();
     await expect.poll(async () => net(await p.locator('body').innerText()), { timeout: 10_000 }).toContain('Les factures cochées ne doivent plus que 2 026,000 DT');

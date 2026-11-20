@@ -6149,6 +6149,8 @@
     const t = computeTotals(doc, company);
     const lang = (doc.lang || company.defaultLang) === 'en' ? 'en' : 'fr';
     const L = I18N[lang];
+    // (1.387.71, issue 15 V-16) En français, le pourcentage prend son espace (insécable) : « Remise 5 % », comme à l'écran.
+    const pc = lang === 'en' ? '%' : '\u00a0%';
     const cur = doc.currency || company.currency || 'DT';
     const dec = decimalsFor(cur);
     const fmt = n => money(n, null, dec, lang);
@@ -6212,7 +6214,7 @@
         <td class="r num">${escapeHtml(String(l.qty).replace('.', lang === 'en' ? '.' : ','))}${l.unit ? `<span class="unit"> ${escapeHtml(l.unit)}</span>` : ''}</td>
         ${noPrices ? '' : `<td class="r num">${fmt(l.unitPrice)}</td>
         ${remiseLigne ? `<td class="r num dim">${Number(l.discount) > 0 ? pct(Number(l.discount)) + '%' : '—'}</td>` : ''}
-        ${showVat ? `<td class="r num dim">${l.vatRate}%</td>` : ''}
+        ${showVat ? `<td class="r num dim">${l.vatRate}${pc}</td>` : ''}
         <td class="r num strong">${fmt(l.ht)}</td>`}
       </tr>`).join('');
 
@@ -6274,7 +6276,7 @@
       : !showVat
       ? (mentionSansTva ? `<tr><td colspan="2" class="dim">${escapeHtml(mentionSansTva)}</td></tr>` : '')
       : multiVat ? Object.keys(t.vatByRate).sort((a, b) => a - b).map(rate =>
-      `<tr><td>${L.vat} ${rate}% <span class="dim">${L.on} ${fmt(t.vatByRate[rate].base)}</span></td><td class="r num">${fmt(t.vatByRate[rate].vat)}</td></tr>`).join('')
+      `<tr><td>${L.vat} ${rate}${pc} <span class="dim">${L.on} ${fmt(t.vatByRate[rate].base)}</span></td><td class="r num">${fmt(t.vatByRate[rate].vat)}</td></tr>`).join('')
       : `<tr><td>${L.vat}</td><td class="r num">${fmt(t.totalVAT)}</td></tr>`;
 
     const contact = [company.phone, company.email, company.website].filter(Boolean).map(escapeHtml).join('<br>');
@@ -6526,11 +6528,11 @@
       ${noPrices ? '' : `<div class="card">
         <table class="totals">
           <tr><td>${L.subtotal}</td><td class="r num">${fmt(t.totalHT)}</td></tr>
-          ${t.discount ? `<tr><td>${L.discount} ${pct(t.discountRate)}%</td><td class="r num">− ${fmt(t.discount)}</td></tr><tr><td>${L.netHT}</td><td class="r num">${fmt(t.netHT)}</td></tr>` : ''}
-          ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)}%</td><td class="r num">${fmt(t.fodec)}</td></tr>` : ''}
+          ${t.discount ? `<tr><td>${L.discount} ${pct(t.discountRate)}${pc}</td><td class="r num">− ${fmt(t.discount)}</td></tr><tr><td>${L.netHT}</td><td class="r num">${fmt(t.netHT)}</td></tr>` : ''}
+          ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)}${pc}</td><td class="r num">${fmt(t.fodec)}</td></tr>` : ''}
           ${vatRows}
           ${t.stamp ? `<tr><td>${L.stamp}</td><td class="r num">${fmt(t.stamp)}</td></tr>` : ''}
-          ${t.withholding ? `<tr class="sub"><td>${L.totalTTC}</td><td class="r num">${fmt(t.totalTTC)}</td></tr><tr><td>${L.withholding} ${pct(t.withholdingRate)}%</td><td class="r num">− ${fmt(t.withholding)}</td></tr>` : ''}
+          ${t.withholding ? `<tr class="sub"><td>${L.totalTTC}</td><td class="r num">${fmt(t.totalTTC)}</td></tr><tr><td>${L.withholding} ${pct(t.withholdingRate)}${pc}</td><td class="r num">− ${fmt(t.withholding)}</td></tr>` : ''}
         </table>
         <div class="grand"><span class="gl">${grandLabel}</span><span class="gv num">${fmt(grandValue)}<small>${escapeHtml(cur)}</small></span></div>
         ${showWords ? `<div class="words">${wordsIntro} <strong>${escapeHtml(amountToWords(grandValue, cur, lang).toLowerCase())}</strong>.</div>` : ''}
@@ -6547,7 +6549,7 @@
       ${isOrder ? `<div class="s"><span class="k">${L.orderApprove}</span><small>${L.approveSub}</small></div>` : ''}
       ${isDelivery ? `<div class="s"><span class="k">${L.received}</span><small>${L.receivedSub}</small></div>` : ''}
       ${isContract ? `<div class="s"><span class="k">${L.contractClient}</span><small>${escapeHtml(cl.name || '')} — ${L.contractSub}</small></div>` : ''}
-      <div class="s"><span class="k">${isQuote || isContract ? L.provider : L.stampSign}</span><small>${escapeHtml(company.name)}</small>${company.stampImage ? `<img src="${company.stampImage}" alt="">` : ''}</div>
+      <div class="s"><span class="k">${isQuote && ['commerce', 'restauration', 'artisanat'].includes(company.activity) ? (lang === 'en' ? 'The seller' : 'Le vendeur') : isQuote || isContract ? L.provider : L.stampSign}</span><small>${escapeHtml(company.name)}</small>${company.stampImage ? `<img src="${company.stampImage}" alt="">` : ''}</div>
     </div>
   </div>
 

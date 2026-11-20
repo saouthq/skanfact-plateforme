@@ -30867,6 +30867,22 @@ prouver $'stock-etat-se-trie' modules/socle/ecrans/entreprise/app-2.js \
   $'const pageEtat = paginate(applySort(rows, colsEtat, s.etat.sort), s.etat);' \
   $'const pageEtat = paginate(rows, s.etat);' \
   $'(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l\'écart, et l\'état de mi-mois n\'est pas l\'inventaire de l\'année'
+prouver $'paiement-groupe-traite' modules/socle/ecrans/entreprise/app-1.js \
+  $'    const modes = C.PAYMENT_METHODS;\n    const modeur = modes.some(m => m[0] === o.method)' \
+  $'    const modes = C.PAYMENT_METHODS.filter(m => m[0] !== \'traite\');\n    const modeur = modes.some(m => m[0] === o.method)' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'paiement-groupe-echeance-effet' modules/socle/ecrans/entreprise/app-1.js \
+  $'      brancherEffet(root, \'Reçu le\');\n      if (o.exige)' \
+  $'      if (o.exige)' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'document-pourcent-espace' modules/socle/moteur/core-2.js \
+  $'const pc = lang === \'en\' ? \'%\' : \'\\u00a0%\';' \
+  $'const pc = \'%\';' \
+  $'en français « Remise 5 % », « TVA 19 % », « 1,5 % » avec une espace insécable ; en anglais le signe reste collé'
+prouver $'devis-le-vendeur' modules/socle/moteur/core-2.js \
+  $'isQuote && [\'commerce\', \'restauration\', \'artisanat\'].includes(company.activity)' \
+  $'isQuote && [].includes(company.activity)' \
+  $'le devis d\'un commerce est signé « Le vendeur » ; celui d\'un métier de service reste « Le prestataire »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

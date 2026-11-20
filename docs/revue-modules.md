@@ -5665,3 +5665,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   justificatif » ont chacune leur ligne (« réf. SN-… · san… » coupait le mot qui compte).
 - L'état du stock se trie par ses en-têtes (⇅), comme la liste des achats ; la ligne dit qu'elle ouvre la fiche.
 - Dépense neuve : la phrase qui répétait la note du montant disparaît.
+
+## 1.387.71 — le cycle de vente : un paiement pour plusieurs factures, le document imprimé (issue 15, V-13 et V-16 en partie)
+
+- « Un paiement pour plusieurs factures » propose les mêmes moyens que la fenêtre d'une facture : la traite y est, et
+  un chèque ou une traite a son « Échéance de l'effet » (la date devient « Reçu le »). Chaque part porte la même
+  échéance et le jour de réception, comme un effet saisi sur une seule facture.
+- Le document imprimé écrit « Remise 5 % », « TVA 19 % », « Retenue à la source 1,5 % » avec l'espace (insécable) du
+  français ; l'anglais garde le signe collé.
+- Le devis d'un commerce, d'un restaurant ou d'un artisan est signé « Le vendeur » (« Le prestataire » pour un service).
+- Reste de l'issue 15 : V-10 (client à l'étranger : une case et un pays), le reste de V-16 à V-18 (finitions).
