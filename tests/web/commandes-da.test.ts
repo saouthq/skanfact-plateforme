@@ -51,7 +51,8 @@ describe('les Commandes fournisseurs dans la nouvelle DA', () => {
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Bâtiment Gharbi' })).id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
     // Deux commandes envoyées : la première en retard (livraison souhaitée le 20/10/2026), la seconde reçue en partie ; un
-    // brouillon ; une réception validée que rien ne facture. Engagé : 10 × 12,500 + 3 × 47,333 = 125,000 + 141,999.
+    // brouillon ; une réception validée que rien ne facture. Engagé = ce qui reste à recevoir (1.387.56) : 10 × 12,500 + (3 − 1) × 47,333
+    // = 125,000 + 94,666 = 219,666.
     const ligne = (label: string, q: number, pu: number) => ({ label, qty: { '~n': String(q) }, unitPrice: { '~n': String(pu) }, vatRate: 19, unit: 'u' });
     const cmd = (id: string, number: string, status: string, dueDate: string, lines: unknown[]) => ({ collection: 'supplierOrders', cle: id, rang: 0, revision: null,
       contenu: { id, number, supplierId: 'cim', date: '2026-10-01', dueDate, status, currency: 'TND', lines } });
@@ -82,7 +83,7 @@ describe('les Commandes fournisseurs dans la nouvelle DA', () => {
     expect(net(await p.locator('#view h1').first().innerText())).toMatch(/^Commandes fournisseurs( i)?$/);
     expect(net(await p.locator('#view .lf-tete .sous').innerText())).toBe('Ce que tu commandes, ce qui est livré, ce qui reste à recevoir et à facturer');
     expect((await p.locator('#cf-resume .mg-chiffre').allInnerTexts()).map(net)).toEqual([
-      'En cours 2 266,999 DT HT engagés',
+      'En cours 2 219,666 DT HT engagés',
       'En retard 1 livraison souhaitée dépassée — voir lesquelles',
       'Reçu, à facturer 1 la facture du fournisseur manque — voir lesquelles',
       'Brouillons 1 pas encore envoyées au fournisseur',

@@ -372,8 +372,10 @@ describe('l\'alerte par e-mail', () => {
     const { p: client, ent, mandat } = await cab.client('Pharmacie El Amel');
     const pasVerifie = await cab.membre('revision', mandat);
     await ecrire(ent, client, 'entreprise', { texte: 'Mon chiffre secret : 4 242 DT' });
-    // Avant cinq minutes : rien.
+    // Avant cinq minutes : rien — ni à l'instant, ni une minute après (une minute franche : à l'instant même, l'horloge de
+    // la base et celle du test se départagent à la milliseconde, et la preuve du délai en dépendait).
     await prevenirParCourriel(ctxPostier);
+    await prevenirParCourriel(ctxPostier, new Date(Date.now() + 60_000));
     expect(pour(cab.associe)).toEqual([]);
     // Cinq minutes passées : l'associé est prévenu, une fois ; le collaborateur à l'adresse non vérifiée, jamais.
     await admin.query('update messagerie.message set ecrit_le = ecrit_le - interval \'6 minutes\' where entreprise = $1', [ent]);

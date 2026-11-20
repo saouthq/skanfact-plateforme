@@ -378,6 +378,15 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await h.p.evaluate(() => { location.hash = '#/comptable'; });
     await expect.poll(() => h.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('Pas de réseau : la messagerie attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
+    // (1.387.65) C'est la messagerie ELLE-MÊME qui relit au signal du réseau : on le lui donne, réseau encore coupé, et on
+    // compte sa demande. (Le retour réel du réseau peut aussi faire redessiner la page par un autre chemin : la preuve du
+    // signal en dépendait, et passait ou non selon la machine.)
+    const relectures: string[] = [];
+    const noter = (r: { url(): string }) => { if (/\/messages(\?|$)/.test(r.url())) relectures.push(r.url()); };
+    h.p.on('request', noter);
+    await h.p.evaluate(() => { window.dispatchEvent(new Event('online')); });
+    await expect.poll(() => relectures.length, { timeout: 5_000 }).toBeGreaterThan(0);
+    h.p.off('request', noter);
     await h.p.context().setOffline(false);
     await h.p.locator('[data-msg-fil]').waitFor({ timeout: 8_000 });
     expect(h.erreurs).toEqual([]);

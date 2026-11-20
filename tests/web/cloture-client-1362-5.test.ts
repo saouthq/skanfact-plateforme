@@ -146,9 +146,12 @@ describe('la clôture du client, de la fenêtre au Cabinet (1.362.5)', () => {
       .find((d) => d.entreprise === ent) ?? {}).clotureClient?.jusqua, { timeout: 15_000 }).toBe(finDe(C));
 
     // ── 3. Le Cabinet, après : B et C sont « sans activité », plus rien n'est réclamé.
-    const apres = await fiche(`${cap(noms[0] ?? '')} · sans activité`);
+    await fiche(`${cap(noms[0] ?? '')} · sans activité`);
     // Seul le mois en cours dit encore « rien reçu » (rien n'y est écrit) ; janvier à A-1 sont « avant la mission ».
-    expect(apres.replace('en cours rien reçu', '')).not.toContain('rien reçu');
+    // (1.387.65) La clôture du client s'affiche avant que les livres du dossier soient lus : on attend qu'ils le soient
+    // (les écritures de A et de D retirent « rien reçu » de leurs mois), au lieu de lire la fiche à mi-chargement.
+    await expect.poll(async () => net(await q.locator('#view').innerText()).replace('en cours rien reçu', ''), { timeout: 20_000 }).not.toContain('rien reçu');
+    const apres = net(await q.locator('#view').innerText());
     expect(apres).toContain('sans activité');
     expect(apres).toContain('Clôturé par le client sans une écriture');
     await q.screenshot({ path: path.join(PHOTOS, 'cloture-1362-5-cabinet-apres.png'), fullPage: true });

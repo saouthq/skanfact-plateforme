@@ -65,6 +65,8 @@
 .ed-cl-nom span { font-size: 12.5px; color: var(--sb-gris-2); overflow-wrap: anywhere; }
 .ed-cl-nom .ed-cl-page { color: inherit; text-decoration: underline; text-decoration-color: var(--sb-trait); text-underline-offset: 3px; }
 .ed-cl-nom .ed-cl-page:hover { text-decoration-color: currentColor; }
+/* Au doigt, le nom se touche : 44 px de haut (l'instrument de rendu le mesure). */
+@media (max-width: 760px) { .ed-cl-nom .ed-cl-page { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; } }
 .ed-cl-gestes { display: flex; gap: 6px; flex: none; }
 .ed-cl-puces { display: flex; flex-wrap: wrap; gap: 8px; }
 .ed-chip { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 5px 10px; border-radius: 8px; font-size: 12.5px; color: var(--sb-gris); background: var(--sb-papier-2); border: 1px solid var(--sb-trait); }

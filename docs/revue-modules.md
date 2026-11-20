@@ -5606,3 +5606,14 @@ métier (« ton premier achat », « ton premier article » pour un commerce).
 - « Effacer le comptage » laisse « Annuler » sous la main et dit combien d'articles comptés il efface.
 - Restent pour l'inventaire : la liste des inventaires passés (date, écarts, annuler d'un geste) et la saisie au
   téléphone (une ligne par article, recherche, pied fixe).
+
+## 1.387.65 — trois rouges GitHub de la 1.387.61, côté tests
+
+- `commandes-da` attendait encore l'ancien « engagé » (toute la commande) : depuis la 1.387.56, l'engagé est ce qui reste
+  à recevoir (125,000 + 2 × 47,333 = 219,666, refait à la main).
+- La preuve « l'alerte partie avant les cinq minutes » dépendait d'un écart d'horloge de quelques millisecondes entre la
+  base et le test : le test vérifie maintenant qu'une minute après l'écriture, rien n'est parti.
+- La preuve « la messagerie relit au retour du réseau » passait ou non selon la machine (le retour réel du réseau peut
+  faire redessiner la page par un autre chemin) : le test donne le signal réseau encore coupé et compte la relecture.
+- Deux rouges de la 1.387.64 : le nom du tiers sur une pièce, devenu un lien, fait 44 px de haut au téléphone (il se
+  touche au doigt) ; le test de la clôture du client attend que les livres du dossier soient lus avant de juger la fiche.
