@@ -5319,7 +5319,7 @@
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
           (root, close) => { $('#ok', root).onclick = async () => {
             const v = formValues($('#cpf', root));
-            if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus($('[name=to]', root), 'Adresse email invalide.');
+            if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus($('[name=to]', root), 'Adresse e-mail invalide.');
             const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
             try {
               const att = await bridge.saveTextSilent(`journal-ventes-${tag}.csv`, C.toCsv(rows, journalColumns()));
@@ -7128,7 +7128,7 @@
           ${field(lbl('Gérant (qui signe)', 'co.managerName'), 'managerName', c.managerName || '', 'text', 'placeholder="Prénom et nom"')}
           <label class="field span-2">${lbl('Adresse', 'co.address')}<textarea name="address">${h(c.address)}</textarea></label>
           ${field(lbl('Téléphone', 'co.phone'), 'phone', c.phone)}
-          ${field(lblVerif('Email', 'co.email'), 'email', c.email, 'email', 'data-verif="email"')}
+          ${field(lblVerif('E-mail', 'co.email'), 'email', c.email, 'email', 'data-verif="email"')}
           ${field(lbl('Site web', 'co.website'), 'website', c.website || '')}
           <label class="field span-2">${lbl('Slogan (sous le nom, sur les documents)', 'co.tagline')}<input type="text" name="tagline" value="${h(c.tagline || '')}" placeholder="Ce que fait ton entreprise, en quelques mots"></label>
         </div></div>
@@ -10166,7 +10166,7 @@
         };
         $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
-        if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus('#mf input[name=to]', 'Adresse email invalide.');
+        if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus('#mf input[name=to]', 'Adresse e-mail invalide.');
         const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
         try {
           let attachment = null;
@@ -10500,7 +10500,7 @@
         return [
           { icon: 'contrat', label: 'Voir la clé', hint: 'La clé, son offre, sa date de fin — et de quoi l\'envoyer', run: () => montrerCle(r) },
           { icon: 'copier', label: 'Copier la clé', hint: 'Dans le presse-papiers, pour la coller où tu veux', run: () => copierTexte(r.key, 'Clé de licence copiée') },
-          { icon: 'email', label: 'Envoyer la clé par email', hint: inv && inv.number ? `Avec la facture ${inv.number} en PDF` : 'La clé et la marche à suivre', run: () => envoyerLicence(r) },
+          { icon: 'email', label: 'Envoyer la clé par e-mail', hint: inv && inv.number ? `Avec la facture ${inv.number} en PDF` : 'La clé et la marche à suivre', run: () => envoyerLicence(r) },
           inv ? { icon: 'facture', label: 'Ouvrir la facture', hint: inv.number || 'Encore en brouillon', run: () => navigate('#/doc/' + inv.id) } : null,
           // Une licence déjà renouvelée ne se renouvelle pas une seconde fois : c'est sa remplaçante
           // qui porte la suite — sinon on fabriquerait une troisième clé et une troisième facture.
@@ -10819,7 +10819,7 @@
           ${field(lbl('Registre de commerce (RC)', 'co.rc'), 'rc', a.rc || '', 'text', 'placeholder="facultatif, ex. B123456789"')}
           <label class="field span-2">${lbl('Adresse', 'co.address')}<textarea name="address" placeholder="Rue et numéro&#10;Code postal et ville">${h(a.address || '')}</textarea></label>
           ${field(lbl('Téléphone', 'co.phone'), 'phone', a.phone || '')}
-          ${field(lbl('Email', 'co.email'), 'email', a.email || '', 'email')}
+          ${field(lbl('E-mail', 'co.email'), 'email', a.email || '', 'email')}
           ${field(lbl('Capital social', 'co.capital'), 'capital', a.capital || '', 'text', 'placeholder="facultatif, ex. 1 000 DT"')}
         </form>
         ${a.depuisLicence ? '<p class="small muted">La raison sociale et le matricule viennent de ta clé de licence. Vérifie qu\'ils s\'écrivent exactement comme sur tes papiers : la clé reste valable tant que le matricule ne change pas.</p>'

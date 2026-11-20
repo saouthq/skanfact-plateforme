@@ -102,6 +102,23 @@ describe('le client à l\'étranger (1.387.72)', () => {
     // La liste est celle de l'application (le <select> natif est caché) : on la pose comme elle le fait, avec son « change ».
     await q.locator('#cf select[name=currency]').evaluate((e) => { (e as HTMLSelectElement).value = 'EUR'; e.dispatchEvent(new Event('change', { bubbles: true })); });
     await expect.poll(async () => net(await q.locator('#cf-mf-aide').innerText()), { timeout: 10_000 }).toBe('Client à l\'étranger : son numéro fiscal s\'écrit tel quel.');
+    // (1.387.73, V-17) L'adresse s'appelle « E-mail » comme sur la fiche, pas « Email ».
+    await q.locator('#cf-plus summary').click();
+    expect(await q.locator('#cf label.field').evaluateAll((l) => l.map((x) => ((x as HTMLElement).innerText.trim().split('\n')[0] ?? '').replace(/\s+i$/, '')).filter((x) => /mail/i.test(x)))).toEqual(['E-mail']);
+    await q.keyboard.press('Escape');
+
+    // (1.387.73, V-17) La fenêtre d'un client qui a une pièce n'offre plus « Supprimer » en rouge (qui refusait) : elle archive.
+    const r = await cx.newPage();
+    r.on('pageerror', (x) => erreurs.push(x.message));
+    await r.goto(`${serveur.adresse}/v10/?e=${ent}#/client/c1`);
+    await r.locator('[data-modifier]').first().waitFor({ timeout: 30_000 });
+    await plusTard(r);
+    await r.locator('[data-modifier]').first().click();
+    await r.locator('#arch-client').waitFor({ timeout: 10_000 });
+    expect(await r.locator('#del-client').count()).toBe(0);
+    expect(await r.locator('#arch-client').getAttribute('title')).toContain('1 document lié');
+    await r.locator('#arch-client').click();
+    await expect.poll(async () => net(await r.locator('#toast').innerText()), { timeout: 10_000 }).toContain('Maison Olivier SARL est archivé');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);

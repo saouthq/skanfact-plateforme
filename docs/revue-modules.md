@@ -5686,3 +5686,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   l'entreprise, « FR 12 345678901 » ne déclenche plus « Ni un matricule ni un CIN » ; la note dit qu'il s'écrit tel quel,
   et elle suit le choix de la devise.
 - Test : `tests/web/etranger-1387.test.ts` ; preuves `etranger-export-avant-emettre`, `etranger-numero-fiscal-tel-quel`.
+
+## 1.387.73 — La fenêtre du client, et quelques mots (issue 15, V-17 et V-18)
+
+- **La fenêtre d'un client qui a des pièces n'offre plus « Supprimer ce client » en rouge** (le bouton répondait
+  « Impossible : 16 documents sont liés ») : elle offre « Archiver ce client », le même geste que le menu de sa fiche,
+  avec son « Annuler ». Un client sans pièce se supprime toujours.
+- **« E-mail » partout** : la fenêtre du client, du fournisseur et de l'entreprise disaient « Email », la fiche
+  « E-mail » ; « Envoyer par e-mail », « Adresse e-mail invalide ».
+- **Un devis vide** n'annonce plus « Le client paiera 1,000 » (le timbre seul).
+- **« Reçu … puis 214,200 DT rendus au client »** : le « dont » se lisait comme une part du reçu.
+- **Un avoir clos** : « Tu peux le lire… » (et non « la lire »).
+- Laissé : « À VÉRIFIER » en capitales (la convention du projet — à décider avec Skander) ; la ville à part ; langue
+  et devise sous le pli.

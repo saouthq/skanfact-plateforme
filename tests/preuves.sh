@@ -30891,6 +30891,14 @@ prouver $'etranger-numero-fiscal-tel-quel' modules/socle/ecrans/entreprise/app-1
   $'          const mal = !ailleurs && v.trim()' \
   $'          const mal = v.trim()' \
   $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
+prouver $'client-fenetre-archive-pas-supprime' modules/socle/ecrans/entreprise/app-1.js \
+  $'${!client ? \'\' : !nDocsLies ? \'<button class="btn btn-danger" id="del-client"' \
+  $'${!client ? \'\' : true ? \'<button class="btn btn-danger" id="del-client"' \
+  $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
+prouver $'client-fenetre-e-mail' modules/socle/ecrans/entreprise/app-1.js \
+  $'${field(lbl(\'E-mail\', \'cl.email\')' \
+  $'${field(lbl(\'Email\', \'cl.email\')' \
+  $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

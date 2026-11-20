@@ -120,7 +120,7 @@ describe('les envois, à la souris', () => {
 
     // L'e-mail : aucune question « Mail ou une autre messagerie » ; la case du lien, cochée ; « Veuillez
     // trouver ci-joint » devient « Voici » (rien n'est joint), et décocher rend la phrase.
-    const fenetre = await envoi(nadia, /^(Email$|Envoyer par email…$|Par e-mail)/);
+    const fenetre = await envoi(nadia, /^(E-mail$|Envoyer par e-mail…$|Par e-mail)/);
     expect(await nadia.locator('#msg-choix').count()).toBe(0);
     // (1.155.0, maquette « Envoyer la facture ») Le lien part toujours avec une facture émise : il se dit en puce, à côté
     // du PDF ; « Veuillez trouver ci-joint » devient « Voici » (rien n'est joint).
@@ -194,7 +194,7 @@ describe('les envois, à la souris', () => {
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d1`);
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Devis/);
     await plusTard(nadia);
-    const devis = await envoi(nadia, /^(Email$|Envoyer par email…$|Par e-mail|Envoyer le devis$)/);
+    const devis = await envoi(nadia, /^(E-mail$|Envoyer par e-mail…$|Par e-mail|Envoyer le devis$)/);
     // (1.306.0) La fenêtre de la facture : le lien en puce, à côté du PDF ; sans « Le lien seul » tant qu'il est en brouillon
     // (l'espace ne montre jamais un devis en brouillon).
     expect(net(await devis.locator('.env-pj').innerText())).toContain('lien de la pièce');

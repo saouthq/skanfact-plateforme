@@ -5022,7 +5022,7 @@
       const envoi = indicesEnvoi(d);
       const a = [{ icon: 'ouvrir', label: 'Ouvrir', hint: !emiseIci ? 'Voir la pièce et la modifier' : d.type === 'facture' ? 'Voir la facture émise et ses paiements' : 'Voir la pièce émise', run: () => navigate('#/doc/' + id) },
                  { icon: 'pdf', label: 'Exporter en PDF', hint: 'Le document tel que ton client le recevra', run: () => exportPdf(d) }];
-      if (d.number) a.push({ icon: 'email', label: 'Envoyer par email', hint: envoi.email, run: () => sendByEmail(d) },
+      if (d.number) a.push({ icon: 'email', label: 'Envoyer par e-mail', hint: envoi.email, run: () => sendByEmail(d) },
         { icon: 'message', label: 'Envoyer par WhatsApp', hint: envoi.whatsapp, run: () => sendByWhatsApp(d) });
       // `restOf` vit dans `docColumns` : ici on repasse par `balance`, la même source.
       const reste = d.type === 'facture' && d.status !== 'brouillon' ? balance(d).remaining : 0;
@@ -6528,7 +6528,7 @@
             <button class="btn btn-sm" id="pv-toggle" aria-pressed="false">Aperçu</button>
             <button class="btn btn-sm" id="pv-big" title="Voir le document en grand (${TOUCHES_APERCU})">Agrandir</button>
           </div>
-          ${!isNew && !emailDansPlus ? `<button class="btn ${envoiSuivant ? 'btn-primary' : ''}" id="email">Email</button>` : ''}
+          ${!isNew && !emailDansPlus ? `<button class="btn ${envoiSuivant ? 'btn-primary' : ''}" id="email">E-mail</button>` : ''}
           ${avecPlus ? '<button class="btn tel-seul" id="wa-tel">WhatsApp</button>' : ''}
           <button class="btn${suiteExtra === 'pdf' ? ' btn-primary' : ''}" id="pdf">PDF</button>
           ${locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005 ? `<button class="btn btn-primary" id="pay">Enregistrer un paiement</button>` : ''}
@@ -7013,7 +7013,8 @@
             // « Corriger par un avoir… » en vert, c'était inviter à un avoir de trop (10.12.0).
             ? 'Ses avoirs l\'annulent en entier : il n\'y a plus rien à corriger, et toutes les pièces restent dans la numérotation.'
             : charte ? 'Pour corriger, un avoir annule tout ou partie de la facture.' : 'Pour corriger, on fabrique un avoir : il annule tout ou partie de celle-ci, et les deux pièces restent.')
-          : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}</span>
+          : isAv ? 'Tu peux le lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'
+            : 'Tu peux la lire, l\'imprimer, l\'envoyer et l\'exporter : seule la modification est fermée.'}</span>
         ${info('ed.locked')}</span>
         <span class="lock-go">
           ${isInv && doc.status !== 'annulée' && !verrou.annulee && !(charte && roleBarre() === 'commercial')
@@ -8641,6 +8642,8 @@
           // devis facturé en entier n'a plus de facture à venir : rien à annoncer.
           const pdq = doc.id ? piecesDuDevis(doc.id) : { totales: [], acomptes: [] };
           if (pdq.totales.length) return '';
+          // (1.387.73, issue 15 V-18) Un devis vide annonçait « Le client paiera 1,000 » : le timbre seul.
+          if (!(t.totalTTC > 0.0005)) return '';
           const solde = pdq.acomptes.length > 0;
           const tf = C.computeTotals(solde ? invoiceFromQuote(doc, C.settlementLines(doc, pdq.acomptes), doc.discountRate) : invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
           // Ce que les acomptes ôtent au devis, en TTC : la ligne qui fait tomber le compte juste (devis − acomptes + timbre − retenue).
@@ -8747,7 +8750,7 @@
           <div><div class="k-label">Avoirs ${info('ed.credit')}</div><div class="v">${mo(b.credited)}</div>${b.credits.length ? `<div class="small">${b.credits.map(a => `<a href="#/doc/${a.id}">${h(a.number)}</a>`).join(', ')}</div>` : ''}</div>
           ${/* « Payé 1,000 DT » sur une facture réglée 405,600 puis remboursée de 404,600 (vu au test
                humain, 10.14.0) : le net se lisait comme ce que le client avait versé. La carte dit
-               ce qui est REÇU, et ce qui a été rendu dessous. */''}<div><div class="k-label">${charte ? 'Reçu' : 'Payé'}</div><div class="v">${mo(C.round3(b.paid + rendu))}</div>${rendu ? `<div class="small muted">dont ${C.money(rendu, cur)} rendus au client</div>` : ''}${rejete ? `<div class="small muted">sans ${C.money(rejete, cur)} revenus impayés</div>` : ''}</div>
+               ce qui est REÇU, et ce qui a été rendu dessous. */''}<div><div class="k-label">${charte ? 'Reçu' : 'Payé'}</div><div class="v">${mo(C.round3(b.paid + rendu))}</div>${rendu ? `<div class="small muted">puis ${C.money(rendu, cur)} rendus au client</div>` : ''}${rejete ? `<div class="small muted">sans ${C.money(rejete, cur)} revenus impayés</div>` : ''}</div>
           ${b.remaining < -0.0005
             // Un trop-perçu n'est pas « 0,000 DT » en vert (10.12.0) : c'est de l'argent qui appartient
             // au CLIENT — un avoir émis après le paiement, ou un paiement plus fort que la facture. La
@@ -11128,6 +11131,9 @@
     return n < 6 || /[A-Za-zÀ-ÿ]/.test(v.replace(/\b(poste|ext)\b\.?/gi, '')) ? `« ${v} » n'est pas un numéro de téléphone : écris ses chiffres (huit pour la Tunisie, ou l'indicatif du pays devant, +33…).` : ''; };
   function clientForm(client, done, preset) {
     const c = client || C.clientVierge(preset);
+    // (1.387.73, issue 15 V-17) « Supprimer ce client » en rouge, toujours offert, répondait « Impossible : 16 documents
+    // sont liés ». Un client qui a une histoire s'archive : la fenêtre offre ce geste-là, comme le menu de sa fiche.
+    const nDocsLies = client ? data.documents.filter(d => d.clientId === c.id).length : 0;
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
       <form id="cf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'cl.name')}<input type="text" name="name" value="${h(c.name)}" required></label>
@@ -11144,7 +11150,7 @@
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="creditLimit" value="${h(frChiffre(c.creditLimit || ''))}" class="num montant" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
         <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
-        ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
+        ${field(lbl('E-mail', 'cl.email'), 'email', c.email, 'email')}
         ${field(lbl('Code client', 'cl.code'), 'code', c.code || '', 'text', 'placeholder="CL-0012" autocomplete="off"')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
         <label class="field">${lbl('Devise', 'cl.currency')}<select name="currency"><option value="" ${!c.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${c.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
@@ -11152,7 +11158,8 @@
         ${client ? '' : '</div></details>'}
       </form>
       <div class="modal-actions">
-        ${client ? '<button class="btn btn-danger" id="del-client" style="margin-inline-end:auto">Supprimer ce client</button>' : ''}
+        ${!client ? '' : !nDocsLies ? '<button class="btn btn-danger" id="del-client" style="margin-inline-end:auto">Supprimer ce client</button>'
+          : c.archived ? '' : `<button class="btn" id="arch-client" style="margin-inline-end:auto" title="${pl(nDocsLies, 'document lié', 'documents liés')} : un client qui a une histoire ne se supprime pas, il s'archive">Archiver ce client</button>`}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         // (1.201.0, maquette Clients « matricule déjà connu », « matricule mal écrit ») Le matricule se relit pendant qu'on
@@ -11197,6 +11204,7 @@
           if (!client) data.clients.push(c);
           save(true); close(); if (done) done(c);
         };
+        if ($('#arch-client', root)) $('#arch-client', root).onclick = () => { close(); archiverClient(c, () => { if (done) done(c); }); };
         if ($('#del-client', root)) $('#del-client', root).onclick = async () => {
           if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }
           const n = data.documents.filter(d => d.clientId === c.id).length;
@@ -13707,7 +13715,7 @@
     if (lien) m.body = bridge.sansPieceJointe(m.body);
     const mtitle = kind === 'relanceDevis' ? 'Relancer le devis ' + h(doc.number)
       : /^relance\d$/.test(kind) ? C.REMINDER_LABELS[Number(kind.slice(-1))] + ' — ' + h(doc.number)
-      : 'Envoyer ' + h(docLabel(doc)) + ' par email';
+      : 'Envoyer ' + h(docLabel(doc)) + ' par e-mail';
     // (1.155.0, maquette « Envoyer la facture ») Une seule fenêtre : l'e-mail, WhatsApp ou le lien seul ; les adresses du
     // client cochées, une autre adresse, la copie pour soi ; ce qui part avec (le PDF, le lien, le fichier El Fatoora) ; et,
     // avant le geste, ce qui manque encore (la signature).
@@ -15912,7 +15920,7 @@
         ${/* (plateforme) 1.132.0 — de même pour un fournisseur neuf (revue du mois d'un client, point 15). */''}
         ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, devise, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
         ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
-        ${field(lbl('Email', 'sup.email'), 'email', s.email || '', 'email')}
+        ${field(lbl('E-mail', 'sup.email'), 'email', s.email || '', 'email')}
         ${field(lbl('Délai de paiement accordé (jours)', 'sup.terms'), 'paymentTermsDays', s.paymentTermsDays == null ? '' : s.paymentTermsDays, 'number', 'min="0" class="num" placeholder="30"')}
         <label class="field">${lbl('Retenue à la source à opérer', 'sup.withholding')}${withholdingSelect('withholdingRate', s.withholdingRate, { vide: 'Aucune', sansZero: true })}</label>
         ${champsAttestationRS(s, 'fournisseur')}
