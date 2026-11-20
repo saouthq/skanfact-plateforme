@@ -2099,7 +2099,7 @@
   /** @param {HTMLElement} el */
   function dessinerExport(el) {
     el.innerHTML = `<p class="small muted mb">Un seul fichier qui contient tout ce que ton entreprise a sur SkanFact : ses pièces et leurs règlements, ses clients et fournisseurs, ses achats, sa caisse, sa paie, sa comptabilité, ses messages avec ton cabinet, son équipe et la trace de chaque geste. Aucun mot de passe ni aucune clé d'accès n'y figure.</p>
-      <p class="small muted mb">Il est à toi : garde-le où tu veux. Il est au format JSON, que n'importe quel outil sait lire, et SkanFact sait le remettre en place tel quel. Chaque téléchargement est noté dans la trace de l'entreprise.</p>
+      <p class="small muted mb">Il est à toi : garde-le où tu veux. C'est un fichier texte (du JSON, une ligne par élément), que n'importe quel outil sait lire, et SkanFact sait le remettre en place tel quel. Chaque téléchargement est noté dans la trace de l'entreprise.</p>
       <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button></div>
       <p class="small mt" role="status" id="export-etat" style="min-height: 1.5em"></p>`;
     const bouton = /** @type {HTMLButtonElement} */ (el.querySelector('#export-telecharger'));

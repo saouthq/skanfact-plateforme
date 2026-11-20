@@ -379,7 +379,7 @@
       pages: ['tresorerie', 'marges', 'stats'],
       compte: d => (d.accounts || []).length + (d.movements || []).length + (d.projects || []).length },
     { id: 'compta', label: 'Comptabilité', toujours: true,
-      quoi: 'Ce que tu donnes à ton comptable : journaux, TVA, écritures, clôtures, paquet mensuel.',
+      quoi: 'Ce que ton comptable lit : journaux, TVA, écritures, clôtures.',
       pages: ['compta'],
       // Les écrans de 8.8.0 → 9.0.0 (grand livre, balance, états financiers, livre-journal, OD,
       // lettrage) sont un SOUS-MODULE, pas un second module : `compta` existe depuis longtemps et

@@ -409,7 +409,7 @@
     }
     for (const [id, nom] of /** @type {[string, string][]} */ ([['factures', 'Factures'], ['achats', 'Achats']])) {
       const c = compteDuLien(lienDe(id));
-      if (c && c.ton === 'alerte') { const phrase = c.tip.split(' · ').slice(1).join(' · '); l.push({ cle: `${id}-${phrase}`, ic: id === 'factures' ? 'factures' : 'achats', ton: 'alerte', html: `<b>${esc(nom)}</b> : ${esc(phrase)}`, sous: 'Ce qui est en retard', faire: () => aller(`#/${id}`) }); }
+      if (c && c.ton === 'alerte') { const phrase = c.tip.split(' · ').slice(1).join(' · '); l.push({ cle: `${id}-${phrase}`, ic: id === 'factures' ? 'factures' : 'achats', ton: 'alerte', html: `<b>${esc(nom)}</b> : ${esc(phrase)}`, sous: 'Ce qui est en retard', faire: () => (typeof w.__versRetard === 'function' ? w.__versRetard(id) : aller(`#/${id}`)) }); }
     }
     if (poste.hors && poste.attente) l.push({ cle: `hors-${poste.attente}`, ic: 'nuage', ton: 'attire', html: `<b>Hors ligne</b> : ${poste.attente} ${poste.attente > 1 ? 'changements attendent' : 'changement attend'} le réseau`, sous: 'Ils partiront seuls à son retour', faire: () => {} });
     // Ce que l'application ajoute (le Cabinet : les pièces reçues, les clients qui attendent une réponse).

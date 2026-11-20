@@ -5310,7 +5310,7 @@
         modal(`<h2>${messagerieVue && messagerieVue.cabinet ? 'Envoyer la comptabilité par e-mail' : 'Envoyer la comptabilité au comptable'}</h2>
           <p class="small muted">${pl(rows.length, 'document')} · ${C.money(sum.ht, cur)} HT · TVA ${C.money(sum.tva, cur)} — ${h(periodLabel())}</p>
           <form id="cpf" class="grid-2">
-            ${field(lbl(messagerieVue && messagerieVue.cabinet ? 'Son adresse e-mail' : 'Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
+            ${field(lbl(messagerieVue && messagerieVue.cabinet ? 'Son adresse e-mail' : 'E-mail du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
             <label class="check" style="align-self:end"><input type="checkbox" name="remember" checked> Retenir cette adresse</label>
             <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(C.fillTemplate(tpl.subject, vars))}"></label>
             <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars).replace(/(^|\D)1 documents\b/, (m, avant) => `${avant}1 document`))}</textarea></label>
@@ -7196,7 +7196,7 @@
             const nom = { facture: 'Factures', avoir: 'Avoirs', devis: 'Devis' }[type];
             return `<tr><td>${nom}</td><td class="r">${e.verrouillee
               ? `<span class="mono">${h(e.derniereNumero)}</span>`
-              : `<input type="number" class="num num-derniere" data-num="${type}" data-nom="${nom}" data-avant="${e.derniere || ''}" value="${e.derniere || ''}" min="0" step="1" placeholder="aucune" aria-label="Dernière ${nom.toLowerCase().replace(/s$/, '')} émise en ${e.annee}">`}</td>
+              : `<input type="number" class="num num-derniere" data-num="${type}" data-nom="${nom}" data-avant="${e.derniere || ''}" value="${e.derniere || ''}" min="0" step="1" placeholder="aucune" aria-label="${({ facture: 'Dernière facture émise', avoir: 'Dernier avoir émis', devis: 'Dernier devis émis' })[type]} en ${e.annee}">`}</td>
               <td><span class="mono" data-num-prochaine="${type}">${h(e.prochaine)}</span>${e.verrouillee ? ' <span class="small muted">— la suite est tenue par SkanFact</span>' : ''}</td></tr>`;
           }).join('')}</tbody></table>
           <p class="small muted mt">Une facture et un avoir reçoivent leur numéro à l'émission ; leur série d'une année doit rester continue — <em>À VÉRIFIER avec ton comptable</em>. Une fois une facture de l'année numérotée ici, sa suite ne se change plus.</p></div>
@@ -7244,7 +7244,7 @@
              bulle passe sur le titre, la phrase redevient une phrase. */''}
         ${panneau('p-envoi')}<p class="small muted" id="mail-fixe">Le message s'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l'imprimes, et ce qu'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n'y a rien à régler ici.</p></div>
         ${panneau('p-comptable')}<div class="grid-2">
-          ${field(lbl('Email du comptable', 'compta.comptable'), 'accountantEmail', c.accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
+          ${field(lbl('E-mail du comptable', 'compta.comptable'), 'accountantEmail', c.accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
         </div><p class="small muted mt" id="email-comptable-note">${h(phraseEmailComptable())}</p></div>
         ${panneau('p-modeles', info('mail.templates'))}
           <p class="small muted mt">Variables utilisables : {numero} {client} {objet} {montant} {echeance} {jours} {societe} {reference}. Les documents en anglais utilisent les modèles en anglais.</p>
@@ -8744,7 +8744,7 @@
         <ul class="g-liste">${liste.map(ligne).join('')}</ul></section>`;
     }).join('');
     // Tes réussites : jamais sur l'exemple — celles d'une entreprise inventée ne sont pas les tiennes.
-    const rr = exemple ? null : C.reussites(data, company(), { copieExterne, partage: dossierPartage });
+    const rr = exemple ? null : C.reussites(data, company(), { copieExterne, partage: dossierPartage, enLigne: !!bridge.dessinerAbonnement, comptable: !!($('#foot-comptable') && !$('#foot-comptable').hidden) });
     $('#view').innerHTML = `
       <div class="page-head"><h1>Me guider</h1>
         <div class="actions"><button type="button" class="btn" id="g-aide">Ouvrir l'Aide</button></div></div>

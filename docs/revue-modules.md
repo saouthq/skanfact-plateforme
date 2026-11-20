@@ -5724,3 +5724,18 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   Comptabilité) », et le message d'une case cochée dit la famille du menu ou l'onglet où elle vient d'apparaître.
 - ENTSOCLE-1, 3 et 8 étaient déjà faits. Restent : 6, 9 à 23.
 - Test : `tests/web/coquille-1387.test.ts`, huit preuves.
+
+## 1.387.76 — La coquille, suite : la cloche, les mots, les réussites (issue 14)
+
+- **ENTSOCLE-15 — la cloche ouvre ce qu'elle annonce.** « Factures : 2 en retard » ouvrait la liste entière ; le clic
+  ouvre les relances, et pour les achats la liste filtrée sur « En retard ».
+- **ENTSOCLE-21 — les phrases d'un autre produit.** « Tes réussites » ne parle plus de « copie automatique hors de
+  cet ordinateur » ni de « paquet au comptable » en ligne : les données vivent en ligne, et la ligne du comptable
+  (« Ton comptable relié ») se coche quand un cabinet est relié. Le guide et les visites ne promettent plus un PDF
+  joint : le message porte le lien de la pièce. Le module Comptabilité dit « ce que ton comptable lit ».
+- **ENTSOCLE-22 — les mots.** « E-mail » partout (bouton, bulles, « E-mail du comptable ») ; l'export dit ce qu'est
+  un fichier JSON ; les deux lignes « À faire » des attestations disent leur geste (« Les réclamer », « Les remettre »).
+- **ENTSOCLE-10 — les cases de la numérotation se nomment** (« Dernière facture émise », « Dernier avoir émis »,
+  « Dernier devis émis ») pour un lecteur d'écran.
+- Restent : 6, 9, 11 à 14, 16 à 20, 23.
+- Tests : `tests/moteur/reussites-en-ligne-1387.test.ts`, `tests/web/coquille-1387.test.ts`.

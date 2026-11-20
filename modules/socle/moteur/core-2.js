@@ -5749,9 +5749,11 @@
       { id: 'facture', titre: 'Première facture émise', quoi: 'Numérotée, verrouillée, comptée dans ton chiffre d\'affaires et ta TVA.', fait: docs.some(x => x.type === 'facture' && emise(x)) },
       { id: 'paiement', titre: 'Premier paiement encaissé', quoi: 'La facture s\'est soldée toute seule, et l\'argent est arrivé dans ta trésorerie.', fait: docs.some(x => (x.payments || []).length > 0) },
       { id: 'achat', titre: 'Premier achat saisi', quoi: 'La TVA que tu récupères commence à compter.', fait: (d.purchases || []).length > 0 },
-      { id: 'abri', titre: 'Données à l\'abri', fait: !!o.copieExterne || !!o.partage,
-        quoi: o.partage && !o.copieExterne ? 'Ton dossier partagé vit hors de cet ordinateur.' : 'Une copie automatique vit hors de cet ordinateur.' },
-      { id: 'comptable', titre: 'Premier paquet au comptable', quoi: 'Ton comptable a reçu ton mois, déjà écrit : zéro ressaisie.', fait: (d.packs || []).length > 0 },
+      // (1.387.76, issue 14 ENTSOCLE-10) En ligne, il n'y a ni « cet ordinateur » ni « paquet » : les données vivent sur le
+      // serveur (sauvegardé), et le cabinet lit les livres ici même. Les deux réussites disent ce qui est vrai là où l'on est.
+      { id: 'abri', titre: 'Données à l\'abri', fait: !!o.enLigne || !!o.copieExterne || !!o.partage,
+        quoi: o.enLigne ? 'Tes données vivent en ligne : un ordinateur perdu ne les emporte pas.' : o.partage && !o.copieExterne ? 'Ton dossier partagé vit hors de cet ordinateur.' : 'Une copie automatique vit hors de cet ordinateur.' },
+      { id: 'comptable', titre: o.enLigne ? 'Ton comptable relié' : 'Premier paquet au comptable', quoi: o.enLigne ? 'Ton cabinet lit tes écritures ici même, à jour : zéro ressaisie, rien à lui envoyer.' : 'Ton comptable a reçu ton mois, déjà écrit : zéro ressaisie.', fait: o.enLigne ? !!o.comptable : (d.packs || []).length > 0 },
       { id: 'cloture', titre: 'Premier mois clôturé', quoi: 'Un mois déclaré, et qui ne bougera plus.', fait: !!d.closedUntil }
     ];
     return { liste, faites: liste.filter(x => x.fait).length, total: liste.length };

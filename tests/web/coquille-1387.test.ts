@@ -130,6 +130,21 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await expect.poll(async () => net(await p.locator('#toast').innerText()), { timeout: 10_000 }).toContain('n\'est pas un numéro de téléphone');
     const societe = (await admin.query('select contenu from socle.dossier_v10 where entreprise = $1 and collection = \'company\'', [ent])).rows.map((x) => JSON.stringify(x.contenu)).join(' ');
     expect(societe).not.toContain('pas-un-email');
+    // (1.387.76) La cloche dit « en retard » : son clic ouvre ce qui est en retard — les relances pour les factures, les
+    // achats filtrés sur « En retard » pour les achats — et plus la liste entière. Et les cases de la numérotation se nomment.
+    expect(String(await p.locator('#pf input[data-num="facture"]').getAttribute('aria-label'))).toContain('Dernière facture émise');
+    expect(String(await p.locator('#pf input[data-num="devis"]').getAttribute('aria-label'))).toContain('Dernier devis émis');
+    const p2 = await cx.newPage();
+    await p2.goto(`${serveur.adresse}/v10/?e=${ent}#/`);
+    await p2.waitForFunction(() => typeof (window as unknown as { __versRetard?: unknown }).__versRetard === 'function', undefined, { timeout: 30_000 });
+    await plusTard(p2);
+    await p2.evaluate(() => (window as unknown as { __versRetard: (id: string) => void }).__versRetard('achats'));
+    await expect.poll(() => p2.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/achats');
+    await expect.poll(() => p2.locator('[data-tst="retard"]').getAttribute('aria-pressed'), { timeout: 10_000 }).toBe('true');
+    await p2.evaluate(() => (window as unknown as { __versRetard: (id: string) => void }).__versRetard('factures'));
+    await expect.poll(() => p2.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/relances');
+    const barre = fs.readFileSync(path.join(RACINE, 'web/public/plateforme/barre.js'), 'utf8');
+    expect(barre).toContain("w.__versRetard(id)");
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 150_000);

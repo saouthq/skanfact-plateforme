@@ -3235,6 +3235,8 @@
   function allerInviterComptable() { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate(bridge.dessinerSansCabinet && bridge.messagerie ? '#/comptable' : '#/compta'); }
   window.__inviterComptable = () => allerInviterComptable();
   window.__naviguer = (hash) => navigate(hash);
+  // (1.387.76) La cloche dit « en retard » : elle ouvre ce qui est en retard, pas la liste entière.
+  window.__versRetard = (id) => (id === 'achats' ? vers('#/achats', () => filtreAchats('retard')) : vers('#/relances'))();
   // « Changer de caissier » (brique 123) depuis la barre : seulement là où il marche, le poste de la caisse.
   window.__caissePoste = () => !!(caisseEtat && caisseEtat.posteDeCaisse);
   window.__changerCaissier = () => changerDeCaissier();
@@ -15036,7 +15038,7 @@
     'devis-acceptes': { label: 'Facturer', run: vers('#/devis', filtre('devis', 'accepté')) },
     'devis-expires': { label: 'Voir les devis', run: vers('#/devis', filtre('devis', 'expiré')) },
     'devis-sans-reponse': { label: 'Voir les devis', run: vers('#/devis', filtre('devis', 'envoyé')) },
-    attestations: { label: 'Voir la liste', run: vers('#/compta', () => { comptaState.tab = 'ventes'; pageFocus = 'p-rs-clients'; }) },
+    attestations: { label: 'Les réclamer', run: vers('#/compta', () => { comptaState.tab = 'ventes'; pageFocus = 'p-rs-clients'; }) },
     echeances: { label: 'Voir les échéances', run: vers('#/relances') },
     brouillons: { label: 'Voir les brouillons', run: vers('#/factures', filtre('facture', 'brouillon')) },
     // Les treize qui ne menaient nulle part.
@@ -15046,7 +15048,7 @@
     'fournisseurs-echeances': { label: 'Voir les achats', run: vers('#/achats', () => filtreAchats('à payer')) },
     // (1.356.8) La comptabilité des achats ne montre aucune attestation à remettre : un seul fournisseur concerné, et la ligne ouvre
     // l'onglet « Retenues » de SA fiche, où chacune s'imprime (la corrigée comprise) ; plusieurs, et l'on reste sur leurs règlements.
-    'attestations-fournisseurs': { label: 'Voir la liste', run: Object.assign(() => {
+    'attestations-fournisseurs': { label: 'Les remettre', run: Object.assign(() => {
       const sups = [...new Set(C.withholdingsToIssue(data, company()).map(x => (purchaseById(x.id) || {}).supplierId).filter(Boolean))];
       if (sups.length === 1) return vers('#/fournisseur/' + sups[0], () => { Object.assign(ficheFournState, { id: sups[0], onglet: 'retenues' }); })();
       return vers('#/compta', () => { comptaState.tab = 'achats'; })();

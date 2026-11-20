@@ -293,7 +293,7 @@
   // ---------- l'éditeur de pièce ----------
   b('#save', "Garde la pièce. Un devis reçoit son numéro ; une facture reste un brouillon sans numéro tant que tu ne l'as pas émise.", { route: 'doc' });
   b('#issue', "Donne à la pièce son numéro définitif et la verrouille. Un récapitulatif s'affiche d'abord : à qui, quand, combien.");
-  b('#email', "Prépare le mail dans ta messagerie, avec le PDF joint : tu relis, et tu envoies.");
+  b('#email', "Prépare le message dans ta messagerie, avec le lien de la pièce : tu relis, et tu envoies.");
   b('#wa', "Ouvre WhatsApp sur la conversation du client, le message déjà écrit ; le PDF s'affiche dans son dossier, à glisser.");
   // La question du premier envoi, sur Mac (10.14.0).
   b('#msg-mail', "Tes messages s'ouvriront dans Mail, l'application d'Apple, le PDF déjà joint.");
@@ -1337,7 +1337,7 @@
       id: 'envoyer', theme: 'ventes', type: 'faire', duree: '1 min', page: () => ctx.premier('pieceAEnvoyer'),
       pages: ['devis', 'factures', 'doc'], surLaPage: surLaPiece('doc', 'pieceAEnvoyer'),
       titre: 'Envoyer un devis ou une facture',
-      resume: 'Le mail est prêt dans ta messagerie, avec le PDF joint : tu relis, tu envoies.',
+      resume: 'Le message est prêt dans ta messagerie, avec le lien de la pièce : tu relis, tu envoies.',
       mots: ['envoyer', 'mail', 'email', 'pdf', 'client'],
       suite: ['devis-facture'],
       si: () => !!ctx.premier('pieceAEnvoyer'),
@@ -1357,7 +1357,7 @@
         { page: () => ctx.premier('pieceAEnvoyer'), cible: '#email', cote: 'dessous', faire: 'clic',
           titre: 'Envoyer par mail', texte: 'SkanFact prépare le mail dans ta messagerie, avec un texte poli (que tu changes dans Paramètres → Envois) ; pour une facture ou un avoir émis, avec le lien de la pièce.',
           // Fait quand une fenêtre s'ouvre : « Annuler » dans la question qui suit y ramène (10.14.1).
-          action: 'Clique sur <b>« Email »</b>.', fait: () => !aucuneFenetre(), essai: { clic: true } },
+          action: 'Clique sur <b>« E-mail »</b>.', fait: () => !aucuneFenetre(), essai: { clic: true } },
         // Deux questions peuvent précéder la fenêtre d'envoi (10.14.0) : l'exemple le rappelle avant
         // tout envoi, et un Mac demande sa messagerie la toute première fois. Sans ces étapes, la
         // bulle « Relis avant d'envoyer » décrivait un destinataire et un objet à côté d'une question
@@ -2515,7 +2515,7 @@
       conclusion: 'Ce que SkanFact fabrique — un PDF, un paquet — se range là où tu le choisis. Ce que tu joins, il en garde une copie à côté de tes données. Et ta copie de sécurité emporte tout.',
       etapes: [
         { page: () => ctx.premier('factureEmise') || ctx.premier('devis'), si: () => !!(ctx.premier('factureEmise') || ctx.premier('devis')), cible: '#pdf', cote: 'dessous',
-          titre: 'Le PDF d\'une pièce', texte: '<b>« PDF »</b> l\'enregistre là où tu le choisis sur ton ordinateur, puis l\'ouvre. Pour l\'envoyer, <b>« Email »</b> prépare le message avec le PDF déjà joint.' },
+          titre: 'Le PDF d\'une pièce', texte: '<b>« PDF »</b> l\'enregistre là où tu le choisis sur ton ordinateur, puis l\'ouvre. Pour l\'envoyer, <b>« E-mail »</b> prépare le message avec le PDF déjà joint.' },
         { si: () => !!$('#attachments'), cible: '.panel:has(> #attachments)', cote: 'dessus', facultatif: true,
           titre: 'Les fichiers joints à une pièce', texte: 'Le bon signé, une photo du chantier : le nom ouvre le fichier, le menu <b>« Actions »</b> de sa ligne le montre dans son dossier sur ton ordinateur. Pour en retrouver un sans savoir sur quelle pièce il est, tape son nom dans <b>Ctrl K</b>.' },
         { page: '#/compta', avant: onglet('#c-tabs', 'ventes'), cible: '#exp-pdfs', cote: 'dessous', facultatif: true,

@@ -30943,6 +30943,22 @@ prouver $'modules-dit-ou-est-la-page' modules/socle/ecrans/entreprise/app-2.js \
   $'map(p => p.vueDe && C.pageById(p.vueDe) ? `' \
   $'map(p => false ? `' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'cloche-ouvre-le-retard' modules/socle/ecrans/entreprise/app-1.js \
+  $'vers(\'#/achats\', () => filtreAchats(\'retard\')) : vers(\'#/relances\'))();' \
+  $'vers(\'#/achats\') : vers(\'#/factures\'))();' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'numerotation-cases-nommees' modules/socle/ecrans/entreprise/app-2.js \
+  $'facture: \'Dernière facture émise\'' \
+  $'facture: \'Dernier numéro\'' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'reussites-abri-en-ligne' modules/socle/moteur/core-2.js \
+  $'fait: !!o.enLigne || !!o.copieExterne || !!o.partage,' \
+  $'fait: !!o.copieExterne || !!o.partage,' \
+  $'en ligne, les données sont à l’abri sans copie ni dossier partagé, et la phrase ne parle plus de « cet ordinateur » comme d’un coffre'
+prouver $'reussites-comptable-relie' modules/socle/moteur/core-2.js \
+  $'titre: o.enLigne ? \'Ton comptable relié\' : \'Premier paquet au comptable\'' \
+  $'titre: \'Premier paquet au comptable\'' \
+  $'en ligne, la ligne du comptable s’appelle « Ton comptable relié » et se coche quand un cabinet est relié, pas à un paquet'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
