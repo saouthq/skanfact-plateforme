@@ -8360,6 +8360,11 @@
         // (1.328.0) Un dépassement accordé pour ce montant est un point réglé : il se coche, avec le nom de qui l'a accordé.
         const accE = enc && isInv ? accordDe(doc.id, 'encours') : null;
         const encOk = !!(accE && accE.statut === 'accorde' && Number(accE.montant) >= Math.round(enc.piece * Math.pow(10, C.decimalsFor(co.currency))));
+        // (1.387.72, issue 15 V-10) Une facture en devise qui porte TVA ou timbre : l'exportation était une case au fond de
+        // la puce « Devise », et la facture partait à 19 % avec un timbre de 0,29 €. La question se pose ici, en clair.
+        if (isInv && !doc.export && !figee && C.normCurrency(docCur(doc)) !== C.normCurrency(co.currency) && (t.totalVAT > 0.0005 || t.stamp > 0.0005))
+          points.push([false, `Facture en ${docCur(doc)} avec ${t.totalVAT > 0.0005 ? 'de la TVA' : 'un timbre'} : une vente à l'exportation n'en porte pas (tu peux émettre quand même)`,
+            '<button type="button" class="lien" data-avant="export">Passer en export</button>', 'aide']);
         if (enc) points.push([encOk, encOk ? `Encours : ${C.money(enc.depasse, co.currency)} au-delà, accordé par ${accE.decideur}` : `Encours : ${C.money(enc.depasse, co.currency)} au-delà de ce qui est permis pour ce client`, '']);
         if (!isAv) doc.lines.forEach(l => {
           if (C.estTitre(l) || l.fromBon) return;
@@ -8427,6 +8432,8 @@
       const f = $('[data-avant=fiche]', el); if (f) f.onclick = () => allerParametres('societe', 'p-identite');
       const c = $('[data-avant=client]', el); if (c) c.onclick = ouvrirFicheClient;
       const jm = $('[data-avant=jumelle]', el); if (jm) jm.onclick = () => navigate('#/doc/' + jm.dataset.id);
+      const ex = $('[data-avant=export]', el);
+      if (ex) ex.onclick = () => { doc.export = true; doc.lines.forEach(l => { if (l.kind !== 'titre') l.vatRate = 0; }); touch(); drawLines(); if (majEtiquettesApres) majEtiquettesApres(); toast('Vente à l\'exportation : sans TVA, sans droit de timbre. La mention s\'imprime sur la facture.'); };
       const px = $('[data-avant=prix]', el);
       if (px) px.onclick = () => {
         const n = prixAReprendre.length;
@@ -11159,15 +11166,21 @@
         const memeSociete = v => (racine(v) ? data.clients.find(x => x !== c && racine(x.matricule) === racine(v)) : null);
         const aideMf = () => {
           const v = $('#cf input[name=matricule]', root).value, z = $('#cf-mf-aide', root), autre = dejaLa(v), voisin = autre ? null : memeSociete(v);
-          const mal = v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v));
+          // (1.387.72, issue 15 V-10) Un client à l'étranger (la devise de sa fiche le dit) a un numéro fiscal d'une autre
+          // forme : « FR 12 345678901 » ne se reproche pas, il s'écrit tel quel.
+          const dev = ($('#cf select[name=currency]', root) || {}).value || '';
+          const ailleurs = !!dev && C.normCurrency(dev) !== C.normCurrency(company().currency);
+          const mal = !ailleurs && v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v));
           z.className = 'cf-aide' + (autre ? ' ko' : '');
           z.innerHTML = autre ? `Déjà la fiche de « ${h(autre.name)} » · <a href="#/client/${h(autre.id)}" id="cf-mf-ouvrir">ouvrir sa fiche</a>`
             : voisin ? `Même société que « ${h(voisin.name)} » (${h(voisin.matricule)})${mal ? ', et il manque la fin du matricule' : ''} : un autre de ses établissements ? Sinon, <a href="#/client/${h(voisin.id)}" id="cf-mf-ouvrir">ouvrir sa fiche</a>.`
-              : mal ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : '';
+              : mal ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.'
+                : ailleurs && v.trim() ? 'Client à l\'étranger : son numéro fiscal s\'écrit tel quel.' : '';
           const qui = autre || voisin;
           if ($('#cf-mf-ouvrir', root)) $('#cf-mf-ouvrir', root).onclick = e => { e.preventDefault(); close(); navigate('#/client/' + qui.id); };
         };
         $('#cf input[name=matricule]', root).addEventListener('input', aideMf);
+        if ($('#cf select[name=currency]', root)) $('#cf select[name=currency]', root).addEventListener('change', aideMf);
         aideMf();
         $('#ok', root).onclick = () => {
           if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));

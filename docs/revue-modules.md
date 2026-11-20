@@ -5675,3 +5675,14 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   français ; l'anglais garde le signe collé.
 - Le devis d'un commerce, d'un restaurant ou d'un artisan est signé « Le vendeur » (« Le prestataire » pour un service).
 - Reste de l'issue 15 : V-10 (client à l'étranger : une case et un pays), le reste de V-16 à V-18 (finitions).
+
+## 1.387.72 — Le client à l'étranger (issue 15, V-10)
+
+- **Une facture en devise avec TVA ou timbre pose la question avant d'émettre.** L'exportation était une case au fond de
+  la puce « Devise » : une facture en euros partait à 19 % avec un timbre. « Avant d'émettre » le dit (« une vente à
+  l'exportation n'en porte pas ») et porte le geste « Passer en export » — on peut émettre quand même (un client
+  étranger servi en Tunisie paie la TVA) : on prévient, on ne bloque pas.
+- **Un numéro fiscal étranger ne se reproche plus.** Sur la fiche d'un client dont la devise n'est pas celle de
+  l'entreprise, « FR 12 345678901 » ne déclenche plus « Ni un matricule ni un CIN » ; la note dit qu'il s'écrit tel quel,
+  et elle suit le choix de la devise.
+- Test : `tests/web/etranger-1387.test.ts` ; preuves `etranger-export-avant-emettre`, `etranger-numero-fiscal-tel-quel`.

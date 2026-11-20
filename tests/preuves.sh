@@ -21666,7 +21666,7 @@ prouver 'fiche client 13 : sans réseau, la relance reste proposée' modules/soc
 prouver 'fiche client 14 : un matricule déjà connu crée un second client' modules/socle/ecrans/entreprise/app-1.js \
   "          if (autre) return refus('#cf input[name=matricule]'," "          if (false) return refus('#cf input[name=matricule]'," "$FC2"
 prouver 'fiche client 15 : un matricule mal écrit se tait' modules/socle/ecrans/entreprise/app-1.js \
-  "? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : ''" "? '' : ''" "$FC2"
+  ": mal ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.'" ": mal ? ''" "$FC2"
 
 # (1.202.0) Les achats, lot 1 : la liste telle que la maquette (docs/maquettes/achats-fournisseurs.html, passe 3).
 LA1='« À payer » en tête, le tableau par mois, son pied, les filtres, « Régler », le téléphone'
@@ -30883,6 +30883,14 @@ prouver $'devis-le-vendeur' modules/socle/moteur/core-2.js \
   $'isQuote && [\'commerce\', \'restauration\', \'artisanat\'].includes(company.activity)' \
   $'isQuote && [].includes(company.activity)' \
   $'le devis d\'un commerce est signé « Le vendeur » ; celui d\'un métier de service reste « Le prestataire »'
+prouver $'etranger-export-avant-emettre' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (isInv && !doc.export && !figee && C.normCurrency(docCur(doc)) !== C.normCurrency(co.currency)' \
+  $'        if (false && isInv && !doc.export && !figee && C.normCurrency(docCur(doc)) !== C.normCurrency(co.currency)' \
+  $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
+prouver $'etranger-numero-fiscal-tel-quel' modules/socle/ecrans/entreprise/app-1.js \
+  $'          const mal = !ailleurs && v.trim()' \
+  $'          const mal = v.trim()' \
+  $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
