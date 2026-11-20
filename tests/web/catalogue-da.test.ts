@@ -50,17 +50,20 @@ describe('le Catalogue dans la nouvelle DA', () => {
     const jeton = String((await api('POST', '/connexion/code', undefined, { defi: r.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).jeton);
     const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Trabelsi' })).id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
-    // Quatre prestations : une avec sa marge (120,500 pour 72,300 de coût), une vendue sous son coût (45,250 pour 47,800),
-    // une sans prix, une sans coût suivie en stock. La marge se lit sur les deux premières seulement :
-    // (48,200 − 2,550) / (120,500 + 45,250) = 45,650 / 165,750 = 27,54… % → 27,5 %.
+    // Cinq prestations : une avec sa marge (120,500 pour 72,300 de coût), une vendue sous son coût (45,250 pour 47,800),
+    // une sans prix, une sans coût saisi mais suivie en stock (5 en stock à 10,000 : son coût est son coût moyen, 1.387.66).
+    // La marge se lit sur ces trois-là : (48,200 − 2,550 + 23,750) / (120,500 + 45,250 + 33,750) = 69,400 / 199,500
+    // = 34,78… % → 34,8 %.
     const art = (id: string, label: string, prix: number, cout: number, suivi = false) => ({ collection: 'catalog', cle: id, rang: 0, revision: null,
       contenu: { id, label, unit: 'u', unitPrice: { '~n': String(prix) }, unitCost: { '~n': String(cout) }, vatRate: 19,
         ...(suivi ? { tracked: true, initialQty: { '~n': '5' }, initialCost: { '~n': '10' } } : {}) } });
     const ecrit = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       art('pose', 'Pose de faïence (m²)', 120.5, 72.3), art('depl', 'Déplacement Grand Tunis', 45.25, 47.8),
-      art('devis', 'Étude sur place', 0, 0), art('joint', 'Joint époxy (seau)', 33.75, 0, true)] });
+      art('devis', 'Étude sur place', 0, 0), art('joint', 'Joint époxy (seau)', 33.75, 0, true),
+      // Une cinquième, vendue 60,000 sans aucun coût (ni saisi, ni stock) : elle n'entre pas dans la marge.
+      art('conseil', 'Conseil de pose', 60, 0)] });
     expect(ecrit.motif ?? 'écrit').toBe('écrit');
-    expect((ecrit.revisions as unknown[] | undefined)?.length).toBe(4);
+    expect((ecrit.revisions as unknown[] | undefined)?.length).toBe(5);
 
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => {
@@ -81,16 +84,16 @@ describe('le Catalogue dans la nouvelle DA', () => {
     expect(net(await p.locator('#cat-head .sous').innerText())).toBe('Ce que tu vends, avec son prix, sa TVA et son unité : tes devis et tes factures le reprennent d\'un clic');
     const chiffres = (await p.locator('#cat-resume .mg-chiffre').allInnerTexts()).map(net);
     expect(chiffres).toEqual([
-      'Prestations i 4 dont 1 suivie en stock',
+      'Prestations i 5 dont 1 suivie en stock',
       'Sans prix 1 à compléter avant de les vendre',
-      'Marge moyenne 27,5 % 1 prestation sans marge (prix ≤ coût)',
+      'Marge moyenne 34,8 % 1 prestation sans marge (prix ≤ coût)',
       'Modèles de documents i 0 depuis un devis : Plus ▾',
     ]);
     expect(await p.locator('#cat-resume b.rouge').count()).toBe(1);
     expect(await p.locator('#cat-resume b.ambre').count()).toBe(1);
     // Les onglets : une barre segmentée, l'onglet ouvert le dit ; la liste est dans sa carte.
     expect(await p.locator('#cat-tabs.pa-seg button[aria-selected=true]').innerText()).toBe('Prestations');
-    expect(await p.locator('.lf.mg .cf-carte #list-wrap table.list tbody tr').count()).toBe(4);
+    expect(await p.locator('.lf.mg .cf-carte #list-wrap table.list tbody tr').count()).toBe(5);
     await p.screenshot({ path: path.join(PHOTOS, 'catalogue-da-1.png') });
 
     // Le chiffre des modèles ouvre leur onglet : le titre, la phrase et la sélection suivent.

@@ -11935,7 +11935,7 @@
       bindPager($('#lp-pg'), pgL, dessiner);
       $('#lp-lignes').innerHTML = vueL.rows.map(({ x, i }) => {
         const it = articles.find(a => a.id === x.itemId);
-        const e = ecart(x.prix, it), cout = Number(it && it.unitCost) || 0, perte = cout > 0 && Number(x.prix) > 0 && Number(x.prix) < cout;
+        const e = ecart(x.prix, it), cout = it ? C.coutDeLArticle(data, it).cout : 0, perte = cout > 0 && Number(x.prix) > 0 && Number(x.prix) < cout;
         return `<tr>
         <td><select data-lk="itemId" data-i="${i}"><option value="">— Choisir un article —</option>${articles.map(a => `<option value="${h(a.id)}" ${a.id === x.itemId ? 'selected' : ''}>${h(a.label)}</option>`).join('')}</select></td>
         <td class="r num nw" data-lib="Catalogue">${it ? h(C.money(Number(it.unitPrice) || 0, cur)) : '—'}</td>
@@ -13353,16 +13353,20 @@
       return redraw;
     };
 
+    const coutCat = c => C.coutDeLArticle(data, c);
     const prestaCols = [
       // 10.12.0 — une prestation que l'assistant a posée le DIT : « Ajuster les prix de ton
       // catalogue » envoyait ici, et rien ne distinguait les exemples des tarifs décidés. Le repère
       // part à l'enregistrement de la fiche (`catalogForm`).
       { key: 'label', label: 'Désignation', asc: true, val: c => c.label.toLowerCase(), get: c => `<strong>${h(c.label)}</strong>${c.archived ? ` <span class="badge" title="Archivé le ${h(C.fmtDate(c.archived))} : il ne se vend plus">archivé</span>` : ''}${c.fromSetup ? ' <span class="badge" title="Proposée par l’assistant : mets ton prix et enregistre-la pour qu’elle devienne la tienne.">exemple</span>' : ''}<div class="small muted">${h(c.description || '')}</div>` },
       { key: 'price', label: 'P.U. HT', r: true, val: c => Number(c.unitPrice) || 0, get: c => C.money(c.unitPrice, cur) },
-      { key: 'cost', label: 'Coût', r: true, val: c => Number(c.unitCost) || 0, get: c => Number(c.unitCost) ? C.money(c.unitCost, cur) : '<span class="muted">—</span>' },
-      { key: 'margin', label: 'Marge', r: true, val: c => Number(c.unitCost) ? (Number(c.unitPrice) || 0) - Number(c.unitCost) : -Infinity, get: c => {
-        if (!Number(c.unitCost)) return '<span class="muted">—</span>';
-        const m = C.round3((Number(c.unitPrice) || 0) - Number(c.unitCost));
+      // (1.387.66, ENTACHATS-5) Le coût d'un article suivi qui a du stock est son coût moyen (celui de sa fiche de stock) :
+      // le catalogue montrait le coût saisi, et une autre marge que le stock. Le survol dit lequel on lit.
+      { key: 'cost', label: 'Coût', r: true, val: c => coutCat(c).cout, get: c => { const k = coutCat(c); return k.cout ? `<span${k.source === 'moyen' ? ` title="Coût moyen de ce qui est en stock${k.fiche && Math.abs(k.fiche - k.cout) > 0.0005 ? ` (coût saisi sur la fiche : ${h(C.money(k.fiche, cur))})` : ''}"` : ''}>${C.money(k.cout, cur)}${k.source === 'moyen' ? ' <span class="muted small">moyen</span>' : ''}</span>` : '<span class="muted">—</span>'; } },
+      { key: 'margin', label: 'Marge', r: true, val: c => coutCat(c).cout ? (Number(c.unitPrice) || 0) - coutCat(c).cout : -Infinity, get: c => {
+        const ku = coutCat(c).cout;
+        if (!ku) return '<span class="muted">—</span>';
+        const m = C.round3((Number(c.unitPrice) || 0) - ku);
         const r = Number(c.unitPrice) ? Math.round(m / Number(c.unitPrice) * 1000) / 10 : 0;
         return `<span class="${m <= 0 ? 'warn-text' : ''}">${C.money(m, cur)} <span class="muted">(${pct(r)} %)</span></span>`;
       } },
@@ -13492,10 +13496,11 @@
       const suivis = cat.filter(c => c.tracked).length;
       const sansPrix = cat.filter(c => !(Number(c.unitPrice) > 0)).length;
       // La marge se lit sur ce qui a un prix ET un coût : un article sans coût n'a pas « 100 % » de marge, il n'a pas de coût.
-      const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);
+      const ku = c => C.coutDeLArticle(data, c).cout;
+      const avecCout = cat.filter(c => ku(c) > 0 && Number(c.unitPrice) > 0);
       const ventes = avecCout.reduce((a, c) => a + Number(c.unitPrice), 0);
-      const marge = avecCout.reduce((a, c) => a + Number(c.unitPrice) - Number(c.unitCost), 0);
-      const aPerte = avecCout.filter(c => Number(c.unitPrice) <= Number(c.unitCost)).length;
+      const marge = avecCout.reduce((a, c) => a + Number(c.unitPrice) - ku(c), 0);
+      const aPerte = avecCout.filter(c => Number(c.unitPrice) <= ku(c)).length;
       const taux = ventes ? Math.round(marge / ventes * 1000) / 10 : null;
       const exemples = cat.filter(c => c.fromSetup).length;
       el.innerHTML = chiffreC(enArchives ? 'Archivés' : m.des, String(cat.length), suivis ? `dont ${pl(suivis, m.suivi)} en stock` : 'aucun suivi en stock', '', 'cat.catalog')

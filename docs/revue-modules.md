@@ -5617,3 +5617,12 @@ métier (« ton premier achat », « ton premier article » pour un commerce).
   faire redessiner la page par un autre chemin) : le test donne le signal réseau encore coupé et compte la relecture.
 - Deux rouges de la 1.387.64 : le nom du tiers sur une pièce, devenu un lien, fait 44 px de haut au téléphone (il se
   touche au doigt) ; le test de la clôture du client attend que les livres du dossier soient lus avant de juger la fiche.
+
+## 1.387.66 — un seul coût par article (ENTACHATS-5)
+
+Le catalogue, la liste de prix et la marge d'une ligne de vente lisaient le coût SAISI sur la fiche (62,500) pendant que
+la fiche de stock montrait le coût moyen (64,333) : deux coûts et deux marges pour le même sac de farine. Une seule
+règle, dans le moteur (`coutDeLArticle`) : un article suivi qui a du stock vaut son **coût moyen** ; sinon le coût de sa
+fiche. Le catalogue l'affiche (avec « moyen », et le coût saisi au survol), la marge moyenne du catalogue, « sous son
+coût » d'une liste de prix et « tu vends à perte » d'une ligne de vente le lisent. Un coût tapé sur la ligne d'une pièce
+l'emporte toujours. Calculs refaits à la main dans les tests (1 930 / 30 = 64,333 ; 69,400 / 199,500 = 34,8 %).

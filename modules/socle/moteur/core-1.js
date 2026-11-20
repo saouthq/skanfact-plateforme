@@ -3262,14 +3262,30 @@
   // Le coût est dans la devise de la PIÈCE, comme son prix (10.14.1) : le coût du catalogue, tenu en
   // dinars, se convertit pour une pièce en euros — sinon 60 DT de coût se lisaient 60 € face à un
   // prix en euros, et la marge d'une vente à l'étranger plongeait sans raison.
+  // (1.387.66, ENTACHATS-5) UN coût par article : pour un article suivi qui a du stock, son coût moyen pondéré (ce que
+  // dit sa fiche de stock, et ce que la vente sort vraiment) ; sinon le coût saisi sur sa fiche. Le catalogue, la liste
+  // de prix et la marge d'une ligne de vente lisaient le coût saisi pendant que le stock montrait le coût moyen : deux
+  // coûts et deux marges pour le même sac de farine. `source` dit lequel on lit : 'moyen', 'fiche' ou ''.
+  function coutDeLArticle(data, item) {
+    if (!item) return { cout: 0, source: '', fiche: 0 };
+    const fiche = Number(item.unitCost) || 0;
+    if (item.tracked && item.id) {
+      const connus = duLot(data, 'coutsMoyens', () => new Map());
+      let st = connus.get(item.id);
+      if (!st) { const x = stockOf(data, item.id); st = { qty: x.qty, cmp: x.cmp }; connus.set(item.id, st); }
+      if (st.qty > 0 && st.cmp > 0) return { cout: st.cmp, source: 'moyen', fiche };
+    }
+    return { cout: fiche, source: fiche > 0 ? 'fiche' : '', fiche };
+  }
   function lineCost(line, data, doc, company) {
     if (line.unitCost !== '' && line.unitCost != null && Number.isFinite(Number(line.unitCost))) {
       return round3((Number(line.unitCost) || 0) * (Number(line.qty) || 0));
     }
     const label = (line.label || '').trim().toLowerCase();
     const item = (data.catalog || []).find(c => (c.label || '').trim().toLowerCase() === label);
-    if (item && Number(item.unitCost) > 0) {
-      const cu = doc && company ? prixDuCatalogue(Number(item.unitCost), doc, company) : Number(item.unitCost);
+    const coutItem = item ? coutDeLArticle(data, item).cout : 0;
+    if (item && coutItem > 0) {
+      const cu = doc && company ? prixDuCatalogue(coutItem, doc, company) : coutItem;
       return cu == null ? 0 : round3(cu * (Number(line.qty) || 0));
     }
     return 0;

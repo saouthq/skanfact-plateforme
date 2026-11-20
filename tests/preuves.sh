@@ -24332,7 +24332,7 @@ prouver 'catalogue 1.278 c : les fiches coupées au téléphone' web/public/plat
   '.cf-onglet > * { min-width: 0; }' '' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
 prouver 'catalogue 1.278 d : la marge comptée sans coût' modules/socle/ecrans/entreprise/app-1.js \
-  'const avecCout = cat.filter(c => Number(c.unitCost) > 0 && Number(c.unitPrice) > 0);' 'const avecCout = cat.filter(c => Number(c.unitPrice) > 0);' \
+  'const avecCout = cat.filter(c => ku(c) > 0 && Number(c.unitPrice) > 0);' 'const avecCout = cat.filter(c => Number(c.unitPrice) > 0);' \
   'l'"'"'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s'"'"'ouvrent ; au téléphone rien ne déborde'
 prouver 'commandes 1.279 a : « Reçu, à facturer » n'"'"'ouvre rien' modules/socle/ecrans/entreprise/app-1.js \
   'const aller = () => navigate('"'"'#/commandesf/'"'"' + x.dataset.aller);' 'const aller = () => {};' \
@@ -30826,6 +30826,15 @@ prouver $'inventaire-par-depot-moteur' modules/socle/moteur/core-1.js \
 prouver $'inventaire-par-depot-ecart-pose' modules/socle/ecrans/entreprise/app-2.js \
   $"unitCost: '', source: 'inventaire', reference: '', ...(depInv ? { depotId: depInv } : {})," $"unitCost: '', source: 'inventaire', reference: ''," \
   $'Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie'
+prouver $'cout-article-moyen-du-stock' modules/socle/moteur/core-1.js \
+  $"      if (st.qty > 0 && st.cmp > 0) return { cout: st.cmp, source: 'moyen', fiche };" "" \
+  $'un article suivi qui a du stock : son coût moyen ; sans stock, ou non suivi : le coût de sa fiche'
+prouver $'cout-article-marge-de-la-vente' modules/socle/moteur/core-1.js \
+  $'    const coutItem = item ? coutDeLArticle(data, item).cout : 0;' $'    const coutItem = item ? Number(item.unitCost) || 0 : 0;' \
+  $'la marge d\'une ligne de vente lit ce même coût : 2 sacs coûtent 2 × 64,333 = 128,666, pas 125'
+prouver $'cout-article-catalogue' modules/socle/ecrans/entreprise/app-1.js \
+  $'      const ku = c => C.coutDeLArticle(data, c).cout;' $'      const ku = c => Number(c.unitCost) || 0;' \
+  $'l\'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s\'ouvrent ; au téléphone rien ne déborde'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
