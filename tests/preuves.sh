@@ -22260,7 +22260,7 @@ prouver 'paie 1.232 a : un bulletin en correction s approuve' modules/socle/mote
   "modeP(p) === 'tenue' && !(p.correction && !p.correction.reponse)" "modeP(p) === 'tenue'" \
   "$WR5A"
 prouver 'paie 1.232 b : la recherche ignore les salariés' modules/socle/ecrans/entreprise/app-1.js \
-  "...fournisseurs, ...salaries, ...items" "...fournisseurs, ...items" \
+  "...comptes, ...salaries, ...items" "...comptes, ...items" \
   "$WRW2"
 prouver 'paie 1.232 c : sans réseau la paie offre son geste' modules/personnel/ecrans/entreprise/paie.js \
   "      if (prin && navigator.onLine === false) prin = prin.replace(" "      if (false) prin = prin.replace(" \
@@ -30911,6 +30911,38 @@ prouver $'document-signature-resserree' modules/socle/moteur/core-2.js \
   $'margin-top: .2mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }' \
   $'margin-top: .2mm; }' \
   $'« Capital 10 000 DT » tient d\'un bloc au pied ; la case de signature resserrée garde le nom sur une ligne'
+prouver $'accueil-dernieres-net-a-payer' modules/socle/ecrans/entreprise/app-1.js \
+  $'? \'—\' : lfMontant(montantDeListe(d), docCur(d));' \
+  $'? \'—\' : nb(C.computeTotals(d, company()).totalTTC);' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'recherche-par-montant' modules/socle/ecrans/entreprise/app-1.js \
+  $'${C.docLabel(d.type, company())} ${montantCherche(montantDeListe(d), docCur(d))} ' \
+  $'${C.docLabel(d.type, company())} ' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'recherche-un-compte' modules/socle/ecrans/entreprise/app-1.js \
+  $'...fournisseurs, ...comptes, ...salaries' \
+  $'...fournisseurs, ...salaries' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'recherche-un-seul-signe' modules/socle/ecrans/entreprise/app-1.js \
+  $'amt: montantTexte(montantDeListe(d), docCur(d)), text:' \
+  $'amt: C.money(montantDeListe(d), docCur(d)), text:' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'recherche-abonnement-une-fois' modules/socle/ecrans/entreprise/app-1.js \
+  $'[...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP,' \
+  $'[...actions, ...reglagesP,' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'parametres-e-mail-refuse' modules/socle/ecrans/entreprise/app-2.js \
+  $'      if (emFaute) { refus(emEl, emFaute.raison); return false; }\n' \
+  $'' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'parametres-telephone-refuse' modules/socle/ecrans/entreprise/app-2.js \
+  $'      if (telEl && telephoneRefuse(v.phone)) { refus(telEl, telephoneRefuse(v.phone)); return false; }\n' \
+  $'' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'modules-dit-ou-est-la-page' modules/socle/ecrans/entreprise/app-2.js \
+  $'map(p => p.vueDe && C.pageById(p.vueDe) ? `' \
+  $'map(p => false ? `' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

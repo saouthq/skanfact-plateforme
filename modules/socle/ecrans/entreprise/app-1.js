@@ -2206,6 +2206,10 @@
   function argentLu(n, c) { return C.money(n, c).replace(/[\s\u00a0](EUR|USD|GBP)$/, (m, k) => '\u00a0' + SYMBOLE_DEVISE[k]); }
   // (1.162.0, maquette liste) Un montant de la liste dans la devise de l'entreprise s'écrit sans unité (la colonne la
   // dit) ; une pièce en devise garde son symbole, en petit (« 950,00 € »).
+  // Le même montant en TEXTE (la recherche, une liste de choix) : « 800,00 € », jamais « 800,00 EUR » à côté de « € ».
+  function montantTexte(n, c) { return `${C.money(n, '', C.decimalsFor(c)).trim()}\u00a0${symboleDevise(c)}`; }
+  // Ce qu'on tape pour chercher un montant : « 596,000 » ou « 596 », sans espace de milliers.
+  function montantCherche(n, c) { return Math.abs(Number(n) || 0).toFixed(C.decimalsFor(c)).replace('.', ','); }
   function lfMontant(n, c) { const base = company().currency; const v = C.money(n, '', C.decimalsFor(c)).trim(); return C.normCurrency(c) === C.normCurrency(base) ? v : `${v} <small class="dv">${h(symboleDevise(c))}</small>`; }
   function accountLabel(id, method) {
     if (id === C.POCHE) return 'De ta poche';
@@ -4267,8 +4271,10 @@
     const carteDevis = () => carte('devis', 'Devis en attente', nb(sumQ(pendingQuotes)), pendingQuotes.length ? `${h(cur)} TTC · ${pl(pendingQuotes.length, 'devis', 'devis')}` : 'aucun devis en attente de réponse', devisX, expiredQuotes.length ? 'attire' : '', 'Voir les devis envoyés sans réponse');
     const derniers = recent.slice(0, 6);
     const ligneDerniere = d => {
-      const st = d.type === 'facture' || d.type === 'avoir' ? lfEtiquette(d, lfStatut(d)) : `<span class="badge ${h(effStatus(d))}">${h(C.statusLabel(effStatus(d), d.type))}</span>`;
-      const m = d.status === 'brouillon' && !C.computeTotals(d, company()).totalTTC ? '—' : nb(C.computeTotals(d, company()).totalTTC);
+      const st = d.type === 'facture' || d.type === 'avoir' ? lfEtiquette(d, lfStatut(d)) : `<span class="badge ${h(effStatus(d))}">${h(C.statusLabel(effStatus(d), d.type).replace(/^./, x => x.toUpperCase()))}</span>`;
+      // (1.387.75, issue 14 ENTSOCLE-4) Le même montant que la liste et la recherche (le net à payer, avec sa devise) :
+      // un devis de 800 € s'écrivait « 800,000 », et FAC-2026-029 « 643,000 » ici, « 633,370 » partout ailleurs.
+      const m = d.status === 'brouillon' && !C.computeTotals(d, company()).totalTTC ? '—' : lfMontant(montantDeListe(d), docCur(d));
       return `<a class="der-l" href="#/doc/${h(d.id)}"><span class="der-n"><b>${h(d.number || `${({ facture: 'Facture', devis: 'Devis', avoir: 'Avoir' })[d.type] || 'Pièce'} sans numéro`)}</b><small>${h(nomClientPiece(d) || '—')} · ${lfJm(d.date)}</small></span><span class="der-m"><b>${m}</b>${st}</span></a>`;
     };
     $('#view').innerHTML = `
@@ -15464,7 +15470,9 @@
         text: `parametres paramètres réglages ${p.titre} ${p.mots}`.toLowerCase(),
         run: vers('#/parametres', () => { settingsTab = p.onglet; settingsFocus = id; })
       };
-    });
+      // (1.387.75, issue 14 ENTSOCLE-5) Deux panneaux d'un même onglet portaient le même nom court : « Paramètres → Ton
+      // abonnement » sortait en double. Une ligne par nom ; ses mots s'ajoutent, elle ouvre le premier panneau.
+    }).reduce((l, x) => { const deja = l.find(y => y.main === x.main); if (deja) deja.text += ' ' + x.text; else l.push(x); return l; }, []);
   }
   // Les mots qu'on tape et qui ne figurent dans aucun libellé. Sans eux, « maj », « backup »,
   // « démo » ou « mot de passe » ne rendent rien — et deux réponses vides suffisent à faire croire
@@ -15511,7 +15519,7 @@
     fermerAppelGuide();
     root.hidden = false;
     // (maquette barre V3 « la recherche ») Le champ et sa loupe, les résultats rangés par groupe, l'aide du clavier au pied.
-    root.innerHTML = `<div class="palette pal-v3" role="dialog" aria-label="Rechercher"><div class="pal-champ">${lfIc('recherche', 18)}<input type="text" id="pal-q" placeholder="Rechercher une pièce, un client, un fournisseur, un fichier joint, une action…" autocomplete="off" spellcheck="false" aria-label="Rechercher"><kbd>Échap</kbd></div><div class="results" id="pal-res"></div><div class="hint"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ouvrir · <kbd>Échap</kbd> fermer</div></div>`;
+    root.innerHTML = `<div class="palette pal-v3" role="dialog" aria-label="Rechercher"><div class="pal-champ">${lfIc('recherche', 18)}<input type="text" id="pal-q" placeholder="Une pièce, un client, un montant, un réglage…" autocomplete="off" spellcheck="false" aria-label="Rechercher"><kbd>Échap</kbd></div><div class="results" id="pal-res"></div><div class="hint"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ouvrir · <kbd>Échap</kbd> fermer</div></div>`;
     const cur = company().currency;
     const actions = aLeurRang([
       ['Nouveau devis', () => navigate('#/doc/new/devis')], ['Nouvelle facture', () => navigate('#/doc/new/facture')], ['Nouvel avoir', () => navigate('#/doc/new/avoir')],
@@ -15580,7 +15588,7 @@
       if (!utiles.length) return words.some(w => /^(guid|visit)/.test(w)) ? visitesPal.slice(0, 3) : [];
       return visitesPal.filter(x => utiles.every(w => x.text.includes(w))).slice(0, 3);
     };
-    const docs = data.documents.map(d => { const cn = nomClientPiece(d); return { kind: KIND_PIECE[d.type] || C.TITLES[d.type], main: d.number || 'Brouillon', sub: `${cn}${d.subject ? ' — ' + d.subject : ''}`, amt: C.money(montantDeListe(d), docCur(d)), text: `${d.number} ${cn} ${d.subject || ''} ${d.type} ${C.docLabel(d.type, company())}`.toLowerCase(), run: () => navigate('#/doc/' + d.id), ts: d.createdAt || 0, piece: true }; });
+    const docs = data.documents.map(d => { const cn = nomClientPiece(d); return { kind: KIND_PIECE[d.type] || C.TITLES[d.type], main: d.number || 'Brouillon', sub: `${cn}${d.subject ? ' — ' + d.subject : ''}`, amt: montantTexte(montantDeListe(d), docCur(d)), text: `${d.number} ${cn} ${d.subject || ''} ${d.type} ${C.docLabel(d.type, company())} ${montantCherche(montantDeListe(d), docCur(d))} ${lfReste(d) > 0.0005 ? montantCherche(lfReste(d), docCur(d)) : ''}`.toLowerCase(), run: () => navigate('#/doc/' + d.id), ts: d.createdAt || 0, piece: true }; });
     const clients = data.clients.map(c => ({ kind: 'Client', main: c.name, sub: [c.contact, c.email, c.phone].filter(Boolean).join(' · '), text: `${c.name} ${c.contact || ''} ${c.email || ''} ${c.phone || ''} ${c.matricule || ''}`.toLowerCase(), run: () => navigate('#/client/' + c.id) }));
     const items = data.catalog.map(c => ({ kind: 'Prestation', main: c.label, sub: C.money(c.unitPrice, cur) + ' HT', text: `${c.label} ${c.description || ''}`.toLowerCase(), run: () => navigate('#/catalogue') }));
     // Les ACHATS et les FOURNISSEURS (10.14.1, S-04). La palette ne connaissait que les pièces de
@@ -15592,8 +15600,8 @@
       const sn = p.supplierId ? supplierName(p.supplierId) : '';
       const quoi = contenuAchat(p);
       return { kind: KIND_ACHAT[p.kind] || 'Achat', main: p.number || 'Sans numéro', sub: [sn, quoi].filter(Boolean).join(' — '),
-        amt: C.money(C.purchaseTotals(p, company()).netToPay, p.currency || cur),
-        text: `${C.referenceAchat(p, data)} ${sn} ${quoi} ${p.category || ''} achat`.toLowerCase(), run: () => navigate('#/achat/' + p.id), ts: p.createdAt || 0, piece: true };
+        amt: montantTexte(C.purchaseTotals(p, company()).netToPay, p.currency || cur),
+        text: `${C.referenceAchat(p, data)} ${sn} ${quoi} ${p.category || ''} achat ${montantCherche(C.purchaseTotals(p, company()).netToPay, p.currency || cur)}`.toLowerCase(), run: () => navigate('#/achat/' + p.id), ts: p.createdAt || 0, piece: true };
     }));
     // (plateforme) 1.232.0 — les SALARIÉS par leur nom, leur poste, leur CIN : la fiche s'ouvre (docs/revue-paie.md, P2).
     const salaries = (data.employees || []).map(e => ({ kind: 'Salarié', main: e.name, sub: [e.position, e.endDate && e.endDate < C.today() ? `parti le ${C.fmtDate(e.endDate)}` : ''].filter(Boolean).join(' · '),
@@ -15618,7 +15626,12 @@
     // Les pièces les plus RÉCENTES d'abord : sur cinq ans, le nom d'un client rendait ses factures
     // de la première année avant celles du mois. Ventes et achats mêlés : ce sont toutes des pièces.
     const recentes = docs.concat(achats).sort((a, b) => b.ts - a.ts);
-    const all = [...actions, ...reglagesDePalette(), ...recentes, ...clients, ...fournisseurs, ...salaries, ...items, ...justifs];
+    // (1.387.75, ENTSOCLE-5) « BIAT » ne rendait rien : un compte de banque ou une caisse se trouve par son nom.
+    const comptes = (data.accounts || []).map(a => ({ kind: 'Compte', main: a.name, sub: [a.bank && a.bank !== a.name ? a.bank : '', a.kind === 'caisse' ? 'caisse' : 'banque'].filter(Boolean).join(' · '),
+      text: `${a.name} ${a.bank || ''} ${a.rib || ''} compte banque caisse tresorerie`.toLowerCase(), run: () => navigate('#/tresorerie') }));
+    // Un onglet des Paramètres et son panneau du même nom (« Ton abonnement ») : une seule ligne, celle du panneau.
+    const reglagesP = reglagesDePalette();
+    const all = [...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP, ...recentes, ...clients, ...fournisseurs, ...comptes, ...salaries, ...items, ...justifs];
     const HINT = $('#palette-root .hint').innerHTML;
     const GROUPES = ['Pages', 'Clients et pièces', 'Actions', 'Me guider', 'Aide'];
     const groupeDe = x => x.kind === 'Me guider' || x.kind === 'Aide' ? x.kind

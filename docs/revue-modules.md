@@ -5709,3 +5709,18 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   long) — il n'est plus barré par le pointillé, la consigne « Date, signature et cachet du client » reste entière.
 - Laissé : le sous-total d'une section sur la ligne de son titre (un choix de mise en page) ; la vignette « 2 pages »
   contre l'aperçu « 1 page (resserrée) » et l'aperçu à 125 % restent à voir à l'écran.
+
+## 1.387.75 — La coquille : accueil, recherche, paramètres, modules (issue 14)
+
+- **ENTSOCLE-4 — un montant, partout le même.** « Dernières pièces » de l'accueil écrit le net à payer avec sa devise,
+  comme la liste et la recherche (un devis de 800 € s'écrivait « 800,000 », une facture à retenue par son TTC). La
+  recherche écrit « 800,00 € », plus « 800,00 EUR ». Le statut d'un devis y prend sa majuscule, comme celui d'une facture.
+- **ENTSOCLE-5 — la recherche trouve un montant et un compte.** « 2345,300 » ou « 2345 » trouvent la pièce (net à
+  payer et reste dû) ; « BIAT » ouvre la Trésorerie ; « Paramètres → Ton abonnement » ne sort plus en double ;
+  l'invite ne passe plus sous la touche « Échap ».
+- **ENTSOCLE-7 — les Paramètres refusent une adresse e-mail fausse et un téléphone en lettres** avant d'écrire, en
+  montrant le champ : ils s'imprimaient en haut de chaque facture.
+- **ENTSOCLE-2 — « Tous les modules » dit où est la page** : « Relances (dans Factures) », « Immobilisations (dans
+  Comptabilité) », et le message d'une case cochée dit la famille du menu ou l'onglet où elle vient d'apparaître.
+- ENTSOCLE-1, 3 et 8 étaient déjà faits. Restent : 6, 9 à 23.
+- Test : `tests/web/coquille-1387.test.ts`, huit preuves.

@@ -7522,6 +7522,13 @@
         refus(mfEl, `« ${String(v.matricule).trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
         return false;
       }
+      // (1.387.75, issue 14 ENTSOCLE-7) « pas une adresse e-mail » s'affichait, et « Paramètres enregistrés » quand même :
+      // « pas-un-email » et « abc » s'imprimaient en haut de chaque facture. Le contrôle passe avant l'écriture, comme
+      // sur la fiche d'un client ; un champ vide reste permis.
+      const emEl = $('#pf [name="email"]'), emFaute = emEl && VERIFS.email(String(v.email || '').trim());
+      if (emFaute) { refus(emEl, emFaute.raison); return false; }
+      const telEl = $('#pf [name="phone"]');
+      if (telEl && telephoneRefuse(v.phone)) { refus(telEl, telephoneRefuse(v.phone)); return false; }
       // L'attestation d'exonération de retenue (10.15.0, H7) : ses trois champs ne sont pas des
       // réglages de la fiche, et une attestation sans fin se refuse avant d'écrire quoi que ce soit.
       // (1.387.29, issue 16, constat 18) Un nombre sous son minimum se refuse ici, avant d'écrire : un
@@ -7996,7 +8003,9 @@
         const PA = window.__pastilles || { moduleAVenir: () => false, enBeta: () => false, beta: '' };
         const bientot = PA.moduleAVenir(m);
         const on = !bientot && C.moduleOn(data, m.id);
-        const pages = C.PAGES.filter(p => p.module === m.id && !p.horsMenu).map(p => p.titre).join(' · ');
+        // (1.387.75, issue 14 ENTSOCLE-2) « Pages : Devis · Factures · Relances » : Relances n'est pas une ligne du menu,
+        // c'est l'onglet « En retard » des Factures (comme Immobilisations dans la Comptabilité). La page dit où la trouver.
+        const pages = C.PAGES.filter(p => p.module === m.id && !p.horsMenu).map(p => p.vueDe && C.pageById(p.vueDe) ? `${p.titre} (dans ${C.pageById(p.vueDe).titre})` : p.titre).join(' · ');
         const contenu = n ? `${n} élément${n > 1 ? 's' : ''} enregistré${n > 1 ? 's' : ''}.` : 'Rien d\'enregistré pour l\'instant.';
         const note = bientot ? 'Pas encore ouvert : il apparaîtra dans le menu de lui-même, le jour où il sera prêt.'
           : m.toujours ? 'Toujours affiché : c\'est le cœur du métier.'
@@ -8060,7 +8069,10 @@
         // focus retombait sur le corps de la page et il fallait reprendre la souris à chaque case.
         const encore = $(`[data-mod="${id}"]`);
         if (encore) encore.focus();
-        toast(cb.checked ? 'Affiché dans le menu' : 'Retiré du menu — rien n\'est supprimé, et la case reste là pour revenir en arrière');
+        // Où le module vient d'apparaître : une ligne du menu (et sa famille), ou l'onglet d'une page qui y est déjà.
+        const pm = C.PAGES.filter(x => x.module === id && !x.horsMenu), directe = pm.find(x => !x.vueDe), vue = pm.find(x => x.vueDe && C.pageById(x.vueDe));
+        const ou = directe ? `Affiché dans le menu${directe.famille ? ` : ${directe.titre}, dans « ${directe.famille} »` : ''}` : vue ? `Affiché : ${vue.titre} est dans ${C.pageById(vue.vueDe).titre}, onglet « ${vue.vueNom || vue.titre} »` : 'Affiché dans le menu';
+        toast(cb.checked ? ou : 'Retiré du menu — rien n\'est supprimé, et la case reste là pour revenir en arrière');
       });
       $$('[data-sousmod]').forEach(cb => cb.onchange = () => {
         const id = cb.dataset.sousmod;
