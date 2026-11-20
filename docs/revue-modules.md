@@ -5644,3 +5644,13 @@ l'emporte toujours. Calculs refaits à la main dans les tests (1 930 / 30 = 64,3
   hauteur de la précédente (titre coupé).
 - Le grand bouton n'écrit plus « Ctrl S » au téléphone.
 - Le test de l'accueil ne dépend plus du jour du mois (rouge du 20/11).
+
+## 1.387.69 — les unités de la marchandise (ENTACHATS-20, en partie)
+
+- Six unités de plus : pièce, carton, paquet, sac, boîte, bouteille. Un métier d'articles (commerce, restauration,
+  artisanat) les lit en tête de liste ; les autres métiers gardent l'ordre de toujours.
+- « pièce » importé d'un tableur reste « pièce » (il devenait « u »).
+- Au téléphone, le retour en haut ne se fait que quand la page change (un redessin de la même page ne déplace pas le
+  lecteur).
+- Reste d'ENTACHATS-20, à décider avec Skander : FODEC à l'achat (À VÉRIFIER avec le comptable), quantité refusée à la
+  réception, relevé de compte fournisseur, image et variantes d'un article, promotions.

@@ -6788,9 +6788,13 @@
     ['u', 'unité (u)'], ['h', 'heure (h)'], ['j', 'jour (j)'], ['demi-journée', 'demi-journée'],
     ['mois', 'mois'], ['an', 'année'], ['forfait', 'forfait'], ['intervention', 'intervention'],
     ['licence', 'licence'], ['abonnement', 'abonnement'], ['poste', 'poste'], ['lot', 'lot'],
+    // (1.387.69, ENTACHATS-20) Les unités de la marchandise : un commerce ne vend ni « licence » ni « poste ».
+    ['pièce', 'pièce'], ['carton', 'carton'], ['paquet', 'paquet'], ['sac', 'sac'], ['boîte', 'boîte'], ['bouteille', 'bouteille'],
     ['ml', 'mètre linéaire (ml)'], ['m²', 'mètre carré (m²)'], ['m³', 'mètre cube (m³)'],
     ['kg', 'kilogramme (kg)'], ['L', 'litre (L)'], ['km', 'kilomètre (km)'], ['page', 'page']
   ];
+  // Celles qu'un métier d'articles (commerce, restauration, artisanat) lit en tête de liste.
+  const UNITES_MARCHANDISE = ['u', 'pièce', 'carton', 'paquet', 'sac', 'boîte', 'bouteille', 'kg', 'L', 'lot'];
   // Unités déjà employées dans les documents et le catalogue, hors liste standard : elles restent
   // proposées d'une fois sur l'autre sans rien avoir à régler dans les paramètres.
   // Une quantité et son unité, accordées : « 29 postes », « 1 poste », « 3 kg », « 2 mois ». Une
@@ -7857,7 +7861,7 @@
     VAT_RATES, WITHHOLDING_RATES, PAYMENT_METHODS, PREFIX, TITLES, DEFAULT_DATA, DEFAULT_COMPANY, ACTIVITIES, STATUSES, STATUT_ENVOI, DISPLAY_STATUSES, STATUS_LABELS,
     REGIMES, regimeOf, regimeSuggere, tfpSuggere, assujettiTVA, mentionTVA, estLiberal, docLabel, ribAttendu,
     DOC_FILTRES, docFiltre,
-    pageInfo, compareValues, LINE_UNITS, usedUnits, uniteAccordee, usedWithholdingRates, parseDateInput, fmtDateInput, monthMatrix,
+    pageInfo, compareValues, LINE_UNITS, UNITES_MARCHANDISE, usedUnits, uniteAccordee, usedWithholdingRates, parseDateInput, fmtDateInput, monthMatrix,
     uid, round3, money, fmtDate, addDays, daysInMonth, today, jourDeLInstant, escapeHtml, nl2br, capitalAffiche, statusLabel,
     // (plateforme) 1.60.0 — le pointage.
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, heuresSupDuJour: Compta.heuresSupDuJour, poserHeuresSupDuJour: Compta.poserHeuresSupDuJour, poserRetard: Compta.poserRetard, equipeDe: Compta.equipeDe, joursReposDe: Compta.joursReposDe, ferieDu: Compta.ferieDu, lireBadges: Compta.lireBadges, importerBadges: Compta.importerBadges, journeeBadges: Compta.journeeBadges, anomaliesPointage: Compta.anomaliesPointage, poserSortie: Compta.poserSortie, majorationsHs, heuresDuMoisDe: Compta.heuresDuMoisDe, ecartDeRappel: Compta.ecartDeRappel, heuresSupDuMois, retardsDuMois, heuresDeNuitDuMois, reprisePointage, pointageSurBulletin,

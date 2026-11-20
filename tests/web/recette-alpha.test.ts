@@ -331,10 +331,15 @@ describe('la recette alpha, à la souris', () => {
     await p.setViewportSize({ width: 390, height: 700 });
     await p.evaluate(() => { location.hash = '#/aide'; });
     await expect.poll(() => p.evaluate(() => document.documentElement.scrollHeight > innerHeight + 300), { timeout: 15_000 }).toBe(true);
-    await p.evaluate(() => window.scrollTo(0, 400));
-    expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(200);
-    await p.evaluate(() => { location.hash = '#/catalogue'; });
+    // Le défilement et le changement de page dans le même geste : rien ne redessine entre les deux.
+    expect(await p.evaluate(() => { window.scrollTo(0, 400); const y = window.scrollY; location.hash = '#/catalogue'; return y; })).toBeGreaterThan(200);
     await expect.poll(() => p.evaluate(() => location.hash + ' ' + Math.round(window.scrollY)), { timeout: 10_000 }).toBe('#/catalogue 0');
+    // (1.387.69, ENTACHATS-20) Un commerce lit d'abord les unités de la marchandise dans la fiche d'un article.
+    await p.setViewportSize({ width: 1440, height: 900 });
+    await p.locator('#new').click({ timeout: 20_000 });
+    await p.locator('#cat-unit').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#cat-unit option').evaluateAll((l) => l.slice(0, 8).map((o) => (o as HTMLOptionElement).value))).toEqual(['', 'u', 'pièce', 'carton', 'paquet', 'sac', 'boîte', 'bouteille']);
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler', exact: true }).click();
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

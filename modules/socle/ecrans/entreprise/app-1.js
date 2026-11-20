@@ -2147,7 +2147,12 @@
     // relit sans unité, plutôt qu'avec ce mot de machine. « Autre… » porte `data-libre` : la liste le garde pendant une
     // recherche, avec ce qu'on a tapé (listes.js).
     if (value === UNIT_OTHER) value = '';
-    const list = C.LINE_UNITS.concat((extras || []).map(u => [u, u]).filter(([u]) => u !== UNIT_OTHER));
+    // (1.387.69, ENTACHATS-20) Un métier d'articles lit d'abord les unités de la marchandise (pièce, carton, sac…),
+    // puis celles du service ; les autres métiers gardent l'ordre de toujours.
+    const marchandise = METIERS_ARTICLES.includes(company().activity);
+    const rangU = ([v]) => { const i = C.UNITES_MARCHANDISE.indexOf(v); return i < 0 ? 99 : i; };
+    const base = marchandise ? C.LINE_UNITS.slice().sort((a, b) => rangU(a) - rangU(b)) : C.LINE_UNITS;
+    const list = base.concat((extras || []).map(u => [u, u]).filter(([u]) => u !== UNIT_OTHER));
     if (value && !list.some(x => x[0] === value)) list.push([value, value]);
     return `<option value="">—</option>${list.map(([v, l]) => `<option value="${h(v)}" ${v === value ? 'selected' : ''}>${h(l)}</option>`).join('')}<option value="${UNIT_OTHER}" data-libre>Autre…</option>`;
   }
@@ -3803,7 +3808,8 @@
     view.scrollTop = scroll;
     // (1.387.68, ENTACHATS-16) Au téléphone c'est le document qui défile, pas `#view` : une page neuve s'ouvrait là où
     // la précédente avait été laissée, titre coupé. Une page neuve commence en haut.
-    if (!keepScroll && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
+    // Seulement quand la PAGE change : un redessin de la même page ne ramène pas le lecteur en haut.
+    if (!keepScroll && location.hash !== currentHash && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
     currentHash = location.hash;
     updateNavCounts();
     closePalette();

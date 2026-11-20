@@ -30844,8 +30844,8 @@ prouver $'inventaire-unite-accordee-question' modules/socle/ecrans/entreprise/ap
   $'${r.unit ? ` ${r.unit}` : \'\'} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen' \
   $'(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l\'écart, et l\'état de mi-mois n\'est pas l\'inventaire de l\'année'
 prouver $'telephone-page-neuve-en-haut' modules/socle/ecrans/entreprise/app-1.js \
-  $'if (!keepScroll && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);' \
-  $'if (!keepScroll && (window.scrollY || document.documentElement.scrollTop)) void 0;' \
+  $'if (!keepScroll && location.hash !== currentHash && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);' \
+  $'if (!keepScroll && location.hash !== currentHash && (window.scrollY || document.documentElement.scrollTop)) void 0;' \
   $'(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier'
 prouver $'depense-telephone-montant-d-abord' web/public/plateforme/piece.css \
   $'.editor.charte.buy-editor.dep-neuve .ed-lignes { order: 0; }' \
@@ -30855,6 +30855,14 @@ prouver $'depense-telephone-sans-ctrl-s' web/public/plateforme/piece.css \
   $'  .ed-geste .btn-grand kbd { display: none; }' \
   $'  .ed-geste .btn-grand kbd { display: inline; }' \
   $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver $'unites-marchandise-liste' modules/socle/moteur/core-2.js \
+  $'[\'pièce\', \'pièce\'], [\'carton\', \'carton\'],' \
+  $'[\'carton\', \'carton\'],' \
+  $'pièce, carton, paquet, sac, boîte et bouteille sont proposées ; « pièce » importé reste « pièce » ; elles s\'accordent'
+prouver $'unites-marchandise-en-tete' modules/socle/ecrans/entreprise/app-1.js \
+  $'const marchandise = METIERS_ARTICLES.includes(company().activity);' \
+  $'const marchandise = false;' \
+  $'(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
