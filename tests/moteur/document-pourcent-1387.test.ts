@@ -30,4 +30,21 @@ describe('le pourcentage du document imprimé (issue 15, V-16)', () => {
     expect(texte(C.documentHtml(piece('devis', 'fr'), { name: 'Client' }, societe('commerce')))).not.toContain('Le prestataire');
     expect(texte(C.documentHtml(piece('devis', 'fr'), { name: 'Client' }, societe('services')))).toContain('Le prestataire');
   });
+  // (1.387.74) Le prix unitaire s'imprime tel qu'il compte ; le capital du pied ne se coupe pas ; la case de signature
+  // resserrée garde le nom entier sur une ligne.
+  it('un prix unitaire plus fin que la devise s\'imprime entier : 2 × 850,555 € = 1 701,11', () => {
+    const doc = { ...piece('facture', 'fr'), currency: 'EUR', exchangeRate: 3.4, discountRate: 0, withholdingRate: 0, applyStamp: false,
+      lines: [{ label: 'Bureau', qty: 2, unitPrice: 850.555, vatRate: 0 }, { label: 'Lampe', qty: 1, unitPrice: 40, vatRate: 0 }] };
+    const fr = texte(C.documentHtml(doc, { name: 'Client' }, societe('commerce')));
+    expect(fr).toContain('850,555');
+    expect(fr).not.toContain('850,56');
+    expect(fr).toContain('40,00');
+    expect(fr).not.toContain('40,000');
+    expect(fr).toContain('1\u00a0701,11');
+  });
+  it('« Capital 10 000 DT » tient d\'un bloc au pied ; la case de signature resserrée garde le nom sur une ligne', () => {
+    const html = C.documentHtml(piece('facture', 'fr'), { name: 'Client' }, { ...societe('services'), capital: '10000' });
+    expect(html).toContain('Capital 10 000 DT');
+    expect(html).toMatch(/\.page\.compact:not\(\.t-contrat\) \.sign \.s small \{[^}]*text-overflow: ellipsis/);
+  });
 });

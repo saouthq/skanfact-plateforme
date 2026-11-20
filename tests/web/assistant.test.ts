@@ -221,7 +221,7 @@ describe('l\'assistant de démarrage, à la souris', () => {
     await suite(p).click();
     await ecran(p, 'Factures-tu la TVA ?');
     expect(await assistant(p).getByRole('radio', { name: /^Oui, je facture la TVA/ }).isChecked()).toBe(true);
-    expect(net(await apercu.locator('.as-lignes .ligne').innerText())).toBe('Audit de sécurité réseau 19% 1 200,000');
+    expect(net(await apercu.locator('.as-lignes .ligne').innerText())).toBe('Audit de sécurité réseau 19 % 1 200,000');
     expect(net(await apercu.locator('.net').innerText())).toBe('NET À PAYER 1 429,000 DT');
     await suite(p).click();
 

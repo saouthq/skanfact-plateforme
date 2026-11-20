@@ -6154,6 +6154,9 @@
     const cur = doc.currency || company.currency || 'DT';
     const dec = decimalsFor(cur);
     const fmt = n => money(n, null, dec, lang);
+    // (1.387.74, issue 15 V-16) Un prix unitaire plus fin que la devise (850,555 € pour une devise à deux décimales)
+    // s'imprimait arrondi (« 850,56 ») : 2 × 850,56 = 1 701,12 quand le total dit 1 701,11. Il s'imprime tel qu'il compte.
+    const fmtPu = n => { const v = Number(n) || 0; let d = dec; while (d < 4 && Math.abs(Math.round(v * 10 ** d) / 10 ** d - v) > 1e-9) d++; return money(v, null, d, lang); };
     const isInvoice = doc.type === 'facture';
     const isCredit = doc.type === 'avoir';
     const isQuote = doc.type === 'devis';
@@ -6212,7 +6215,7 @@
           ${l.description ? `<div class="desc">${nl2br(l.description)}</div>` : ''}
         </td>
         <td class="r num">${escapeHtml(String(l.qty).replace('.', lang === 'en' ? '.' : ','))}${l.unit ? `<span class="unit"> ${escapeHtml(l.unit)}</span>` : ''}</td>
-        ${noPrices ? '' : `<td class="r num">${fmt(l.unitPrice)}</td>
+        ${noPrices ? '' : `<td class="r num">${fmtPu(l.unitPrice)}</td>
         ${remiseLigne ? `<td class="r num dim">${Number(l.discount) > 0 ? pct(Number(l.discount)) + '%' : '—'}</td>` : ''}
         ${showVat ? `<td class="r num dim">${l.vatRate}${pc}</td>` : ''}
         <td class="r num strong">${fmt(l.ht)}</td>`}
@@ -6283,7 +6286,8 @@
     const clientContact = [cl.contact ? escapeHtml(cl.contact) : '', cl.matricule ? L.mfCin + ' ' + escapeHtml(matriculeLisible(cl.matricule)) : '', cl.phone ? escapeHtml(cl.phone) : '', cl.email ? escapeHtml(cl.email) : ''].filter(Boolean).join('<br>');
     // Pied de page légal : le texte libre s'il est rempli, sinon composé du nom et du matricule
     const footerBase = company.footer || [company.name, company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + matriculeLisible(company.matricule) : ''].filter(Boolean).join(' — ');
-    const legal = [footerBase, company.rc ? 'RC ' + company.rc : '', company.capital ? (lang === 'en' ? 'Share capital ' : 'Capital ') + capitalAffiche(company.capital, company.currency, lang) : ''].filter(Boolean).join(' — ');
+    // (1.387.74, issue 15 V-16) « Capital 1 000 DT » se coupait en deux lignes au pied : ses espaces ne se coupent plus.
+    const legal = [footerBase, company.rc ? 'RC ' + company.rc : '', company.capital ? ((lang === 'en' ? 'Share capital ' : 'Capital ') + capitalAffiche(company.capital, company.currency, lang)).replace(/ /g, '\u00a0') : ''].filter(Boolean).join(' — ');
     const grandLabel = isInvoice || isProforma ? L.netToPay : isCredit ? L.creditAmount : L.totalTTC;
     const grandValue = isQuote || isOrder || isContract ? t.totalTTC : t.netToPay;
     const wordsIntro = isInvoice ? (estLiberal(company) ? L.wordsFees : L.wordsInvoice) : isCredit ? L.wordsCredit : isQuote ? L.wordsQuote : L.wordsDoc;
@@ -6429,6 +6433,10 @@
   .page.compact.t-contrat .notes { margin-top: 2mm; }
   .page.compact .sign { margin-top: 3.5mm; }
   .page.compact .sign .s { height: 13mm; }
+  /* (1.387.74, issue 15 V-16) Resserrée, la case de signature coupait le nom par son pointillé : moins de marge
+     intérieure, le nom sur UNE ligne (coupé proprement s'il est long). Le libellé et sa consigne restent entiers. */
+  .page.compact:not(.t-contrat) .sign .s { padding: 1.6mm 3.5mm; }
+  .page.compact:not(.t-contrat) .sign .s small { font-size: 7.5pt; margin-top: .2mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   /* Seul le contrat a une légende longue (« Lu et approuvé, date et signature ») : sa case grandit pour
      ne pas déborder sur le pied de page. Les autres gardent une hauteur fixe, qui ne coûte rien en place. */
   .page.t-contrat .sign .s { height: auto; min-height: 15mm; }

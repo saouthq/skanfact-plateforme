@@ -30899,6 +30899,18 @@ prouver $'client-fenetre-e-mail' modules/socle/ecrans/entreprise/app-1.js \
   $'${field(lbl(\'E-mail\', \'cl.email\')' \
   $'${field(lbl(\'Email\', \'cl.email\')' \
   $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
+prouver $'document-prix-unitaire-entier' modules/socle/moteur/core-2.js \
+  $'<td class="r num">${fmtPu(l.unitPrice)}</td>' \
+  $'<td class="r num">${fmt(l.unitPrice)}</td>' \
+  $'un prix unitaire plus fin que la devise s\'imprime entier : 2 × 850,555 € = 1 701,11'
+prouver $'document-capital-insecable' modules/socle/moteur/core-2.js \
+  $'capitalAffiche(company.capital, company.currency, lang)).replace(/ /g, \'\\u00a0\') : \'\'' \
+  $'capitalAffiche(company.capital, company.currency, lang)) : \'\'' \
+  $'« Capital 10 000 DT » tient d\'un bloc au pied ; la case de signature resserrée garde le nom sur une ligne'
+prouver $'document-signature-resserree' modules/socle/moteur/core-2.js \
+  $'margin-top: .2mm; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }' \
+  $'margin-top: .2mm; }' \
+  $'« Capital 10 000 DT » tient d\'un bloc au pied ; la case de signature resserrée garde le nom sur une ligne'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

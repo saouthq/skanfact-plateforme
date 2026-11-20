@@ -5699,3 +5699,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - **Un avoir clos** : « Tu peux le lire… » (et non « la lire »).
 - Laissé : « À VÉRIFIER » en capitales (la convention du projet — à décider avec Skander) ; la ville à part ; langue
   et devise sous le pli.
+
+## 1.387.74 — Le document que le client reçoit (issue 15, V-16, suite)
+
+- **Le prix unitaire s'imprime tel qu'il compte.** 850,555 € s'imprimait « 850,56 » : 2 × 850,56 = 1 701,12 quand le
+  total dit 1 701,11. Un prix plus fin que la devise garde ses décimales (jusqu'à quatre) ; les autres ne changent pas.
+- **« Capital 1 000 DT » ne se coupe plus** en deux lignes au pied (espaces insécables).
+- **La case de signature resserrée** : moins de marge intérieure, le nom sur une ligne (coupé proprement s'il est
+  long) — il n'est plus barré par le pointillé, la consigne « Date, signature et cachet du client » reste entière.
+- Laissé : le sous-total d'une section sur la ligne de son titre (un choix de mise en page) ; la vignette « 2 pages »
+  contre l'aperçu « 1 page (resserrée) » et l'aperçu à 125 % restent à voir à l'écran.
