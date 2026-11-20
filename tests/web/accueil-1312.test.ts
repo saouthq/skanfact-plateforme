@@ -88,8 +88,11 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
     ];
     const facture = (id: string, clientId: string, subject: string, date: string, dueDate: string, lines: Obj[], extra: Obj = {}) => ({ id, type: 'facture', number: '', date, dueDate, clientId, subject,
       status: 'brouillon', lines, discountRate: 0, applyStamp: true, stampFee: 1, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], notes: '', ...extra });
+    // La facture f1 date d'il y a cinquante jours ; à partir du 20 d'un mois, ce jour tombe dans le mois d'AVANT et
+    // gonflerait « octobre : … ». Elle reste alors dans le mois encore avant (rouge du 20/11/2026).
+    const dateF1 = decaler(auj, -50).slice(0, 7) === moisAvant.slice(0, 7) ? decaler(`${moisAvant.slice(0, 8)}01`, -3) : decaler(auj, -50);
     const factures = [
-      facture('f1', 'c1', 'Ciment et fer, chantier Khezama', decaler(auj, -50), decaler(auj, -20), [ligne('Ciment CPA 45, sac de 50 kg', 40, 18.75, 'sac'), ligne('Fer à béton HA 12, barre de 12 m', 12, 96.4, 'barre')], { withholdingRate: 1.5 }),
+      facture('f1', 'c1', 'Ciment et fer, chantier Khezama', dateF1, decaler(auj, -20), [ligne('Ciment CPA 45, sac de 50 kg', 40, 18.75, 'sac'), ligne('Fer à béton HA 12, barre de 12 m', 12, 96.4, 'barre')], { withholdingRate: 1.5 }),
       facture('f2', 'c3', 'Robinetterie', auj, decaler(auj, 30), [ligne('Mitigeur évier inox', 3, 140)]),
       facture('f3', 'c4', 'Luminaires en fer forgé', moisAvant, decaler(moisAvant, 30), [{ ...ligne('Applique en fer forgé', 10, 85), vatRate: 0 }], { currency: 'EUR', exchangeRate: 3.35 }),
       facture('f4', 'c5', 'Serrures des chambres', decaler(auj, -200), decaler(auj, -170), [ligne('Serrure à carte', 12, 74.5)]),
