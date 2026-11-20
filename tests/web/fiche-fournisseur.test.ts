@@ -194,7 +194,7 @@ describe('la fiche d\'un fournisseur, à la souris et au téléphone', () => {
     expect(await texte('#ff-avoir')).toBe('9,163 DT sont à toi : l\'avoir AV-ES-09 n\'est déduit de rien — déduis-le de sa prochaine facture ou demande-lui le remboursement ; jusque-là, son compte le compte en ta faveur. Ouvrir AV-ES-09');
     expect(await p.locator('#ff-mf').count()).toBe(1);
     // Au fil, un avoir se lit en moins, avec son icône rouge.
-    expect(net(await p.locator('.ff-fil-l li').first().innerText())).toBe('Avoir AV-ES-09 reçue Boîtes abîmées · − 9,163 DT 28/09/2026');
+    expect(net(await p.locator('.ff-fil-l li').first().innerText())).toBe('Avoir AV-ES-09 reçu Boîtes abîmées · − 9,163 DT 28/09/2026');
     expect(await p.locator('.ff-fil-l li').first().locator('.ff-fil-ic.r').count()).toBe(1);
     expect(await texte('#ff-rib')).toMatch(/^Son RIB manque : tu lui dois 128,282 DT — /);
     expect(await texte('#ff-rib-v')).toBe('à renseigner 20 chiffres, contrôlés à la saisie');

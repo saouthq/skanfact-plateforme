@@ -1690,7 +1690,7 @@
         const e = envoyerEtatDuStock(x.date);
         // (1.357.5, bout en bout joué à la souris) Le message NOMME les écarts, un par ligne (dix au plus) : « 1 écart » ne
         // disait ni quel article ni combien, et le comptable n'a pas l'écran de l'inventaire pour le lire.
-        const lignes = (x.lignes || []).slice(0, 10).map(r => `\n- ${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${r.unit}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)}`).join('')
+        const lignes = (x.lignes || []).slice(0, 10).map(r => `\n- ${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${C.uniteAccordee(Math.max(r.book, r.counted), r.unit)}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)}`).join('')
           + ((x.lignes || []).length > 10 ? `\n… et ${pl(x.lignes.length - 10, 'autre écart', 'autres écarts')}.` : '');
         ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}.${lignes}${lignes ? '\n' : ' '}Les mouvements d'inventaire sont enregistrés dans SkanFact${e ? `, et ${texteEtatDuStock(e)}` : '.'}`);
       };
@@ -1703,7 +1703,7 @@
         // (1.357.5, bout en bout joué à la souris : la farine comptée en fin de mois) La question dit CE QUI change et COMBIEN,
         // article par article (le dernier écran avant le geste récapitule), et ce que ça fait : ce qui manque a été utilisé
         // ou perdu, et sa valeur compte dans le coût du mois. Son bouton n'est pas rouge : le geste se corrige, il ne détruit rien.
-        const lignesInv = gaps.slice(0, 6).map(r => `${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${r.unit}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen`);
+        const lignesInv = gaps.slice(0, 6).map(r => `${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${C.uniteAccordee(Math.max(r.book, r.counted), r.unit)}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen`);
         const resteInv = gaps.length > 6 ? `\n… et ${pl(gaps.length - 6, 'autre article', 'autres articles')}.` : '';
         const effetInv = [gaps.some(r => r.gap < 0) ? 'ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois' : '',
           gaps.some(r => r.gap > 0) ? 'ce qui est en plus revient dans le stock' : ''].filter(Boolean).join(' ; ');

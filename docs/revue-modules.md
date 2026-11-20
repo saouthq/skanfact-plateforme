@@ -5626,3 +5626,12 @@ règle, dans le moteur (`coutDeLArticle`) : un article suivi qui a du stock vaut
 fiche. Le catalogue l'affiche (avec « moyen », et le coût saisi au survol), la marge moyenne du catalogue, « sous son
 coût » d'une liste de prix et « tu vends à perte » d'une ligne de vente le lisent. Un coût tapé sur la ligne d'une pièce
 l'emporte toujours. Calculs refaits à la main dans les tests (1 930 / 30 = 64,333 ; 69,400 / 199,500 = 34,8 %).
+
+## 1.387.67 — les mots du métier (ENTACHATS-22)
+
+- Un commerce, un restaurant, un artisan importent des **articles** : l'aperçu (« 2 nouveaux articles »), le bouton
+  (« Importer 2 articles ») et le compte rendu (« 2 articles importés ») suivent les mots du Catalogue ; un métier de
+  service garde « prestations ». Les accords suivent le genre (« article existant », « article complété »).
+- L'unité s'accorde au nombre dans l'inventaire (« 22 → 15 sacs »), l'avancement d'une commande et le message de stock
+  insuffisant (`uniteAccordee`, la règle du moteur).
+- Le fil d'un fournisseur accorde le participe : « Avoir … reçu », « Acompte … versé », « Dépense … enregistrée ».

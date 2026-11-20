@@ -1,6 +1,6 @@
 // 1.357.5 — l'inventaire de fin de mois d'une boulangerie, joué à la souris puis au Cabinet (bout en bout 14) : la farine
 // n'est pas notée à chaque fournée, on compte les sacs qui restent.
-//   - la question avant d'enregistrer dit, article par article, ce qui change et combien (« Farine : 22 → 15 sac (−7),
+//   - la question avant d'enregistrer dit, article par article, ce qui change et combien (« Farine : 22 → 15 sacs (−7),
 //     − 294,000 DT au coût moyen »), ce que ça fait (ce qui manque compte dans le coût du mois, ce qui est en plus revient
 //     au stock), et son bouton n'est pas rouge : le geste se corrige, il ne détruit rien ;
 //   - « Prévenir mon comptable » NOMME les écarts, un par ligne ;
@@ -109,7 +109,7 @@ describe('l\'inventaire de fin de mois d\'une boulangerie, et le pont (1.357.5)'
     await q.locator('#ok').waitFor({ timeout: 10_000 });
     expect(net(await q.locator('h2').innerText())).toBe(`Enregistrer l'inventaire du ${fr(auj)} ?`);
     const corps = lignes(await q.locator('p').innerText());
-    expect(corps.slice(0, 2).sort()).toEqual(['Farine : 22 → 15 sac (−7), − 294,000 DT au coût moyen', 'Levure fraîche : 5 → 6 kg (+1), + 12,000 DT au coût moyen']);
+    expect(corps.slice(0, 2).sort()).toEqual(['Farine : 22 → 15 sacs (−7), − 294,000 DT au coût moyen', 'Levure fraîche : 5 → 6 kg (+1), + 12,000 DT au coût moyen']);
     expect(corps.slice(2)).toEqual(['Le stock de l\'application devient ce que tu as compté ; ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois ; '
       + 'ce qui est en plus revient dans le stock. Un mouvement d\'inventaire se corrige comme n\'importe quel ajustement.']);
     expect(await q.locator('#ok').getAttribute('class')).toContain('btn-primary');
@@ -125,7 +125,7 @@ describe('l\'inventaire de fin de mois d\'une boulangerie, et le pont (1.357.5)'
     await expect.poll(async () => lignes(await zone.inputValue()).length, { timeout: 10_000 }).toBe(4);
     const msg = lignes(await zone.inputValue());
     expect(msg[0]).toBe(`Bonjour, j'ai fait l'inventaire du stock au ${fr(auj)} : 2 articles comptés, 2 écarts, soit 282,000 DT en moins au coût moyen.`);
-    expect(msg.slice(1, 3).sort()).toEqual(['- Farine : 22 → 15 sac (−7), − 294,000 DT', '- Levure fraîche : 5 → 6 kg (+1), + 12,000 DT']);
+    expect(msg.slice(1, 3).sort()).toEqual(['- Farine : 22 → 15 sacs (−7), − 294,000 DT', '- Levure fraîche : 5 → 6 kg (+1), + 12,000 DT']);
     expect(msg[3]).toBe(`Les mouvements d'inventaire sont enregistrés dans SkanFact, et l'état du stock au ${fr(auj)} est envoyé : 2 articles, 702,000 DT au coût moyen, à reprendre dans l'inventaire.`);
     await p.getByRole('button', { name: 'Envoyer', exact: true }).click();
     await cx.close();

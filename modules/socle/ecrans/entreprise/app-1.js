@@ -8946,7 +8946,7 @@
         C.stockImpact(doc, data).forEach(x => w.push(
           x.depot
             ? `Stock insuffisant sur « ${x.label} » dans ${x.depot} : il en reste ${pct(x.have)}${x.unit ? ' ' + C.uniteAccordee(x.have, x.unit) : ''} et cette pièce en sort ${pct(x.need)}. ${x.total >= x.need ? `Les autres dépôts en ont assez (${pct(x.total)} en tout) : choisis le bon dépôt, ou transfère d'abord (page de l'article → « Transférer… »).` : `Le stock de ce dépôt passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`}`
-            : `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + x.unit : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
+            : `Stock insuffisant sur « ${x.label} » : il en reste ${pct(x.have)}${x.unit ? ' ' + C.uniteAccordee(x.have, x.unit) : ''} et cette pièce en sort ${pct(x.need)}. Le stock passerait à ${pct(x.after)}. Vérifie qu'une facture d'achat n'a pas été oubliée.`));
       }
       // Les lots (brique 97) : une ligne sans lot, un lot périmé, un lot qui n'en a pas assez se disent avant.
       if ((isInv && doc.fromDocType !== 'livraison') || isAv) C.lotsDeLaPiece(doc, data).forEach(x => w.push(
@@ -11204,7 +11204,10 @@
   // sur « exemple repris »). Seul le refus est rouge.
   const STATUTS_IMPORT = { nouveau: ['b-paid', 'entre'], complete: ['b-due', 'complétée'], existe: ['', 'déjà là'], remplace: ['b-due', 'exemple repris'], doublon: ['', 'en double'], refus: ['b-late', 'refusée'] };
   async function importerTableau(type, done, prerempli) {
-    const T = IMPORTS[type];
+    // (1.387.67, ENTACHATS-22) Un commerce importe des ARTICLES : « 3 nouvelles prestations » pour du sucre et de l'huile
+    // parlait le métier d'un autre. Les mots suivent ceux du Catalogue (`motsCatalogue`).
+    const T = type === 'catalogue' && motsCatalogue().un === 'article'
+      ? { ...IMPORTS[type], un: 'article', des: 'articles', neuf: ['nouvel article', 'nouveaux articles'], fiche: 'article', masc: true } : IMPORTS[type];
     // Importer dans l'EXEMPLE, c'est importer dans des données qui partiront avec lui : « Quitter
     // l'exemple » rend la sauvegarde d'avant, sans l'import (7.6.0 — l'exemple ne touche jamais au vrai,
     // et le vrai ne se range pas dans l'exemple).
@@ -11237,7 +11240,7 @@
         const maj = p.completes + p.remplaces;
         const morceaux = [];
         if (p.nouveaux) morceaux.push(`<b>${pl(p.nouveaux, T.neuf[0], T.neuf[1])}</b>`);
-        if (p.completes) morceaux.push(`${pl(p.completes, `${T.fiche} existante`, `${T.fiche}s existantes`)} : leurs cases vides seront remplies, rien de rempli ne change`);
+        if (p.completes) morceaux.push(`${pl(p.completes, `${T.fiche} existant${T.masc ? '' : 'e'}`, `${T.fiche}s existant${T.masc ? '' : 'e'}s`)} : leurs cases vides seront remplies, rien de rempli ne change`);
         if (p.remplaces) morceaux.push(`${pl(p.remplaces, 'exemple de l\'assistant', 'exemples de l\'assistant')} ${p.remplaces > 1 ? 'prennent' : 'prend'} tes prix`);
         if (p.inchanges) morceaux.push(`${pl(p.inchanges, 'ligne')} déjà dans ${T.chez}, sans rien à ajouter`);
         if (p.doublons) morceaux.push(`${pl(p.doublons, 'ligne')} en double dans ta liste`);
@@ -11343,8 +11346,8 @@
         close();
         if (done) done(r);
         const dits = [];
-        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'catalogue' ? 'e' : ''}`, `${T.des} importé${type === 'catalogue' ? 'e' : ''}s`));
-        if (r.completes) dits.push(pl(r.completes, `${T.fiche} complétée`, `${T.fiche}s complétées`));
+        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'catalogue' && !T.masc ? 'e' : ''}`, `${T.des} importé${type === 'catalogue' && !T.masc ? 'e' : ''}s`));
+        if (r.completes) dits.push(pl(r.completes, `${T.fiche} complété${T.masc ? '' : 'e'}`, `${T.fiche}s complété${T.masc ? '' : 'e'}s`));
         if (r.remplaces) dits.push(pl(r.remplaces, 'exemple repris', 'exemples repris'));
         if (r.retires) dits.push(pl(r.retires, 'exemple retiré', 'exemples retirés'));
         toastUndo(enTete(C.liste(dits)), () => {
@@ -16284,7 +16287,7 @@
     }
     // Le fil de la relation : ses dernières pièces, tes règlements, tes commandes, du plus récent au plus ancien.
     // Chaque événement porte son icône et son ton : un avoir en rouge, un règlement en vert.
-    const fil = [...mine.map(p => [p.date, `${p.kind === 'avoir' ? 'Avoir' : p.kind === 'depense' ? 'Dépense' : p.kind === 'acompte' ? 'Acompte' : 'Facture'} <b>${h(p.number || C.referenceAchat(p, data))}</b> reçue`, `${h(contenuAchat(p))}${contenuAchat(p) ? ' · ' : ''}${p.kind === 'avoir' ? '− ' : ''}${C.money(Math.abs(C.purchaseTotals(p, co).netToPay), p.currency || cur)}`, p.kind === 'avoir' ? 'annuler' : 'piece', p.kind === 'avoir' ? 'r' : '']),
+    const fil = [...mine.map(p => [p.date, `${p.kind === 'avoir' ? 'Avoir' : p.kind === 'depense' ? 'Dépense' : p.kind === 'acompte' ? 'Acompte' : 'Facture'} <b>${h(p.number || C.referenceAchat(p, data))}</b> ${p.kind === 'avoir' ? 'reçu' : p.kind === 'acompte' ? 'versé' : p.kind === 'depense' ? 'enregistrée' : 'reçue'}`, `${h(contenuAchat(p))}${contenuAchat(p) ? ' · ' : ''}${p.kind === 'avoir' ? '− ' : ''}${C.money(Math.abs(C.purchaseTotals(p, co).netToPay), p.currency || cur)}`, p.kind === 'avoir' ? 'annuler' : 'piece', p.kind === 'avoir' ? 'r' : '']),
       ...reglements.map(x => [x.r.date, `Réglé <b>${h(x.p.number || C.referenceAchat(x.p, data))}</b>`, `${C.money(Number(x.r.amount) || 0, x.p.currency || cur)} ${C.estPoche(x.r) ? h(modeReglement(x.r).toLowerCase()) : `par ${h(methodLabel(x.r.method).toLowerCase())}`}${rsDe(x) > 0.0005 ? ` · ${C.money(rsDe(x), x.p.currency || cur)} gardés pour l'État` : ''}`, 'carte', 'ok']),
       ...commandes.filter(o => o.number).map(o => [o.date, `${o.status === 'demande' ? 'Demande de prix' : 'Commande'} <b>${h(o.number)}</b>${o.status === 'brouillon' ? '' : ' envoyée'}`, h(o.reference || ''), 'pages', ''])]
       .filter(x => x[0]).sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
@@ -16651,7 +16654,7 @@
     const unitesCF = new Set(lignesSuivies.map(x => x.unit || ''));
     const lignesFinies = lignesSuivies.filter(x => x.recue + 0.0005 >= x.commandee).length;
     const avanceeCF = unitesCF.size <= 1
-      ? `${pct(qRecu)} sur ${pct(qCmd)}${[...unitesCF][0] ? ' ' + h([...unitesCF][0]) : ''}`
+      ? `${pct(qRecu)} sur ${pct(qCmd)}${[...unitesCF][0] ? ' ' + h(C.uniteAccordee(qCmd, [...unitesCF][0])) : ''}`
       : `${lignesFinies} sur ${lignesSuivies.length} lignes en entier`;
     const sousCF = stored ? [h(supplierName(o.supplierId)), badgeCF(etatAffiche), o.dueDate ? `livraison souhaitée le ${h(C.fmtDate(o.dueDate))}${enRetardCF ? ' <span class="warn-text">— en retard</span>' : ''}` : '']
       : [o.status === 'demande' ? 'les prix se saisissent quand le fournisseur répond' : 'elle prend son numéro quand tu l\'enregistres'];

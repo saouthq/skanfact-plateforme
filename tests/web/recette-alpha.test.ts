@@ -305,6 +305,31 @@ describe('la recette alpha, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  it('(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier', async () => {
+    const { jeton, ent } = await commerce();
+    const lu = await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const fiche = (lu.corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[]).find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: '_racine', cle: 'company', rang: null, revision: fiche ? fiche.revision : null, contenu: { ...(fiche ? fiche.contenu : {}), setupDone: true, name: 'Épicerie du Sahel', activity: 'commerce' } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/catalogue`);
+    await p.locator('#imp-catalogue').click({ timeout: 30_000 });
+    const f = p.locator('#modal-root .modal').last();
+    await f.locator('#imp-texte').fill('Désignation;Prix HT;Unité\nSucre 1 kg;1,450;u\nHuile 1 L;4,200;u\nColle à bois;6,800;u');
+    await expect.poll(() => f.locator('#imp-apercu').innerText().then(net), { timeout: 15_000 }).toContain('2 nouveaux articles');
+    expect(net(await f.locator('#imp-apercu').innerText())).not.toContain('prestation');
+    await expect.poll(() => f.locator('#imp-ok').innerText().then(net), { timeout: 10_000 }).toBe('Importer 2 articles');
+    await f.locator('#imp-ok').click();
+    await expect.poll(() => p.locator('body').innerText().then(net), { timeout: 15_000 }).toContain('2 articles importés');
+    expect(net(await p.locator('body').innerText())).not.toContain('prestations importées');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
   it('(1.387.63, ENTACHATS-18) le téléphone d\'un fournisseur se refuse s\'il n\'a pas de chiffres ; son nom, sur la pièce, mène à sa page', async () => {
     const { jeton, ent } = await commerce();
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });

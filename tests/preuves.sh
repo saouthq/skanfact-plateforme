@@ -15726,7 +15726,7 @@ prouver '« Annuler » qui garde les fournisseurs importés' modules/socle/ecran
   'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'clients'"'"', salaries: '"'"'employees'"'"' }[type];' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
 prouver 'un fournisseur « importée »' modules/socle/ecrans/entreprise/app-1.js \
-  '`${T.un} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}`, `${T.des} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}s`' \
+  '`${T.un} importé${type === '"'"'catalogue'"'"' && !T.masc ? '"'"'e'"'"' : '"'"''"'"'}`, `${T.des} importé${type === '"'"'catalogue'"'"' && !T.masc ? '"'"'e'"'"' : '"'"''"'"'}s`' \
   '`${T.un} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}`, `${T.des} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}s`' \
   'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
 prouver 'un import accepté pour qui lit seulement' modules/socle/ecrans/entreprise/app-1.js \
@@ -30835,6 +30835,14 @@ prouver $'cout-article-marge-de-la-vente' modules/socle/moteur/core-1.js \
 prouver $'cout-article-catalogue' modules/socle/ecrans/entreprise/app-1.js \
   $'      const ku = c => C.coutDeLArticle(data, c).cout;' $'      const ku = c => Number(c.unitCost) || 0;' \
   $'l\'en-tête, les quatre chiffres, les onglets ; la marge sur ce qui a un coût ; les modèles s\'ouvrent ; au téléphone rien ne déborde'
+prouver $'import-mots-du-commerce' modules/socle/ecrans/entreprise/app-1.js \
+  $'const T = type === \'catalogue\' && motsCatalogue().un === \'article\'' \
+  $'const T = type === \'catalogue\' && motsCatalogue().un === \'jamais\'' \
+  $'(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier'
+prouver $'inventaire-unite-accordee-question' modules/socle/ecrans/entreprise/app-2.js \
+  $'${r.unit ? ` ${C.uniteAccordee(Math.max(r.book, r.counted), r.unit)}` : \'\'} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen' \
+  $'${r.unit ? ` ${r.unit}` : \'\'} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen' \
+  $'(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l\'écart, et l\'état de mi-mois n\'est pas l\'inventaire de l\'année'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
