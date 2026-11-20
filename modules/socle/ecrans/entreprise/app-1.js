@@ -17345,12 +17345,12 @@
       const sorte = (C.PURCHASE_KINDS.find(k => k[0] === p.kind) || [])[1] || '';
       const objet = [contenuAchat(p) || p.subject, p.kind === 'facture' ? p.category : [sorte.toLowerCase(), p.category].filter(Boolean).join(' · ')].filter(Boolean);
       const net = `${lfMontant(netOf(p), cur)}${dev ? `<small>${h(C.money(t.netToPay, p.currency))}</small>` : t.withholding > 0.0005 ? `<small>retenue ${C.money(Math.abs(t.base.withholding), cur)}</small>` : ''}`;
-      const reste = r > 0.0005 ? lfMontant(r, cur) : r < -0.0005 ? `<span class="trop" title="Ce que le fournisseur te doit : à déduire d'une facture ou à te faire rembourser">${lfMontant(-r, cur)} pour toi</span>` : '<span class="mu">—</span>';
+      const reste = r > 0.0005 ? lfMontant(r, cur) : r < -0.0005 ? `<span class="trop" title="Ce que le fournisseur te doit : à déduire d'une facture ou à te faire rembourser">${lfMontant(-r, cur)}<small>pour toi</small></span>` : '<span class="mu">—</span>';
       const ch = s.sel.has(p.id);
       return `<tr class="clickable${['payée', 'imputé', 'remboursé'].includes(st) && !sansJ ? ' solde' : ''}${ch ? ' choisie' : ''}" data-id="${h(p.id)}">
         <td class="cx"><input type="checkbox" data-x="${h(p.id)}"${ch ? ' checked' : ''} aria-label="Choisir ${h(p.number || ref)}"></td>
         <td class="nw">${C.fmtDate(p.date)}</td>
-        <td class="num-c">${p.number ? `<b>${h(p.number)}</b>` : '<span class="mu">sans numéro</span>'}${marqueJustif(p.attachments)}${sous.length ? `<small>${sous.join(' · ')}</small>` : ''}${justifTrouve(p.attachments, s.q)}</td>
+        <td class="num-c">${p.number ? `<b>${h(p.number)}</b>` : '<span class="mu">sans numéro</span>'}${marqueJustif(p.attachments)}${/* (1.387.70, ENTACHATS-21) Une ligne chacun : « réf. SN-… · san… » coupait le mot qui compte. */''}${sous.map(x => `<small>${x}</small>`).join('')}${justifTrouve(p.attachments, s.q)}</td>
         <td class="cl"><span class="cl-i">${pastilleClient(p.supplierId || p.id, supplierName(p.supplierId))}<span><b>${h(supplierName(p.supplierId))}</b>${objet.length ? `<small title="${h(objet.join(' · '))}">${h(objet.join(' · '))}</small>` : ''}</span></span></td>
         <td class="nw">${laEcheance(p, st)}</td>
         <td>${laBadge(st)}</td>

@@ -1450,7 +1450,13 @@
         && (!s.only || (s.only === 'alerte' ? (r.low || r.negative) : r.qty > 0)));
       // Paginé comme toute liste (2.2.0) : cent vingt articles faisaient six mille pixels. Le total,
       // lui, porte la sélection entière, jamais la page (2.2.0, 7.16.0).
-      const pageEtat = paginate(rows, s.etat);
+      // (1.387.70, ENTACHATS-9) L'état du stock se trie comme la liste des achats : chaque en-tête porte son « ⇅ ».
+      const colsEtat = [
+        { key: 'label', label: 'Article', asc: true, val: r => r.label || '' }, { key: 'location', label: 'Emplacement', asc: true, val: r => r.location || '' },
+        { key: 'qty', label: 'En stock', r: true, val: r => r.qty }, { key: 'min', label: 'Seuil', r: true, val: r => Number(r.minStock) || 0 },
+        { key: 'cmp', label: 'Coût moyen', r: true, info: 'stk.cmp', val: r => r.cmp }, { key: 'value', label: 'Valeur', r: true, val: r => Math.max(0, r.value) },
+        { key: 'price', label: 'Prix de vente', r: true, val: r => Number(r.unitPrice) || 0 }];
+      const pageEtat = paginate(applySort(rows, colsEtat, s.etat.sort), s.etat);
       $('#st-body').innerHTML = `
         <div class="panel"><h2>État du stock ${info('stk.state')}</h2>
           <div class="filters">
@@ -1458,9 +1464,8 @@
             <select id="st-only"><option value="">Tous les articles</option><option value="positif" ${s.only === 'positif' ? 'selected' : ''}>En stock seulement</option><option value="alerte" ${s.only === 'alerte' ? 'selected' : ''}>À surveiller</option></select>
             <span class="small muted">${rows.length} sur ${t.count}</span>
           </div>
-          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
-            <th>Article</th><th>Emplacement</th><th class="r">En stock</th><th class="r">Seuil</th><th class="r">Coût moyen ${info('stk.cmp')}</th><th class="r">Valeur</th><th class="r">Prix de vente</th></tr></thead><tbody>
-            ${pageEtat.rows.map(r => `<tr class="clickable ${r.negative ? 'row-warn' : ''}" data-iid="${h(r.itemId)}">
+          ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead>${sortHead(colsEtat, s.etat.sort)}</thead><tbody>
+            ${pageEtat.rows.map(r => `<tr class="clickable ${r.negative ? 'row-warn' : ''}" data-iid="${h(r.itemId)}" title="Ouvrir la fiche de l'article">
               <td><strong>${h(r.label)}</strong>${r.negative ? '<div class="small warn-text">stock négatif : une entrée manque</div>' : r.low ? '<div class="small warn-text">sous le seuil d\'alerte</div>' : ''}</td>
               <td>${h(r.location) || '<span class="muted">—</span>'}</td>
               <td class="r nw">${qtyCell(r)}</td>
@@ -1477,6 +1482,7 @@
       $('#st-q').oninput = e => { s.q = e.target.value; s.etat.page = 1; sansPerdreLaFrappe(e.target, drawState); };
       $('#st-only').onchange = e => { s.only = e.target.value; s.etat.page = 1; drawState(); };
       bindPager($('#st-body'), s.etat, () => drawState(), '#st-body');
+      bindSort($('#st-body'), key => { s.etat.sort = toggleSort(s.etat.sort, key, colsEtat); s.etat.page = 1; drawState(); });
       $$('#st-body tr[data-iid]').forEach(tr => tr.onclick = () => navigate('#/article/' + tr.dataset.iid));
     }
 

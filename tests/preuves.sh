@@ -30863,6 +30863,10 @@ prouver $'unites-marchandise-en-tete' modules/socle/ecrans/entreprise/app-1.js \
   $'const marchandise = METIERS_ARTICLES.includes(company().activity);' \
   $'const marchandise = false;' \
   $'(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier'
+prouver $'stock-etat-se-trie' modules/socle/ecrans/entreprise/app-2.js \
+  $'const pageEtat = paginate(applySort(rows, colsEtat, s.etat.sort), s.etat);' \
+  $'const pageEtat = paginate(rows, s.etat);' \
+  $'(1.357.5) la farine comptée en fin de mois : la question dit combien, le message nomme l\'écart, et l\'état de mi-mois n\'est pas l\'inventaire de l\'année'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

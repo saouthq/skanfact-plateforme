@@ -128,6 +128,14 @@ describe('l\'inventaire de fin de mois d\'une boulangerie, et le pont (1.357.5)'
     expect(msg.slice(1, 3).sort()).toEqual(['- Farine : 22 → 15 sacs (−7), − 294,000 DT', '- Levure fraîche : 5 → 6 kg (+1), + 12,000 DT']);
     expect(msg[3]).toBe(`Les mouvements d'inventaire sont enregistrés dans SkanFact, et l'état du stock au ${fr(auj)} est envoyé : 2 articles, 702,000 DT au coût moyen, à reprendre dans l'inventaire.`);
     await p.getByRole('button', { name: 'Envoyer', exact: true }).click();
+    // (1.387.70, ENTACHATS-9) L'état du stock se trie par ses en-têtes : la quantité, du plus grand au plus petit, puis l'inverse.
+    await p.evaluate(() => { location.hash = '#/stock'; });
+    const articles = () => p.locator('#st-body tr[data-iid] td:first-child strong').allInnerTexts();
+    await p.locator('#st-tabs button[data-tab="etat"]').click({ timeout: 20_000 });
+    await p.locator('#st-body th[data-sort="qty"]').click({ timeout: 20_000 });
+    await expect.poll(articles, { timeout: 10_000 }).toEqual(['Farine', 'Levure fraîche']);
+    await p.locator('#st-body th[data-sort="qty"]').click();
+    await expect.poll(articles, { timeout: 10_000 }).toEqual(['Levure fraîche', 'Farine']);
     await cx.close();
 
     // C. Au Cabinet : l'état arrive (deux chemins, un chiffre : 702,000 = 15 × 42 + 6 × 12). Daté d'avant la fin de

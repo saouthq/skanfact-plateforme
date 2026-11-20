@@ -1061,3 +1061,14 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .lf.gr .gr-deux { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 13.5px; }
 .lf.gr .gr-deux b { margin-left: 4px; }
 .lf.gr .gr-paire .inline { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+
+/* (1.387.70, ENTACHATS-21) La barre des filtres ne coupe plus rien : à 1 440 px, la liste des achats de l'exemple
+   écrasait « Avoirs » (« A »), « Toutes les a… ». Les filtres gardent leur largeur et passent à la ligne quand la place
+   manque ; la recherche, elle, se resserre. « 357,000 pour toi » tient sur deux lignes dans sa colonne. */
+.lf .filtres { flex-wrap: wrap; row-gap: 8px; }
+.lf .filtres .segment, .lf .filtres .sel { flex: none; }
+.lf .filtres .cherche { flex: 1 1 200px; min-width: 200px; max-width: 400px; }
+/* Une liste déroulante prend la largeur de son choix le plus long (« À rattacher (avoir ou acompte) ») : bornée, le
+   compte des pièces reste sur la ligne. */
+.lf .filtres .sel select { max-width: 190px; text-overflow: ellipsis; }
+.lf table.lf-table td .trop small { color: inherit; font-weight: 600; }

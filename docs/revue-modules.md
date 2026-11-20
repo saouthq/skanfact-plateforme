@@ -5654,3 +5654,14 @@ l'emporte toujours. Calculs refaits à la main dans les tests (1 930 / 30 = 64,3
   lecteur).
 - Reste d'ENTACHATS-20, à décider avec Skander : FODEC à l'achat (À VÉRIFIER avec le comptable), quantité refusée à la
   réception, relevé de compte fournisseur, image et variantes d'un article, promotions.
+
+## 1.387.70 — les listes qui ne coupent plus rien (ENTACHATS-21, ENTACHATS-9 en partie)
+
+Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
+
+- La barre des filtres des listes ne coupe plus ses choix (« Avoirs » lu « A », « Toutes les a… ») : les filtres gardent
+  leur largeur, la recherche se resserre, et la barre passe à la ligne quand la place manque.
+- Liste des achats : « 357,000 pour toi » tient sur deux lignes dans sa colonne ; la référence interne et « sans
+  justificatif » ont chacune leur ligne (« réf. SN-… · san… » coupait le mot qui compte).
+- L'état du stock se trie par ses en-têtes (⇅), comme la liste des achats ; la ligne dit qu'elle ouvre la fiche.
+- Dépense neuve : la phrase qui répétait la note du montant disparaît.
