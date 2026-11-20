@@ -3801,6 +3801,9 @@
       dessine.then(() => { bindDateFields(view); bindWithholdingFields(view); bindRibFields(view); bindVerifFields(view); }, () => {});
     }
     view.scrollTop = scroll;
+    // (1.387.68, ENTACHATS-16) Au téléphone c'est le document qui défile, pas `#view` : une page neuve s'ouvrait là où
+    // la précédente avait été laissée, titre coupé. Une page neuve commence en haut.
+    if (!keepScroll && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
     currentHash = location.hash;
     updateNavCounts();
     closePalette();
@@ -18451,7 +18454,7 @@
         </span></div>`}
       ${bandeauAbonnement(isNew, true, p.kind === 'depense' ? 'une dépense neuve' : p.kind === 'avoir' ? 'un avoir neuf' : p.kind === 'acompte' ? 'un acompte neuf' : 'un achat neuf', 'Tes achats déjà saisis restent ouverts : les lire, les régler, y joindre un justificatif, parler à ton comptable.')}
       ${bandeauQuestions(p.number)}
-      <div class="buy-editor editor charte${attendChoix ? ' attend-choix' : ''}${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
+      <div class="buy-editor editor charte${attendChoix ? ' attend-choix' : ''}${lecture ? ' lecture' : ''}${isDep && isNew && !clos ? ' dep-neuve' : ''}" data-devise="${h(cur)}">
         <div class="ed-gauche">
           ${choixArrivee}
           ${luParIA ? (luParIA.teif ? bandeauLuTeif(luParIA) : bandeauLuParIA(luParIA)) : ''}
@@ -18493,11 +18496,12 @@
             </form>
           </div>
           <div class="panel ed-lignes"><h2>Lignes ${info('buy.lines')}<span class="ed-compte" id="ac-compte"></span></h2>
+            ${/* (1.387.68, ENTACHATS-16) Le montant du ticket vient en premier : c'est la seule chose qu'on lit sur un ticket de comptoir. */''}
+            ${isDep && !clos && isNew ? `<div class="inline" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="text" inputmode="decimal" data-montant id="b-ttc" class="num montant" placeholder="ce que dit le ticket" autocomplete="off"><span class="unite">${h(cur)}</span></span></label>
+              <span class="small muted" id="b-ttc-note">SkanFact en déduit le hors taxes et la TVA, au millime : tape ce qui est écrit sur le ticket.</span></div>` : ''}
             ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…', add: '+ Nouvel article' })}<kbd>Ctrl L</kbd></div>
               <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
-            ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="text" inputmode="decimal" data-montant id="b-ttc" class="num montant" placeholder="ce que dit le ticket" autocomplete="off"><span class="unite">${h(cur)}</span></span></label>
-              <span class="small muted" id="b-ttc-note">SkanFact en déduit le hors taxes et la TVA, au millime : tape ce qui est écrit sur le ticket.</span></div>` : ''}
             <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:92px">P.U. HT</th><th style="width:76px">TVA</th>
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
               <tbody id="b-lines"></tbody></table>

@@ -96,6 +96,16 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/new/-/depense`);
     await p.locator('#ac-dep-paye').waitFor({ timeout: 30_000 });
     await plusTard(p);
+    // (1.387.68, ENTACHATS-16) Le montant du ticket vient avant la recherche du catalogue ; au téléphone, avant la fiche
+    // elle-même (référence, catégorie, options), et le bouton n'y écrit pas « Ctrl S ».
+    const haut = async (sel: string) => (await p.locator(sel).first().boundingBox())?.y ?? -1;
+    expect(await haut('#b-ttc')).toBeLessThan(await haut('#b-cat'));
+    expect(await haut('#b-ttc')).toBeGreaterThan(await haut('#b-head input[name=number]'));
+    const taille = p.viewportSize();
+    await p.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => (await haut('#b-ttc')) < (await haut('#b-head input[name=number]')), { timeout: 10_000 }).toBe(true);
+    expect(await p.locator('.ed-geste .btn-grand kbd').evaluateAll((l) => l.filter((k) => getComputedStyle(k).display !== 'none').length)).toBe(0);
+    if (taille) await p.setViewportSize(taille);
     expect(await p.locator('#ac-dep-paye option[value="poche"]').innerText()).toBe('de ta poche : l\'entreprise te le doit');
     await p.locator('#ac-dep-paye').selectOption('poche');
     expect(net(await p.locator('#view .ed-net .k').innerText())).toBe('Payé');

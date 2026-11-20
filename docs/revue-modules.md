@@ -5635,3 +5635,12 @@ l'emporte toujours. Calculs refaits à la main dans les tests (1 930 / 30 = 64,3
 - L'unité s'accorde au nombre dans l'inventaire (« 22 → 15 sacs »), l'avancement d'une commande et le message de stock
   insuffisant (`uniteAccordee`, la règle du moteur).
 - Le fil d'un fournisseur accorde le participe : « Avoir … reçu », « Acompte … versé », « Dépense … enregistrée ».
+
+## 1.387.68 — la dépense du comptoir au téléphone (ENTACHATS-16)
+
+- Le « Montant payé (TTC) » d'une dépense neuve vient avant la recherche du catalogue ; au téléphone, tout le bloc des
+  lignes (donc le montant) passe avant la fiche (référence, catégorie, options).
+- Au téléphone, une page neuve s'ouvre en haut : c'est le document qui y défile, et la page suivante gardait la
+  hauteur de la précédente (titre coupé).
+- Le grand bouton n'écrit plus « Ctrl S » au téléphone.
+- Le test de l'accueil ne dépend plus du jour du mois (rouge du 20/11).

@@ -327,6 +327,14 @@ describe('la recette alpha, à la souris', () => {
     await f.locator('#imp-ok').click();
     await expect.poll(() => p.locator('body').innerText().then(net), { timeout: 15_000 }).toContain('2 articles importés');
     expect(net(await p.locator('body').innerText())).not.toContain('prestations importées');
+    // (1.387.68, ENTACHATS-16) Au téléphone, une page neuve s'ouvre en haut, pas là où la précédente a été laissée.
+    await p.setViewportSize({ width: 390, height: 700 });
+    await p.evaluate(() => { location.hash = '#/aide'; });
+    await expect.poll(() => p.evaluate(() => document.documentElement.scrollHeight > innerHeight + 300), { timeout: 15_000 }).toBe(true);
+    await p.evaluate(() => window.scrollTo(0, 400));
+    expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(200);
+    await p.evaluate(() => { location.hash = '#/catalogue'; });
+    await expect.poll(() => p.evaluate(() => location.hash + ' ' + Math.round(window.scrollY)), { timeout: 10_000 }).toBe('#/catalogue 0');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

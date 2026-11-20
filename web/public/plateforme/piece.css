@@ -1714,3 +1714,11 @@
 
 /* (1.354.0) Une ligne des totaux réservée : elle tient sa place, sans rien montrer. */
 .ac-reserve { visibility: hidden; }
+
+/* (1.387.68, ENTACHATS-16) Au téléphone, une dépense neuve commence par son montant : le ticket du comptoir se tape
+   d'abord, la fiche (référence, catégorie, options) vient après. Et un téléphone n'a pas de touche Ctrl. */
+#b-ttc-zone { margin-bottom: 12px; }
+@media (max-width: 760px) {
+  .editor.charte.buy-editor.dep-neuve .ed-lignes { order: 0; }
+  .ed-geste .btn-grand kbd { display: none; }
+}
