@@ -5995,3 +5995,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Reste (finition) : l'aperçu du modèle montre encore `{client}` tel quel quand aucun client n'est choisi.
 - Test : un modèle de l'équipe posé dans « Écrire à Transports Gabès », rempli, élidé ; `remplir` sur « avril 2026 ».
   Deux preuves : le bouton sans effet, et l'élision retirée.
+
+## 1.387.93 — « Écrire » sur des dossiers tenus : une tournée, plus une coche qui dit non (issue 12, CABPORTEFEUILLE-22)
+
+- **CABPORTEFEUILLE-22** : dans « Tous les dossiers », choisir des dossiers tenus au cabinet puis « Écrire » répondait par
+  un message vert (« Les dossiers tenus… n'ont pas de conversation »), alors que chacun s'écrit très bien par WhatsApp ou
+  e-mail depuis sa ligne. « Écrire » ouvre maintenant « Écrire à… » pour chacun, l'un après l'autre (« 1 sur 2 »), et
+  « Passer » mène au suivant ; Échap arrête la tournée. Un seul dossier tenu : sa fenêtre, directement. Un dossier relié
+  dans la sélection : sa conversation, comme avant.
+- Test : deux dossiers tenus choisis, la tournée « 1 sur 2 » puis « 2 sur 2 », puis plus rien. Preuve : remettre le
+  message vert fait tomber le test.

@@ -4690,7 +4690,21 @@
     const aucun = $('#cd-aucun', view); if (aucun) aucun.onclick = () => { st.choix.clear(); st.confier = ''; redessiner(); };
     $$('[data-cd-export]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); exporter(lignesCsv(tous.filter(d => d.id === b.dataset.cdExport))); }; });
     const exC = $('#cd-exporter-choix', view); if (exC) exC.onclick = () => exporter(lignesCsv(choisis.map(x => x.d)));
-    const ecr = $('#cd-ecrire', view); if (ecr) ecr.onclick = () => { const x = choisis.find(y => !y.d.manual); if (x) location.hash = `#/messages/${encodeURIComponent(x.d.id)}`; else toast('Les dossiers tenus au cabinet n\'ont pas de conversation : leur client n\'est pas sur SkanFact.'); };
+    // (1.387.93, issue 12 CABPORTEFEUILLE-22) Des dossiers tenus n'ont pas de conversation : « Écrire » répondait par une coche
+    // verte qui disait non. Il ouvre « Écrire à… » (WhatsApp, e-mail, copie) pour chacun, l'un après l'autre (« Passer »
+    // mène au suivant), comme depuis sa ligne.
+    const ecr = $('#cd-ecrire', view); if (ecr) ecr.onclick = () => {
+      const x = choisis.find(y => !y.d.manual);
+      if (x) { location.hash = `#/messages/${encodeURIComponent(x.d.id)}`; return; }
+      const tenus = choisis.map(y => y.d);
+      let i = 0;
+      const suivant = () => {
+        if (i >= tenus.length) return;
+        const D = tenus[i++];
+        fenEcrire(D, tenus.length > 1 ? { titre: `Écrire à ${D.name} · ${i} sur ${tenus.length}`, onDone: suivant } : {});
+      };
+      suivant();
+    };
     const cf = $('#cd-confier', view); if (cf) cf.onclick = e => { e.stopPropagation(); st.confier = st.confier === '*' ? '' : '*'; redessiner(); };
     $$('[data-cd-a]', view).forEach(b => { b.onclick = () => confierA(b.dataset.cdA, st.confier === '*' ? choisis.map(x => x.d) : tous.filter(d => d.id === st.confier)); });
     $$('[data-cd-menu]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); st.menu = st.menu === b.dataset.cdMenu ? '' : b.dataset.cdMenu; st.menuPage = false; redessiner(); }; });

@@ -183,6 +183,20 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(await p.evaluate(() => (window as unknown as { SkanMessagerie: { remplir: (t: string, c: string | null, m: string | null) => string } }).SkanMessagerie
       .remplir('Ta déclaration de {mois}. De {mois}, il manque tout, {client}.', 'Sami', 'avril 2026'))).toBe('Ta déclaration d\'avril 2026. D\'avril 2026, il manque tout, Sami.');
     await fen2.getByRole('button', { name: 'Annuler' }).click();
+    // (1.387.93, issue 12 CABPORTEFEUILLE-22) Deux dossiers tenus choisis : « Écrire » ne répond plus par une coche verte qui
+    // dit non ; il ouvre « Écrire à… » pour chacun, l'un après l'autre, et « Passer » mène au suivant.
+    expect((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Pêcheries Sfax' })).statut).toBeLessThan(300);
+    await p.reload();
+    await p.locator('#page-tb tr[data-id]').first().waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    for (const n of ['Transports Gabès', 'Pêcheries Sfax']) await ligne(n).locator('[data-cd-choix]').check();
+    await p.locator('#cd-ecrire').click();
+    await expect.poll(() => fen2.locator('h2').innerText()).toMatch(/^Écrire à (Transports Gabès|Pêcheries Sfax) · 1 sur 2$/);
+    const premier = (await fen2.locator('h2').innerText()).replace(/^Écrire à | · 1 sur 2$/g, '');
+    await fen2.getByRole('button', { name: 'Passer', exact: true }).click();
+    await expect.poll(() => fen2.locator('h2').innerText()).toBe(`Écrire à ${premier === 'Transports Gabès' ? 'Pêcheries Sfax' : 'Transports Gabès'} · 2 sur 2`);
+    await fen2.getByRole('button', { name: 'Passer', exact: true }).click();
+    await expect.poll(() => fen2.locator('.modal').count()).toBe(0);
     expect(erreurs).toEqual([]);
     // Le délai de chaque essai d'écran (120 s), comme les autres : avec 20 s par défaut, le premier chargement (qui
     // attend jusqu'à 25 s) suffisait à le faire tomber sur une machine de GitHub chargée (233757d, 31/10/2026).
