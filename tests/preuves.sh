@@ -29948,12 +29948,12 @@ prouver $'revue 1.374.0 b : un mot tapé hors d\'un champ choisit dans « Créer
   $'if (l && false) {' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 prouver $'revue 1.374.0 c : une échéance mal écrite jetée en silence' modules/socle/ecrans/cabinet/app-2.js \
-  $'    if (!m || !m[1].trim()) return true;\n' \
-  $'    if (!m || !m[1].trim()) return false;\n' \
+  $'          if (!n) return refus(nom, ' \
+  $'          if (false) return refus(nom, ' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 prouver $'revue 1.374.0 d : le 31 février accepté comme échéance' modules/socle/ecrans/cabinet/app-2.js \
-  $'    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= JOURS_DU_MOIS[mo - 1]);' \
-  $'    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= 31);' \
+  $'          if (j > JOURS_DU_MOIS[m - 1]) return refus(jo, ' \
+  $'          if (false) return refus(jo, ' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 prouver $'revue 1.374.0 e : une liste collée qui tait son prix' modules/socle/ecrans/cabinet/app-2.js \
   $'const prix = n && peut && typeof peut.plusieurs === \'function\' ? peut.plusieurs(n) : \'\';' \
@@ -31027,6 +31027,7 @@ prouver $'cabpaie1-absences-a-venir' modules/personnel/ecrans/cabinet/paie.js $'
 prouver $'cabpaie2-annuler-le-paiement' modules/personnel/ecrans/cabinet/paie.js $'if (dossier.manual && b.valideLe && b.payeLe && !(s.livre.exercice || {}).clos) a.push(' $'if (false) a.push(' $'le mois d\'un dossier tenu : établir, valider, remettre, sans accord ni envoi au client'
 prouver $'cabdecl4-index-dit-son-format' modules/socle/ecrans/cabinet/app-1.js $'indexFait = pdf ? \'pdf\' : \'html\';' $'void 0;' $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
 prouver $'cabdecl4-compte-le-fec' modules/socle/ecrans/cabinet/app-1.js $'${prends.fec ? `${pl(e, \'écriture\')} dans le FEC` : \'sans le FEC\'}' $'${pl(e, \'écriture\')}' $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
+prouver $'regime-sans-nom-jete-en-silence' modules/socle/ecrans/cabinet/app-2.js $'        if (!r.label && (r.id || r.annuelles.length || r.tva || !r.cnss)) return refus(' $'        if (false) return refus(' $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

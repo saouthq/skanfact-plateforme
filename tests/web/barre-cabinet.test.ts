@@ -222,19 +222,60 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#cl-prix').innerText().catch(() => ''), { timeout: 8_000 }).toMatch(/^Ce que ça coûte\. (\d+\u00a0gratuits?, )?(\d+\u00a0payants? : .* HT par an|Ces 4 dossiers entrent dans tes \d+ gratuits)/);
     expect(await p.evaluate(() => { const x = document.querySelector('#cl-prix'), t = document.querySelector('#cl-apercu table'); return !!x && !!t && x.getBoundingClientRect().top < t.getBoundingClientRect().top; })).toBe(true);
     await p.locator('#modal-root #no').click();
-    // (1.374.0) Une échéance mal écrite se refuse en la nommant, la saisie reste ; le 31 février aussi (issue 12).
+    // (1.374.0 ; 1.387.84, CABPORTEFEUILLE-2) Une échéance se choisit par son nom, son jour et son mois : plus de
+    // « nom@JJ-MM » à taper, plus d'identifiant à inventer. Ce qui est faux se refuse sur sa case, la saisie reste.
     await p.evaluate(() => { location.hash = '#/reglages'; });
     await p.locator('#set-tabs button[data-tab="cabinet"]').click();
     await p.locator('#sr-reg-base').click();
-    const annuelles = p.locator('#sr-regimes tr[data-rg] [data-k=annuelles]').first();
-    await annuelles.fill('Déclaration annuelle le 25 avril ; Acompte@25-06');
+    expect(await p.locator('#sr-regimes [data-k=id]').count()).toBe(0);
+    expect(await p.locator('#sr-regimes thead').innerText()).not.toContain('Identifiant');
+    const forf = () => p.locator('#sr-regimes tr[data-rg]').nth(1);
+    await forf().locator('[data-ana]').click();
+    await forf().locator('[data-ana]').click();
+    const an = (k: number) => forf().locator('[data-an]').nth(k);
+    await an(0).locator('[data-k=an-nom]').fill('Déclaration annuelle');
+    await an(0).locator('[data-k=an-jour]').selectOption('25');
+    await an(0).locator('[data-k=an-mois]').selectOption('4');
+    await an(1).locator('[data-k=an-nom]').fill('Acompte');
+    await an(1).locator('[data-k=an-jour]').selectOption('31');
+    await an(1).locator('[data-k=an-mois]').selectOption('2');
     await p.locator('#sr-reg-save').click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('« Déclaration annuelle le 25 avril » n\'est pas une échéance');
-    expect(await annuelles.inputValue()).toBe('Déclaration annuelle le 25 avril ; Acompte@25-06');
-    await annuelles.fill('Acompte@31-02');
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('Le 31 février n\'existe pas');
+    expect(await forf().locator('[data-an]').count()).toBe(2);
+    expect(await an(1).locator('[data-k=an-nom]').inputValue()).toBe('Acompte');
+    await an(1).locator('[data-k=an-jour]').selectOption('25');
+    await an(1).locator('[data-k=an-mois]').selectOption('6');
+    // Un jour et un mois sans nom : refusée sur sa case, jamais jetée en silence.
+    await an(1).locator('[data-k=an-nom]').fill('');
     await p.locator('#sr-reg-save').click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('« Acompte@31-02 » n\'est pas une échéance');
-    expect(await annuelles.inputValue()).toBe('Acompte@31-02');
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('Cette échéance n\'a pas de nom');
+    expect(await forf().locator('[data-an]').count()).toBe(2);
+    await an(1).locator('[data-k=an-nom]').fill('Acompte');
+    await p.locator('#sr-reg-save').click();
+    await expect.poll(() => p.locator('#sr-reg-saved').isVisible(), { timeout: 5_000 }).toBe(true);
+    // Relu ailleurs puis revenu : le régime garde son identifiant, ses deux échéances, leurs jours.
+    await p.evaluate(() => { location.hash = '#/dossiers'; });
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.evaluate(() => { location.hash = '#/reglages'; });
+    await p.locator('#set-tabs button[data-tab="cabinet"]').click();
+    const lu = p.locator('#sr-regimes tr[data-id="forfaitaire"]');
+    await expect.poll(() => lu.locator('[data-an]').count(), { timeout: 10_000 }).toBe(2);
+    expect(await lu.locator('[data-an]').nth(0).locator('[data-k=an-nom]').inputValue()).toBe('Déclaration annuelle');
+    expect([await lu.locator('[data-an]').nth(0).locator('[data-k=an-jour]').inputValue(), await lu.locator('[data-an]').nth(0).locator('[data-k=an-mois]').inputValue()]).toEqual(['25', '4']);
+    expect([await lu.locator('[data-an]').nth(1).locator('[data-k=an-jour]').inputValue(), await lu.locator('[data-an]').nth(1).locator('[data-k=an-mois]').inputValue()]).toEqual(['25', '6']);
+    // Un régime sans nom ne disparaît pas en silence : il se refuse, et la rangée reste.
+    await p.locator('#sr-reg-add').click();
+    const neuf = p.locator('#sr-regimes tr[data-rg]').last();
+    await neuf.locator('[data-ana]').click();
+    await p.locator('#sr-regimes tr[data-rg]').last().locator('[data-k=an-nom]').fill('Déclaration BNC');
+    await p.locator('#sr-regimes tr[data-rg]').last().locator('[data-k=an-jour]').selectOption('25');
+    await p.locator('#sr-regimes tr[data-rg]').last().locator('[data-k=an-mois]').selectOption('4');
+    await p.locator('#sr-reg-save').click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 5_000 }).toContain('Ce régime n\'a pas de nom');
+    expect(await p.locator('#sr-regimes tr[data-rg]').count()).toBe(4);
+    await p.locator('#sr-regimes tr[data-rg]').last().locator('[data-k=label]').fill('BNC');
+    await p.locator('#sr-reg-save').click();
+    await expect.poll(() => p.locator('#sr-regimes tr[data-id="bnc"]').count(), { timeout: 5_000 }).toBe(1);
     await p.evaluate((h) => { location.hash = h; }, iciAvant);
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     // L'étoile garde un dossier en haut : il devient Ctrl 1.

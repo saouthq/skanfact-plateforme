@@ -574,11 +574,14 @@
   b('#sr-reg-add', 'Ajoute une ligne vide à la table : un régime que tu écris toi-même.');
   b('#sr-reg-base', 'Pose trois régimes à compléter — réel, forfaitaire, et un « autre » — SANS aucune règle : c\'est toi qui dis ce que chacun dépose. Rien n\'est enregistré avant « Enregistrer les régimes ».');
   b('#sr-reg-save', 'Enregistre tes régimes : les Échéances ne réclament plus à chaque client que ce que son régime dépose.');
-  b('#sr-regimes input[data-k="id"]', 'L\'identifiant du régime, un mot court sans espace. C\'est lui que la fiche d\'un client retient : le changer détache les clients qui portaient l\'ancien.', { nom: 'Identifiant du régime', cle: 'rg-id' });
   b('#sr-regimes input[data-k="label"]', 'Le nom du régime, tel que la fiche d\'un client le propose.', { nom: 'Nom du régime', cle: 'rg-label' });
   b('#sr-regimes select[data-k="tva"]', 'Quand ce régime dépose sa TVA : chaque mois, chaque trimestre, jamais — ou comme la fiche du client le dit.', { nom: 'TVA', cle: 'rg-tva' });
   b('#sr-regimes input[data-k="cnss"]', 'Coché, les clients de ce régime déposent la CNSS chaque trimestre ; décoché, les Échéances ne la leur réclament plus.', { nom: 'CNSS', cle: 'rg-cnss' });
-  b('#sr-regimes input[data-k="annuelles"]', 'Les échéances annuelles de ce régime, écrites nom@JJ-MM et séparées par un point-virgule : « Déclaration annuelle@25-04 ». Elles portent sur l\'exercice écoulé.', { nom: 'Échéances annuelles', cle: 'rg-annuelles' });
+  b('#sr-regimes input[data-k="an-nom"]', 'Le nom de cette échéance annuelle, tel que les Échéances l\'afficheront : « Déclaration annuelle ». Elle porte sur l\'exercice écoulé.', { nom: 'Nom de l\'échéance', cle: 'rg-an-nom' });
+  b('#sr-regimes select[data-k="an-jour"]', 'Le jour du dépôt. Une date qui n\'existe pas (le 31 février) est refusée à l\'enregistrement.', { nom: 'Jour', cle: 'rg-an-jour' });
+  b('#sr-regimes select[data-k="an-mois"]', 'Le mois du dépôt.', { nom: 'Mois', cle: 'rg-an-mois' });
+  b('#sr-regimes [data-ana]', 'Ajoute une échéance annuelle à ce régime : un nom, un jour, un mois.', { nom: '+ une échéance', cle: 'rg-an-ajout' });
+  b('#sr-regimes [data-anx]', 'Retire cette échéance. Rien ne change avant « Enregistrer les régimes ».', { nom: 'Retirer l\'échéance', cle: 'rg-an-retirer' });
   b('#sr-regimes [data-rgx]', 'Retire ce régime de la table. Rien ne change avant « Enregistrer les régimes ».', { nom: 'Retirer', cle: 'rg-retirer' });
   b('#sr-cycles input[data-k="id"]', 'L\'identifiant du cycle, un mot court sans espace.', { nom: 'Identifiant du cycle', cle: 'cy-id' });
   b('#sr-cycles input[data-k="label"]', 'Le nom du cycle, tel que la Révision l\'affiche.', { nom: 'Nom du cycle', cle: 'cy-label' });
@@ -2352,7 +2355,7 @@
           titre: 'Poser les lignes', texte: '« Partir des trois régimes proposés » pose trois lignes — réel, forfaitaire, et un « autre » — <b>sans aucune règle</b>. « Ajouter un régime » pose une ligne vide, pour un régime que tu écris toi-même.',
           action: 'Clique sur <b>« Partir des trois régimes proposés »</b>, ou sur <b>« Ajouter un régime »</b>.', essai: { clic: true } },
         { page: '#/reglages', cible: '#sr-regimes table', cote: 'dessus', facultatif: true, titre: 'Ce que chacun dépose',
-          texte: 'Pour chaque ligne : la <b>TVA</b> (« Pas de TVA » pour un forfaitaire qui n\'en dépose pas), la case <b>CNSS</b>, et les <b>échéances annuelles</b> écrites nom@JJ-MM, séparées par un point-virgule — « Déclaration annuelle@25-04 ».' },
+          texte: 'Pour chaque ligne : la <b>TVA</b> (« Pas de TVA » pour un forfaitaire qui n\'en dépose pas), la case <b>CNSS</b>, et les <b>échéances annuelles</b> : « + une échéance », un nom, un jour et un mois — « Déclaration annuelle » le 25 avril.' },
         { page: '#/reglages', cible: '#sr-reg-save', cote: 'dessus', faire: 'clic', fait: () => ((S().settings || {}).regimes || []).length > 0 && regimesEnregistres() !== regimesAvant,
           avant: () => { regimesAvant = regimesEnregistres(); },
           titre: 'Enregistrer', texte: 'Tant que ce n\'est pas enregistré, rien ne change : les Échéances continuent de réclamer la même chose à tout le monde.',

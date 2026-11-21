@@ -598,6 +598,9 @@ input.touche-in:not([type="checkbox"]):not([type="radio"]):not([type="file"]):no
    qui ferait une page de rectangles. */
 .sa-table input, .sa-table select { width: 100%; }
 .sa-table td { padding-block: 4px; padding-inline: 6px; vertical-align: top; }
+.sa-table .rg-an { display: flex; gap: 6px; align-items: center; margin-block-end: 6px; }
+.sa-table .rg-an [data-k="an-nom"] { flex: 1 1 12em; min-width: 0; }
+.sa-table .rg-an select { width: auto; flex: 0 0 auto; }
 .sa-vide { color: var(--muted); font-size: 13px; padding-block: 10px; }
 
 /* L'étiquette d'une barre de filtres. Deux listes déroulantes nues au-dessus d'un livre-journal

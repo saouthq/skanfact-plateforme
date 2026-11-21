@@ -7514,13 +7514,31 @@
     };
     const rs2 = $('#sr-reg-save', view);
     if (rs2) rs2.onclick = async () => {
-      const table = lireRegimes(view).filter(r => r.id || r.label);
-      if (table.some(r => !r.id || !r.label)) return toast('Chaque régime a besoin d\'un identifiant et d\'un nom.', 'error');
-      for (const tr of $$('#sr-regimes tr[data-rg]', view)) {
-        const champ = $('[data-k=annuelles]', tr);
-        const faux = annuellesRefusees(champ && champ.value);
-        if (faux.length) return refus(champ, '« ' + faux[0] + ' » n\'est pas une échéance : écris nom@JJ-MM avec un jour qui existe (par exemple Bilan@30-04). Rien n\'est enregistré, ta saisie reste là.');
+      const lignes = $$('#sr-regimes tr[data-rg]', view), lus = lireRegimes(view);
+      const garde = ' Rien n\'est enregistré, ta saisie reste là.';
+      for (let i = 0; i < lus.length; i++) {
+        const r = lus[i], tr = lignes[i];
+        r.annuelles = r.annuelles.filter(a => a.label || a.jour || a.mois); // une rangée vide n'est pas une saisie
+        if (!r.label && (r.id || r.annuelles.length || r.tva || !r.cnss)) return refus($('[data-k=label]', tr), 'Ce régime n\'a pas de nom : écris-le (par exemple « Régime forfaitaire »).' + garde);
+        for (const x of $$('[data-an]', tr)) {
+          const nom = $('[data-k=an-nom]', x), jo = $('[data-k=an-jour]', x), mo = $('[data-k=an-mois]', x);
+          const n = nom.value.trim(), j = Number(jo.value) || 0, m = Number(mo.value) || 0;
+          if (!n && !j && !m) continue;
+          if (!n) return refus(nom, 'Cette échéance n\'a pas de nom (par exemple « Déclaration annuelle »).' + garde);
+          if (!j) return refus(jo, `Choisis le jour de « ${n} ».` + garde);
+          if (!m) return refus(mo, `Choisis le mois de « ${n} ».` + garde);
+          if (j > JOURS_DU_MOIS[m - 1]) return refus(jo, `Le ${j} ${K.MONTHS_FR[m - 1]} n'existe pas : choisis un autre jour pour « ${n} ».` + garde);
+        }
       }
+      const noms = lus.map(r => r.label && K.sansAccents(r.label));
+      const k2 = noms.findIndex((n, k) => n && noms.indexOf(n) !== k);
+      if (k2 >= 0) return refus($('[data-k=label]', lignes[k2]), `Deux régimes s'appellent « ${lus[k2].label} » : donne-leur deux noms.` + garde);
+      const pris = new Set(lus.map(r => r.id).filter(Boolean));
+      const table = lus.filter(r => r.label).map(r => {
+        const ids = new Set(r.annuelles.map(a => a.id).filter(Boolean)); let n = 1;
+        return { id: r.id || idDeRegime(r.label, pris), label: r.label, tva: r.tva, cnss: r.cnss,
+          annuelles: r.annuelles.map(a => { if (a.id) return a; while (ids.has('a' + n)) n++; ids.add('a' + n); return { ...a, id: 'a' + n }; }) };
+      });
       try {
         S = await api.saveCabinet({ settings: { regimes: table } });
         regBrouillon = null; dessinerRegimes(view); flash($('#sr-reg-saved', view));
@@ -7730,30 +7748,29 @@
   }
 
   let regBrouillon = null;
-  // Ce qui est mal écrit dans « nom@JJ-MM » se REFUSE en le nommant : jeté en silence, l'échéance disparaissait à
-  // l'enregistrement sans un mot, et « 31-02 » passait (issue 12). Rend les morceaux fautifs, tels que tapés.
+  // Une échéance incomplète ou impossible se REFUSE sur sa case : jetée en silence, elle disparaissait à
+  // l'enregistrement sans un mot, et le 31 février passait (issue 12). Les jours de chaque mois, février bissextile.
   const JOURS_DU_MOIS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  const annuellesRefusees = texte => String(texte || '').split(';').map(x => x.trim()).filter(Boolean).filter(x => {
-    const m = /^([^@]+)@\s*(\d{1,2})\s*[-/]\s*(\d{1,2})$/.exec(x);
-    if (!m || !m[1].trim()) return true;
-    const j = Number(m[2]), mo = Number(m[3]);
-    return !(mo >= 1 && mo <= 12 && j >= 1 && j <= JOURS_DU_MOIS[mo - 1]);
-  });
+  // (1.387.84, issue 12, CABPORTEFEUILLE-2) L'identifiant d'un régime est INTERNE : c'est lui que la fiche d'un client
+  // retient. Il ne s'affiche plus. Un régime enregistré garde le sien ; un régime neuf le reçoit de son nom, en reprenant
+  // celui de K.REGIMES quand le nom est l'un des trois proposés (sinon « Régime réel » serait un second « reel »).
+  const idDeRegime = (label, pris) => {
+    const plat = x => K.sansAccents(x).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    const connu = K.REGIMES.find(r => plat(r.id) === plat(label) || plat(r.label) === plat(label));
+    const base = (connu ? connu.id : plat(label).slice(0, 36)) || 'regime';
+    let id = base; for (let n = 2; pris.has(id); n++) id = base + '-' + n;
+    pris.add(id); return id;
+  };
+  // Toutes les rangées sont lues, même incomplètes : le tri se fait à l'enregistrement, où ce qui manque se refuse sur sa
+  // case au lieu de disparaître (une échéance mal écrite était jetée en silence).
   const lireRegimes = view => $$('#sr-regimes tr[data-rg]', view).map(tr => ({
-    id: ($('[data-k=id]', tr) || {}).value || '', label: ($('[data-k=label]', tr) || {}).value || '',
+    id: tr.dataset.id || '', label: String((($('[data-k=label]', tr) || {}).value) || '').trim(),
     tva: ($('[data-k=tva]', tr) || {}).value || '',
     cnss: !!($('[data-k=cnss]', tr) || {}).checked,
-    annuelles: (() => {
-      // Une échéance annuelle par régime, saisie en « nom / JJ-MM » : trois champs par ligne
-      // auraient fait une grille de douze colonnes, illisible. Ce qui est tapé reste relu par le
-      // moteur, qui borne le mois et le jour — un « 31-02 » ne peut désigner aucune date réelle.
-      const t = String((($('[data-k=annuelles]', tr) || {}).value) || '').trim();
-      return t ? t.split(';').map((x, i) => {
-        const [nom, quand] = x.split('@').map(y => String(y || '').trim());
-        const [j, m] = String(quand || '').split(/[-/]/).map(Number);
-        return { id: 'a' + (i + 1), label: nom, jour: j || 0, mois: m || 0 };
-      }).filter(a => a.label && a.jour && a.mois) : [];
-    })()
+    annuelles: $$('[data-an]', tr).map(x => ({
+      id: x.dataset.aid || '', label: String((($('[data-k=an-nom]', x) || {}).value) || '').trim(),
+      jour: Number(($('[data-k=an-jour]', x) || {}).value) || 0, mois: Number(($('[data-k=an-mois]', x) || {}).value) || 0,
+    })),
   }));
 
   function dessinerRegimes(view) {
@@ -7764,19 +7781,30 @@
       ? `<div class="sa-vide">Aucun régime déclaré : le calendrier réclame la TVA mensuelle et la CNSS à tous tes
          clients, comme avant. Déclare-les pour qu'un forfaitaire cesse de se voir réclamer une TVA qu'il ne dépose pas.</div>`
       : `<div class="scroll-x"><table class="list compact sa-table"><thead><tr>
-          <th class="nw">Identifiant</th><th class="nw">Nom du régime</th><th class="nw">TVA</th><th class="nw">CNSS</th>
+          <th class="nw">Nom du régime</th><th class="nw">TVA</th><th class="nw">CNSS</th>
           <th>Échéances annuelles</th><th></th></tr></thead>
-        <tbody>${table.map((r, i) => `<tr data-rg="${i}">
-          <td><input data-k="id" value="${esc(r.id)}" placeholder="forfaitaire"></td>
-          <td><input data-k="label" value="${esc(r.label)}" placeholder="Régime forfaitaire"></td>
+        <tbody>${table.map((r, i) => `<tr data-rg="${i}" data-id="${esc(r.id || '')}">
+          <td><input data-k="label" value="${esc(r.label)}" maxlength="80" placeholder="Régime forfaitaire"></td>
           <td><select data-k="tva" aria-label="La périodicité de TVA de ce régime">${K.TVA_PERIODES.map(p => `<option value="${esc(p.id)}" ${(r.tva || '') === p.id ? 'selected' : ''}>${esc(p.label)}</option>`).join('')}</select></td>
           <td><label class="check"><input type="checkbox" data-k="cnss" ${r.cnss !== false ? 'checked' : ''}> dépose</label></td>
-          <td><input data-k="annuelles" value="${esc((r.annuelles || []).map(a => `${a.label}@${String(a.jour).padStart(2, '0')}-${String(a.mois).padStart(2, '0')}`).join(' ; '))}"
-            placeholder="Déclaration annuelle@25-04 ; Acompte@25-06"></td>
+          <td>${(r.annuelles || []).map((a, j) => `<div class="rg-an" data-an="${j}" data-aid="${esc(a.id || '')}">
+            <input data-k="an-nom" value="${esc(a.label || '')}" maxlength="120" placeholder="Déclaration annuelle" aria-label="Nom de l'échéance">
+            <select data-k="an-jour" aria-label="Jour de l'échéance"><option value="">jour</option>${Array.from({ length: 31 }, (_, k) => `<option value="${k + 1}" ${Number(a.jour) === k + 1 ? 'selected' : ''}>${k + 1}</option>`).join('')}</select>
+            <select data-k="an-mois" aria-label="Mois de l'échéance"><option value="">mois</option>${K.MONTHS_FR.map((n, k) => `<option value="${k + 1}" ${Number(a.mois) === k + 1 ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select>
+            <button type="button" class="btn btn-sm" data-anx="${i}:${j}" aria-label="Retirer cette échéance">✕</button></div>`).join('')}
+            <button type="button" class="btn btn-sm" data-ana="${i}">+ une échéance</button></td>
           <td class="sa-sup"><button type="button" class="btn btn-sm" data-rgx="${i}" aria-label="Retirer ce régime">✕</button></td>
         </tr>`).join('')}</tbody></table></div>
-        <p class="small muted">Une échéance annuelle s'écrit <code>nom@JJ-MM</code>, séparée par un point-virgule.
-        Elle porte sur l'exercice écoulé.</p>`;
+        <p class="small muted">Une échéance annuelle porte sur l'exercice écoulé : celle du 25 avril 2027 concerne 2026.</p>`;
+    $$('[data-ana]', box).forEach(b => { b.onclick = () => {
+      const i = Number(b.dataset.ana), t = lireRegimes(view); if (!t[i]) return;
+      t[i].annuelles.push({ id: '', label: '', jour: 0, mois: 0 }); regBrouillon = t; dessinerRegimes(view);
+      const tr = $$('#sr-regimes tr[data-rg]', view)[i], x = tr && $$('[data-k=an-nom]', tr).pop(); if (x) x.focus();
+    }; });
+    $$('[data-anx]', box).forEach(b => { b.onclick = () => {
+      const [i, j] = b.dataset.anx.split(':').map(Number), t = lireRegimes(view);
+      if (t[i]) t[i].annuelles.splice(j, 1); regBrouillon = t; dessinerRegimes(view);
+    }; });
     $$('[data-rgx]', box).forEach(b => { b.onclick = () => {
       const t = lireRegimes(view); t.splice(Number(b.dataset.rgx), 1); regBrouillon = t; dessinerRegimes(view);
     }; });

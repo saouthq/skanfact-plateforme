@@ -5856,3 +5856,20 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   nomment les comptes par la même fonction.
 - Tests : `tests/web/cabinet-paie-regul-1377.test.ts`, `tests/web/cabinet-paie-hors-skanfact.test.ts`,
   `tests/web/declaration-1350.test.ts`.
+
+## 1.387.84 — Les régimes du Cabinet se règlent sans rien taper de technique (issue 12)
+
+- **CABPORTEFEUILLE-2 (bloquant) — Réglages → Mon cabinet → Régimes** demandait un « Identifiant » (un mot court sans
+  espace, que personne ne sait inventer) et des échéances annuelles écrites `nom@JJ-MM;…` dans une seule case. Une
+  échéance mal écrite était jetée en silence à l'enregistrement, et un régime sans nom disparaissait sans un mot.
+  - L'identifiant est **interne** : il ne s'affiche plus. Un régime enregistré garde le sien (c'est lui que la fiche
+    d'un client retient) ; un régime neuf le reçoit de son nom, en reprenant celui des trois régimes proposés quand le
+    nom est l'un d'eux.
+  - Une échéance annuelle se pose par « + une échéance » : un nom, une liste de jours, une liste de mois, et « Retirer »
+    sur sa rangée. Le 31 février se refuse sur la case du jour ; une échéance sans nom, sans jour ou sans mois se refuse
+    sur sa case ; un régime sans nom aussi, et deux régimes du même nom. Rien n'est enregistré tant qu'un refus tient,
+    et la saisie reste là.
+  - Les bulles de la visite et l'article d'aide décrivent les nouvelles cases ; l'ancienne forme `nom@JJ-MM` n'est plus
+    nommée nulle part.
+- Test : `tests/web/barre-cabinet.test.ts` (le 31 février, l'échéance sans nom, le régime sans nom, relu après un
+  aller-retour). Preuves : `revue 1.374.0 c` et `d` (ancres mises à jour), `regime-sans-nom-jete-en-silence`.
