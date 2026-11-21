@@ -6168,3 +6168,17 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Seulement sur un écran large : au téléphone, la barre des écrans ne colle pas.
 - Test : tout en bas du livre-journal, dans une fenêtre basse, ce qu'on lit sous la barre est l'en-tête du tableau, collé
   à son bord. Une preuve.
+
+## 1.388.8 — « Révisé » ne se dit que d'une révision arrêtée ; le mois en quatre points dans la Révision (issue 9, CABDECLARER-14)
+
+- La fiche d'un dossier disait « avril : révisé » dès que ses écritures étaient validées, sans jamais regarder si la
+  révision du mois avait été arrêtée — pendant que le tableau de production, lui, ne disait « révisé » qu'après. La fiche,
+  la frise de la comptabilité, la liste des dossiers et la campagne des Échéances disent maintenant « validé » pour des
+  écritures validées, et « révisé » une fois la révision du mois arrêtée (lue dans le livre ; sans le livre, on ne le sait
+  pas : « validé »).
+- Les quatre points d'un mois (écritures, banque, compte d'attente, TVA) ne se lisaient que sur la fiche : l'onglet
+  Révision, quand on y choisit un mois, les montre en tête, par la MÊME fonction (`pointsRevisionMois`), avec sa bulle.
+- Les deux lignes « À faire » de la fiche (« sans activité », « validé ») menaient à un onglet `declarations` qui n'existe
+  pas — on atterrissait sur le livre-journal. Elles ouvrent la Déclaration.
+- Tests : avril choisi dans la Révision montre ses quatre points (« 3 sur 4 ») ; la fiche dit « avril : validé », puis
+  « avril : révisé » une fois la révision d'avril arrêtée. Deux preuves.

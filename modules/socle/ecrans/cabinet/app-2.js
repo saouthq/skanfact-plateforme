@@ -6366,7 +6366,7 @@
       const sous = {
         sans: [`rien reçu pour ${t.moisNom}`, autres.length ? `${autres.map(m => K.monthLabel(m).split(' ')[0]).join(', ')} attend${autres.length > 1 ? 'ent' : ''} aussi` : '', derniereRelanceCd(d)].filter(Boolean).join(' · '), saisir: `${t.moisNom} sans écriture : c'est au cabinet de le saisir`,
         pieces: `${pl(nPieces, 'pièce reçue', 'pièces reçues')}, à classer`, valider: brouillards ? `${pl(brouillards, 'écriture')} ${/^[aeiouo]/i.test(t.moisNom) ? 'd\'' : 'de '}${t.moisNom} au brouillard` : `${t.moisNom} à réviser`,
-        prete: t.sorte === 'mens' ? `${t.moisNom} révisé : la déclaration peut se préparer` : 'les mois sont révisés',
+        prete: t.sorte === 'mens' ? `${t.moisNom} validé : la déclaration peut se préparer` : 'les mois sont validés',
         preparee: decl && decl.prepareeLe ? `préparée le ${jourMois(decl.prepareeLe)}${decl.preparePar ? ` par ${decl.preparePar}` : ''}` : '',
         deposee: decl && decl.deposeeLe ? `déposée le ${jourMois(decl.deposeeLe)}${decl.deposeePar ? ` par ${decl.deposeePar}` : ''}${d.paieDecl === 'client' ? ' · le client la paie lui-même' : ''}` : '',
         payee: decl && decl.payeeLe ? `déposée le ${jourMois(decl.deposeeLe)} et payée le ${jourMois(decl.payeeLe)}` : '',

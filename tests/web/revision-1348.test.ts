@@ -173,6 +173,32 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await p.locator('#rv-periode').selectOption(String(an));
     await expect.poll(() => p.locator('.cp-ex.on').count(), { timeout: 15_000 }).toBe(1);
 
+    // ── (CABDECLARER-14) Le mois en quatre points, ceux de la fiche ; « révisé » n'est dit qu'une fois la révision arrêtée ────
+    await p.locator('#rv-periode').selectOption(`${an}-04`);
+    await p.locator('#rv-mois').waitFor({ timeout: 15_000 });
+    const points = (await p.locator('#rv-mois li').allInnerTexts()).map(net);
+    expect(points).toEqual(['Écritures 2 écritures, toutes validées', 'Banque 2 mouvements sur la banque', 'Compte d\'attente vide', 'TVA la déclaration reste à préparer']);
+    expect(net(await p.locator('#rv-mois h2').innerText())).toMatch(/^Avril en quatre points · 3 sur 4/);
+    const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    if (aujourdhui > `${an}-05-31`) { // avril doit être passé (et sa date limite) pour que la fiche le juge
+      const avril = () => p.locator(`[data-fd-mois="${an}-04"]`).getAttribute('aria-label');
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}`);
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+      await expect.poll(avril, { timeout: 15_000 }).toMatch(/avril : validé/i);
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/revision/${an}`);
+      await p.locator('#rv-periode').selectOption(`${an}-04`);
+      await p.locator('#rv-arreter').click();
+      await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Arrêter la révision', exact: true }).click();
+      await expect.poll(() => p.locator('#toast').innerText()).toBe('Révision arrêtée.');
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}`);
+      await expect.poll(avril, { timeout: 15_000 }).toMatch(/avril : révisé/i);
+    }
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/revision/${an}`);
+    await p.locator('.cy-carte').first().waitFor({ timeout: 20_000 });
+    // La suite arrête la révision de l'EXERCICE : on y revient (la page garde la période choisie, avril).
+    if (await p.locator('#rv-periode').inputValue() !== an) await p.locator('#rv-periode').selectOption(an);
+    await expect.poll(() => p.locator('#rv-arreter').innerText()).toBe('Arrêter la révision…');
+
     // ── Arrêter la révision d'un exercice qui court : la question le dit avant ─────────────────────
     await p.locator('#rv-arreter').click();
     const f = p.locator('#modal-root .modal').last();

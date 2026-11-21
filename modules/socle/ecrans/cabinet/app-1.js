@@ -4452,7 +4452,8 @@
     if (decl) return { cl: 'pret', mot: `${moisCourt(m)} prête` };
     const ecr = ecrituresConnues(d.id, m), br = brouillardsConnus(d.id, m);
     if (ecr && br) return { cl: 'cours', mot: `${moisCourt(m)} à réviser` };
-    if (ecr) return { cl: 'pret', mot: `${moisCourt(m)} révisé` };
+    // (CABDECLARER-14) Des écritures toutes validées ne disent pas que la révision est arrêtée : « validé », comme la fiche.
+    if (ecr) return { cl: 'pret', mot: `${moisCourt(m)} validé` };
     // Rien le mois dernier, mais des écritures ce mois-ci (un client qui commence) : son mois en cours, pas « sans pièces ».
     const mc = K.today().slice(0, 7), ecrC = ecrituresConnues(d.id, mc), brC = brouillardsConnus(d.id, mc);
     if (ecrC) return brC ? { cl: 'cours', mot: `${moisCourt(mc)} à réviser` } : { cl: 'pret', mot: `${moisCourt(mc)} en cours` };
@@ -5070,7 +5071,23 @@
       salaries: ((livre && livre.salaries) || []).length, biens: ((livre && livre.immobilisations) || []).length };
     const nomDuCompte = c => String((((livre && livre.plan) || []).find(x => x.compte === c) || {}).libelle || '').trim();
     const comptesBq = Object.keys(parCompteBq).sort().map(c => ({ compte: c, nom: nomDuCompte(c), solde: Math.round(parCompteBq[c] * 1000) / 1000 }));
-    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque, comptesBq };
+    // (CABDECLARER-14) « Révisé » se dit d'un mois dont la révision est ARRÊTÉE (comme le tableau de production) ; un mois aux
+    // écritures toutes validées est « validé ».
+    const revFaites = new Set(((livre && livre.revisions) || []).filter(r => r && r.faite).map(r => String(r.periode)));
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque, comptesBq, revFaites };
+  }
+  // (CABDECLARER-14) Les quatre points de la révision d'un mois — écritures, banque, compte d'attente, TVA — lus dans le livre :
+  // la fiche du dossier ET l'onglet Révision les montrent par cette MÊME fonction (la fiche disait « 3 sur 4 » pendant que la
+  // Révision ne connaissait que ses feuilles maîtresses).
+  function pointsRevisionMois(d, L, mr, mp, tenuEnCours) {
+    if (!L || (d.from && d.from > mr)) return [];
+    const xm = L.parMois[mr] || { ecr: 0, br: 0, banque: 0 }, dm = tenuEnCours ? null : L.decl[mp] || declarationConnue(d.id, mp);
+    return [
+      xm.ecr ? (xm.br ? ['af', 'Écritures', `${pl(xm.ecr, 'écriture')}, dont ${xm.br} au brouillard à réviser`] : ['ok', 'Écritures', `${pl(xm.ecr, 'écriture')}, toutes validées`]) : ['att', 'Écritures', d.manual ? 'rien de saisi encore' : 'rien reçu du client'],
+      xm.banque ? ['ok', 'Banque', `${pl(xm.banque, 'mouvement')} sur la banque${L.rapproche ? ` · rapprochée jusqu'au ${jjmm(L.rapproche)}` : ''}`] : ['att', 'Banque', 'aucun mouvement de banque pour ce mois'],
+      L.attente ? ['af', 'Compte d\'attente', `${esc(dtCd(L.attente))} DT à expliquer`] : ['ok', 'Compte d\'attente', 'vide'],
+      tenuEnCours ? ['att', 'TVA', `se prépare après la fin du mois, pour le ${jjmm(limiteDe(mr))}`] : dm && dm.deposee ? ['ok', 'TVA', `déposée${dm.montant ? ` · ${esc(dtCd(montantDe(dm.montant)))} DT` : ''}`] : dm ? ['af', 'TVA', 'la déclaration est prête : à déposer'] : ['af', 'TVA', 'la déclaration reste à préparer'],
+    ];
   }
   async function chargerLivreFd(d, annee) {
     const cle = `${d.id}:${annee}`;
@@ -5098,8 +5115,8 @@
     // mois attendaient au brouillard faisait dire « prêt, se dépose sur e-jibaya » à un mois dont aucun chiffre n'était entré.
     if (x.br) return ['rev', 'à réviser', enRetard];
     if (decl) return ['pret', 'prêt', enRetard];
-    if (x.ecr) return ['pret', 'révisé', enRetard];
-    if (!L && ecrituresConnues(d.id, m)) return brouillardsConnus(d.id, m) ? ['rev', 'à réviser', enRetard] : ['pret', 'révisé', enRetard];
+    if (x.ecr) return ['pret', L && L.revFaites && L.revFaites.has(m) ? 'révisé' : 'validé', enRetard];
+    if (!L && ecrituresConnues(d.id, m)) return brouillardsConnus(d.id, m) ? ['rev', 'à réviser', enRetard] : ['pret', 'validé', enRetard];
     // (1.362.5) Un mois que le client a clôturé chez lui sans une écriture : rien à lui réclamer, sa déclaration se dépose quand même.
     if (!x.ecr && (d.packs || []).some(p => p.month === m && p.vide)) return ['pret', 'sans activité', enRetard];
     return d.manual ? ['pc', 'à saisir', enRetard] : ['manque', 'rien reçu', enRetard];
@@ -5157,8 +5174,8 @@
       const quand = lim === aujourdhui ? 'à déposer aujourd\'hui' : lim > aujourdhui ? `à déposer d'ici le ${jjmm(lim)}` : 'à déposer';
       if (cl === 'rev') attend.push(['alerte', 'ambre', `${cap(moisLong(mp))} · ${quand}`, `${pl(((L && L.parMois[mp]) || {}).br || brouillardsConnus(d.id, mp), 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(mp)}`, versSaisie]]);
       else if (cl === 'pc') attend.push(['saisie', 'ambre', `${cap(moisLong(mp))} · ${quand}, à saisir`, 'Un dossier tenu au cabinet : ses pièces se saisissent ici.', ['Saisir ' + moisLong(mp), versSaisie]]);
-      else if (cl === 'pret' && mot === 'sans activité') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · sans activité, ${quand}`, 'Clôturé par le client sans une écriture : la déclaration se prépare quand même, à zéro (À VÉRIFIER), puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declarations`]]);
-      else if (cl === 'pret' && mot === 'révisé') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · révisé, ${quand}`, 'La déclaration se prépare d\'après ses livres, puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declarations`]]);
+      else if (cl === 'pret' && mot === 'sans activité') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · sans activité, ${quand}`, 'Clôturé par le client sans une écriture : la déclaration se prépare quand même, à zéro (À VÉRIFIER), puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declaration`]]);
+      else if (cl === 'pret' && (mot === 'révisé' || mot === 'validé')) attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · ${mot}, ${quand}`, 'La déclaration se prépare d\'après ses livres, puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declaration`]]);
       else if (cl === 'pret') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · prête, ${quand}`, 'Elle se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
     }
     // Un dossier tenu dont le mois passé est déposé : le mois en cours se saisit au cabinet.
@@ -5193,12 +5210,7 @@
     // La révision du dernier mois, point par point.
     const mr = tenuEnCours ? mc : mp;
     const xm = (L && L.parMois[mr]) || { ecr: 0, br: 0, banque: 0 }, dm = tenuEnCours ? null : (L && L.decl[mp]) || declarationConnue(d.id, mp);
-    const rv = !L || (d.from && d.from > mr) ? [] : [
-      xm.ecr ? (xm.br ? ['af', 'Écritures', `${pl(xm.ecr, 'écriture')}, dont ${xm.br} au brouillard à réviser`] : ['ok', 'Écritures', `${pl(xm.ecr, 'écriture')}, toutes validées`]) : ['att', 'Écritures', d.manual ? 'rien de saisi encore' : 'rien reçu du client'],
-      xm.banque ? ['ok', 'Banque', `${pl(xm.banque, 'mouvement')} sur la banque${L.rapproche ? ` · rapprochée jusqu'au ${jjmm(L.rapproche)}` : ''}`] : ['att', 'Banque', 'aucun mouvement de banque pour ce mois'],
-      L.attente ? ['af', 'Compte d\'attente', `${esc(dtCd(L.attente))} DT à expliquer`] : ['ok', 'Compte d\'attente', 'vide'],
-      tenuEnCours ? ['att', 'TVA', `se prépare après la fin du mois, pour le ${jjmm(limiteDe(mc))}`] : dm && dm.deposee ? ['ok', 'TVA', `déposée${dm.montant ? ` · ${esc(dtCd(montantDe(dm.montant)))} DT` : ''}`] : dm ? ['af', 'TVA', 'la déclaration est prête : à déposer'] : ['af', 'TVA', 'la déclaration reste à préparer'],
-    ];
+    const rv = pointsRevisionMois(d, L, mr, mp, tenuEnCours);
     const faits = rv.filter(r => r[0] === 'ok').length;
     const icR = { ok: CD_IC.ok, af: FD_IC.alerte, att: FD_IC.attente };
     const rienArrive = rv.length && !xm.ecr && !d.manual;
@@ -10793,6 +10805,12 @@
       <div class="small">Ces points ne bloquent pas : une révision arrêtée avec des manques signalés vaut mieux qu'une révision jamais arrêtée.</div></div>` : ''}
     ${etatsNormaux.length ? `<p class="small muted mb" id="rv-etats">${etatsNormaux.map(c => esc(c.texte)).join(' · ')}</p>` : ''}
 
+    ${/^\d{4}-\d{2}$/.test(String(d.periode)) ? (() => {
+      const per = String(d.periode), pts = pointsRevisionMois(dossier, lireLivreFd(s.livre), per, per, per === K.today().slice(0, 7));
+      const ic = { ok: CD_IC.ok, af: FD_IC.alerte, att: FD_IC.attente };
+      return pts.length ? `<div class="panel" id="rv-mois"><h2>${esc(cap(moisLong(per)))} en quatre points · ${pts.filter(x => x[0] === 'ok').length} sur ${pts.length} ${info('rv.mois')}</h2>
+        <ul class="fd-rv">${pts.map(([e, t, x]) => `<li class="${e}"><span class="fd-rv-i">${ic[e]}</span><span><b>${esc(t)}</b><small>${x}</small></span></li>`).join('')}</ul></div>` : '';
+    })() : ''}
     <div class="panel"><h2>Les feuilles maîtresses ${info('rv.feuilles')}</h2>
       <div class="rv-avance"><p class="lead">${esc(d.revus)} compte${d.revus > 1 ? 's' : ''} signé${d.revus > 1 ? 's' : ''} sur ${esc(d.total)}${d.reste ? ` — ${esc(pl(d.reste, 'reste à revoir', 'restent à revoir'))}` : ''}.</p>
       ${suivante === 'cycle' ? `<button class="btn btn-sm btn-primary" id="rv-suivant" data-cycle="${esc(prochain.cycle)}">Revoir ${esc(prochain.label)} (${esc(pl(prochain.total - prochain.revus, 'compte', 'comptes'))})</button>`

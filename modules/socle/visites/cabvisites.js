@@ -1697,7 +1697,7 @@
         { page: laFiche, cible: ['#fd-at', '#view .fd-ch'], cote: 'dessous', titre: 'Ce qui attend',
           texte: 'Le prochain geste de ce dossier, dans l\'ordre : saisir, réviser, préparer la déclaration. Son bouton t\'y emmène.' },
         { page: laFiche, cible: ['#fd-an', '#view .fd-ms'], cote: 'dessus', titre: 'Son année, mois par mois',
-          texte: 'Chaque case dit où en est le mois : déposé, révisé, en cours, à saisir, en retard. <b>Clique un mois</b> pour lire son détail et sa date limite.' },
+          texte: 'Chaque case dit où en est le mois : déposé, révisé (révision arrêtée), validé, en cours, à saisir, en retard. <b>Clique un mois</b> pour lire son détail et sa date limite.' },
         { page: laFiche, cible: ['#view .fd-cote'], cote: 'gauche', titre: 'La mission, l\'équipe, le client',
           texte: 'Ses honoraires, qui le suit au cabinet, son matricule, son régime de TVA, et la personne à joindre. Tout se change par <b>« Modifier la fiche »</b>, dans le menu « … ».' },
         { page: laFiche, cible: '#fd-menu', cote: 'gauche', faire: 'clic', facultatif: true,
