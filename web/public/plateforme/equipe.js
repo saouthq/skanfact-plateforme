@@ -28,7 +28,7 @@
     commercial: ['Commercial', 'Vendre : devis, factures, clients, relances'],
     caissier: ['Caissier', 'La caisse'],
     serveur: ['Serveur', 'La salle : prendre les commandes, les envoyer en cuisine'],
-    magasinier: ['Magasinier', 'Le stock : réceptions, livraisons, transferts, inventaires'],
+    magasinier: ['Magasinier', 'Le stock : mouvements, transferts entre dépôts, inventaires, numéros de série'],
     comptabilite_interne: ['Comptabilité interne', 'Achats, banque, déclarations, écritures. Pas la paie'],
     paie: ['Paie', 'Salariés, bulletins, déclarations sociales'],
     lecture: ['Lecture', 'Tout voir, rien changer (un associé, un banquier), sauf le détail de la paie'],

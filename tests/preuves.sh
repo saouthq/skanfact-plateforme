@@ -31037,6 +31037,23 @@ prouver $'collab3-phrase-qui-demande-de-creer' modules/socle/ecrans/entreprise/a
   $'    if (!m || peutComptes()) return m;' \
   $'    if (true) return m;' \
   $'Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse'
+# (1.387.86, issue 7, COLLAB-2) La magasinière : « Créer » et la page Stock ne proposent que ce qu'elle peut finir.
+prouver $'collab2-creer-propose-ce-qui-se-refuse' modules/socle/ecrans/entreprise/app-1.js \
+  $'    const actions = cles.filter(finissable).map(k => A[k]);' \
+  $'    const actions = cles.map(k => A[k]).filter(a => a && vues.has(a[0]));' \
+  $'la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)'
+prouver $'collab2-remplissage-remet-article' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (finissable(k) && !actions.includes(x) && !actions.some(y => y[3] === x[3])) actions.push(x);' \
+  $'        if (x && vues.has(x[0]) && !actions.includes(x) && !actions.some(y => y[3] === x[3])) actions.push(x);' \
+  $'la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)'
+prouver $'collab2-stock-tend-le-catalogue' modules/socle/ecrans/entreprise/app-2.js \
+  $'        marqueStock ? [[\'st-new\', \'+ Nouvel article suivi\', true],' \
+  $'        true ? [[\'st-new\', \'+ Nouvel article suivi\', true],' \
+  $'la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)'
+prouver $'collab2-creer-vide-se-montre' web/public/plateforme/barre.js \
+  $'    if (creerVide()) { b.hidden = true; return; }' \
+  $'    if (false) { b.hidden = true; return; }' \
+  $'la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

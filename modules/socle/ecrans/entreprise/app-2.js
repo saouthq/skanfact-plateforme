@@ -1411,8 +1411,11 @@
     // notice de montage que la 7.0.0 avait retirée partout ailleurs. Le geste qui manque est EN
     // BAS, dans l'état vide, et il se fait d'un clic ; l'en-tête ne propose rien qu'on ne puisse
     // pas encore faire — ni mouvement, ni export d'un stock qui n'existe pas.
+    // (1.387.86, COLLAB-2) Marquer un article « Suivi en stock » écrit le catalogue : qui ne l'écrit pas (le magasinier, le
+    // commercial, le caissier) ne reçoit pas un bouton refusé après la saisie, et « + Mouvement » suit le droit du mouvement.
+    const marqueStock = peutEcrireDossier('catalog');
     const stHead = () => {
-      const a = items.length ? ST_ACTION[s.tab] : null;
+      const a = items.length && peutEcrireDossier(s.tab === 'series' ? 'serials' : 'stockAdjustments') ? ST_ACTION[s.tab] : null;
       return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Stock</span></div><h1>Stock</h1><p class="sous">Ce que tu as en rayon, ce qui entre et sort, ce qu'il faut recommander</p></div>
         <div class="actions">
           ${items.length ? `<button class="btn" id="st-csv" data-csv="${h(s.tab)}">Exporter ${h(ST_LABELS[s.tab] || ST_LABELS.etat)}</button>` : ''}
@@ -1425,8 +1428,9 @@
       <div class="page-head lf-tete" id="st-head">${stHead()}</div>
       ${items.length ? '' : etatVide('Ce que tu as en rayon', [
         'Le stock ne se saisit pas : il se déduit de tes achats et de tes ventes. Un article compté est un article du Catalogue marqué <b>« Suivi en stock »</b> : indique ce que tu as en rayon aujourd\'hui, et SkanFact suit le reste tout seul.',
-        'Les prestations (du temps, du conseil) n\'ont pas de stock : on ne suit que de la marchandise.'],
-        [['st-new', '+ Nouvel article suivi', true], ...(data.catalog.length ? [['st-pick', 'Choisir dans le Catalogue']] : [])])}
+        'Les prestations (du temps, du conseil) n\'ont pas de stock : on ne suit que de la marchandise.', ...(marqueStock ? [] : [`Marquer un article à suivre se fait sur sa fiche, par le propriétaire ou un administrateur : demande-le à ${h(company().managerName || 'la direction')}.`])],
+        marqueStock ? [['st-new', '+ Nouvel article suivi', true], ...(data.catalog.length ? [['st-pick', 'Choisir dans le Catalogue']] : [])] : [],
+        marqueStock ? {} : { etapes: [['Le propriétaire marque l\'article « Suivi en stock »', 'sur sa fiche, dans le Catalogue'], ['Il dit ce qu\'il y a aujourd\'hui', 'sa quantité et son coût'], enLecture('stockAdjustments') ? ['Le stock se suit tout seul', 'chaque achat l\'augmente, chaque vente le baisse'] : ['Tu tiens le stock', 'mouvements, transferts, inventaires']] })}
       <div class="lf mg st" ${items.length ? '' : 'hidden'}>
         <div class="cf-carte mg-resume" id="st-resume"></div>
         <div class="mg-barre"><div class="pa-seg" id="st-tabs" role="tablist" aria-label="Le stock">${STOCK_TABS.map(([id, label]) =>
@@ -1883,10 +1887,10 @@
             : `<div class="empty">
                 <p><b>Aucun article n'est suivi par numéro de série.</b> C'est utile pour du matériel garanti :
                 tu sauras qui a quoi, depuis quand, et jusqu'à quand c'est couvert.</p>
-                <div class="inline" style="justify-content:center;margin-top:10px">
+                ${peutEcrireDossier('catalog') ? `<div class="inline" style="justify-content:center;margin-top:10px">
                   ${data.catalog.length ? '<button class="btn btn-primary" id="ser-pick">Choisir un article à suivre…</button>' : ''}
                   <button class="btn${data.catalog.length ? ' btn-ghost' : ' btn-primary'}" id="ser-new">+ Nouvel article suivi</button>
-                </div></div>`}
+                </div>` : '<p>Le suivi par numéro se coche sur la fiche de l\'article, par le propriétaire ou un administrateur.</p>'}</div>`}
         </div>`;
       if ($('#se-q')) $('#se-q').oninput = e => { s.ser.q = e.target.value; s.ser.page = 1; sansPerdreLaFrappe(e.target, drawSerials); };
       if ($('#se-st')) $('#se-st').onchange = e => { s.ser.status = e.target.value; s.ser.page = 1; drawSerials(); };

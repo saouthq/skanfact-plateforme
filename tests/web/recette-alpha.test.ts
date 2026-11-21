@@ -330,6 +330,9 @@ describe('la recette alpha, à la souris', () => {
     // (1.387.68, ENTACHATS-16) Au téléphone, une page neuve s'ouvre en haut, pas là où la précédente a été laissée.
     await p.setViewportSize({ width: 390, height: 700 });
     await p.evaluate(() => { location.hash = '#/aide'; });
+    // (1.387.86) L'Aide doit être DESSINÉE avant le geste : le Catalogue plein suffisait à rendre la page haute, et le
+    // geste partait avant que l'Aide ne soit posée (la page ne changeait alors pas, et rien ne remontait).
+    await expect.poll(() => p.locator('#view h1').first().innerText().then(net), { timeout: 15_000 }).toMatch(/^Aide/);
     await expect.poll(() => p.evaluate(() => document.documentElement.scrollHeight > innerHeight + 300), { timeout: 15_000 }).toBe(true);
     // Le défilement et le changement de page dans le même geste : rien ne redessine entre les deux.
     expect(await p.evaluate(() => { window.scrollTo(0, 400); const y = window.scrollY; location.hash = '#/catalogue'; return y; })).toBeGreaterThan(200);
@@ -541,7 +544,8 @@ describe('la recette alpha, à la souris', () => {
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     await p.evaluate(() => { location.hash = '#/devis'; });
     const ligne = p.locator('#view tbody tr').filter({ hasText: 'DEV-2026-041' });
-    await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/accepté facturé/i);
+    // (1.387.86) La liste des devis nomme la facture qu'un devis a donnée (« Facturé FAC-… ») au lieu de « accepté facturé ».
+    await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/Facturé FAC-\d{4}-\d{3}/);
     expect(await p.locator('#view tbody tr').filter({ hasText: 'Vitrine' }).innerText().then(net)).not.toMatch(/facturé/i);
     // 3. L'Aide ne promet plus Ctrl+N ni Ctrl+1 à 9 (le navigateur les garde) ; elle garde Ctrl+S.
     await p.evaluate(() => { location.hash = '#/aide/raccourcis'; });

@@ -157,6 +157,7 @@
       return;
     }
     if (puce) puce.remove();
+    if (creerVide()) { b.hidden = true; return; }
     b.hidden = false;
     const caissier = i.role === 'caissier';
     const ferme = !!i.lectureSeule;
@@ -165,6 +166,15 @@
     if (b.dataset.etat !== voulu) { b.innerHTML = voulu; b.dataset.etat = voulu; }
     b.dataset.tip = ferme ? 'Créer : fermé en lecture seule' : caissier ? 'Vente au comptoir · V' : 'Créer · N';
     b.setAttribute('aria-haspopup', caissier && !ferme ? 'false' : 'menu');
+  }
+  // (1.387.86, issue 7, COLLAB-2) Un « Créer » qui ne propose rien ne se propose pas. Pas au Cabinet (son menu revient
+  // avec le dossier ouvert), ni au caissier (son bouton mène à la caisse), ni en lecture seule (le cadenas dit comment
+  // rouvrir), ni à Lecture (sa puce), ni avant que les données soient là.
+  function creerVide() {
+    const i = infos();
+    if (auCabinet() || i.role === 'caissier' || i.role === 'lecture' || i.lectureSeule) return false;
+    const c = typeof w.__creer === 'function' ? w.__creer() : null;
+    return !!c && c.pret !== false && !c.bloque && !c.actions.length;
   }
   /** Ce que « Créer » propose, ou pourquoi il est fermé (le texte de `__creer`, et la porte qui rouvre). */
   function contenuCreer() {
@@ -176,7 +186,7 @@
   /** @param {HTMLElement} bouton */
   function ouvrirCreer(bouton) {
     const i = infos();
-    if (i.role === 'lecture') return;
+    if (i.role === 'lecture' || creerVide()) return;
     if (i.role === 'caissier' && !i.lectureSeule) { fermer(); aller('#/caisse'); return; }
     if (ouverte && ouvreur === bouton && ouverte.classList.contains('sb-creer')) { fermer(true); return; }
     if (telephone()) { ouvrirFeuille(); return; }
@@ -602,6 +612,7 @@
     const ferme = !!i.lectureSeule;
     const centre = i.role === 'lecture'
       ? `<button type="button" class="sb-plus-central ferme" aria-label="Lecture : rien à créer" title="Lecture : tu vois tout, tu ne changes rien">${ic('oeil', 22, 2)}</button>`
+      : creerVide() ? '<span></span>'
       : `<button type="button" class="sb-plus-central${ferme ? ' ferme' : ''}" data-tel="creer" aria-haspopup="dialog" aria-expanded="${creerOuvert}" aria-label="${ferme ? 'Créer : fermé en lecture seule' : i.role === 'caissier' ? 'Vente au comptoir' : 'Créer'}">${ferme && !creerOuvert ? ic('cadenas', 22, 2) : ic(i.role === 'caissier' ? 'caisse' : 'croix', i.role === 'caissier' ? 23 : 26, 2.4)}</button>`;
     const html = (i.role === 'caissier' ? onglet('caisse') : auCabinet() ? onglet(accueil()) : `<a class="sb-onglet" href="#/dashboard"${!ecranTel && route === 'dashboard' ? ' aria-current="page"' : ''}><span class="ic-boite">${ic('accueil', 23)}</span><span class="nom">Accueil</span></a>`)
       + (ids[0] && !(i.role === 'caissier' && ids[0] === 'caisse') ? onglet(ids[0]) : '<span></span>')

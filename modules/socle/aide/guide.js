@@ -1496,7 +1496,7 @@
   <li><b>Administrateur</b> — tout, sauf l'abonnement, le choix du comptable et la propriété ; il gère aussi l'équipe.</li>
   <li><b>Commercial</b> — vendre : devis, factures, clients, relances.</li>
   <li><b>Caissier</b> — la caisse.</li>
-  <li><b>Magasinier</b> — le stock : réceptions, livraisons, transferts, inventaires.</li>
+  <li><b>Magasinier</b> — le stock : mouvements, transferts entre dépôts, inventaires, numéros de série. Les articles à suivre et les réceptions de marchandise se font par le propriétaire ou un administrateur.</li>
   <li><b>Comptabilité interne</b> — achats, banque, déclarations, écritures ; pas la paie.</li>
   <li><b>Paie</b> — salariés, bulletins, déclarations sociales.</li>
   <li><b>Lecture</b> — tout voir, rien changer (un associé, un banquier), sauf le détail de la paie.</li>

@@ -161,4 +161,57 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(erreurs).toEqual([]);
     await k.context().close(); await l.context().close();
   }, 120_000);
+  it('la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)', async () => {
+    const nadia = await personne('Nadia', true);
+    const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Matériaux Ben Youssef' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    // (Le cas réel : une magasinière travaille dans un COMMERCE, dont « Créer » met « Article » parmi ses gestes.)
+    const fiche0 = ((await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton)).corps.objets as { collection: string; cle: string; revision: number; contenu: Record<string, unknown> }[]).find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+      { collection: '_racine', cle: 'company', rang: null, revision: fiche0 ? fiche0.revision : null, contenu: { ...(fiche0 ? fiche0.contenu : {}), setupDone: true, activity: 'commerce', managerName: 'Nadia Ben Youssef' } },
+      { collection: 'catalog', cle: 'a1', rang: 0, revision: null, contenu: { id: 'a1', label: 'Farine T55', unit: 'kg', unitPrice: { '~n': '1.2' }, vatRate: 7, tracked: false } },
+    ] })).statut).toBe(200);
+    const inviter = async (email: string, jeton: string, role: string) => {
+      const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia.jeton, { email, roles: [role] })).corps.jeton);
+      expect((await api('POST', '/invitations/accepter', jeton, { jeton: inv })).statut).toBe(200);
+    };
+    const hela = await personne('Hela');
+    await inviter(hela.email, hela.jeton, 'magasinier');
+    const erreurs: string[] = [];
+    // `jour` : l'heure du navigateur part de ce jour (et s'écoule) ; ce que l'écran calcule d'après la date ne dépend
+    // plus du jour où le test tourne.
+    const ouvrir = async (jeton: string, hash: string, jour?: string) => {
+      const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+      if (jour) await cx.clock.install({ time: new Date(jour) });
+      await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
+      const p = await cx.newPage();
+      p.on('pageerror', (e) => erreurs.push(e.message));
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
+      await expect.poll(() => titre(p), { timeout: 20_000 }).not.toBe('');
+      await plusTard(p);
+      return p;
+    };
+    // Aucun article suivi : la page Stock ne lui tend pas « + Nouvel article suivi » (le catalogue lui est fermé, la
+    // fiche se refusait après la saisie) ; elle dit qui marque l'article. « Créer » n'a rien à proposer : il ne se montre pas.
+    const h = await ouvrir(hela.jeton, '#/stock');
+    await expect.poll(async () => net(await h.locator('#view').innerText()), { timeout: 15_000 }).toContain('demande-le à Nadia Ben Youssef');
+    expect(await h.locator('#st-new, #st-pick').count()).toBe(0);
+    expect(await h.evaluate(() => (window as unknown as { __creer: () => { actions: unknown[] } }).__creer().actions.length)).toBe(0);
+    await expect.poll(() => h.locator('#b-creer').isHidden(), { timeout: 5_000 }).toBe(true);
+    // Le propriétaire suit l'article : « Créer » propose le mouvement et l'inventaire, et jamais « Article ».
+    const lu = await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    const REV = (lu.corps.objets as { collection: string; cle: string; revision: number }[]).find((x) => x.collection === 'catalog' && x.cle === 'a1')?.revision ?? null;
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+      { collection: 'catalog', cle: 'a1', rang: 0, revision: REV, contenu: { id: 'a1', label: 'Farine T55', unit: 'kg', unitPrice: { '~n': '1.2' }, vatRate: 7, tracked: true, initialQty: 10, initialCost: 1 } },
+    ] })).statut).toBe(200);
+    await h.reload();
+    await expect.poll(() => h.evaluate(() => (window as unknown as { __creer: () => { actions: { titre: string }[] } }).__creer().actions.map((a) => a.titre)), { timeout: 15_000 })
+      .toEqual(['Mouvement de stock', 'Inventaire']);
+    await expect.poll(() => h.locator('#b-creer').isVisible(), { timeout: 5_000 }).toBe(true);
+    await h.locator('#b-creer').click();
+    await h.locator('[data-touche="M"]').click();
+    await expect.poll(async () => net(await h.locator('#modal-root h2').first().innerText().catch(() => '')), { timeout: 5_000 }).toBe('Mouvement de stock');
+    expect(erreurs).toEqual([]);
+    await h.context().close();
+  }, 120_000);
 });

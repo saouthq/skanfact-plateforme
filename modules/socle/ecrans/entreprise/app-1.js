@@ -3256,7 +3256,7 @@
   // Ce que « Créer » propose (plateforme/barre.js) : les pièces du métier, que le rôle peut faire. Une entreprise en
   // lecture seule (abonnement) ne crée rien : « Créer » porte un cadenas et dit comment rouvrir, avant le geste.
   window.__creer = () => {
-    if (!data) return { role: roleBarre(), bloque: null, actions: [] };
+    if (!data) return { role: roleBarre(), bloque: null, actions: [], pret: false };
     const vues = new Set(C.navPages(data).filter(p => !pageCachee(p.id)).map(p => p.id));
     const role = roleBarre();
     const avecCabinet = !!(messagerieVue && messagerieVue.cabinet);
@@ -3272,18 +3272,32 @@
       depense: ['achats', 'Dépense', met === 'restauration' ? 'Marché, gaz, réparation' : met === 'sante' ? 'Produits, matériel' : 'Logiciel, déplacement', met === 'services' ? 'E' : 'D', () => navigate('#/achat/new/-/depense')],
       article: ['catalogue', 'Article', 'Au catalogue, avec son prix', 'A', () => catalogForm(null, () => render(), { titre: 'Nouvel article' })],
       client: ['clients', 'Client', met === 'batiment' ? 'Nom, matricule, chantier' : 'Nom, matricule, contact', 'C', () => clientForm(null, () => render())],
+      // (1.387.86, issue 7, COLLAB-2) Les gestes du magasinier : un mouvement, un inventaire (stockAdjustments). Seulement
+      // quand un article est suivi : sans lui, la fenêtre du mouvement renvoie au Catalogue.
+      ...(C.trackedItems(data).length ? {
+        mouvement: ['stock', 'Mouvement de stock', 'Casse, matière utilisée, correction', 'M', () => adjustForm(null, () => render())],
+        inventaire: ['stock', 'Inventaire', 'Compter le rayon', 'I', () => vers('#/stock', () => { stockState.tab = 'inventaire'; })()],
+      } : {}),
     };
     // (plateforme, 17 § 3.3, lot P1b) Ce que les modules posent dans « Créer » (le pointage, pour le Personnel).
     for (const e of Socle.entrees('creer')) A[e.cle] = [e.vue, e.libelle, e.sous, e.lettre, e.faire];
     const cles = role === 'commercial' ? ['devis', 'facture', 'client'] : role === 'caissier' ? ['vente'] : role === 'lecture' ? [] : METIERS[met].creer;
-    const actions = cles.map(k => A[k]).filter(a => a && vues.has(a[0]));
+    // (COLLAB-2) Une entrée se propose si sa page se voit ET si le rôle peut FINIR le geste : « Article » au magasinier,
+    // qui n'écrit pas le catalogue, se refusait après la saisie. La caisse vend par sa route (d.caisse). Une entrée posée
+    // par un module, sans partie connue, reste jugée sur sa page.
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    const ECRIT = { facture: 'documents', devis: 'documents', photo: 'purchases', depense: 'purchases', article: 'catalog', client: 'clients', mouvement: 'stockAdjustments', inventaire: 'stockAdjustments' };
+    const finissable = k => { const a = A[k]; if (!a || !vues.has(a[0])) return false;
+      if (['vente', 'ticket', 'encaissement'].includes(k)) return !d || !!d.caisse || peutEcrireDossier('documents');
+      return !ECRIT[k] || peutEcrireDossier(ECRIT[k]); };
+    const actions = cles.filter(finissable).map(k => A[k]);
     // (1.387.78, issue 14 ENTSOCLE-20) Une entrée dont la page est fermée (la caisse « Prochainement ») laissait « Créer » à
     // moitié vide : la place revient aux gestes suivants du métier, sans doublon de touche.
     if (role !== 'commercial' && role !== 'caissier' && role !== 'lecture') {
-      for (const k of ['facture', 'devis', 'client', 'article', 'depense', 'photo']) {
+      for (const k of ['facture', 'devis', 'client', 'article', 'depense', 'photo', 'mouvement', 'inventaire']) {
         if (actions.length >= 4) break;
         const x = A[k];
-        if (x && vues.has(x[0]) && !actions.includes(x) && !actions.some(y => y[3] === x[3])) actions.push(x);
+        if (finissable(k) && !actions.includes(x) && !actions.some(y => y[3] === x[3])) actions.push(x);
       }
     }
     return {

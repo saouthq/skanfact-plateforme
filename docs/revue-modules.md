@@ -5893,3 +5893,26 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
     compte (le ticket se rattacherait à la banque dès sa création ; un retour par carte resterait refusé d'ici là).
 - Test : `tests/web/caissier.test.ts` (Sami, caissier, sans compte bancaire : la phrase, aucun bouton, Valider grisé).
   Preuves : `collab3-bouton-banque-au-caissier`, `collab3-phrase-qui-demande-de-creer`.
+
+## 1.387.86 — La magasinière ne se voit plus proposer ce qu'on lui refuse (issue 7)
+
+- **COLLAB-2 (bloquant)** : le rôle Magasinier n'écrit que le stock (mouvements, inventaires, dépôts, numéros de série),
+  pas le catalogue ni les achats. Pourtant « Créer » lui proposait « Article », et la page Stock, sans article suivi,
+  lui tendait « + Nouvel article suivi » : la fiche se remplissait et se refusait à l'enregistrement, saisie perdue.
+  - « Créer » ne propose une entrée que si sa page se voit ET si le rôle peut FINIR le geste (la partie que l'entrée
+    écrit : pièces, achats, catalogue, clients, stock). La caisse garde sa propre porte. La règle vaut pour la liste
+    du métier et pour celle qui la complète.
+  - Deux gestes rejoignent « Créer » quand un article est suivi : « Mouvement de stock » (M) et « Inventaire » (I).
+  - Un « Créer » qui n'a rien à proposer ne se montre plus (ordinateur et téléphone) — jamais au Cabinet, au caissier
+    ni en lecture seule, qui ont leur propre bouton ou leur propre phrase.
+  - Stock sans article suivi, pour qui n'écrit pas le catalogue : plus de bouton, les trois étapes et « demande-le à
+    <la gérante> » ; même règle sur l'onglet « Numéros de série ». « + Mouvement » suit le droit du mouvement.
+  - La promesse du rôle (invitation et Aide) dit ce qui s'ouvre vraiment : « mouvements, transferts entre dépôts,
+    inventaires, numéros de série ». **À DÉCIDER par Skander** : le cadrage (docs/cadrage/03-droits.md) donnait aussi
+    au magasinier la fiche article hors prix, les bons de livraison et les réceptions ; le serveur les refuse. Soit le
+    serveur suit le cadrage (les écrans se rouvrent d'eux-mêmes), soit on garde la promesse resserrée.
+  - Effet voulu ailleurs : la comptabilité interne ne voit plus Facture, Devis, Article ni Client dans « Créer » (tous
+    refusés à l'enregistrement) ; elle garde Photo et Dépense. Propriétaire, administrateur et commercial : inchangés.
+- Tests : `tests/web/menu-role.test.ts` (Hela, magasinière d'un commerce). `tests/web/recette-alpha.test.ts` : deux
+  assertions remises à jour (la liste des devis dit « Facturé FAC-… » ; l'Aide est dessinée avant le geste du
+  défilement — une course du test, pas de l'application). Preuves : quatre `collab2-*`.
