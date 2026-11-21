@@ -5873,3 +5873,23 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
     nommée nulle part.
 - Test : `tests/web/barre-cabinet.test.ts` (le 31 février, l'échéance sans nom, le régime sans nom, relu après un
   aller-retour). Preuves : `revue 1.374.0 c` et `d` (ancres mises à jour), `regime-sans-nom-jete-en-silence`.
+
+## 1.387.85 — Au comptoir, le caissier ne crée plus un compte que le serveur jette (issue 7)
+
+- **COLLAB-3 (bloquant)** : sans compte bancaire, la carte proposait au caissier « Créer mon compte bancaire », et au
+  commercial « Créer la caisse ». Le formulaire s'ouvrait, se fermait sur « Caisse créée », et rien n'était enregistré :
+  les comptes de trésorerie ne s'écrivent que par le propriétaire ou un administrateur, et le serveur jette la partie à
+  l'envoi.
+  - Les boutons « Créer mon compte bancaire », « Créer la caisse » (panneau du ticket, écran de paiement, caisse
+    fermée) et « Créer le compte » de la fenêtre de paiement d'une facture ne se posent que pour qui peut créer un compte.
+  - Sinon la phrase dit qui le crée et où : « Ton rôle ne crée pas de compte : <la gérante> le crée dans la Trésorerie.
+    En attendant, encaisse en espèces. » (le nom vient de la fiche société, sinon « le propriétaire ou un
+    administrateur »). Même chose pour un retour sans compte de caisse.
+  - `creerCaisse` et `accountForm` refusent en tête, avant toute saisie, la création comme la modification (le solde
+    de départ compris) : « Rien n'a été créé » / « Rien n'a été modifié ». Pour le propriétaire et l'administrateur,
+    rien ne change.
+  - « Valider » reste grisé pour la carte et le chèque tant que le compte bancaire n'existe pas : c'est la règle du
+    moteur. **À DÉCIDER par Skander (option B)** : laisser encaisser la carte « sans compte » à qui ne crée pas de
+    compte (le ticket se rattacherait à la banque dès sa création ; un retour par carte resterait refusé d'ici là).
+- Test : `tests/web/caissier.test.ts` (Sami, caissier, sans compte bancaire : la phrase, aucun bouton, Valider grisé).
+  Preuves : `collab3-bouton-banque-au-caissier`, `collab3-phrase-qui-demande-de-creer`.

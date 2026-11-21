@@ -31028,6 +31028,15 @@ prouver $'cabpaie2-annuler-le-paiement' modules/personnel/ecrans/cabinet/paie.js
 prouver $'cabdecl4-index-dit-son-format' modules/socle/ecrans/cabinet/app-1.js $'indexFait = pdf ? \'pdf\' : \'html\';' $'void 0;' $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
 prouver $'cabdecl4-compte-le-fec' modules/socle/ecrans/cabinet/app-1.js $'${prends.fec ? `${pl(e, \'écriture\')} dans le FEC` : \'sans le FEC\'}' $'${pl(e, \'écriture\')}' $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
 prouver $'regime-sans-nom-jete-en-silence' modules/socle/ecrans/cabinet/app-2.js $'        if (!r.label && (r.id || r.annuelles.length || r.tva || !r.cnss)) return refus(' $'        if (false) return refus(' $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+# (1.387.85, issue 7, COLLAB-3) Le caissier ne crée pas de compte : ni bouton, ni phrase qui le lui demande.
+prouver $'collab3-bouton-banque-au-caissier' modules/socle/ecrans/entreprise/app-2.js \
+  $'motif === C.MOTIF_SANS_BANQUE && peutComptes() ? \' <button' \
+  $'motif === C.MOTIF_SANS_BANQUE ? \' <button' \
+  $'Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse'
+prouver $'collab3-phrase-qui-demande-de-creer' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (!m || peutComptes()) return m;' \
+  $'    if (true) return m;' \
+  $'Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

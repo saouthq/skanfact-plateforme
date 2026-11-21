@@ -10783,7 +10783,7 @@
       ${/* 10.12.0 — la fiche société porte déjà la banque et le RIB ; le paiement disait « aucun compte » et
          n'offrait qu'un lien vers la Trésorerie, qui QUITTAIT la fenêtre et jetait la saisie. Le compte
          se crée par-dessus, prérempli avec ce que l'entreprise a déjà donné. */''}${/* (1.353.0) Une caisse pour seul compte : un virement n'y tombe plus (`compteSansNom`), et la fenêtre le dit. */''}${!(data.accounts || []).some(x => x.kind !== 'caisse') ? `<div class="inline small muted mt" id="pf-sans-compte">${(data.accounts || []).length ? `Pas encore de compte bancaire : un virement, un chèque ou une carte ne sera rattaché à aucun compte (ta caisse ne reçoit que les espèces).` : `Aucun compte de trésorerie : ${rend ? 'ce remboursement' : 'ce paiement'} ne sera rattaché à aucun compte.`}
-        <button type="button" class="btn btn-sm" id="pf-compte">${libelleCompteDepuisFiche('Créer le compte', 'Créer un compte')}…</button></div>` : ''}
+        ${peutComptes() ? `<button type="button" class="btn btn-sm" id="pf-compte">${libelleCompteDepuisFiche('Créer le compte', 'Créer un compte')}…</button>` : `${h(quiCreeLesComptes())} crée les comptes dans la Trésorerie.`}</div>` : ''}
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${rend ? 'Enregistrer le remboursement' : 'Enregistrer'}</button></div>`,
       (root, close) => {
         brancherTauxReglement(root, inv, !rend, rend ? 'Rendu' : 'Reçu');
@@ -11178,8 +11178,20 @@
   // Les parties qu'une personne lit sans pouvoir les écrire (plateforme, brique 102) : le geste est refusé AVANT,
   // en le disant ; jamais un « Enregistré » que le serveur n'aura pas reçu.
   const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
-    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue' };
+    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue', accounts: 'les comptes de trésorerie' };
   const enLecture = partie => !peutEcrireDossier(partie);
+  // (1.387.85, issue 7, COLLAB-3) La caisse et la banque ne se créent ni ne se modifient que par le propriétaire ou un
+  // administrateur (serveur/v10/droits.ts, tresorerie.comptes.modifier) : un autre rôle ne lit jamais un « créé » que le
+  // serveur jette à l'envoi. Le refus passe AVANT la saisie, et la phrase du comptoir nomme qui crée le compte.
+  const peutComptes = () => peutEcrireDossier('accounts');
+  const quiCreeLesComptes = () => company().managerName || 'le propriétaire ou un administrateur';
+  const refusComptes = modifier => `Ton rôle ne crée ni ne modifie les comptes de trésorerie (la caisse, la banque) : ${quiCreeLesComptes()} le fait, depuis la Trésorerie. Rien n'a été ${modifier ? 'modifié' : 'créé'}.`;
+  const motifDuRole = m => {
+    if (!m || peutComptes()) return m;
+    if (m === C.MOTIF_SANS_BANQUE) return `Aucun compte bancaire : la carte et le chèque arrivent sur la banque, pas dans le tiroir. Ton rôle ne crée pas de compte : ${quiCreeLesComptes()} le crée dans la Trésorerie. En attendant, encaisse en espèces.`;
+    if (/^Aucun compte de caisse/.test(m)) return `Aucun compte de caisse : les espèces vont dans le tiroir, pas à la banque. Ton rôle ne crée pas de compte : ${quiCreeLesComptes()} crée la caisse${/rends l'argent/.test(m) ? '. En attendant, rends l\'argent par carte ou par chèque' : ''}.`;
+    return m;
+  };
   const refusLecture = (partie, fait) => `Ton rôle te laisse lire ${NOMS_EN_LECTURE[partie] || 'cette partie de l\'entreprise'}, pas les modifier : rien n'a été ${fait || 'enregistré'}. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.`;
   // Un brouillon fait par un autre (brique 117 ; 03 § 1) : seul son auteur, le propriétaire ou un administrateur le
   // supprime. Le serveur dit l'auteur de chaque pièce qu'un autre a faite ; le geste se refuse AVANT, en le disant.

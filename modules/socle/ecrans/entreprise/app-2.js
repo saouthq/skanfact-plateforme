@@ -128,6 +128,7 @@
   // La caisse, créée d'ici : la page qui en a besoin est celle où on la crée (7.14.0). Le fond de
   // caisse est l'argent déjà dans le tiroir au premier jour — c'est de lui que partira le compte.
   function creerCaisse(done) {
+    if (!peutComptes()) { toast(refusComptes(false), true); return; }
     modal(`<h2>Créer la caisse</h2>
       <p class="small">Les espèces encaissées au comptoir vont dans ce compte, pas à la banque : c'est ce qui permet à SkanFact de dire, le soir, combien le tiroir doit contenir.</p>
       <form id="ccf" class="grid-2">
@@ -267,7 +268,7 @@
         const r = C.remboursementDeTicket(data, company(), doc, qtes(), { mode: v.mode, motif: v.motif });
         if (bridge.rendreTicket || !r.ok) data.counters = JSON.parse(compteurs);
         // Le refus montre la case qui le règle : le mode quand c'est le compte qui manque, sinon la quantité.
-        if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), r.motif);
+        if (!r.ok) return refus(C.compteDuMode(data, v.mode) ? $('[data-rd]', root) : $('[name=mode]', root), motifDuRole(r.motif));
         // (plateforme, brique 124) Le serveur numérote l'avoir et rend l'argent : le numéro pris sur ce poste ne sert pas.
         if (bridge.rendreTicket) { void rendreParLeServeur(doc, r, root, close); return; }
         data.documents.push(r.avoir);
@@ -770,7 +771,7 @@
             <div class="ct-sous" id="cs-ligne-remise"${t.discount ? '' : ' style="visibility:hidden" aria-hidden="true"'}><span>Remise ${h(String(s.remise || '0').replace('.', ','))} %</span><span>− ${C.money(t.remiseTtc, cur)}</span></div>
             <div class="ct-sous"><span>${h(pl(nbArticles(), 'article'))}</span><span>dont TVA ${C.money(t.totalVAT, cur)}${t.stamp ? ` · timbre ${C.money(t.stamp, cur)}` : ''}</span></div>
             <div class="ct-total"><span>Total ${info('cs.ticket')}</span><b id="cs-total">${C.money(t.netToPay, cur)}</b></div>
-            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motif) : ''}${s.panier.length && motif && sansCompte ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}</p>
+            <p class="cs-motif" id="cs-motif">${s.panier.length && motif ? h(motifDuRole(motif)) : ''}${s.panier.length && motif && sansCompte && peutComptes() ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}</p>
             <button type="button" class="ct-principal cs-encaisser" id="cs-encaisser" ${motif ? 'disabled' : ''}>Encaisser ${s.panier.length ? C.money(t.netToPay, cur) : ''}</button>
           </div>`;
         $('#cs-ticket-tirer').onclick = () => { s.ticketOuvert = !s.ticketOuvert; drawTicket(); };
@@ -892,7 +893,7 @@
       };
       const versPaiement = () => {
         const motif = motifDuPanier();
-        if (motif) { toast(motif, true); return; }
+        if (motif) { toast(motifDuRole(motif), true); return; }
         // Chaque vente commence en espèces : la précédente payée par carte ne décide pas de celle-ci (vu sur le serveur
         // d'essai le 05/10/2026 : la vente suivante restait sur « Carte », et le tiroir ne serait pas tombé juste).
         s.mode = 'especes'; s.recu = ''; s.ecran = 'paiement';
@@ -995,8 +996,8 @@
       // Le refus d'un compte qui manque porte le geste qui le règle (7.0.0) : le compte se crée par-dessus la caisse, et
       // le paiement attend.
       const sansCaisse = motif && s.mode === 'especes' && !C.comptesDeCaisse(data).especes;
-      $('#cs-motif').innerHTML = motif ? `${h(motif)}${motif === C.MOTIF_SANS_BANQUE ? ' <button type="button" class="btn btn-sm" id="cs-creer-banque">Créer mon compte bancaire</button>'
-        : sansCaisse ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}` : '';
+      $('#cs-motif').innerHTML = motif ? `${h(motifDuRole(motif))}${motif === C.MOTIF_SANS_BANQUE && peutComptes() ? ' <button type="button" class="btn btn-sm" id="cs-creer-banque">Créer mon compte bancaire</button>'
+        : sansCaisse && peutComptes() ? ' <button type="button" class="btn btn-sm" id="cs-creer-caisse">Créer la caisse</button>' : ''}` : '';
       if ($('#cs-creer-banque')) $('#cs-creer-banque').onclick = () => accountForm(null, () => drawPaiement(), modeleCompte());
       if ($('#cs-creer-caisse')) $('#cs-creer-caisse').onclick = () => creerCaisse(() => drawPaiement());
       const b = $('#cs-valider');
@@ -1041,7 +1042,7 @@
       if (!b || b.disabled || b.dataset.busy) return;
       const recu = s.mode === 'especes' ? s.recu : '';
       const motif = motifSession() || C.motifEncaissement(data, company(), s.panier, { mode: s.mode, recu, remise: s.remise });
-      if (motif) { toast(motif, true); return; }
+      if (motif) { toast(motifDuRole(motif), true); return; }
       // Avant le numéro : un refus après `nextNumber` trouerait la série des tickets (6.0.0).
       if (closedBlock(C.today(), 'Ce ticket')) return;
       if (licenceBlock('Émettre un ticket de caisse', 'caisse')) return;
@@ -1101,8 +1102,8 @@
       if (!comptes.especes) {
         $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-sans-caisse"><h2>D'abord, la caisse.</h2>
           <p>Les espèces encaissées au comptoir vont dans le compte de caisse, pas à la banque : c'est ce qui permet à SkanFact de dire, le soir, combien le tiroir doit contenir.</p>
-          <button type="button" class="ct-principal" id="cs-creer">Créer la caisse</button></div></div>`;
-        $('#cs-creer').onclick = () => creerCaisse(() => vers('#/caisse')());
+          ${peutComptes() ? '<button type="button" class="ct-principal" id="cs-creer">Créer la caisse</button>' : `<p>Ton rôle ne crée pas de compte : ${h(quiCreeLesComptes())} crée la caisse depuis la Trésorerie ; elle s'ouvre ensuite ici.</p>`}</div></div>`;
+        if ($('#cs-creer')) $('#cs-creer').onclick = () => creerCaisse(() => vers('#/caisse')());
         return;
       }
       // Ce que le tiroir contient déjà, proposé (vu sur le serveur d'essai le 05/10/2026 : la caisse créée avec 50 DT
@@ -1316,7 +1317,7 @@
       if (s.tab !== 'vendre' || !location.hash.startsWith('#/caisse') || !$('#cs-body')) return;
       if (vueDeSession() !== s.vueDessinee) { drawVendre(); return; }
       const mm = motifSession();
-      if (mm && $('#cs-motif') && $('#cs-encaisser')) { $('#cs-motif').textContent = mm; $('#cs-encaisser').disabled = true; }
+      if (mm && $('#cs-motif') && $('#cs-encaisser')) { $('#cs-motif').textContent = motifDuRole(mm); $('#cs-encaisser').disabled = true; }
     };
 
     // ---- Tickets et bilan du jour ----
@@ -3213,6 +3214,8 @@
   const libelleCompteDepuisFiche = (avecBanque, sans) => { const m = modeleCompte(); return m && m.bank ? `${avecBanque} « ${h(m.bank)} »` : sans; };
 
   function accountForm(acc, done, modele, opts) {
+    // (COLLAB-3) Avant tout : la création ET la modification (le solde de départ aussi) sont refusées à qui ne les tient pas.
+    if (!peutComptes()) { toast(refusComptes(!!acc), true); return; }
     // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
     if (!acc && licenceBlock('Créer un compte de trésorerie', 'pilotage')) return;
     const a = acc || { id: C.uid(), name: '', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: C.today(), isDefault: !data.accounts.length, statementBalance: '', notes: '', ...(modele || {}) };

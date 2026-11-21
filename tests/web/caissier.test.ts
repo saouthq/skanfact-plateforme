@@ -104,6 +104,21 @@ describe('le caissier à l\'écran', () => {
     await p.locator('#cs-encaisser').click();
     await p.locator('#cs-valider').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe(`Ticket TIC-${annee}-002 encaissé`);
+    // (1.387.85, issue 7, COLLAB-3) Pas de compte bancaire, et un caissier ne crée pas de compte (le serveur jetterait le
+    // compte à l'envoi) : la carte ne lui propose aucun « Créer mon compte bancaire », la phrase nomme qui le crée.
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
+    await p.locator('#cs-nouvelle').click();
+    await p.locator('#cs-articles .cs-art', { hasText: 'Lait' }).click();
+    await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-paiement [data-mode=carte]').click();
+    await expect.poll(async () => net(await p.locator('#cs-motif').innerText()), { timeout: 5_000 }).toContain('Ton rôle ne crée pas de compte');
+    expect(net(await p.locator('#cs-motif').innerText())).toContain('le crée dans la Trésorerie');
+    expect(await p.locator('#cs-creer-banque, #cs-creer-caisse').count()).toBe(0);
+    expect(await p.locator('#cs-valider').isDisabled()).toBe(true);
+    await p.locator('#cs-revenir').click();
+    await p.locator('#cs-vider').click();
+    if (await p.locator('#modal-root #ok').count()) await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#cs-vider').isDisabled(), { timeout: 5_000 }).toBe(true);
 
     // Ses tickets du jour : le sien, pas celui de Nadia.
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
