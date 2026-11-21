@@ -8934,6 +8934,17 @@
       poserHauteur();
       if (window.ResizeObserver) new ResizeObserver(poserHauteur).observe(navCompta);
     }
+    // (1.388.7, issue 9, CABDECLARER-13) L'en-tête d'un tableau colle SOUS la barre des écrans quand on descend un long livre :
+    // son cadre `.scroll-x` (overflow-x: auto) en faisait sa zone de défilement, et `top: 0` le posait de toute façon sous la
+    // barre. Un tableau qui TIENT dans sa largeur n'a pas à défiler de côté : son cadre passe en `clip` (`lv-colle`) et
+    // l'en-tête peut coller ; un tableau plus large garde son défilement de côté — rien n'est coupé. Remesuré quand le corps
+    // change de taille (un compte du grand livre qu'on déplie, une fenêtre qu'on rétrécit).
+    const corpsCompta = $('.cp-corps', el);
+    const tenirEntetes = () => $$('.scroll-x', corpsCompta).forEach(sx => {
+      const t = sx.querySelector(':scope > table.list');
+      sx.classList.toggle('lv-colle', !!t && t.getBoundingClientRect().width <= sx.clientWidth + 1);
+    });
+    if (corpsCompta) { tenirEntetes(); if (window.ResizeObserver) new ResizeObserver(tenirEntetes).observe(corpsCompta); }
     $$('#c-tabs button', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, b.dataset.tab); });
     // La frise : un mois ouvre ce mois (et son relevé, sur la Banque) ; « Toute l'année », l'exercice.
     // (1.214.0) Au téléphone, la frise défile : elle s'ouvre sur le mois choisi (ou le premier en retard), pas sur janvier.

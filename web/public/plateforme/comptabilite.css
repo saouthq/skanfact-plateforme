@@ -34,6 +34,13 @@
 #c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="revision"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, #lv-du, #lv-au),
 #c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="revision"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre .check:has(#lv-brouillard) { display: none; }
 .cp-modele .cp-corps { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); padding: 16px 18px; min-width: 0; }
+/* (1.388.7, issue 9, CABDECLARER-13) L'en-tête d'un tableau des livres colle juste sous la barre des écrans (sa hauteur :
+   `--c-nav-h`, mesurée). Seul un cadre dont le tableau tient (`lv-colle`, posé par le code) passe en clip ; au téléphone,
+   rien ne change. */
+@media (min-width: 761px) {
+  #c-compta.cp-modele #c-livres .scroll-x.lv-colle { overflow-x: clip; }
+  #c-compta.cp-modele #c-livres table.list:not(.sa-grille) > thead th { top: calc(var(--c-nav-h, 56px) - var(--main-haut, 32px)); z-index: 3; }
+}
 
 /* Les groupes (le segment) et les écrans du groupe ouvert (les pilules), dans une carte. */
 .cp-modele .c-nav { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px; margin: 4px 0 16px; padding: 6px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); box-shadow: var(--sb-ombre); }

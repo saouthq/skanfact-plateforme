@@ -6156,3 +6156,15 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   période qu'elle n'affiche pas.
 - Tests : sur la Révision, un clic sur mars met la période révisée à mars, une seule case cerclée, pas de bande de période ;
   la Déclaration n'affiche plus la bande. Deux preuves.
+
+## 1.388.7 — L'en-tête des tableaux des livres colle sous la barre (issue 9, CABDECLARER-13)
+
+- En descendant un long livre-journal, une balance ou un grand livre du Cabinet, l'en-tête du tableau partait avec les
+  lignes : on lisait des colonnes de montants sans savoir laquelle était le débit. Il colle maintenant juste sous la barre
+  des écrans (sa hauteur est mesurée, jamais écrite à la main), au-dessus des lignes.
+- Un tableau qui tient dans sa largeur n'a pas à défiler de côté : son cadre passe en `clip`, ce qui laisse l'en-tête
+  coller. Un tableau plus large que l'écran garde son défilement horizontal (l'en-tête reste alors dans son cadre, comme
+  avant) : on ne perd jamais une colonne pour gagner un en-tête.
+- Seulement sur un écran large : au téléphone, la barre des écrans ne colle pas.
+- Test : tout en bas du livre-journal, dans une fenêtre basse, ce qu'on lit sous la barre est l'en-tête du tableau, collé
+  à son bord. Une preuve.

@@ -31196,6 +31196,10 @@ prouver $'cabdeclarer12-bande-periode-sur-la-revision' web/public/plateforme/com
   $'#c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="revision"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, #lv-du, #lv-au),' \
   $'#c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, #lv-du, #lv-au),' \
   $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
+prouver $'cabdeclarer13-entete-colle-sous-la-barre' modules/socle/ecrans/cabinet/app-1.js \
+  $'sx.classList.toggle(\'lv-colle\', !!t && t.getBoundingClientRect().width <= sx.clientWidth + 1);' \
+  $'sx.classList.toggle(\'lv-colle\', false);' \
+  $'(1.378.3) une ligne ouvre son écriture, un compte de la balance son grand livre ; le grand livre et le FEC exportés portent le compte choisi, le solde et les tiers'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -175,6 +175,23 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     const tiersFec = lignesFec.slice(1).filter((x) => /^4[01]1?$/.test(x[col('CompteNum')] ?? '')).map((x) => `${x[col('CompteNum')]}|${x[col('CompAuxNum')]}|${x[col('CompAuxLib')]}`).sort();
     expect(tiersFec).toEqual(['401|401LEVURESDUSAH|Levures du Sahel', '401|401MINOTERIEDUC|Minoterie du Cap Bon', '411|411CAFEJASMIN|Café Jasmin']);
 
+    // ── (CABDECLARER-13) En descendant le livre-journal, son en-tête colle sous la barre des écrans ─────────────
+    await ouvrir('journal');
+    await p.setViewportSize({ width: 1440, height: 420 });
+    await p.locator('#c-livres table.list thead th').first().waitFor({ timeout: 10_000 });
+    // Tout en bas de la page (sans animation : le défilement doux serait encore en route à la mesure), l'en-tête du tableau,
+    // qui le dépasse encore, doit être juste sous la barre : c'est lui qu'on lit sous la barre, pas une ligne.
+    const colle = () => p.evaluate(async () => {
+      const v = document.getElementById('view')!, nav = document.querySelector('.c-nav')!, th = document.querySelector('#c-livres table.list thead th') as HTMLElement;
+      v.scrollTo({ top: v.scrollHeight, behavior: 'instant' });
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
+      const b = nav.getBoundingClientRect().bottom, r = th.getBoundingClientRect();
+      const sous = document.elementFromPoint(r.left + 8, b + 4);
+      return { th: !!sous?.closest('thead'), colle: Math.abs(r.top - b) <= 2 };
+    });
+    await expect.poll(colle, { timeout: 10_000 }).toEqual({ th: true, colle: true });
+    await p.setViewportSize({ width: 1440, height: 900 });
+
     // ── La recherche : un résultat ouvre l'écriture ───────────────────────────────────────────────
     await ouvrir('recherche');
     await p.locator('#re-q').fill('406,980');
