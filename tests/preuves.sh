@@ -31208,6 +31208,14 @@ prouver $'cabdeclarer14-quatre-points-dans-la-revision' modules/socle/ecrans/cab
   $'      return pts.length ? `<div class="panel" id="rv-mois">' \
   $'      return pts.length ? `<div class="panel" id="rv-mois-x">' \
   $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
+prouver $'cabdeclarer25-curseur-sur-garder' modules/socle/ecrans/cabinet/app-1.js \
+  $'remplace && douteux, garder, { prudent: remplace }))) return;' \
+  $'remplace && douteux, garder, { prudent: false }))) return;' \
+  $'un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste'
+prouver $'cabdeclarer25-question-qui-remplace' modules/socle/ecrans/cabinet/app-1.js \
+  $'            if (!(await confirmDialog(remplace ? \'Remplacer la balance de la fenêtre ?\' : \'Reprendre les soldes de cette balance ?\',' \
+  $'            if (!(await confirmDialog(false ? \'Remplacer la balance de la fenêtre ?\' : \'Reprendre les soldes de cette balance ?\',' \
+  $'un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

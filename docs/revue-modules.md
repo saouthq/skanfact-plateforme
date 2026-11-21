@@ -6182,3 +6182,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   pas — on atterrissait sur le livre-journal. Elles ouvrent la Déclaration.
 - Tests : avril choisi dans la Révision montre ses quatre points (« 3 sur 4 ») ; la fiche dit « avril : validé », puis
   « avril : révisé » une fois la révision d'avril arrêtée. Deux preuves.
+
+## 1.388.9 — Un second fichier ne remplace pas la balance de la fenêtre par réflexe (issue 9, CABDECLARER-25)
+
+- Dans « Reprendre une balance », importer un second fichier par-dessus une balance déjà tapée ou importée la remplaçait
+  dès qu'on appuyait sur Entrée : le curseur était sur le bouton vert, même quand le fichier ne s'équilibrait pas.
+- La question dit maintenant « Remplacer la balance de la fenêtre ? », son second bouton s'appelle « Garder la balance de
+  la fenêtre » et porte le curseur : Entrée garde ce qui est là. Le geste devient rouge (« Remplacer quand même ») quand le
+  fichier ne s'équilibre pas ou écarte des lignes. Dans une fenêtre vide, rien ne change (« Reprendre ces soldes »).
+- La même règle vaut pour un FEC importé par-dessus une balance (« Remplacer par ce fichier »).
+- `confirmDialog` du Cabinet gagne une option facultative `prudent` (curseur sur le bouton qui ne détruit rien) ; aucun
+  appel existant ne change.
+- Test : un second CSV déséquilibré par-dessus la balance du premier — la question, les deux libellés, le curseur sur
+  « Garder », Entrée, et la balance de la fenêtre intacte. Deux preuves.

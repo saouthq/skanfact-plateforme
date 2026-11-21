@@ -137,6 +137,18 @@ describe('la reprise d\'un client, à la souris', () => {
     expect(await p.locator('#modal-root .modal').count()).toBe(1);
     await expect.poll(() => fenetre.locator('#rf-lignes tr').count()).toBe(6);
     await expect.poll(() => ecart.innerText()).toMatch(/^Équilibrée : 24\s525,625 de chaque côté\.$/);
+    // (CABDECLARER-25) Un second fichier, qui ne s'équilibre pas, par-dessus la balance de la fenêtre : la question le dit, le
+    // curseur est sur « Garder », et Entrée ne remplace rien.
+    await choisir(p, 'balance-mal-formee.csv', Buffer.from(['Compte;Intitulé;Solde débiteur;Solde créditeur', '101;Capital social;;20 000,000', '532;Banque BIAT;9 000,000;'].join('\r\n'), 'utf8'));
+    const dessus = p.locator('#modal-root .modal').last();
+    await expect.poll(() => dessus.locator('h2').innerText()).toBe('Remplacer la balance de la fenêtre ?');
+    expect(await dessus.locator('#ok').innerText()).toBe('Remplacer quand même');
+    expect(await dessus.locator('#no').innerText()).toBe('Garder la balance de la fenêtre');
+    expect(await p.evaluate(() => document.activeElement?.id)).toBe('no');
+    await p.keyboard.press('Enter');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(1);
+    await expect.poll(() => fenetre.locator('#rf-lignes tr').count()).toBe(6);
+    await expect.poll(() => ecart.innerText()).toMatch(/^Équilibrée : 24\s525,625 de chaque côté\.$/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-reprise-1-csv.png') });
     await fenetre.getByRole('button', { name: 'Créer le livre' }).click();
     // L'exercice 2026 est ouvert au serveur, avec UNE écriture AN validée, au millime du fichier.

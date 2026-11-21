@@ -574,7 +574,7 @@
   // `cancelLabel` : « Annuler » est juste pour un geste qu'on renonce à faire, et FAUX pour une
   // question posée après coup — « tu viens d'importer, mets ta clé à l'abri » n'annule rien, elle
   // se remet à plus tard. Un bouton qui nomme mal ce qu'il fait se clique sans être lu.
-  function confirmDialog(title, body, okLabel, danger, cancelLabel) {
+  function confirmDialog(title, body, okLabel, danger, cancelLabel, opts) {
     return new Promise(resolve => {
       modal(
         `<h2>${esc(title)}</h2><div>${body}</div>
@@ -583,6 +583,9 @@
         (layer, close) => {
           $('#no', layer).onclick = () => { close(); resolve(false); };
           $('#ok', layer).onclick = () => { close(); resolve(true); };
+          // (CABDECLARER-25) Une question PRUDENTE pose le curseur sur le bouton qui ne détruit rien : Entrée, par réflexe, garde
+          // ce qui est là (`modal()` ne reprend pas un curseur déjà posé dans la fenêtre).
+          if (opts && opts.prudent) { try { $('#no', layer).focus({ preventScroll: true }); } catch (_) { $('#no', layer).focus(); } }
         },
         () => resolve(false)
       );
@@ -8334,10 +8337,21 @@
             const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value, du: jourRp($('input[name=du]', rootModal).value, $('input[name=annee]', rootModal).value) });
             if (r.annule) return;
             // (plateforme) Un FEC : ce qu'il porte et ce qui est repris, lu avant que la balance change (C61).
-            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
+            // (CABDECLARER-25) Par-dessus une balance déjà dans la fenêtre, la question dit qu'elle REMPLACE, et Entrée garde (le
+            // curseur est sur « Garder ») ; le geste devient rouge quand le fichier ne s'équilibre pas ou écarte des lignes.
+            const remplace = lireRangees().some(l => String(l.compte || '').trim());
+            const garder = remplace ? 'Garder la balance de la fenêtre' : undefined;
+            if (r.rapport && !(await confirmDialog(remplace ? 'Remplacer la balance de la fenêtre ?' : r.rapport.titre, r.rapport.html,
+              remplace ? 'Remplacer par ce fichier' : r.rapport.bouton, false, garder, { prudent: remplace }))) return;
             // (1.369.0) Une balance lue dans un tableur a son rapport aussi : ce que le fichier porte, ce qui est repris
             // (les soldes, le résultat des classes 6 et 7 au compte 13), ce qui ne l'est pas — lu avant que la balance change.
-            if (r.balance && !(await confirmDialog('Reprendre les soldes de cette balance ?', rapportBalanceHtml(r.fichier, r.balance, r.ignorees), 'Reprendre ces soldes'))) return;
+            if (r.balance) {
+              const douteux = !!(r.balance.ecart || r.balance.ignorees);
+              if (!(await confirmDialog(remplace ? 'Remplacer la balance de la fenêtre ?' : 'Reprendre les soldes de cette balance ?',
+                rapportBalanceHtml(r.fichier, r.balance, r.ignorees),
+                remplace ? (douteux ? 'Remplacer quand même' : 'Remplacer par ces soldes') : 'Reprendre ces soldes',
+                remplace && douteux, garder, { prudent: remplace }))) return;
+            }
             lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers || '', debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
             redessine();
             if (r.ignorees.length && !r.balance) await infoDialog('Lignes ignorées', r.ignorees.map(x => `Ligne ${x.ligne} : ${x.motif}`).join('\n'));
