@@ -195,7 +195,7 @@
       ${(() => { const H = salairesHorsBulletins(L, s.annee); return H.ailleurs ? `<p class="small muted" id="pa-masse-ailleurs">Ces chiffres sont ceux des bulletins faits ici. Avec la paie tenue sans bulletin ici (${esc([H.periodeClient, H.periodeJournal].filter(Boolean).join(', '))}), les salaires bruts de l'exercice font <b>${esc(money(KC.round3(anneeEntiere.brut + H.ailleurs)))}</b>.</p>` : ''; })()}`}
     </div>`;
     if (vue === 'pointage') return `${tete}${paiePointageResume(dossier, L, s.annee, m, P)}${vuePointage(dossier, L, s.annee, m)}`;
-    if (vue === 'ecarts') return `${tete}${paieEcarts(L, s.annee, m, bulletins, nomDe)}`;
+    if (vue === 'ecarts') return `${tete}${paieEcarts(dossier, L, s.annee, m, bulletins, nomDe)}`;
     if (vue === 'param') return `${tete}${paieParametrage(dossier, L, P)}`;
     return `${tete}${paieLeMois(dossier, L, s.annee, m, bulletins, P, { aFaire, etatsNormaux, auBrouillard, paieAttendSonJour, masse, cls, actifs, etatDe, nomDe })}`;
   }
@@ -690,7 +690,28 @@
   }
   // (plateforme) 1.237.0 — les écarts sur le mois d'avant, ligne à ligne (la maquette, paieecarts) : chaque rubrique qui
   // bouge, salarié par salarié, avec sa source ; et deux chemins, un chiffre : la somme des écarts fait l'écart du brut.
-  function paieEcarts(L, annee, m, bulletins, nomDe) {
+  // (CABPAIE-4) D'où vient une ligne d'un bulletin — une réponse pour les écarts et pour le volet. L'absence vient de la grille
+  // si le mois du salarié est pointé, de « Congés et avances » si un congé sans solde la pose, sinon elle a été tapée sur le
+  // bulletin ; une prime vient du pointage (heures sup), d'une régularisation, de l'ancienneté, de la fiche si la fiche la
+  // porte, sinon du bulletin. Écrit en dur, « pointage · 2 j » se lisait sur une absence tapée à la main.
+  function sourcesDuBulletin(dossier, L, b) {
+    const donnees = donneesDuPointage(dossier, L), an = Number(b.annee), mo = Number(b.mois), ym = `${an}-${String(mo).padStart(2, '0')}`;
+    const emp = donnees.employees.find(e => e.id === b.salarieId);
+    const pt = emp ? KC.pointageDuMois(donnees, emp, an, mo) : null;
+    const pointe = !!(KC.pointageEnregistre(donnees, b.salarieId, an, mo) || pointeDansLaVersion(L, ym, b.salarieId));
+    const conges = !!pt && (pt.jours || []).some(j => j.source === 'conge' && j.code === 'A');
+    const absence = pointe ? 'pointage' : conges ? 'congés' : 'saisi sur le bulletin';
+    const x = (L.salaries || []).find(y => y.id === b.salarieId) || {};
+    const deLaFiche = new Set((x.primes || []).map(p => String(p.label || '').trim()));
+    const primeDe = label => (b.primes || []).find(q => String(q.label || '') === String(label || ''));
+    const prime = label => {
+      const p = primeDe(label) || {};
+      return p.hs ? 'pointage' : p.regulId ? 'régularisation' : /^Prime d'ancienneté/.test(String(label || '')) ? 'ancienneté'
+        : deLaFiche.has(String(label || '').trim()) ? 'fiche' : 'saisi sur le bulletin';
+    };
+    return { absence, prime, primeDe };
+  }
+  function paieEcarts(dossier, L, annee, m, bulletins, nomDe) {
     const retour = '<p><button type="button" class="btn-lien" data-pa-vue="mois">← Le mois</button></p>';
     if (m === 1) return `<div class="panel" id="pa-ecarts">${retour}<p class="muted">Janvier ouvre l'exercice : les écarts se lisent à partir de février.</p></div>`;
     const avants = KC.bulletinsDuMois(L, annee, m - 1), mo = KC.moisPaie(m), ma = KC.moisPaie(m - 1);
@@ -698,8 +719,9 @@
       const c = (b && b.calcul) || {}, R = new Map();
       if (!b) return R;
       R.set('Salaire de base', { v: Number(c.baseGross) || 0, src: b.prorata ? `prorata · ${joursFr(b.prorata.jours)} jours sur ${joursFr(b.prorata.sur)}` : 'fiche' });
-      if (Number(c.absenceCut)) R.set('Absence sans solde', { v: -Number(c.absenceCut), src: `pointage · ${joursFr(c.absentDays)} j` });
-      (c.bonuses || []).forEach(p => { const k = p.label || 'Prime'; const x = R.get(k) || { v: 0, src: /suppl|h sup/i.test(k) ? 'pointage' : 'fiche' }; x.v = KC.round3(x.v + (Number(p.amount) || 0)); R.set(k, x); });
+      const src = sourcesDuBulletin(dossier, L, b);
+      if (Number(c.absenceCut)) R.set('Absence sans solde', { v: -Number(c.absenceCut), src: `${src.absence} · ${joursFr(c.absentDays)} j` });
+      (c.bonuses || []).forEach(p => { const k = p.label || 'Prime'; const x = R.get(k) || { v: 0, src: src.prime(k) }; x.v = KC.round3(x.v + (Number(p.amount) || 0)); R.set(k, x); });
       return R;
     };
     const ids = [...new Set([...bulletins, ...avants].map(b => b.salarieId))];
@@ -957,6 +979,7 @@
   // ce que paie l'employeur, et « Pourquoi cet IRPP ? », lu du calcul gardé avec le bulletin.
   function paieVoletBulletin(dossier, L, b, avant, P, nomDe) {
     const c = b.calcul || {}, x = (L.salaries || []).find(y => y.id === b.salarieId) || {};
+    const src = sourcesDuBulletin(dossier, L, b);
     const rib = String(x.rib || '').replace(/\s/g, '');
     const paiement = rib ? `par virement · ··· ${rib.slice(-4)}` : 'RIB à demander';
     const r = c.rates || {};
@@ -967,8 +990,8 @@
       ? `pointage · ${joursFr(p.heures)} h × ${money(KC.round3(Number(x.brut) / heuresMois))} × ${joursFr(100 + Number(p.hs))} %` : 'pointage');
     const ligne = (t, src, v, cl) => `<tr${cl ? ` class="${cl}"` : ''}><td>${esc(t)}${src ? ` <small class="cp-pa-src">${esc(src)}</small>` : ''}</td><td class="r nw">${esc(v)}</td></tr>`;
     const gains = [ligne('Salaire de base', b.prorata ? `${b.prorata.motif || 'prorata'} · ${joursFr(b.prorata.jours)} j sur ${joursFr(b.prorata.sur)}` : 'fiche', money(c.baseGross)),
-      Number(c.absenceCut) ? ligne(`Absence sans solde : ${joursFr(c.absentDays)} j`, 'pointage', `− ${money(c.absenceCut)}`) : '',
-      ...(c.bonuses || []).map(p => ligne(p.label, /suppl|h sup/i.test(p.label || '') ? calculHs(p) : 'fiche', money(p.amount))),
+      Number(c.absenceCut) ? ligne(`Absence sans solde : ${joursFr(c.absentDays)} j`, src.absence, `− ${money(c.absenceCut)}`) : '',
+      ...(c.bonuses || []).map(p => { const d = src.prime(p.label); return ligne(p.label, d === 'pointage' ? calculHs(src.primeDe(p.label) || p) : d, money(p.amount)); }),
       ligne('Brut', '', money(c.gross), 'dc-total')].join('');
     const ret = [ligne('CNSS, part du salarié', `${String(r.cnssEmployee).replace('.', ',')} % du brut cotisable`, `− ${money(c.cnssEmployee)}`),
       ligne('IRPP', `barème annuel${x.chefFamille || (c.situation || {}).headOfFamily ? ' · chef de famille' : ''}${(c.situation || {}).children ? ` · ${c.situation.children} enfant${c.situation.children > 1 ? 's' : ''}` : ''}`, `− ${money(c.irpp)}`),

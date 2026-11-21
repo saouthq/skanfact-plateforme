@@ -6208,3 +6208,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   qu'en haut de la page.
 - Test : la balance au téléphone — la frise est là, la bande « Période » non, l'état du livre oui, et la carte se titre par
   un intitulé. Deux preuves.
+
+## 1.388.11 — Une ligne du bulletin dit d'où elle vient vraiment (issue 10, CABPAIE-4)
+
+- Dans « Les écarts ligne à ligne » et dans le volet d'un bulletin, la source d'une rubrique était écrite en dur : une
+  absence disait toujours « pointage · 2 j », une prime toujours « fiche », même tapées à la main sur le bulletin d'un mois
+  sans pointage.
+- Une seule fonction (`sourcesDuBulletin`) répond pour les deux écrans : l'absence vient du pointage si le mois du salarié
+  est pointé, des congés si un congé sans solde la pose, sinon elle est « saisi sur le bulletin » ; une prime vient du
+  pointage (heures supplémentaires), d'une régularisation, de l'ancienneté, de la fiche si la fiche la porte, sinon du
+  bulletin.
+- Test : sur un dossier tenu, sans pointage, une absence de deux jours et une prime exceptionnelle tapées sur le bulletin
+  d'octobre se disent « saisi sur le bulletin » dans les écarts et dans le volet ; les écarts tombent juste au millime.
+  Deux preuves.

@@ -31224,6 +31224,14 @@ prouver $'cabdeclarer26-carte-titree-par-l-intitule' modules/socle/ecrans/cabine
   $'<td class="nw"${s.aux || !r.label ? \'\' : \' data-tel-nomme="non"\'}>' \
   $'<td class="nw">' \
   $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
+prouver $'cabpaie4-source-de-l-absence' modules/personnel/ecrans/cabinet/paie.js \
+  $'    const absence = pointe ? \'pointage\' : conges ? \'congés\' : \'saisi sur le bulletin\';' \
+  $'    const absence = \'pointage\';' \
+  $'(CABPAIE-4) une absence et une prime tapées sur le bulletin d\'un mois sans pointage se disent « saisi sur le bulletin », pas « pointage »'
+prouver $'cabpaie4-source-de-la-prime' modules/personnel/ecrans/cabinet/paie.js \
+  $'        : deLaFiche.has(String(label || \'\').trim()) ? \'fiche\' : \'saisi sur le bulletin\';' \
+  $'        : \'fiche\';' \
+  $'(CABPAIE-4) une absence et une prime tapées sur le bulletin d\'un mois sans pointage se disent « saisi sur le bulletin », pas « pointage »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

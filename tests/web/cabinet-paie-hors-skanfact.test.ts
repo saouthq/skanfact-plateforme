@@ -182,4 +182,57 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(net(await p.locator('#view').innerText())).toContain('Salarié Numéro Deux — 980,000 DT');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  it('(CABPAIE-4) une absence et une prime tapées sur le bulletin d\'un mois sans pointage se disent « saisi sur le bulletin », pas « pointage »', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(salarie('s1', 'Salarié Numéro Un', 1234.567, '2025-01-01')) },
+      { collection: 'employees', cle: 's2', rang: null, revision: null, contenu: encoder(salarie('s2', 'Salarié Numéro Deux', 980, '2025-03-01')) },
+    ] })).statut).toBe(200);
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    const fenetre = p.locator('#modal-root .modal').last();
+    const etablir = async (mois: string, nom: string, plus?: () => Promise<void>) => {
+      await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+      if (await p.locator('#pa-mois').inputValue() !== mois) await p.locator('#pa-mois').selectOption(mois);
+      await ouvrirUnBulletin(p);
+      await fenetre.locator('[name=salarieId]').selectOption({ label: nom });
+      if (plus) await plus();
+      await fenetre.locator('#ok').click();
+      await expect.poll(async () => (await p.locator('#toast').textContent()) ?? '').toBe('Bulletin enregistré.');
+      await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    };
+    await etablir('9', 'Salarié Numéro Un');
+    await etablir('9', 'Salarié Numéro Deux');
+    await etablir('10', 'Salarié Numéro Un', async () => {
+      await fenetre.locator('[name=joursAbsence]').fill('2');
+      await fenetre.locator('#bf-plus-prime').click();
+      await fenetre.locator('#bf-primes [data-l=label]').last().fill('Prime exceptionnelle');
+      await fenetre.locator('#bf-primes [data-l=amount]').last().fill('50');
+    });
+    await etablir('10', 'Salarié Numéro Deux');
+    // Les écarts ligne à ligne : l'absence et la prime viennent du bulletin, pas du pointage (il n'y en a pas).
+    await p.locator('#pa-controles [data-pa-vue="ecarts"]').first().click();
+    await p.locator('#pa-ecarts').waitFor({ timeout: 10_000 });
+    const derniere = async (texte: string) => net(await p.locator('#pa-ecarts tr').filter({ hasText: texte }).first().locator('td').last().innerText());
+    expect(await derniere('Absence sans solde')).toBe('saisi sur le bulletin · 2 j');
+    expect(await derniere('Prime exceptionnelle')).toBe('saisi sur le bulletin');
+    expect(await p.locator('#pa-ecarts').innerText()).not.toContain('pointage · 2 j');
+    expect(net(await p.locator('#pa-ecarts-juste').innerText())).toMatch(/^✓ Brut .* égal au millime\.$/);
+    // Le volet du bulletin dit la même chose, par la même fonction.
+    await p.locator('#pa-ecarts [data-pa-vue="mois"]').first().click();
+    await p.locator('#pa-bulletins tr[data-bul]').filter({ hasText: 'Salarié Numéro Un' }).locator('td').first().click();
+    await p.locator('#pa-volet').waitFor({ timeout: 10_000 });
+    expect(net(await p.locator('#pa-volet').innerText())).toContain('Absence sans solde : 2 j saisi sur le bulletin');
+    expect(net(await p.locator('#pa-volet').innerText())).toContain('Prime exceptionnelle saisi sur le bulletin');
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });
