@@ -6047,3 +6047,12 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   écritures et les pièces déjà classées ne sont pas en mémoire : l'état vide dit où les chercher.
 - Test : « agil » trouve « ticket-agil.png », rangée « pièce », et l'ouvre ; un mot qui ne correspond à rien dit où
   chercher une écriture. Deux preuves.
+
+## 1.387.98 — L'invitation de visite ne reste plus sous une fenêtre ; au téléphone elle tient en petit (issue 6, CAB-16)
+
+- **CAB-16** : la bulle « Veux-tu une visite de cette page ? » du Cabinet restait posée quand une fenêtre s'ouvrait par
+  dessus (« Ajouter un client… », une relance), et son bouton se lisait derrière le voile. Elle ne s'affiche plus tant
+  qu'une fenêtre est ouverte, et toute fenêtre qui s'ouvre la retire. Au téléphone, elle couvrait le haut de la liste :
+  elle se réduit à sa question et à ses deux boutons.
+- Tests : Entrée sur « Nouveau client » ouvre la fenêtre et l'invitation disparaît ; au téléphone, l'invitation ne
+  dépasse pas 130 px. Deux preuves.

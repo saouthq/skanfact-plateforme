@@ -428,6 +428,7 @@
     // la fermerait sans rien montrer et Entrée lancerait une recherche au lieu de valider. C'est le
     // même défaut pris par l'autre bout — on la referme.
     if (fermerPalette) fermerPalette();
+    fermerAppelGuide(); // (1.387.98, issue 6, CAB-16) l'invitation de visite ne reste pas sous une fenêtre
     // 10.12.0 (H-8, vu au test humain) — le curseur REVIENT d'où il venait quand la fenêtre se
     // ferme. Un refus amène le curseur dans la case fautive (7.0.0), puis la fenêtre qui l'explique
     // le prenait et ne le rendait jamais : on fermait « Fermer », et il fallait recliquer dans la

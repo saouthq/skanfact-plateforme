@@ -31130,6 +31130,14 @@ prouver $'cab5-ouvre-la-premiere-piece' modules/socle/ecrans/cabinet/app-2.js \
   $'          Object.assign(pieceState, { onglet: \'aclasser\', sel: pc.id, q: \'\', filtre: \'tout\' });' \
   $'          Object.assign(pieceState, { onglet: \'aclasser\', sel: \'\', q: \'\', filtre: \'tout\' });' \
   $'(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier'
+prouver $'cab16-invitation-sous-la-fenetre' modules/socle/ecrans/cabinet/app-1.js \
+  $'    fermerAppelGuide(); // (1.387.98, issue 6, CAB-16) l\'invitation de visite ne reste pas sous une fenêtre' \
+  $'    // l\'invitation de visite reste sous la fenêtre (preuve)' \
+  $'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d\'un geste'
+prouver $'cab16-invitation-couvre-la-liste-au-telephone' web/public/plateforme/barre-cabinet.css \
+  $'  .guide-appel .ga-txt, .guide-appel .ga-note { display: none; }' \
+  $'  .guide-appel .ga-txt-preuve { display: none; }' \
+  $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

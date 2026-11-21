@@ -100,6 +100,9 @@ describe('le Cabinet au téléphone', () => {
         // Au téléphone, la page entière défile : l'invitation « Première fois ? » se ferme au défilement (1.87.7), au lieu de
         // rester posée sur l'écran.
         if (doigt && await page.locator('#guide-appel').count()) {
+          // (1.387.98, issue 6, CAB-16) Au téléphone, l'invitation tient en son titre et ses deux gestes : elle ne couvre plus la liste.
+          const haut = (await page.locator('#guide-appel').boundingBox())?.height ?? 0;
+          if (haut > 130) faux.push(`${nom} : l'invitation fait ${Math.round(haut)} px de haut`);
           // (1.169.0) La liste des dossiers en cartes est courte : une page trop courte pour défiler s'allonge le temps du geste.
           await page.evaluate(() => { if (document.documentElement.scrollHeight < innerHeight + 300) (document.querySelector('#view') as HTMLElement).style.paddingBottom = '700px'; });
           await page.evaluate(() => window.scrollTo(0, 300));

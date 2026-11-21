@@ -154,6 +154,10 @@ body.barre-repliee #barre .nav-dossier .dossier .lib, body.barre-repliee #barre 
   .pr-table .gestes-pr { text-align: left; white-space: normal; display: flex; flex-wrap: wrap; gap: 6px; }
   .pr-table .gestes-pr .btn { margin: 0; min-height: 44px; }
   .sb-pop.pop-dossier { left: 12px !important; right: 12px; width: auto; top: 64px !important; }
+  /* (1.387.98, issue 6, CAB-16) Au téléphone, l'invitation « Première fois sur cet écran ? » couvrait la liste : son titre et
+     ses deux gestes suffisent (ce que fait l'écran, et « Ne plus me proposer », vivent dans « Guide-moi » et « Me guider »). */
+  .guide-appel .ga-txt, .guide-appel .ga-note { display: none; }
+  .guide-appel .ga-actions { margin-top: 10px; }
 }
 .cab-page .gestes-etape { display: flex; align-items: center; gap: 8px; flex: none; }
 .cab-page .code-inline { font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; padding: 4px 10px; border-radius: 8px; background: var(--sb-doux); color: var(--sb-encre); }

@@ -9394,7 +9394,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   }
   function appelGuide(reprise) {
     const cle = CV.cleDePage(location.hash);
-    if (!S || Visite.enCours() || cle === 'guide' || cle === 'aide' || document.getElementById('ex-charge')) return;
+    // (1.387.98, issue 6, CAB-16) Pas d'invitation sous une fenêtre ouverte : elle passerait derrière la question, ou la couvrirait.
+    if (!S || Visite.enCours() || cle === 'guide' || cle === 'aide' || document.getElementById('ex-charge') || document.querySelector('#modal-root > *')) return;
     const p = visitePage(cle);
     const et = visitesEtat();
     if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
