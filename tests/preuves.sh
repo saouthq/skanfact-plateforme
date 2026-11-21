@@ -31054,6 +31054,19 @@ prouver $'collab2-creer-vide-se-montre' web/public/plateforme/barre.js \
   $'    if (creerVide()) { b.hidden = true; return; }' \
   $'    if (false) { b.hidden = true; return; }' \
   $'la magasinière ne se voit proposer que ce qu\'elle peut finir (issue 7, COLLAB-2)'
+# (1.387.87, issue 13, ENTACHATS-1) « Photo d'une pièce » ouvre le choix du fichier, IA ou pas.
+prouver $'entachats1-photo-n-ouvre-rien-sans-ia' modules/socle/ecrans/entreprise/app-1.js \
+  $'const b = (avecCabinet && $(\'button#ac-cabinet\')) || $(\'#ac-zone\'); if (b && !b.disabled) b.click();' \
+  $'const b = $(\'#photo\'); if (b && !b.hidden) b.click();' \
+  $'« Photo d\'une pièce » de Créer ouvre le choix du fichier, sans IA, au téléphone comme à l\'ordinateur (issue 13, ENTACHATS-1)'
+prouver $'entachats1-sous-titre-promet-la-lecture' modules/socle/ecrans/entreprise/app-1.js \
+  $'\'Jointe à l’achat, tu saisis\'' \
+  $'\'SkanFact la lit, tu vérifies\'' \
+  $'« Photo d\'une pièce » de Créer ouvre le choix du fichier, sans IA, au téléphone comme à l\'ordinateur (issue 13, ENTACHATS-1)'
+prouver $'entachats1-glisse-au-doigt' modules/socle/ecrans/entreprise/app-1.js \
+  $'${matchMedia(\'(max-width: 760px), (pointer: coarse)\').matches ? \'Touche ici pour le choisir\' : \'Clique ici pour le choisir, ou glisse-le\'}' \
+  $'Clique ici pour le choisir, ou glisse-le' \
+  $'« Photo d\'une pièce » de Créer ouvre le choix du fichier, sans IA, au téléphone comme à l\'ordinateur (issue 13, ENTACHATS-1)'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

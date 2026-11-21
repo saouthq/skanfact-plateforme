@@ -5916,3 +5916,17 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Tests : `tests/web/menu-role.test.ts` (Hela, magasinière d'un commerce). `tests/web/recette-alpha.test.ts` : deux
   assertions remises à jour (la liste des devis dit « Facturé FAC-… » ; l'Aide est dessinée avant le geste du
   défilement — une course du test, pas de l'application). Preuves : quatre `collab2-*`.
+
+## 1.387.87 — « Photo d'une pièce » ouvre le choix du fichier, avec ou sans IA (issue 13)
+
+- **ENTACHATS-1 (bloquant, la moitié qui restait)** : depuis la 1.379.2, la zone « Tu as la photo ou le PDF de la
+  facture ? » accepte photo, PDF et XML. Mais l'entrée « Photo d'une pièce » de « Créer » (téléphone ET ordinateur)
+  cliquait le bouton de lecture par l'IA : sans IA, rien ne s'ouvrait et on arrivait sur un achat vide ; IA coupée par
+  l'entreprise, on arrivait… dans les Paramètres.
+  - Le geste ouvre la zone, qui sait tout faire : l'IA proposée se demande, coupée ou absente la pièce se joint et la
+    saisie s'ouvre. Avec un cabinet relié, la photo part au cabinet, comme la ligne le promet.
+  - La ligne de « Créer » dit ce qui est vrai sans IA : « Jointe à l'achat, tu saisis ».
+  - Au doigt, la zone dit « Touche ici pour le choisir » (plus de « ou glisse-le » sur un téléphone).
+  - **À VÉRIFIER sur un vrai iPhone** : le choix du fichier s'ouvre 0,4 s après le toucher, sous la limite de Safari.
+- Test : `tests/web/complements.test.ts` (au téléphone puis à l'ordinateur, IA éteinte). Preuves : trois
+  `entachats1-*`.

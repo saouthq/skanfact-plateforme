@@ -312,4 +312,32 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer();
   }, 120_000);
+  it('« Photo d\'une pièce » de Créer ouvre le choix du fichier, sans IA, au téléphone comme à l\'ordinateur (issue 13, ENTACHATS-1)', async () => {
+    const { jeton, ent } = await nadia();
+    const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+    // Au téléphone : un bâtiment, dont « Créer » porte la photo d'un achat.
+    const tel = await ouvrir(jeton, ent, '#/dashboard', { width: 390, height: 844 });
+    await tel.p.evaluate(() => { (window as unknown as { __data: { company: Record<string, unknown> } }).__data.company.activity = 'batiment'; });
+    expect(await tel.p.evaluate(() => (window as unknown as { __creer: () => { actions: { titre: string; sous: string }[] } }).__creer().actions.find((a) => /^Photo/.test(a.titre))?.sous ?? '')).not.toMatch(/lit/);
+    await tel.p.locator('.sb-onglets [data-tel="creer"]').click();
+    const tuile = tel.p.locator('.sb-feuille button').filter({ hasText: 'Photo d' });
+    const [choix] = await Promise.all([tel.p.waitForEvent('filechooser', { timeout: 10_000 }), tuile.click()]);
+    expect(await choix.element().getAttribute('accept')).toMatch(/image\/jpeg.*application\/pdf/);
+    expect(net(await tel.p.locator('#ac-zone').innerText())).not.toMatch(/glisse/);
+    await choix.setFiles({ name: 'facture-minoterie.png', mimeType: 'image/png', buffer: png });
+    await expect.poll(async () => (await tel.p.locator('#ac-arrivee').count()) === 0 || (await tel.p.locator('#modal-root .modal').count()) > 0, { timeout: 15_000 }).toBe(true);
+    expect(await tel.p.locator('#modal-root .modal').filter({ hasText: 'pas une facture électronique' }).count()).toBe(0);
+    expect(tel.erreurs).toEqual([]);
+    await tel.fermer();
+    // À l'ordinateur : la même ligne du menu « Créer » ouvre le même choix.
+    const ord = await ouvrir(jeton, ent, '#/dashboard');
+    await ord.p.evaluate(() => { (window as unknown as { __data: { company: Record<string, unknown> } }).__data.company.activity = 'batiment'; });
+    await ord.p.locator('#b-creer').click();
+    const ligne = ord.p.locator('.sb-creer [role=menuitem]').filter({ hasText: 'Photo d' });
+    const [choix2] = await Promise.all([ord.p.waitForEvent('filechooser', { timeout: 10_000 }), ligne.click()]);
+    expect(await choix2.element().getAttribute('accept')).toMatch(/image\/jpeg.*application\/pdf/);
+    expect(net(await ord.p.locator('#ac-zone').innerText())).toMatch(/ou glisse-le/);
+    expect(ord.erreurs).toEqual([]);
+    await ord.fermer();
+  }, 120_000);
 });

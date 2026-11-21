@@ -3261,14 +3261,18 @@
     const role = roleBarre();
     const avecCabinet = !!(messagerieVue && messagerieVue.cabinet);
     const met = metier();
-    const photo = () => { navigate('#/achat/new'); setTimeout(() => { const b = $('#photo'); if (b && !b.hidden) b.click(); }, 400); };
+    // (1.387.87, issue 13, ENTACHATS-1) Le choix du fichier s'ouvre par la zone « Comment arrive cette pièce ? », qui prend
+    // photo, PDF ou XML dans tous les cas (IA proposée : elle se demande ; coupée ou absente : la pièce se joint). Cliquer
+    // « Lire avec l'IA » ne menait à rien sans IA, et aux Paramètres quand l'entreprise l'a coupée. Avec un cabinet, la
+    // photo lui part, comme la ligne le dit. Le délai reste sous la seconde : au-delà, un téléphone refuse d'ouvrir le choix.
+    const photo = () => { navigate('#/achat/new'); setTimeout(() => { const b = (avecCabinet && $('button#ac-cabinet')) || $('#ac-zone'); if (b && !b.disabled) b.click(); }, 400); };
     const A = {
       vente: ['caisse', 'Vente au comptoir', 'Ouvre la caisse', 'V', () => navigate('#/caisse')],
       ticket: ['caisse', 'Ticket', 'Ouvre la caisse', 'T', () => navigate('#/caisse')],
       encaissement: ['caisse', 'Encaissement', 'Une prestation, un produit', 'E', () => navigate('#/caisse')],
       facture: ['factures', C.estLiberal(company()) ? 'Note d\'honoraires' : 'Facture', met === 'sante' ? 'Pour un client ou une mutuelle' : 'Pour un client', 'F', () => navigate('#/doc/new/facture')],
       devis: ['devis', 'Devis', 'Il devient facture d’un clic', 'D', () => navigate('#/doc/new/devis')],
-      photo: ['achats', 'Photo d’un achat', avecCabinet ? 'Ton comptable la saisit' : 'SkanFact la lit, tu vérifies', 'P', photo],
+      photo: ['achats', 'Photo d’un achat', avecCabinet ? 'Ton comptable la saisit' : 'Jointe à l’achat, tu saisis', 'P', photo],
       depense: ['achats', 'Dépense', met === 'restauration' ? 'Marché, gaz, réparation' : met === 'sante' ? 'Produits, matériel' : 'Logiciel, déplacement', met === 'services' ? 'E' : 'D', () => navigate('#/achat/new/-/depense')],
       article: ['catalogue', 'Article', 'Au catalogue, avec son prix', 'A', () => catalogForm(null, () => render(), { titre: 'Nouvel article' })],
       client: ['clients', 'Client', met === 'batiment' ? 'Nom, matricule, chantier' : 'Nom, matricule, contact', 'C', () => clientForm(null, () => render())],
@@ -18307,7 +18311,7 @@
           <button type="button" class="btn ac-choix" id="ac-main"${dis}><span class="ac-ic">${lfIc('ecriture', 20)}</span><span class="ac-t"><b>Saisir à la main</b><span>Fournisseur, numéro, lignes : comme sur la facture</span></span></button>
           ${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet ? `<button type="button" class="btn ac-choix" id="ac-cabinet"${dis}><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></button><input type="file" id="ac-cabinet-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">`
           : bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
-        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span><b>Tu as la photo ou le PDF de la facture ?</b> Clique ici pour le choisir, ou glisse-le : il se joint à la pièce et tu saisis en le regardant. Un XML El Fatoora se lit tout seul.</span></button>`}</div>` : '';
+        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span><b>Tu as la photo ou le PDF de la facture ?</b> ${matchMedia('(max-width: 760px), (pointer: coarse)').matches ? 'Touche ici pour le choisir' : 'Clique ici pour le choisir, ou glisse-le'} : il se joint à la pièce et tu saisis en le regardant. Un XML El Fatoora se lit tout seul.</span></button>`}</div>` : '';
     // (27/10/2026, maquette achat « Dépense ») Un ticket se paie sur le moment : une dépense NEUVE s'enregistre réglée, à la
     // caisse ou par carte, à sa date (« pas encore » la laisse à régler). Rangée, le champ lit son dernier règlement.
     let payeeDep = payeeInit;
