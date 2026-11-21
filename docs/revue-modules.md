@@ -6272,3 +6272,19 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - L'inventaire collé depuis un tableur (une grille reprise de l'an dernier) demande une maquette : à décider.
 - Tests : la ligne du bien dit « 5 ans · Linéaire » ; le plan dit « écrite » ; le menu propose de le fermer, et son bouton le
   referme. Trois preuves.
+
+## 1.388.16 — Le prix d'une cession se prépare dans la Saisie (issue 10, CABPAIE-15)
+
+- Décidé (« décide pour moi ») : le plan d'un bien cédé propose « Préparer l'écriture du prix… ». Le geste ouvre la grille de
+  Saisie avec, au brouillard et SANS rien enregistrer, le crédit du prix au compte des produits de cession (775) et une
+  ligne de débit du même montant dont le compte reste VIDE : c'est au comptable de choisir 462, 411 ou 512 (règle 9.5.0 :
+  sans règle connue, la contrepartie reste vide). Le prix n'est pas inventé (règle 9.0.0) : c'est celui qu'il a tapé sur la
+  fiche.
+- Quand le prix est DÉJÀ au livre (une ligne au 775 du même montant dans l'année de la sortie — la facture de revente d'un
+  client sur SkanFact), le geste ne se propose pas : le plan dit « Le prix est déjà au livre » et ouvre cette écriture. Le
+  préparer ici le compterait deux fois.
+- Une écriture déjà commencée dans la grille n'est pas écrasée : le geste le dit et y emmène.
+- Un bien mis au rebut n'a pas de prix : le plan le dit.
+- La TVA d'une cession, s'il y en a, s'ajoute à la main dans la grille — À VÉRIFIER avec le comptable pilote.
+- Test : la camionnette cédée 30 000 — la grille porte 30 000 au crédit du 775 et au débit d'un compte vide, rien n'est
+  écrit au serveur, puis la grille se vide. Une preuve.

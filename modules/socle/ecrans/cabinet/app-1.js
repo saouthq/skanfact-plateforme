@@ -11508,6 +11508,13 @@
 
   // Le plan d'un bien, année par année. C'est lui qui répond à « d'où sort cette dotation ? » —
   // un chiffre qu'on ne peut pas ouvrir se croit ou ne se croit pas (règle 9.6.0).
+  // (CABPAIE-15) Le prix d'une cession, s'il est déjà au livre : une ligne au 775 (rôle produitsCession) de ce montant, dans
+  // l'année de la sortie. Un client sur SkanFact l'écrit par sa facture de revente : le préparer ici le compterait deux fois.
+  const prixCessionAuLivreIm = ced => {
+    const c775 = KC.COMPTES_IMMO.produitsCession;
+    return (((livresState.livre || {}).ecritures) || []).find(e => e.statut !== 'contrepassee' && String(e.date || '').slice(0, 4) === String(ced.date).slice(0, 4)
+      && (e.lignes || []).some(l => String(l.compte || '').startsWith(c775) && Math.abs((Number(l.credit) || 0) - ced.prix) < 0.0005)) || null;
+  };
   function panneauPlan(d, id, annee) {
     const f = (d.fiches || []).find(x => x.id === id);
     if (!f) return '';
@@ -11528,7 +11535,9 @@
         ${esc(ced.motif === 'rebut' ? 'Mise au rebut' : 'Cession')} le ${esc(fmtJour(ced.date))} —
         prix ${esc(money(ced.prix))}, valeur comptable ${esc(money(ced.vnc))},
         <b>${esc(ced.resultat >= 0 ? 'plus-value' : 'moins-value')} de ${esc(money(Math.abs(ced.resultat)))}</b>.
-        Le prix n'est jamais écrit d'office : il arrive par la facture de vente ou par le relevé bancaire.</div>` : ''}
+        ${ced.prix > 0 && prixCessionAuLivreIm(ced) ? `Le prix est déjà au livre : <button type="button" class="btn btn-sm" id="im-vente-voir">${esc(prixCessionAuLivreIm(ced).piece || 'son écriture')} du ${esc(fmtJour(prixCessionAuLivreIm(ced).date))}</button>`
+    : ced.prix > 0 ? `Le prix n'est jamais écrit d'office : il arrive par la facture de vente ou par le relevé bancaire, ou se prépare d'ici, au brouillard. <button type="button" class="btn btn-sm" id="im-vente">Préparer l'écriture du prix…</button>`
+      : 'Un bien mis au rebut n\'a pas de prix : seule sa sortie s\'écrit, avec les dotations.'}</div>` : ''}
       ${f.subvention ? `<p class="small muted mt">Subvention d'investissement de ${esc(money(f.subvention.montant))}
         (${esc(f.subvention.compte)} → ${esc(f.subvention.compteReprise)}), reprise au rythme de l'amortissement. À VÉRIFIER.</p>` : ''}</div>`;
   }
@@ -11542,6 +11551,22 @@
     [$('#im-neuf', el), $('#im-neuf2', el)].forEach(b => { if (b) b.onclick = () => immoForm(root, dossier, null); });
     // (CABPAIE-23) Le plan ouvert sous la liste se referme par un bouton à lui : il ne se refermait que par le menu du bien.
     const fp = $('#im-plan-fermer', el); if (fp) fp.onclick = () => { immoState.ouverte = ''; drawLivres(root, dossier); };
+    // (CABPAIE-15) Le prix de la cession, préparé dans la grille de Saisie : rien ne s'enregistre sans « Enregistrer », et le
+    // compte qui reçoit le prix (462, 411 ou 512) reste au choix du comptable. La TVA d'une cession, s'il y en a, s'ajoute à la
+    // main (À VÉRIFIER).
+    const ivt = $('#im-vente', el);
+    if (ivt) ivt.onclick = () => {
+      const f = (s.immo.fiches || []).find(x => x.id === immoState.ouverte), ced = f && KC.resultatCession(f);
+      if (!ced || !(ced.prix > 0)) return;
+      if (saleDe(dossier.id)) { toast('Une écriture est déjà commencée dans la grille : enregistre-la ou vide-la d\'abord.'); allerSousOnglet(root, dossier, 'saisie'); return; }
+      const lib = `Cession — ${f.libelle}`;
+      saisieState.dossierId = dossier.id;
+      saisieState.piece = { ...pieceVide('OD', ced.date), libelle: lib, touchee: true,
+        lignes: [{ compte: '', libelle: lib, debit: montantChamp(ced.prix), credit: '' }, { compte: KC.COMPTES_IMMO.produitsCession, libelle: lib, debit: '', credit: montantChamp(ced.prix) }, ligneVide()] };
+      allerSousOnglet(root, dossier, 'saisie');
+    };
+    const ivv = $('#im-vente-voir', el);
+    if (ivv) ivv.onclick = () => { const f = (s.immo.fiches || []).find(x => x.id === immoState.ouverte), ced = f && KC.resultatCession(f), e = ced && prixCessionAuLivreIm(ced); if (e) voirEcriture(e); };
     // (1.345.0) Rattacher une ligne du livre à la fiche saisie à la main : la fiche prend la ligne pour origine (elle ne se
     // propose plus « à créer ») et le compte que l'achat a débité, pour que sa sortie crédite le même. Une question à
     // trois issues : c'est lui, un autre bien (on crée sa fiche), ou on renonce.

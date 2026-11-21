@@ -491,6 +491,8 @@
   b('#im-ecrire', 'Passe les dotations de l\'exercice en brouillard, au dernier jour.');
   b('#im-csv', 'Enregistre le tableau des immobilisations dans un fichier.');
   b('#im-plan-fermer', 'Referme le plan d\'amortissement du bien, ouvert sous le tableau.');
+  b('#im-vente', 'Prépare dans la Saisie, au brouillard, l\'écriture du prix de cession : le compte qui reçoit le prix reste à choisir.');
+  b('#im-vente-voir', 'Ouvre l\'écriture du livre qui porte déjà le prix de cession.');
   b('#iv-saisir, #iv-saisir2', 'Saisit ou reprend l\'inventaire de fin d\'exercice.', { nom: 'Inventaire', cle: 'inventaire' });
   b('#iv-ecrire', 'Passe l\'écriture de variation de stock.');
 

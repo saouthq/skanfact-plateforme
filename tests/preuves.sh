@@ -31264,6 +31264,10 @@ prouver $'cabpaie23-fermer-le-plan' modules/socle/ecrans/cabinet/app-1.js \
   $'if (fp) fp.onclick = () => { immoState.ouverte = \'\'; drawLivres(root, dossier); };' \
   $'if (fp) fp.onclick = () => {};' \
   $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
+prouver $'cabpaie15-preparer-le-prix-de-cession' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (ivt) ivt.onclick = () => {' \
+  $'    if (ivt) ivt.onclick = () => { return;' \
+  $'(1.345.0) l\'achat se rattache, la sortie s\'annonce et se date, le plan vient à l\'écran, la période validée se dit avant'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -115,6 +115,21 @@ describe('les immobilisations du Cabinet (1.345.0), à la souris', () => {
     expect(await fenetre.locator('#im-apercu').innerText()).toMatch(/valeur comptable 31\s800,000\sDT, prix 30\s000,000\sDT,\s+moins-value de 1\s800,000/);
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Fiche enregistrée.');
+    // ── (CABPAIE-15) Le prix de la cession se prépare dans la Saisie, au brouillard : rien ne s'écrit sans « Enregistrer » ──
+    // Le plan, ouvert plus haut, se redessine avec la sortie : il propose de préparer le prix.
+    await expect.poll(() => p.locator('#im-plan #im-vente').count(), { timeout: 15_000 }).toBe(1);
+    await p.locator('#im-vente').click();
+    await expect.poll(() => p.url()).toContain('/comptabilite/saisie');
+    const cellule = (i: number, k: string) => p.locator(`#sa-lignes tr[data-i="${i}"] input[data-k="${k}"]`);
+    await expect.poll(() => cellule(1, 'compte').inputValue(), { timeout: 15_000 }).toBe('775');
+    expect(await cellule(0, 'compte').inputValue()).toBe('');
+    expect((await cellule(0, 'debit').inputValue()).replace(/\s/g, ' ')).toBe('30 000,000');
+    expect((await cellule(1, 'credit').inputValue()).replace(/\s/g, ' ')).toBe('30 000,000');
+    expect(((await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { libelle?: string }[])
+      .some((e) => e.libelle === 'Cession — Camionnette de livraison')).toBe(false);
+    await p.locator('#sa-vider').click();
+    for (let i = 0; i < 2 && await p.locator('#modal-root .modal').count(); i++) await p.locator('#modal-root .modal').last().locator('#ok').click();
+    await aller(cafe, 'immobilisations');
     // ── La dotation d'un bien sorti se date du jour de sa sortie, comme dans l'app entreprise ──────────
     await p.locator('#im-ecrire').click();
     await p.locator('.modal').last().locator('#ok').click();
