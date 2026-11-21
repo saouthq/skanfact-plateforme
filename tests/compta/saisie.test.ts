@@ -231,7 +231,7 @@ describe('la saisie dans les livres du serveur', () => {
     // comptabilité.
     const refusAssistant = await valider(d.ent, d.assistant, [a]);
     expect(refusAssistant.statut).toBe(403);
-    expect(String(refusAssistant.corps.motif)).toMatch(/ton rôle au cabinet \(Assistant de saisie\)/i);
+    expect(String(refusAssistant.corps.motif)).toMatch(/ton rôle au cabinet \(Saisie\)/i);
     await expect(enTantQue(pool, d.assistant.utilisateur, (tx) => tx.query('select * from compta.valider_ecritures($1, $2::uuid[])', [d.ent, [a]])))
       .rejects.toThrow(/ne permet pas de valider/);
     expect((await valider(d.ent, d.client, [a])).corps.motif).toBe('Avec un mandat de comptabilité, c\'est le cabinet qui valide les écritures.');
@@ -343,7 +343,7 @@ describe('la saisie dans les livres du serveur', () => {
     expect((await lettrer(d.collaborateur, [facture])).corps.motif).toBe('Le lettrage relie au moins deux écritures : une facture et son règlement.');
     const refusAssistant = await lettrer(d.assistant, [facture, partiel, solde]);
     expect(refusAssistant.statut).toBe(403);
-    expect(String(refusAssistant.corps.motif)).toMatch(/ton rôle au cabinet \(Assistant de saisie\)/i);
+    expect(String(refusAssistant.corps.motif)).toMatch(/ton rôle au cabinet \(Saisie\)/i);
     await expect(enTantQue(pool, d.assistant.utilisateur, (tx) => tx.query('select compta.lettrer($1, $2, $3::uuid[], null)', [d.ent, '411', [facture, partiel, solde]])))
       .rejects.toThrow(/ne permet pas de lettrer/);
     const l = await lettrer(d.collaborateur, [facture, partiel, solde]);

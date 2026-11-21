@@ -504,6 +504,19 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     // (S8) Le brouillard du mois : la saisie n'a pas de bouton pour valider ; la page dit qui le fait.
     await expect.poll(() => p.locator('#sx-qui-lot').innerText().catch(() => '')).toMatch(/^Leïla (les|la) valide$/);
     expect(await p.locator('[data-lot-mois], .sa-lot button').count()).toBe(0);
+    // (issue 6, CAB-9) La déclaration du mois : Rim la lit. La page ne lui propose pas « Déclarer et clôturer » (la barre
+    // l'ôtait déjà) ; ouverte par son adresse, elle dit AVANT le clic à qui reviennent ses quatre gestes, sans vert.
+    expect(await p.locator('#c-groupes [data-groupe="cloturer"]').count()).toBe(0);
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}/comptabilite/declaration/2026`; }, ent);
+    const suite = p.locator('#dc-suite');
+    await expect.poll(() => suite.locator('.dc-motif').innerText().catch(() => ''), { timeout: 20_000 })
+      .toBe('Ton rôle sur ce dossier (Saisie) te laisse lire la déclaration. Leïla la prépare, en écrit l\'écriture, la marque déposée puis payée.');
+    expect(await suite.locator('.btn-primary').count()).toBe(0);
+    expect(net(await suite.locator('#dc-brouillard-avant').innerText().catch(() => ''))).not.toMatch(/valide-(les|la) d'abord/);
+    for (const id of ['#dc-preparer', '#dc-ecriture', '#dc-deposee', '#dc-payee']) {
+      expect(await suite.locator(id).isDisabled(), id).toBe(true);
+      expect(await suite.locator(id).getAttribute('title'), id).toBe('Leïla le fait : ton rôle sur ce dossier te laisse lire la déclaration.');
+    }
     expect(erreurs).toEqual([]);
   }, 180_000);
 

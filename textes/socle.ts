@@ -187,6 +187,9 @@ declarerTextes({
   'role.supervision': 'Associé',
   'role.revision': 'Collaborateur',
   'role.saisie': 'Assistant de saisie',
+  'role.cabinet.supervision': 'Supervision',
+  'role.cabinet.revision': 'Saisie et validation',
+  'role.cabinet.saisie': 'Saisie',
 
   // ── Ce que fait chaque geste du socle (« ton rôle ne permet pas de … ») ────────────────────
   'geste.socle.accueil.voir': 'voir l\'accueil',

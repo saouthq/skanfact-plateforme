@@ -6066,3 +6066,20 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   depuis » pour le début de mission. La fiche porte la date du lien, comme le classeur.
 - Tests : la fiche lit « relié depuis MM/AAAA … mission depuis août 2026 » ; Messages et les Paramètres du client lisent la
   nouvelle phrase. Une preuve.
+
+## 1.388.0 — En saisie, la déclaration se lit : la page dit avant le clic à qui reviennent ses gestes (issue 6, CAB-9)
+
+- **CAB-9** : une collaboratrice en « Saisie » sur un dossier voyait la déclaration du mois avec un bouton vert et ses
+  quatre gestes (préparer, écrire l'écriture, marquer déposée, marquer payée) allumés — le serveur les refusait tous après
+  le clic. La page le dit maintenant AVANT : aucun vert, les quatre boutons éteints avec une bulle (« Leïla le fait : ton
+  rôle sur ce dossier te laisse lire la déclaration »), et une phrase au-dessus des boutons qui nomme son rôle et qui
+  prépare. Le bandeau du brouillard ne lui dit plus « valide-les d'abord » : il nomme qui valide, et « Voir le brouillard »
+  n'est plus vert. Lire, copier les cases et exporter restent ouverts.
+- La barre et la page suivent la MÊME règle pour « Déclarer et clôturer » : le droit sur CE dossier, qui prime sur le rôle
+  au cabinet (comme au serveur). La barre lisait le rôle au cabinet, la page ne regardait rien. Ouvert par son adresse, le
+  groupe reste dans la rangée, pour qu'on sache où l'on est.
+- Les refus du serveur nomment les rôles du cabinet comme Réglages › Équipe : « Saisie », « Saisie et validation »,
+  « Supervision » (ils disaient « Assistant de saisie », « Collaborateur », « Associé »). Le premier pas « Invite ton
+  équipe » cite les trois rôles que propose l'invitation.
+- Tests : Rim (saisie) ne voit pas « Déclarer et clôturer », lit la phrase, aucun vert, quatre boutons éteints avec leur
+  bulle ; sept tests serveur lisent le nouveau nom du rôle. Quatre preuves.

@@ -94,7 +94,7 @@ describe('l\'exercice et sa balance d\'ouverture', () => {
   it('la balance d\'ouverture : une écriture AN au premier jour, validée d\'un geste avec l\'exercice, ou rien ; l\'exercice s\'ouvre une fois ; fausse, elle se contre-passe', async () => {
     const d = await dossier();
     // Qui l'ouvre : qui valide. Ni l'assistant de saisie, ni le client quand le cabinet a le mandat.
-    expect((await ouvrir(d.ent, d.assistant, { annee: 2026, ouverture: BALANCE })).corps.motif).toMatch(/^Ton rôle au cabinet \(Assistant de saisie\) ne permet pas de valider/);
+    expect((await ouvrir(d.ent, d.assistant, { annee: 2026, ouverture: BALANCE })).corps.motif).toMatch(/^Ton rôle au cabinet \(Saisie\) ne permet pas de valider/);
     await expect(enTantQue(pool, d.assistant.utilisateur, (tx) => tx.query('select * from compta.ouvrir_exercice($1, 2026, $2::date, $3::jsonb)', [d.ent, '2026-01-01', '[]'])))
       .rejects.toThrow(/ne permet pas de valider/);
     expect((await ouvrir(d.ent, d.client, { annee: 2026, ouverture: BALANCE })).corps.motif).toBe('Avec un mandat de comptabilité, c\'est le cabinet qui valide les écritures.');

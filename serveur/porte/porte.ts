@@ -9,7 +9,7 @@
 
 import { motif, t, type Texte } from '../../textes/index.ts';
 import type { Transaction } from '../base.ts';
-import { GESTES, nomDuRole, type Geste, type Role } from './gestes.ts';
+import { GESTES, nomDuRole, nomDuRoleCabinet, type Geste, type Role } from './gestes.ts';
 
 export type Decision =
   | { ok: true; geste: Geste; roles: Role[]; lectureSeule: boolean }
@@ -98,7 +98,7 @@ export async function peut(tx: Transaction, qui: QuiAgit, entreprise: string, co
   // faire : » suivi du nom de la cliente) : c'est au cabinet que le geste se demande, à qui tient le dossier ou à la direction.
   if (perimetre !== null) {
     return { ok: false, raison: 'role', qui: [], bouton: null,
-      motif: motif('porte.role_refuse_cabinet', { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`) }) };
+      motif: motif('porte.role_refuse_cabinet', { roles: roles.length ? roles.map(nomDuRoleCabinet) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`) }) };
   }
   const quiA = await quiPeut(tx, entreprise, geste);
   const valeurs = { roles: roles.length ? roles.map(nomDuRole) : t('porte.aucun_role'), geste: t(`geste.${geste.code}`), noms: quiA.map((q) => q.nom) };

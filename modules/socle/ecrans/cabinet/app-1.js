@@ -2553,8 +2553,9 @@
     const memeDossier = livresState.dossierId === D.id && !!livresState.livre;
     const g = groupeCompta(ouvert || 'saisie');
     const n = o => (memeDossier ? ((pastilleCompta(o) || {}).n || 0) : 0);
-    const role = monRole();
-    const groupes = GROUPES_COMPTA.filter(x => role !== 'saisie' || x.id !== 'cloturer');
+    // (1.388.0, issue 6, CAB-9) « Déclarer » se propose à qui valide CE dossier (son droit prime sur le rôle au cabinet, comme au
+    // serveur) — la même règle que la page (drawLivres) ; ouvert par son adresse, il reste, pour qu'on sache où l'on est.
+    const groupes = GROUPES_COMPTA.filter(x => x.id !== 'cloturer' || peutValiderCl(D) || x.id === g.id);
     const seg = groupes.map(x => {
       const k = x.onglets.reduce((t, o) => t + n(o), 0);
       const cible = ((livresState.dernierParGroupe || {})[x.id] && x.onglets.includes(livresState.dernierParGroupe[x.id])) ? livresState.dernierParGroupe[x.id] : x.onglets[0];
@@ -3517,7 +3518,7 @@
       ...(estAssocie() ? [['Crée un dossier que tu tiens', 'Pour un client qui n\'est pas sur SkanFact : tu fais sa comptabilité, tu pourras l\'inviter plus tard.',
         `<button type="button" class="btn ${exemple ? '' : 'btn-primary '}btn-sm" id="pri-nouveau">Créer un dossier</button>`]] : []),
       ['Reprends un dossier existant', 'Dans la comptabilité d\'un dossier, « Importer une balance ou un FEC » reprend les écritures et les tiers de ton ancien logiciel.', ''],
-      ...(estAssocie() ? [['Invite ton équipe', 'Chacun avec son rôle : collaborateur, assistant de saisie, paie.', '<button type="button" class="btn btn-sm" id="pri-equipe">Inviter</button>']] : []),
+      ...(estAssocie() ? [['Invite ton équipe', 'Chacun avec son rôle : supervision, saisie et validation, ou saisie.', '<button type="button" class="btn btn-sm" id="pri-equipe">Inviter</button>']] : []),
     ];
     return `<div class="carte-cab afaire cab-neuf">${etapes.map(([t, d, g], i) => `<div class="afaire-ligne"><span class="num-etape">${i + 1}</span><span class="afaire-txt"><b>${esc(t)}</b><span>${esc(d)}</span></span>${g ? `<span class="gestes-etape">${g}</span>` : ''}</div>`).join('')}</div>`;
   }
@@ -8881,7 +8882,9 @@
     const gOuvert = groupeCompta(s.onglet);
     s.dernierParGroupe = s.dernierParGroupe || {};
     s.dernierParGroupe[gOuvert.id] = s.onglet;
-    const groupes = GROUPES_COMPTA.filter(g => g.onglets.some(ongletDispo));
+    // (1.388.0, issue 6, CAB-9) La même règle que la barre : « Déclarer et clôturer » à qui valide ce dossier ; ouvert par son
+    // adresse (en lecture), il reste dans la rangée pour que l'onglet actif existe.
+    const groupes = GROUPES_COMPTA.filter(g => g.onglets.some(ongletDispo) && (g.id !== 'cloturer' || peutValiderCl(dossier) || g.id === gOuvert.id));
     const totalGroupe = g => g.onglets.reduce((a, o) => a + ((pastilleCompta(o) || {}).n || 0), 0);
     const boutonOnglet = o => {
       const p = pastilleCompta(o);
@@ -9578,7 +9581,12 @@
     // en reste, aucune étape n'est verte — le geste suivant est de les valider, et l'avertissement se lit AU-DESSUS des étapes.
     const brAvant = deposee ? [] : ((s.livre && s.livre.ecritures) || []).filter(e => e.statut === 'brouillard' && String(e.date || '').slice(0, 7) === d.periode
       && !/^DECL-/.test(String(e.piece || '')) && e.id !== d.ecritureExistante && e.id !== d.ecritureAuBrouillard && e.piece !== d.ecritureExistante && e.piece !== d.ecritureAuBrouillard);
-    const suivante = brAvant.length ? 'brouillard' : enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter || auBrouillard) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
+    // (1.388.0, issue 6, CAB-9) Qui n'a que la saisie sur ce dossier LIT la déclaration : la préparer, en écrire l'écriture,
+    // la marquer déposée ou payée reviennent à qui valide (le serveur les refuse : compta.declarations.preparer). La page le
+    // dit AVANT le clic — aucun vert, les quatre boutons éteints (brancherDeclaration) —, au lieu d'un refus après.
+    const lecture = !peutValiderCl(dossier);
+    const roleIci = lecture ? K.LIBELLE_ROLE[(dossier.droits && S && dossier.droits[S.moi]) || monRole()] : '';
+    const suivante = lecture ? '' : brAvant.length ? 'brouillard' : enCours && !posee ? 'mois' : !posee || (perime && !deposee) ? 'preparer' : ((!ecrite && !rien) || aCompleter || auBrouillard) ? 'ecriture' : !deposee ? 'deposee' : !payee ? 'payee' : '';
     const motifPerime = perime && !deposee ? `Les chiffres ont changé depuis la préparation (${KC.phraseEcartDeclaration(ecart)}) : recalcule-la avant de la déposer.` : '';
     const cls = pas => 'btn btn-sm' + (pas === suivante ? ' btn-primary' : '');
     const fait = ok => ok ? '<span class="dc-coche" aria-hidden="true">✓</span>' : '';
@@ -9590,7 +9598,7 @@
     // Une étape FAITE se dit sur son bouton (« ✓ Écriture du mois passée ») ; la phrase n'explique
     // que celles qui ATTENDENT — la première version redisait l'écriture faite et taisait le
     // paiement, qui était pourtant le seul bouton éteint.
-    const motif = motifPerime || (!posee ? (ecrite ? 'Les deux pense-bêtes attendent la déclaration : prépare-la d\'abord.'
+    const motif = lecture ? `Ton rôle sur ce dossier${roleIci ? ` (${roleIci})` : ''} te laisse lire la déclaration. ${cap(reviseurCl(dossier))} la prépare, en écrit l'écriture, la marque déposée puis payée.` : motifPerime || (!posee ? (ecrite ? 'Les deux pense-bêtes attendent la déclaration : prépare-la d\'abord.'
       : 'Les trois étapes suivantes attendent la déclaration : prépare-la d\'abord.')
       : !deposee && !payee ? (rien ? KC.MOTIF_RIEN_A_ECRIRE + ' ' : '') + '« Marquer payée » attend le dépôt : on ne paie pas ce qu\'on n\'a pas déposé.' : '');
     return `<div class="filters">
@@ -9618,7 +9626,7 @@
             // l'écran dit sa date limite, et que la première tirée de ce livre est celle du mois en cours.
             : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
-      ${brAvant.length ? `<div class="warn-box mb" id="dc-brouillard-avant"><b>${esc(pl(brAvant.length, 'pièce', 'pièces'))} ${esc(K.de(K.monthLabel(d.periode)))} ${brAvant.length > 1 ? 'attendent' : 'attend'} encore au brouillard.</b> ${brAvant.length > 1 ? 'Elles n\'entrent' : 'Elle n\'entre'} dans aucun chiffre de cette déclaration : valide-${brAvant.length > 1 ? 'les' : 'la'} d'abord, puis prépare. <button type="button" class="btn btn-sm btn-primary" data-vers-saisie>Voir le brouillard</button></div>` : ''}
+      ${brAvant.length ? `<div class="warn-box mb" id="dc-brouillard-avant"><b>${esc(pl(brAvant.length, 'pièce', 'pièces'))} ${esc(K.de(K.monthLabel(d.periode)))} ${brAvant.length > 1 ? 'attendent' : 'attend'} encore au brouillard.</b> ${brAvant.length > 1 ? 'Elles n\'entrent' : 'Elle n\'entre'} dans aucun chiffre de cette déclaration : ${lecture ? `${esc(cap(reviseurCl(dossier)))} ${brAvant.length > 1 ? 'les' : 'la'} valide, puis prépare.` : `valide-${brAvant.length > 1 ? 'les' : 'la'} d'abord, puis prépare.`} <button type="button" class="btn btn-sm${lecture ? '' : ' btn-primary'}" data-vers-saisie>Voir le brouillard</button></div>` : ''}
       <div class="dc-etapes">
         ${/* (1.378.2, issue 9 CABDECLARER-37) Un mois déposé ne se recalcule pas : le bouton le dit AVANT le clic, au lieu de refuser après. */''}
         <button class="${cls('preparer')}" id="dc-preparer"${deposee ? ' disabled title="Une déclaration déposée ne se recalcule pas. Si elle était fausse, annule d\'abord le dépôt."' : ''}>${posee ? fait(true) + (deposee ? 'Préparée' : 'Préparée — recalculer') : 'Préparer la déclaration'}</button>${fleche}
@@ -9776,6 +9784,12 @@
     // UN bouton « Préparer » (U-11) : il était répété sous « Ce qui suit » (T-17) parce que les
     // gestes qu'il débloque vivaient deux écrans plus bas ; ils sont maintenant sur la même rangée.
     const prep = $('#dc-preparer', el);
+    // (1.388.0, issue 6, CAB-9) Qui n'a que la saisie lit la déclaration : les quatre gestes du mois s'éteignent, et chacun dit à
+    // qui il revient (la phrase au-dessus des boutons le dit aussi). Lire, copier les cases, exporter restent ouverts.
+    if (!peutValiderCl(dossier)) {
+      const qui = cap(reviseurCl(dossier));
+      $$('#dc-suite .dc-etapes button', el).forEach(b => { b.disabled = true; b.title = `${qui} le fait : ton rôle sur ce dossier te laisse lire la déclaration.`; });
+    }
     if (prep) prep.onclick = async () => {
       // (1.379.0, issue 6, CAB-1) Préparer sur un mois au brouillard donnait « ce mois ne porte aucune TVA » : la question
       // se pose avant, et le geste proposé est d'aller valider.

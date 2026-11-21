@@ -148,7 +148,7 @@ describe('le cabinet et ses mandats', () => {
     expect((await appeler('POST', `/entreprises/${cl.ent}/compta/valider`, cl.jeton, { jusqua: '2026-08-31' })).corps.motif).toMatch(/c'est le cabinet qui valide/i);
     const refusSaisie = await appeler('POST', `/entreprises/${cl.ent}/compta/valider`, saisie.jeton, { jusqua: '2026-08-31' });
     expect(refusSaisie.statut).toBe(403);
-    expect(String(refusSaisie.corps.motif)).toMatch(/ton rôle au cabinet \(Assistant de saisie\)/i);
+    expect(String(refusSaisie.corps.motif)).toMatch(/ton rôle au cabinet \(Saisie\)/i);
     await expect(enTantQue(pool, saisie.utilisateur, (tx) => tx.query('select compta.valider($1, $2::date)', [cl.ent, '2026-08-31']))).rejects.toThrow(/réservé à l'associé et aux collaborateurs/i);
     const v = await appeler('POST', `/entreprises/${cl.ent}/compta/valider`, revision.jeton, { jusqua: '2026-08-31' });
     expect(v.statut, JSON.stringify(v.corps)).toBe(200);

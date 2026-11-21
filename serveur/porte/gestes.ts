@@ -13,6 +13,9 @@ export type Role = (typeof ROLES_ENTREPRISE)[number] | (typeof ROLES_CABINET)[nu
 
 // Le nom d'un rôle, tel qu'une personne le lit : au catalogue des textes (« role.<code> »).
 export const nomDuRole = (r: Role) => t(`role.${r}`);
+// (1.388.0, issue 6, CAB-9) Un rôle AU CABINET se dit comme Réglages › Équipe le nomme (« Saisie », « Saisie et validation »,
+// « Supervision ») : le refus disait « Assistant de saisie » à qui avait choisi « Saisie ». Les autres (paie) gardent leur nom.
+export const nomDuRoleCabinet = (r: Role) => t(texteConnu(`role.cabinet.${r}`) ? `role.cabinet.${r}` : `role.${r}`);
 
 // « oui » : le geste est permis ; « voir » : lecture seule ; les autres rôles n'ont rien (le geste
 // ne paraît pas, D3).

@@ -31142,6 +31142,24 @@ prouver $'cab14-relie-sans-date-sur-la-fiche' modules/socle/ecrans/cabinet/app-1
   $'    const lien = lienRelie(d);' \
   $'    const lien = d.manual ? \'<span class="cd-li tenu">tenu au cabinet</span>\' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;' \
   $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
+prouver $'cab9-saisie-voit-les-gestes-de-la-declaration' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const lecture = !peutValiderCl(dossier);' \
+  $'    const lecture = false;' \
+  $'Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie'
+prouver $'cab9-saisie-voit-declarer-dans-la-page' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const groupes = GROUPES_COMPTA.filter(g => g.onglets.some(ongletDispo) && (g.id !== \'cloturer\' || peutValiderCl(dossier) || g.id === gOuvert.id));' \
+  $'    const groupes = GROUPES_COMPTA.filter(g => g.onglets.some(ongletDispo));' \
+  $'Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie'
+prouver $'cab9-saisie-boutons-allumes' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (!peutValiderCl(dossier)) {
+      const qui = cap(reviseurCl(dossier));' \
+  $'    if (false) {
+      const qui = cap(reviseurCl(dossier));' \
+  $'Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie'
+prouver $'cab9-role-cabinet-assistant-de-saisie' serveur/porte/porte.ts \
+  $'roles.map(nomDuRoleCabinet)' \
+  $'roles.map(nomDuRole)' \
+  $'le propriétaire choisit son cabinet par son code ; l\'associé accepte ; le périmètre décide ; le cabinet valide ; arrêté, il ne voit plus rien'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
