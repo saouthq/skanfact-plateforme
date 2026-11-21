@@ -22,6 +22,7 @@ import { motif, rendre } from '../../textes/index.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -233,7 +234,7 @@ describe('ton compte, à la souris', () => {
   }, 120_000);
 
   it('les feuilles de « Ton compte » et de « Mon comptable » ne partagent que les classes nommées (issue 4, ENTREE-1)', () => {
-    const classes = (f: string) => new Set([...fs.readFileSync(path.join(RACINE, 'web/public/plateforme', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+    const classes = (f: string) => new Set([...lireEcran(`plateforme/${f}`).replace(/\/\*[\s\S]*?\*\//g, '')
       .matchAll(/(?:^|[},\s])\.(cpt-[a-z0-9-]+)/gm)].map((m) => m[1]));
     const a = classes('compte.css'), b = classes('messagerie.css');
     // `.cpt-carte` et `.cpt-pied` : partagées, elles ne changent que le fond d'une carte et l'écart d'un pied.

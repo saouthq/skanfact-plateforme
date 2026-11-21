@@ -5953,3 +5953,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
     net de retenue ?
 - Test : `tests/v10/retenue-seuil-1379.test.ts` (une pièce d'avant simulée, une pièce à retenue scellée intacte, la
   migration rejouée). Preuves : `V-1 0222 a/b/c` ; l'ancre de `avoir 1.356.6 a` suit le code.
+
+## 1.387.89 — Deux tests remis d'aplomb avant l'envoi
+
+- Le test des feuilles de « Ton compte » et de « Mon comptable » (1.387.82) lisait `compte.css` et `messagerie.css`
+  directement sous `web/public/plateforme` : la règle de l'assemblage (aucun code de Node ne lit un fichier des écrans
+  en direct) le refusait. Il passe par `lireEcran`, comme les autres.
+- « En grâce, le bouton du bandeau est le seul vert » ne pouvait plus tomber depuis la 1.387.78 : son devis oublié en
+  brouillon est une ligne « Quand tu peux », qui n'a plus de vert. Le devis est maintenant accepté et pas facturé
+  (« Un geste t'attend ») : sans la grâce, sa ligne serait le vert de l'accueil, et la preuve tombe de nouveau.
+- Sept preuves ré-ancrées sur le code du jour (les ancres avaient bougé avec les lots précédents) ; elles tombent toutes.

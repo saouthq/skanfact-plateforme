@@ -89,11 +89,13 @@ describe('l\'abonnement après sa revue, à la souris', () => {
   it('en grâce, le bouton du bandeau est le seul vert : « + Nouvelle facture » ne l\'est plus, les premiers pas se taisent ; la grâce se dit sur sa durée', async () => {
     const sonia = await personne('Sonia');
     const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier en Grâce' })).corps.id);
-    // (1.272.0) Un devis oublié en brouillon : la liste « À faire » a une ligne, dont le bouton serait le vert de la page
+    // (1.272.0) Un devis accepté et pas facturé : la liste « À faire » a une ligne, dont le bouton serait le vert de la page
     // sans la grâce. Sans elle, l'accueil n'avait aucun autre vert à éteindre et le test ne pouvait pas tomber.
+    // (1.387.89) Une ligne qui PRESSE (« Un geste t'attend ») : depuis la 1.387.78, une ligne « Quand tu peux » (le devis
+    // oublié en brouillon d'avant) n'a plus de vert, et le test ne pouvait plus tomber.
     await api('GET', `/entreprises/${ent}/dossier-v10`, sonia.jeton);
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sonia.jeton, { changements: [
-      { collection: 'documents', cle: 'd-oublie', rang: 0, revision: null, contenu: { id: 'd-oublie', type: 'devis', number: '', status: 'brouillon', date: plusJours(aujourdhui, -20), createdAt: 1,
+      { collection: 'documents', cle: 'd-oublie', rang: 0, revision: null, contenu: { id: 'd-oublie', type: 'devis', number: 'DEV-2026-001', status: 'accepté', date: plusJours(aujourdhui, -20), createdAt: 1,
         lines: [{ label: 'Table en chêne', qty: 1, unitPrice: 850, vatRate: 19 }], payments: [] } },
     ] })).statut).toBe(200);
     await finEssai(ent, plusJours(aujourdhui, -2));

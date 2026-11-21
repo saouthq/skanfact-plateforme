@@ -3583,7 +3583,7 @@ prouver "ce qui attend le réseau jamais gardé sur le poste" $PONT \
   "$HE1"
 prouver "ce qui est parti, encore gardé sur le poste" $PONT \
   "    await poste.effacerAttente(ent);
-    poste.envoye(n, conflits);" "    poste.envoye(n, conflits);" \
+    poste.envoye(n, conflits, sortie);" "    poste.envoye(n, conflits, sortie);" \
   "$HE1"
 prouver "le retour du réseau qui ne relance rien" $PONT \
   "  poste.auRetour(relancer);
@@ -3598,7 +3598,7 @@ prouver "rechargée sans réseau, ce qui attend disparaît de l'écran" $PONT \
   "        return { data: attente.contenu.data, corruptFile: null };" "        return { data: copie, corruptFile: null };" \
   "$HE1"
 prouver "rouverte avec le réseau, ce qui attendait jamais envoyé" $PONT \
-  "        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());" "        const data = avecTicketsEnAttente(await relire());" \
+  "        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data, !!attente.contenu.sortie) : await relire());" "        const data = avecTicketsEnAttente(await relire());" \
   "$HE3"
 prouver "rouverte, une pièce changée ailleurs qui écrase la mienne sans la garder" $PONT \
   "        r = await envoyer(m.data);" "        r = await envoyer(r.disk);" \
@@ -5428,7 +5428,7 @@ prouver "« À faire » qui mène à une page que le rôle ne montre pas" module
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
   "$MR"
 prouver "l'accueil d'un rôle sans bouton principal" modules/socle/ecrans/entreprise/app-1.js \
-  "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = false;" \
+  "    const premierPrincipal = !sansVert && !abonnementPrincipal() && !!ranges.length && niveau(ranges[0]) !== '';" "    const premierPrincipal = false;" \
   "$MR"
 
 # ── Brique 112 : deux postes sur le même dossier (web/public/plateforme/pont.js ; tests/web/enregistrement-concurrent.test.ts) ──
@@ -8414,7 +8414,7 @@ prouver "une remise d'un millime inventée sur un ticket sans remise (serveur)" 
   "  const totalHT = [...brutParTaux].reduce((t, [taux, ttc]) => t + ttc - diviserArrondi(ttc * taux, MILLION + taux), 0n);" "  const totalHT = lignes.reduce((t, l) => t + l.ht, 0n);" \
   "$KB1"
 prouver "« Aucun compte de caisse » sous le ticket, sans le bouton qui la crée" modules/socle/ecrans/entreprise/app-2.js \
-  "\${s.panier.length && motif && sansCompte ? ' <button" "\${false ? ' <button" \
+  "\${s.panier.length && motif && sansCompte && peutComptes() ? ' <button" "\${false ? ' <button" \
   "$KW1"
 prouver "« Enregistrer » caché sous le bas d'une fenêtre, à la tablette" web/public/plateforme/telephone.css \
   "  .modal > .modal-actions:last-child { position: sticky; bottom: -26px;" "  .modal > .modal-actions:last-child { position: static; bottom: -26px;" \
@@ -19383,7 +19383,7 @@ prouver 'abo 118 : l'\''accueil muet en lecture seule' modules/socle/ecrans/entr
       \${bandeauAccordsAccueil()}" "      \${bandeauAccordsAccueil()}" \
   "$W118L"
 prouver 'abo 118 : deux verts en grâce' modules/socle/ecrans/entreprise/app-1.js \
-  "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = true;" \
+  "    const premierPrincipal = !sansVert && !abonnementPrincipal() && !!ranges.length && niveau(ranges[0]) !== '';" "    const premierPrincipal = !sansVert && !!ranges.length && niveau(ranges[0]) !== '';" \
   "$W118G"
 prouver 'abo 118 : les premiers pas pendant la grâce' modules/socle/ecrans/entreprise/app-1.js \
   "    const pas = aboPrincipal ? '' : premiersPas();" "    const pas = premiersPas();" \
@@ -20044,7 +20044,7 @@ prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métie
   "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' modules/socle/ecrans/entreprise/app-1.js \
-  "      \${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel() : pas}" "      \${urgentDabord ? todoPanel() : pas}" \
+  "      \${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel(pasEnCours) : pas}" "      \${urgentDabord ? todoPanel(pasEnCours) : pas}" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' modules/socle/ecrans/cabinet/app-2.js \
   "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
@@ -24007,7 +24007,7 @@ prouver 'menu 1.269 f : la bande des vues sur deux lignes' web/public/plateforme
   'display: inline-flex; flex-wrap: nowrap; gap: 2px; width: auto;' 'display: grid; flex-wrap: nowrap; gap: 2px; width: auto;' \
   "$WM1"
 prouver 'menu 1.269 h : l'\''aperçu de l'\''assistant garde les vues d'\''une page' web/public/plateforme/assistant.js \
-  "o.menu(modulesChoisis()).filter((/** @type {any} */ p) => !p.vueDe).forEach(" "o.menu(modulesChoisis()).forEach(" \
+  "const tout = o.menu(modulesChoisis()), pages = tout.filter((/** @type {any} */ p) => !p.vueDe);" "const tout = o.menu(modulesChoisis()), pages = tout;" \
   "la porte, puis l'assistant : chaque écran s'écrit et se reprend, la facture de l'aperçu est la vraie, et le métier retenu à la fin décide du catalogue"
 prouver 'menu 1.269 i : au doigt, une vue se touche mal' web/public/plateforme/charte.css \
   '.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 44px; min-height: 44px; }' '.pa-seg:not(.filtre):has(> [aria-pressed])) > :is(button, a) { height: 38px; min-height: 38px; }' \
