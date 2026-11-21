@@ -792,6 +792,16 @@
       };
     });
   }
+  // (1.377.0, CABPAIE-1 ; 1.387.82, aussi les absences à venir) « retirée du salaire » ne se dit que si elle l'est : sur un
+  // mois déjà validé sans elle, elle est « à régulariser », puis « régularisée sur … ». Lue par la liste des congés ET
+  // par les absences à venir.
+  function effetAbsenceNonPayee(dossier, L, l, sinon = '<span class="warn-text">retirée du salaire</span>') {
+    const ym = String(l.from).slice(0, 7), b = (L.bulletins || []).find(x => x.salarieId === l.employeeId && x.valideLe && `${x.annee}-${String(x.mois).padStart(2, '0')}` === ym);
+    const A = b && apresValidation(dossier, L, b);
+    if (A && A.reste < 0) return '<span class="warn-text" data-cg-regul>pas retenue : à régulariser</span>';
+    if (A && A.portees.length) return `<span class="muted" data-cg-regul>régularisée sur ${esc(moisDeYm(A.portees[A.portees.length - 1].pourMois))}</span>`;
+    return sinon;
+  }
   // (plateforme) 1.237.0 — les absences déjà connues des semaines qui viennent (la maquette, paieabsences) : leur effet sur
   // le bulletin, et qui décide. Une demande pas acceptée ne compte nulle part : la décision est au client.
   function paieAbsencesAVenir(dossier, L, P) {
@@ -804,7 +814,7 @@
       <div class="scroll-x"><table class="list compact"><thead><tr><th>Salarié</th><th>Absence</th><th>Effet sur le bulletin</th><th>À faire</th></tr></thead><tbody>
       ${V.map(l => { const lv = KC.leavesOf({ ...data, leaves: [l] }, '', '')[0] || {}; const demande = !KC.congeRetenu(l);
         return `<tr><td>${esc(nom(l.employeeId))}</td><td>${esc(lv.kindLabel || l.kind || '')}, du ${esc(fmtJour(l.from))} au ${esc(fmtJour(l.to))} · ${esc(joursFr(lv.days || 0))} j</td>
-        <td class="small">${demande ? `si ${esc(P.client)} l'accepte : ${lv.paid ? 'payée' : 'retirée du salaire'}` : lv.paid ? 'payée : le salaire ne baisse pas' : 'retirée du salaire, au prorata'}${l.kind === 'maladie' ? ' · la CNAM indemnise selon ses règles (À VÉRIFIER)' : ''}</td>
+        <td class="small">${demande ? `si ${esc(P.client)} l'accepte : ${lv.paid ? 'payée' : (L.bulletins || []).some(x => x.salarieId === l.employeeId && x.valideLe && `${x.annee}-${String(x.mois).padStart(2, '0')}` === String(l.from).slice(0, 7)) ? 'à régulariser : son mois est déjà validé' : 'retirée du salaire'}` : lv.paid ? 'payée : le salaire ne baisse pas' : effetAbsenceNonPayee(dossier, L, l, 'retirée du salaire, au prorata')}${l.kind === 'maladie' ? ' · la CNAM indemnise selon ses règles (À VÉRIFIER)' : ''}</td>
         <td class="small">${demande ? `<span class="warn-text">la décision est à ${esc(P.client)}</span>` : l.statut === 'refuse' ? 'refusée' : '<span class="ok-text">acceptée</span>'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
   }
   // (plateforme) 1.237.0 — L'année (la maquette, paieannee) : les bulletins et le livre disent le même chiffre (le brut des
@@ -1518,6 +1528,7 @@
       modal(`<h2>${B.length > 1 ? `Noter les ${B.length} salaires payés` : 'Noter le salaire payé'}</h2>
         <p class="small">${esc(dossier.name)} n'est pas sur SkanFact : c'est toi qui notes le jour où il a payé ${B.length > 1 ? 'ses salariés' : 'son salarié'}. Les montants ne changent pas.</p>
         <label class="field"><span>Payé le</span><input id="pa-paye-le" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(aujourdhui()))}"></label>
+        ${String((s.livre.exercice || {}).valideJusqua || '') >= `${s.annee}-${String(s.paieMois).padStart(2, '0')}-01` ? `<p class="small muted" id="pa-paye-ferme">La période est validée jusqu'au ${esc(fmtJour(String(s.livre.exercice.valideJusqua)))} : un paiement daté d'avant s'écrit en banque au ${esc(fmtJour(premierJourOuvertSa()))}, premier jour ouvert ; le bulletin garde son jour.</p>` : ''}
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="pa-paye-ok">Noter payé${B.length > 1 ? 's' : ''}</button></div>`, (layer, close) => {
         $('#pa-paye-ok', layer).onclick = () => {
           const i = $('#pa-paye-le', layer), tape = String((i || {}).value || '').trim(), le = tape ? K.dateTapee(tape, s.annee) : '';
@@ -1526,13 +1537,15 @@
           // arrivé, il se refuse sur son champ (« 01/01/2020 » passait, et l'écriture tombait à une autre date — issue 10).
           if (le < `${s.annee}-${String(s.paieMois).padStart(2, '0')}-01`) return refus(i, `Le ${fmtJour(le)} est avant le mois ${mo()} : un salaire ne se paie pas avant son mois. Écris le jour où il a été payé.`);
           if (le > aujourdhui()) return refus(i, `Le ${fmtJour(le)} n'est pas encore arrivé : note le paiement le jour où il est fait.`);
+          // (1.387.82, CABPAIE-2) Une période validée : l'écriture de banque va au premier jour ouvert, le bulletin garde son jour.
+          const vj = String((s.livre.exercice || {}).valideJusqua || ''), ecritLe = vj && le <= vj ? premierJourOuvertSa() : le;
           close();
           // Noté par erreur, il se défait du message : « Annuler » efface le jour du paiement, et son écriture avec lui.
           const ids = B.map(b => b.id), poser = paidDate => api.marquerBulletins({ dossierId: dossier.id, annee: s.annee, ids, champs: { paidDate } });
           noter.disabled = true;
           poser(le).then(r => {
             s.livre = r.livre; redraw();
-            toastUndo(`${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} le ${fmtJour(le)}.`, async () => { s.livre = (await poser('')).livre; redraw(); });
+            toastUndo(`${B.length > 1 ? `${B.length} salaires notés payés` : 'Salaire noté payé'} le ${fmtJour(le)}.${ecritLe !== le ? ` Leur écriture de banque est au ${fmtJour(ecritLe)} : la période est validée jusqu'au ${fmtJour(vj)}.` : ''}`, async () => { s.livre = (await poser('')).livre; redraw(); });
           }, err => { toast(plainError(err), 'error'); noter.disabled = false; });
         };
       });
@@ -1731,6 +1744,20 @@
         a.push({ icon: 'modifier', label: 'Proposer une correction…', hint: `${Pm.client} l'accepte ou la refuse dans SkanFact`, run: () => correctionForm(root, dossier, b) });
         return a;
       }
+      // (1.387.82, issue 10, CABPAIE-2) Noté par erreur au-delà du message : le jour du paiement s'efface aussi du menu —
+      // seulement là où le cabinet le note (client hors SkanFact) ; dans SkanFact, c'est le client qui marque ses salaires.
+      if (dossier.manual && b.valideLe && b.payeLe && !(s.livre.exercice || {}).clos) a.push({ sep: true }, { icon: 'annuler', label: 'Annuler le paiement…',
+        hint: 'Le salaire redevient à payer ; l\'écriture de banque du jour se refait sans lui', run: async () => {
+          const ym = `${b.annee}-${String(b.mois).padStart(2, '0')}`, jour = String(b.payeLe).slice(0, 10);
+          const eBq = (s.livre.ecritures || []).filter(e => e.piece === `PAIE-${ym}` && /^Salaires versés/.test(e.libelle || '') && !e.contrepasseDe && e.statut !== 'contrepassee');
+          if (eBq.some(e => (s.livre.releves || []).some(r => (r.lignes || []).some(l => KC.facesDuRapprochement(l.rapprochement).some(f => f.ecritureId === e.id)))))
+            return toast(`Le versement des salaires ${KC.deMois(KC.moisPaie(b.mois))} est rapproché d'une ligne de relevé : défais le rapprochement d'abord (onglet Banque).`, 'error');
+          const nom = ((s.livre.salaries || []).find(x => x.id === b.salarieId) || {}).nom || 'ce salarié';
+          const validee = eBq.some(e => e.statut === 'validee');
+          if (!await confirmDialog('Annuler ce paiement ?', `<p class="small">Le salaire ${esc(deNom(nom))} (${esc(money((b.calcul || {}).net))}, payé le ${esc(fmtJour(jour))}) redevient à payer. L'écriture « Salaires versés » se refait sans lui${validee ? ' : validée, elle se contre-passe' : ''}.</p>`, 'Annuler le paiement', false, 'Garder le paiement')) return;
+          try { const r = await api.marquerBulletins({ dossierId: dossier.id, annee: s.annee, ids: [b.id], champs: { paidDate: '' } }); s.livre = r.livre; toast(`Paiement ${deNom(nom)} annulé : son salaire est de nouveau à payer.`); redraw(); }
+          catch (err) { toast(plainError(err), 'error'); }
+        } });
       if (Pm.mode === 'seule' || Pm.mode === 'sans' || b.valideLe) return a;
       if (!(s.livre.exercice || {}).clos) a.push(
         { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Brut, primes, absences, retenues', run: () => bulletinForm(root, dossier, b) },
@@ -1899,15 +1926,7 @@
     const data = donneesDuPointage(dossier, L);
     const y = Number(annee);
     const tient = congesTenus(L);
-    // (1.377.0, CABPAIE-1) « retirée du salaire » ne se dit que si elle l'est : sur un mois déjà validé sans elle, elle
-    // est « à régulariser », puis « régularisée sur … ».
-    const effetNonPayee = l => {
-      const ym = String(l.from).slice(0, 7), b = (L.bulletins || []).find(x => x.salarieId === l.employeeId && x.valideLe && `${x.annee}-${String(x.mois).padStart(2, '0')}` === ym);
-      const A = b && apresValidation(dossier, L, b);
-      if (A && A.reste < 0) return '<span class="warn-text" data-cg-regul>pas retenue : à régulariser</span>';
-      if (A && A.portees.length) return `<span class="muted" data-cg-regul>régularisée sur ${esc(moisDeYm(A.portees[A.portees.length - 1].pourMois))}</span>`;
-      return '<span class="warn-text">retirée du salaire</span>';
-    };
+    const effetNonPayee = l => effetAbsenceNonPayee(dossier, L, l);
     const tous = KC.leavesOf(data, '', y);
     const soldes = data.employees.filter(e => ((L.salaries || []).find(x => x.id === e.id) || {}).actif)
       .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(e => ({ e, b: KC.leaveBalance(data, e.id, y) }));

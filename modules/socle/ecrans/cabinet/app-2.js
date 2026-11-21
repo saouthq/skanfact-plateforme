@@ -4068,7 +4068,7 @@
               /* (1.215.0, la maquette) Plus de colonne « État » qui dit « équilibrée » sur chaque ligne : seul ce qui ne va pas se dit, sous le libellé. */
               e.attente ? (e.refus ? `<small class="err-inline sa-refusee" title="${esc(e.refus)}">refusée : ${esc(e.refus)}</small>` : ' <span class="badge sa-attente">attend le réseau</span>')
               : t.equilibre ? '' : `<small class="err-inline sx-bl-ecart">écart ${esc(montant(t.ecart))}</small>`}</td>
-            <td class="c">${(q => `<span class="sx-par" title="${esc(q)}">${esc(q === 'le cabinet' ? initialesDe((S.cabinet && S.cabinet.name) || 'Cabinet') : q === 'reprise' ? 'AN' : initialesDe(q))}<span class="sr">${esc(q)}</span></span>`)(e.source === 'skanfact' ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : collabNomSx(e.auteur) || 'le cabinet')}</td>
+            <td class="c">${(q => `<span class="sx-par" title="${esc(q)}">${esc(q === 'le cabinet' ? initialesDe((S.cabinet && S.cabinet.name) || 'Cabinet') : q === 'reprise' ? 'AN' : initialesDe(q))}<span class="sr">${esc(q)}</span></span>`)(e.source === 'skanfact' && !dossier.manual ? (prenomCl(dossier.contact) || 'le client') : e.source === 'an' ? 'reprise' : collabNomSx(e.auteur) || 'le cabinet')}</td>
             <td class="r nw">${esc(montant(t.debit))}</td>
             <td class="actions row-actions">${RowMenu.bouton('B:' + e.id, '⋯', 'sx-bl-plus').replace('<button ', `<button aria-label="Plus de gestes pour ${esc(e.piece || 'cette écriture')}" `)}</td></tr>`;
         }).join('')}</tbody></table></div>${pagerBrouillard}</div>`

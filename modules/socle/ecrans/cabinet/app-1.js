@@ -5615,7 +5615,7 @@
       // Jointe à une pièce reçue ou déposée : la ligne de la pièce la porte (son montant, sa date, son numéro).
       if (jointe) continue;
       const sansJustif = rub === 'achats' && e.justifClient === false && !jointe;
-      const em = jointe ? `jointe le ${jjmm(jourTunisCl(jointe.classeeLe))}, par ${quiCl(jointe.classeePar)}` : e.source === 'skanfact' ? `saisie par ${prenom}` : '';
+      const em = jointe ? `jointe le ${jjmm(jourTunisCl(jointe.classeeLe))}, par ${quiCl(jointe.classeePar)}` : e.source === 'skanfact' && !d.manual ? `saisie par ${prenom}` : '';
       const etat = sansJustif ? ['rouge', 'sans justificatif', 'manque'] : ['ok', e.statut === 'brouillard' && e.source === 'saisie' ? 'saisie, au brouillard' : 'saisie', 'ordre'];
       items.push({ k: `e:${e.id}`, sorte: 'ecr', e, rub, mois: String(e.date).slice(0, 7), date: e.date, titre: tiers || e.libelle || e.piece || 'Écriture',
         sous: [e.piece, tiers && e.libelle !== tiers ? e.libelle : ''].filter(Boolean).join(' · '), em, emOk: !!jointe, montant: montantE(e), etat, num: e.piece, numE: e.id,
@@ -6217,7 +6217,7 @@
     const choisis = () => quoi === 'permanent' ? [] : items.filter(x => (x.p || x.doc) && x.etat[1] !== 'en double' && (quoi !== 'mois' || x.mois === mois));
     modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.bas}</span><span><h2 id="ex-t">Exporter le classeur ${esc(deFr(d.name))}</h2><small>Pour un contrôle fiscal, la banque, un autre cabinet ou tes archives</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       <span class="field">Quoi</span><div class="tb-rel-q" role="group" aria-label="Quoi" id="ex-q">${QUOI.map(([k, n]) => `<button type="button" aria-pressed="${k === quoi}" data-q="${k}">${esc(n)}</button>`).join('')}</div>
-      <div class="cd-cbs" id="ex-c">${[['pieces', 'Les pièces, rangées comme ici', `${annee} › ${mois.slice(5, 7)} ${cap(moisLong(mois))} › Achats › la pièce`], ['fec', 'Le fichier des écritures (FEC)', 'le format qu\'un vérificateur demande (À VÉRIFIER pour la Tunisie)'], ['index', 'Un index en PDF', 'chaque pièce, son écriture, sa déclaration'], ['decl', 'Les déclarations et leurs accusés', 'le formulaire, l\'accusé, le paiement']].map(([k, b, s]) => `<label class="cd-cb on"><input type="checkbox" data-c="${k}" checked><span><b>${esc(b)}</b><small>${esc(s)}</small></span></label>`).join('')}</div>
+      <div class="cd-cbs" id="ex-c">${[['pieces', 'Les pièces, rangées comme ici', `${annee} › ${mois.slice(5, 7)} ${cap(moisLong(mois))} › Achats › la pièce`], ['fec', 'Le fichier des écritures (FEC)', 'le format qu\'un vérificateur demande (À VÉRIFIER pour la Tunisie)'], ['index', 'Un index', 'chaque pièce, sa rubrique, son écriture, son état ; en PDF, en HTML si le PDF ne se fait pas'], ['decl', 'Les déclarations et leurs accusés', 'le formulaire, l\'accusé, le paiement']].map(([k, b, s]) => `<label class="cd-cb on"><input type="checkbox" data-c="${k}" checked><span><b>${esc(b)}</b><small>${esc(s)}</small></span></label>`).join('')}</div>
       <div id="ex-recents"></div>
       <p class="tb-rel-h">${CL_IC.info}<span>Le fichier ZIP s'écrit sur ce poste, se télécharge, et se garde 7 jours sur le serveur de SkanFact pour un lien ; passé 7 jours, il s'efface. Seules les écritures validées entrent dans le FEC.</span></p>
       <div class="modal-actions"><span class="tb-rel-res" id="ex-res"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Préparer l'export</button></div>`,
@@ -6226,12 +6226,12 @@
       $$('[data-close]', layer).forEach(b => { b.onclick = close; });
       // Ce qui part, compté comme l'en-tête compte : les fichiers (pièces reçues, déposées) et les écritures de ses livres.
       const res = () => {
-        const n = choisis().length, e = items.filter(x => x.sorte === 'ecr' && (quoi !== 'mois' || x.mois === mois)).length;
+        const n = choisis().length, e = ((livre && livre.ecritures) || []).filter(x => x.statut !== 'brouillard' && (quoi !== 'mois' || String(x.date).slice(0, 7) === mois)).length;
         $('#ex-res', layer).textContent = `${(QUOI.find(([k]) => k === quoi) || ['', ''])[1].replace(/^L'/, 'l\'')} · ${quoi === 'permanent' ? pl(docs.filter(x => x.rubrique === 'permanent' && !x.remplacePar).length, 'pièce')
-          : quoi === 'tout' ? 'chaque exercice, ses fichiers et ses écritures' : `${pl(n, 'fichier')}, ${pl(e, 'écriture')}`}`;
+          : quoi === 'tout' ? 'chaque exercice, ses fichiers et ses écritures' : `${pl(n, 'fichier')}, ${prends.fec ? `${pl(e, 'écriture')} dans le FEC` : 'sans le FEC'}`}`;
       };
       $$('#ex-q button', layer).forEach(b => { b.onclick = () => { quoi = b.dataset.q; $$('#ex-q button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); res(); }; });
-      $$('#ex-c input', layer).forEach(c => { c.onchange = () => { prends[c.dataset.c] = c.checked; c.closest('.cd-cb').classList.toggle('on', c.checked); }; });
+      $$('#ex-c input', layer).forEach(c => { c.onchange = () => { prends[c.dataset.c] = c.checked; c.closest('.cd-cb').classList.toggle('on', c.checked); res(); }; });
       res();
       // (1.173.0) Les exports encore ouverts (7 jours) : on les reprend sans tout refaire.
       api.classeur.exports(d.id).then(r => {
@@ -6315,27 +6315,30 @@
         }))}` });
       }
     }
-    let fec = 0;
+    // (1.387.82, issue 9, CABDECLARER-4) Le compte rendu dit ce que le ZIP contient vraiment : un FEC refusé ne
+    // disparaît plus en silence, l'index dit s'il est en PDF ou en HTML (le PDF n'a pas pu se faire), ou n'est pas là.
+    let fec = 0, fecRefus = 0, indexFait = '';
     for (const [an, , lv] of o.prends.fec && o.quoi !== 'permanent' ? exercices : []) {
       if (!lv) continue;
       const lignes = KC.lignesDuLivre(lv, { brouillard: true }).filter(l => l.statut !== 'brouillard' && (o.quoi !== 'mois' || String(l.date).slice(0, 7) === o.mois));
       const valideLe = new Map((lv.ecritures || []).map(e => [e.id, e.valideeLe ? KC.jourDeLInstant(e.valideeLe) : '']));
+      const nomLv = nomDeCompte(lv);
       const r = lignes.length ? KC.fichierFec(lignes, { identifiant: d.matricule || d.name, fin: (lv.exercice || {}).au, decimales: 3,
         nomJournal: c => ((lv.journaux || KC.JOURNAUX_PAR_DEFAUT).find(j => j.code === c) || {}).libelle || c,
-        nomCompte: (c, l) => ((lv.plan || []).find(x => x.compte === String(c)) || {}).libelle || KC.libelleDuPlan(c) || (l && l.tiers) || '', aux: KC.fecAuxDeTiers(), // (1.378.3) le même fichier que celui du journal : le compte porte son nom, le tiers ses deux colonnes
+        nomCompte: (c, l) => nomLv(c, l && l.tiers), aux: KC.fecAuxDeTiers(), // (1.378.3) le même fichier que celui du journal : le compte porte son nom, le tiers ses deux colonnes
         dateValidation: p => valideLe.get((p.lignes[0] || {}).ecritureId) || p.date }) : null;
-      if (r && r.ok) { ajouter({ chemin: r.nom || `FEC-${an}.txt`, octets: r.texte }); fec += r.pieces || 0; }
+      if (r && r.ok) { ajouter({ chemin: r.nom || `FEC-${an}.txt`, octets: r.texte }); fec += r.pieces || 0; } else if (r) fecRefus += (r.refus || []).length || 1;
     }
     if (o.prends.index) {
       const lignes = tousLesItems.map(x => `<tr><td>${esc(x.mois)}</td><td>${esc((CL_RUBS.find(([r]) => r === x.rub) || ['', ''])[1])}</td><td>${esc(nomFichierCl(x))}</td><td>${esc(x.num || '')}</td><td>${esc(x.etat[1])}</td></tr>`).join('');
       const html = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Index du classeur</title><style>body{font:12px Helvetica,Arial,sans-serif;color:#23272e;margin:28px}h1{font-size:16px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid #d9dde3}th{font-size:11px;color:#5b616b;text-transform:uppercase}</style><h1>Index du classeur · ${esc(d.name)}</h1><p>${esc(racine)} · ${esc(pl(tousLesItems.length, 'pièce'))} · fait le ${esc(jjmmaaCl(K.today()))}</p><table><thead><tr><th>Mois</th><th>Rubrique</th><th>Pièce</th><th>Écriture</th><th>État</th></tr></thead><tbody>${lignes}</tbody></table></html>`;
       const pdf = await api.classeur.pdf(html, `index-${racine}.pdf`).catch(() => null);
-      ajouter(pdf ? { chemin: 'index.pdf', octets: pdf } : { chemin: 'index.html', octets: html });
+      ajouter(pdf ? { chemin: 'index.pdf', octets: pdf } : { chemin: 'index.html', octets: html }); indexFait = pdf ? 'pdf' : 'html';
     }
     if (!fichiers.length) throw new Error('Rien à exporter avec ces choix : coche au moins une case qui a quelque chose.');
     const zip = window.SkanZip.creer(fichiers);
     const nom = `${String(d.name).replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '')}_${racine}.zip`;
-    return { nom, zip, taille: zip.length, pieces, fec, fichiers: fichiers.length, decl: fichiers.filter(f => f.chemin.startsWith('Déclarations/')).length, quoi: o.quoi, annee: o.annee, mois: o.mois };
+    return { nom, zip, taille: zip.length, pieces, fec, index: indexFait, fecRefus, fichiers: fichiers.length, decl: fichiers.filter(f => f.chemin.startsWith('Déclarations/')).length, quoi: o.quoi, annee: o.annee, mois: o.mois };
   }
   // (1.173.0) L'export prêt : il part aussi sur le serveur, gardé 7 jours, pour un lien qu'on ouvre ou qu'on transmet à
   // une personne du cabinet ; l'export est noté dans l'historique du dossier. Sans réseau, ou trop lourd : il reste sur ce
@@ -6344,7 +6347,7 @@
     const quoiTxt = r.quoi === 'tout' ? 'tout le dossier' : r.quoi === 'mois' ? `${moisLong(r.mois)} ${r.mois.slice(0, 4)}` : r.quoi === 'permanent' ? 'le dossier permanent' : `l'exercice ${r.annee}`;
     const jourLong = iso => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' });
     modal(`<div class="tb-rel-t"><span class="cd-ic ok">${CL_IC.ok}</span><span><h2 id="ex2-t">L'export est prêt</h2><small>${esc(d.name)} · ${esc(quoiTxt)}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
-      <div class="cl-exp"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span><b>${esc(r.nom)}</b><small>${esc(tailleTxt(r.taille))} · ${esc([`${pl(r.pieces, 'fichier de pièce', 'fichiers de pièces')} rangés comme ici`.replace('pièce rangés', 'pièce rangé'), r.fec ? 'le fichier des écritures' : '', 'l\'index', r.decl ? pl(r.decl, 'fichier de déclaration', 'fichiers de déclaration') : ''].filter(Boolean).join(', '))}</small></span></div>
+      <div class="cl-exp"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span><b>${esc(r.nom)}</b><small>${esc(tailleTxt(r.taille))} · ${esc([`${pl(r.pieces, 'fichier de pièce', 'fichiers de pièces')} rangés comme ici`.replace('pièce rangés', 'pièce rangé'), r.fec ? `le fichier des écritures (${pl(r.fec, 'écriture')})` : '', r.fecRefus ? `pas de fichier des écritures : ${pl(r.fecRefus, 'pièce')} ne passe${r.fecRefus > 1 ? 'nt' : ''} pas (le Livre-journal › Fichier FEC… dit lesquelles)` : '', r.index === 'pdf' ? 'l\'index en PDF' : r.index === 'html' ? 'l\'index en HTML (le PDF n\'a pas pu se faire)' : '', r.decl ? pl(r.decl, 'fichier de déclaration', 'fichiers de déclaration') : ''].filter(Boolean).join(', '))}</small></span></div>
       <p class="tb-rel-h" id="ex2-h">${CL_IC.horloge}<span>Le lien de 7 jours se prépare…</span></p>
       <div class="modal-actions"><button type="button" class="btn" id="ex2-lien" disabled>Copier le lien</button><button type="button" class="btn btn-primary" id="ok">${CL_IC.bas} Télécharger</button></div>`,
     async (layer, close) => {
@@ -6970,7 +6973,7 @@
       }
       const reg = reglementDe(e);
       const deplacable = e.statut === 'brouillard' && e.source === 'saisie';
-      ap = `<aside class="cl-ap" aria-label="L'écriture"><div class="cl-ap-t"><span class="cl-l-i ${CL_IC_RUB[sel.rub] || 'pdf'}">${CL_IC[CL_IC_RUB[sel.rub] || 'pdf']}</span><span><b>${esc(sel.titre)}</b><small>${esc([e.piece, e.journal, jjmm(e.date), e.source === 'skanfact' ? `saisie par ${qui}` : 'saisie au cabinet'].filter(Boolean).join(' · '))}</small></span></div>
+      ap = `<aside class="cl-ap" aria-label="L'écriture"><div class="cl-ap-t"><span class="cl-l-i ${CL_IC_RUB[sel.rub] || 'pdf'}">${CL_IC[CL_IC_RUB[sel.rub] || 'pdf']}</span><span><b>${esc(sel.titre)}</b><small>${esc([e.piece, e.journal, jjmm(e.date), e.source === 'skanfact' && !d.manual ? `saisie par ${qui}` : 'saisie au cabinet'].filter(Boolean).join(' · '))}</small></span></div>
         ${tableE(e, `L'écriture${e.piece ? ` ${esc(e.piece)}` : ''}, ${e.statut === 'brouillard' ? 'au brouillard' : 'validée'}`)}
         ${reg ? `<div class="cl-ap-r"><span class="cl-ap-l">Son règlement</span><small>${esc(reg)}</small></div>` : ''}
         ${['achats', 'ventes'].includes(sel.rub) ? `<div class="cl-ap-r"><span class="cl-ap-l">Son justificatif</span>${j === null || j === undefined ? '<small>Lecture…</small>' : j.length ? j.map((f, i) => `<button type="button" class="btn-lien" data-cl-just="${i}">${esc(f.nom)}</button>`).join('') : `<small>${e.justifClient === false ? `${esc(cap(qui))} l'a saisi sans justificatif : une pièce reçue se joint d'un geste.` : 'Aucun fichier joint.'}</small>`}</div>` : ''}
@@ -7254,7 +7257,7 @@
       ev.push(['SF', 'SkanFact la range', `${cap(moisLong(sel.mois))} ${sel.mois.slice(0, 4)} › ${(CL_RUBS.find(([r]) => r === sel.rub) || ['', ''])[1]}, d'après sa date d'arrivée`, p.recueLe]);
       if (p.achat) ev.push([qui, `${qui} la range dans son achat`, String(p.achat), p.recueLe]);
       // (1.173.2) L'achat du même montant, saisi sans pièce, et la lecture qui l'a repéré (la maquette : « SkanFact repère FA-0919 »).
-      if (meme && meme.e) ev.push([meme.e.source === 'skanfact' ? qui : 'Le cabinet', `${meme.e.source === 'skanfact' ? qui : 'Le cabinet'} saisit l'achat ${meme.num || ''}`.trim(), `${meme.titre}, ${dtCd(meme.montant)} DT, sans justificatif`, `${meme.date}T12:00:00Z`]);
+      if (meme && meme.e) ev.push([meme.e.source === 'skanfact' && !d.manual ? qui : 'Le cabinet', `${meme.e.source === 'skanfact' && !d.manual ? qui : 'Le cabinet'} saisit l'achat ${meme.num || ''}`.trim(), `${meme.titre}, ${dtCd(meme.montant)} DT, sans justificatif`, `${meme.date}T12:00:00Z`]);
       if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce', `à la demande de ${prenomCl(sel.lu.luPar) || 'ton cabinet'} : ${[sel.lu.fournisseur, sel.lu.numero ? `n° ${sel.lu.numero}` : '', sel.lu.total ? totalLu(sel.lu) : ''].filter(Boolean).join(' · ')}`, sel.lu.luLe]);
       if (meme && sel.lu && sel.lu.luLe) ev.push(['SF', `SkanFact repère ${meme.num || meme.titre}`, 'même montant, sans justificatif', sel.lu.luLe]);
       if (p.classeeLe) ev.push([quiCl(p.classeePar), `${quiCl(p.classeePar)} la classe`, ({ saisie: 'saisie', verifiee: 'vérifiée', rien: 'gardée, rien à saisir', double: 'en double', illisible: `illisible${p.note ? ', redemandée' : ''}`, banque: 'rapprochée', client: 'saisie par le client', jointe: 'jointe à son écriture' })[p.raison] || 'classée', p.classeeLe]);
@@ -7262,7 +7265,7 @@
       ev.push([prenomCl(x.deposeNom) || 'Le cabinet', `${prenomCl(x.deposeNom) || 'Le cabinet'} la dépose`, x.provenance || 'dans le classeur', x.deposeLe]);
       if (x.classeeLe) ev.push([quiCl(x.classeePar), `${quiCl(x.classeePar)} la classe`, x.raison === 'jointe' ? 'jointe à son écriture' : x.raison || 'classée', x.classeeLe]);
     } else if (e) {
-      ev.push([e.source === 'skanfact' ? qui : 'Le cabinet', e.source === 'skanfact' ? `${qui} saisit ${e.piece || 'la pièce'}` : `Le cabinet saisit ${e.piece || 'la pièce'}`, `au brouillard, au ${jjmm(e.date)}`, `${e.date}T12:00:00Z`]);
+      ev.push([e.source === 'skanfact' && !d.manual ? qui : 'Le cabinet', e.source === 'skanfact' && !d.manual ? `${qui} saisit ${e.piece || 'la pièce'}` : `Le cabinet saisit ${e.piece || 'la pièce'}`, `au brouillard, au ${jjmm(e.date)}`, `${e.date}T12:00:00Z`]);
       if (e.valideeLe) ev.push(['Le cabinet', 'Le cabinet la valide', 'elle reçoit son numéro et ne se modifie plus', new Date(e.valideeLe).toISOString()]);
     }
     // Le premier geste du jour dit « aujourd'hui » ; les suivants, l'heure seule (la maquette).
@@ -9101,8 +9104,8 @@
   // 606 ») ; un nom posé par le cabinet ou
   // par le tiers (411001 « Hôtel Dar Jerba ») reste tel quel.
   const PREFIXES_DU_PLAN = new Set((KC.PLAN_COMPTABLE || []).map(x => x[0]));
-  function nomDeCompte() {
-    const plan = (livresState.livre && livresState.livre.plan) || [];
+  function nomDeCompte(livre) {
+    const lv0 = livre || livresState.livre; const plan = (lv0 && lv0.plan) || [];
     const par = new Map(plan.map(c => [c.compte, c.libelle || '']));
     return (c, t) => {
       const n = par.get(c) || KC.libelleDuPlan(c) || t || '';

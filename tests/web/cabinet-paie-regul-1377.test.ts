@@ -102,6 +102,19 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('L\'absence d\'Amel Trabelsi est enregistrée. Octobre est validé : régularise-la depuis « Le mois » d\'octobre.');
     await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('pas retenue : à régulariser');
+    // (1.387.82, CABPAIE-1) Le bloc « Les absences à venir » dit la même chose que la liste : vu le 10/10/2025, l'absence
+    // du 15 est à venir, et son mois est déjà validé.
+    const aVenir = async () => {
+      const p2 = await page(associe, erreurs);
+      await p2.context().clock.setFixedTime(new Date('2025-10-10T10:00:00+01:00'));
+      await p2.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+      await p2.locator('.pa-so [data-pa-vue="conges"]').click({ timeout: 20_000 });
+      await p2.locator('#pa-absences').waitFor({ timeout: 20_000 });
+      const t = net(await p2.locator('#pa-absences').innerText());
+      await p2.context().close();
+      return t;
+    };
+    { const t = await aVenir(); expect(t).toContain('pas retenue : à régulariser'); expect(t).not.toContain('retirée du salaire'); }
     // ── Le mois d'octobre : la vraie différence, son montant, et le geste ───────────────────────────────────────
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
     await expect.poll(() => p.locator('#pa-depuis-val').count()).toBe(1);
@@ -142,6 +155,7 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await expect.poll(() => p.locator('#pa-depuis-val').innerText().then(net)).toBe('Depuis la validation, une absence est arrivée : c\'est régularisé. Amel Trabelsi : régularisé sur novembre (− 50,000 DT de brut).');
     await p.locator('.pa-so [data-pa-vue="conges"]').click();
     await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('régularisée sur novembre');
+    expect(await aVenir()).toContain('régularisée sur novembre');
     expect(erreurs).toEqual([]);
   }, 180_000);
   // (1.377.1, CABPAIE-9) « Noter la sortie… » demande le dernier jour : le salarié reste compté dans le mois où il était là,

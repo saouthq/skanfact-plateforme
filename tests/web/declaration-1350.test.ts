@@ -180,9 +180,20 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/classeur`);
     await p.locator('#cl-exporter').click({ timeout: 15_000 });
     await p.locator('#ex-q [data-q="annee"]').click();
+    // (1.387.82, CABDECLARER-4) La fenêtre compte ce que le FEC portera ; décocher le FEC le dit.
+    await expect.poll(async () => (await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/\d+ écritures? dans le FEC$/);
+    await p.locator('#ex-c label:has(input[data-c="fec"])').click();
+    await expect.poll(async () => (await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/sans le FEC$/);
+    await p.locator('#ex-c label:has(input[data-c="fec"])').click();
+    expect(await p.locator('#ex-c input[data-c="fec"]').isChecked()).toBe(true);
     const envoi = p.waitForRequest((r) => r.method() === 'POST' && /\/classeur\/[^/]+\/exports$/.test(r.url()), { timeout: 30_000 });
     await p.locator('#modal-root #ok').click();
     const zip = Buffer.from(String(((await envoi).postDataJSON() as { contenu: string }).contenu), 'base64').toString('utf8');
+    // Le compte rendu dit l'index qui est VRAIMENT dans le ZIP, en PDF ou en HTML.
+    const rendu = (await p.locator('#modal-root .cl-exp small').first().innerText()).replace(/\s+/g, ' ');
+    if (zip.includes('index.pdf')) expect(rendu).toContain('l\'index en PDF');
+    else { expect(zip).toContain('index.html'); expect(rendu).toContain('l\'index en HTML'); }
+    expect(rendu).toMatch(/le fichier des écritures \(\d+ écritures?\)/);
     const csv = zip.slice(zip.indexOf('Période;État;Déposée le;Payée le;'));
     const lignes = csv.split('\n').map((l) => l.replace(/\r$/, ''));
     expect(lignes[0]).toBe('Période;État;Déposée le;Payée le;TVA collectée;TVA déductible;Crédit du mois précédent;TVA à payer;Crédit à reporter;Retenues à la source;IRPP et CSS sur salaires;TFP;FOPROLOS;Droit de timbre;Total de la déclaration (DT)');

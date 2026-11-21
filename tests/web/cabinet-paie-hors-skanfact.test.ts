@@ -151,6 +151,18 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === '2025-10-31').length).toBe(2);
     await expect.poll(salaires).toContain('payés, notés au cabinet');
     expect(await p.locator('#pa-noter-payes').count()).toBe(0);
+    // (1.387.82, issue 10, CABPAIE-2) Noté par erreur après coup : le menu du bulletin défait ce paiement-là, et lui seul.
+    await p.locator(`[data-rowmenu="PAIE:${cles[0]}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Annuler le paiement' }).click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler le paiement', exact: true }).click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate).length, { timeout: 10_000 }).toBe(1);
+    await expect.poll(async () => net(await p.locator('#pa-noter-payes').innerText().catch(() => ''))).toBe('Noter le salaire payé');
+    await p.locator('#pa-noter-payes').click();
+    await p.locator('#modal-root .modal').last().locator('#pa-paye-le').fill('31/10/2025');
+    await p.locator('#modal-root .modal').last().locator('#pa-paye-ok').click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.paidDate === '2025-10-31').length).toBe(2);
+    await expect.poll(salaires).toContain('payés, notés au cabinet');
+    await expect.poll(() => p.locator('#pa-f-salaires').getAttribute('class')).toContain('fait');
     // Payés, les bulletins ne se dévalident plus, même le jour de leur validation (« Annuler » du toast).
     expect(await p.evaluate(async (o) => { try { await (window as unknown as Pont).cabinet.marquerBulletins(o); return 'passé'; } catch (e) { return (e as Error).message; } },
       { dossierId: ent, annee: 2025, ids: cles, champs: { valideLe: null }, annulerValidation: true, valideLe: jour })).toBe('Ce bulletin est validé : il ne change plus.');

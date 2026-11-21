@@ -5837,3 +5837,22 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   prévenir la patronne d'un écart de fond saisi par un caissier (une alerte de plus).
 - Tests : `tests/web/rendu.test.ts`, `tests/web/entree.test.ts`, `tests/web/hors-ligne-envoi.test.ts`,
   `tests/web/console-reglages.test.ts`, `tests/web/caissier.test.ts`, `tests/web/caisse-z.test.ts`.
+
+## 1.387.83 — La paie et le classeur du Cabinet disent ce qui est (issues 9 et 10)
+
+- **CABPAIE-1 (bloquant) — l'absence non payée posée après la validation** : la liste des congés disait déjà « pas
+  retenue : à régulariser », mais le bloc « Les absences à venir » écrivait encore « retirée du salaire, au prorata »
+  pour la même absence. Les deux lisent maintenant la même fonction (`effetAbsenceNonPayee`) ; une demande pas encore
+  acceptée sur un mois validé dit « à régulariser : son mois est déjà validé ».
+- **CABPAIE-2 (bloquant) — « Noter les salaires payés »** se défaisait seulement par le message de huit secondes. Le menu
+  d'un bulletin payé d'un dossier tenu au cabinet propose « Annuler le paiement… » (refusé tant que le versement est
+  rapproché d'une ligne de relevé, avec le geste qui débloque). Quand la période est validée, la fenêtre le dit AVANT :
+  l'écriture de banque va au premier jour ouvert, le bulletin garde son jour. Les écritures d'un dossier hors SkanFact
+  sont signées « le cabinet », jamais du prénom d'un client qui n'a rien saisi (brouillard, classeur, historique).
+- **CABDECLARER-4 (bloquant) — l'export « pour un contrôle »** annonçait « l'index » même quand il n'y était pas, en HTML
+  quand le PDF n'avait pas pu se faire, et taisait un FEC refusé. Le compte rendu dit l'index tel qu'il est (PDF, HTML ou
+  rien), le nombre d'écritures du FEC, ou pourquoi il n'y a pas de FEC ; la fenêtre compte ce que le FEC portera (les
+  écritures non brouillard) et dit « sans le FEC » quand la case est décochée. Les deux FEC (journal et classeur)
+  nomment les comptes par la même fonction.
+- Tests : `tests/web/cabinet-paie-regul-1377.test.ts`, `tests/web/cabinet-paie-hors-skanfact.test.ts`,
+  `tests/web/declaration-1350.test.ts`.
