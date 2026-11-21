@@ -5801,3 +5801,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   le panneau dit que la remise en place et l'effacement de l'entreprise se demandent au support (l'équipe vérifie que
   la demande vient bien de toi), et « Écrire au support » ouvre la demande, le sujet déjà posé.
 - Tests : `tests/web/assistant.test.ts` (retourné vers la règle), `tests/web/export-complet.test.ts`.
+
+## 1.387.81 — Le code d'authentification se lit ; le chemin et le bandeau de l'exemple sur toutes les pages (issues 4 et 14)
+
+- **ENTREE-1 (bloquant) — la fenêtre « Activer le code d'authentification »**, commune à SkanFact et au Cabinet, posait
+  ses étapes dans une liste `.cpt-etapes`, une classe que la feuille de « Mon comptable » (chargée après) range en trois
+  colonnes. À l'ordinateur, les quatre étapes se tassaient sur une ligne ; au téléphone, chaque étape tombait à 24 px de
+  large et les codes de secours se coupaient lettre par lettre. La liste a sa propre classe (`.cpt-etapes-code`),
+  numérotée et empilée ; un test exige que les deux feuilles ne partagent que les deux classes nommées (la carte et le
+  pied), et mesure la fenêtre à l'ordinateur puis à 390 px.
+- **ENTSOCLE-18 — Paramètres, « Tous les modules » et « Me guider »** n'avaient pas le chemin « Accueil › … » que portent
+  toutes les autres pages, et le bandeau de l'exemple disparaissait sur une page dessinée après coup : le routeur le
+  repose une fois la page dessinée.
+- Tests : `tests/web/compte.test.ts`, `tests/web/exemple.test.ts`.

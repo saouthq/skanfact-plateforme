@@ -225,6 +225,11 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.waitForURL(new RegExp(`/v10/\\?e=${essai}`), { timeout: 20_000 });
     await expect.poll(() => p.locator('#view .demo-banner').isVisible(), { timeout: 20_000 }).toBe(true);
     expect(net(await p.locator('#demo-out').innerText())).toBe('Quitter l\'exemple');
+    // (1.387.80, issue 14 ENTSOCLE-18) Les Paramètres de l'exemple gardent son bandeau (la page se dessine en deux temps et
+    // l'emportait) et portent leur fil d'Ariane.
+    await p.evaluate(() => { location.hash = '#/parametres'; });
+    await expect.poll(() => p.locator('#view .lf-tete .chemin').innerText().then(net).catch(() => ''), { timeout: 20_000 }).toMatch(/^Accueil.*Paramètres$/);
+    await expect.poll(() => p.locator('#view > .demo-banner').isVisible().catch(() => false), { timeout: 20_000 }).toBe(true);
     expect(versements).toBe(3);
     expect(await compter('ventes.piece', essai)).toBe(pieces);
     expect(await compter('socle.dossier_v10', vraie)).toBe(avant);

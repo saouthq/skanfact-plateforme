@@ -347,7 +347,7 @@
       };
       /** @param {any} r */
       const montrer = (r) => {
-        corps.innerHTML = `<ol class="cpt-etapes">
+        corps.innerHTML = `<ol class="cpt-etapes-code">
           <li><b>Installe une application d'authentification</b><span class="small muted">Gratuite, sur ton téléphone : Google Authenticator, Microsoft Authenticator… Si tu en as déjà une, passe à l'étape 2.</span></li>
           <li><b>Ajoute SkanFact</b><div class="cpt-qr"><div class="cpt-qr-image" role="img" aria-label="Le code QR à scanner avec ton application d'authentification">${qr(r.adresseApplication)}</div>
             <div class="small"><p>Dans l'application, choisis « Ajouter un compte », puis scanne ce code QR. Ou tape à la main cette clé :</p>

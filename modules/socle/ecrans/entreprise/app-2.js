@@ -7104,7 +7104,7 @@
     // (1.356.4) Arrivé par « Compléter » d'une pièce (sa fiche société incomplète), on y revient d'un clic : la facture
     // de l'hôtel attendait derrière, et rien sur la page ne menait à elle. Venu du menu, pas de retour : c'est une page de tête.
     const depuisPiece = ['doc', 'achat'].includes(routeOf(navStack[navStack.length - 1] || ''));
-    $('#view').innerHTML = `<div class="page-head"><h1>Paramètres</h1>
+    $('#view').innerHTML = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Paramètres</span></div><h1>Paramètres</h1></div>
         <div class="actions set-search">${depuisPiece ? backButton('#/dashboard') : ''}
           <input type="search" id="set-q" placeholder="Chercher un réglage : timbre, logo…" autocomplete="off" spellcheck="false">
         </div></div>
@@ -8095,7 +8095,7 @@
         if (p) navigate('#/' + p.id);
       });
     };
-    $('#view').innerHTML = `<div class="page-head"><h1>Tous les modules</h1>
+    $('#view').innerHTML = `<div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Tous les modules</span></div><h1>Tous les modules</h1></div>
       <div class="actions">${backButton('#/dashboard')}${choisis ? '<button class="btn" id="mod-all">Tout afficher</button>' : ''}</div></div>
       <p class="lead">SkanFact sait faire beaucoup de choses. Tu n'en as pas besoin le premier jour, et
       une liste de ${C.PAGES.filter(p => !p.horsMenu).length} entrées dans le menu ne t'aide pas à trouver la bonne.</p>
@@ -8746,7 +8746,7 @@
     // Tes réussites : jamais sur l'exemple — celles d'une entreprise inventée ne sont pas les tiennes.
     const rr = exemple ? null : C.reussites(data, company(), { copieExterne, partage: dossierPartage, enLigne: !!bridge.dessinerAbonnement, comptable: !!($('#foot-comptable') && !$('#foot-comptable').hidden) });
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Me guider</h1>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Me guider</span></div><h1>Me guider</h1></div>
         <div class="actions"><button type="button" class="btn" id="g-aide">Ouvrir l'Aide</button></div></div>
       <section class="g-hero">
         <div class="g-hero-txt"><span class="g-sur">Ton guide</span>

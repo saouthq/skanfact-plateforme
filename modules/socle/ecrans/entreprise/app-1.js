@@ -3813,6 +3813,9 @@
     Promise.resolve(dessine).then(cheminDepuisFiche, () => {});
     poserGuideMoi();                 // « Guide-moi » : ce qu'on peut faire sur cette page, et son article (10.14.1)
     bandeauDemo(name);               // « ce ne sont pas tes données » — sur chaque page, en permanence
+    // (1.387.80, issue 14 ENTSOCLE-18) Une page qui se dessine en deux temps (les Paramètres attendent le serveur) réécrit
+    // la vue et emportait le bandeau de l'exemple : il revient une fois la page posée.
+    Promise.resolve(dessine).then(() => { if (!$('#view > .demo-banner') && routeOf(location.hash) === name) bandeauDemo(name); }, () => {});
     // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
     if (bridge.poserMessage) bridge.poserMessage(view);
     // (plateforme, Support S1) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).

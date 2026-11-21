@@ -232,6 +232,14 @@ describe('ton compte, à la souris', () => {
     await p.context().close();
   }, 120_000);
 
+  it('les feuilles de « Ton compte » et de « Mon comptable » ne partagent que les classes nommées (issue 4, ENTREE-1)', () => {
+    const classes = (f: string) => new Set([...fs.readFileSync(path.join(RACINE, 'web/public/plateforme', f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+      .matchAll(/(?:^|[},\s])\.(cpt-[a-z0-9-]+)/gm)].map((m) => m[1]));
+    const a = classes('compte.css'), b = classes('messagerie.css');
+    // `.cpt-carte` et `.cpt-pied` : partagées, elles ne changent que le fond d'une carte et l'écart d'un pied.
+    expect([...a].filter((x) => b.has(x)).sort()).toEqual(['cpt-carte', 'cpt-pied']);
+  });
+
   it('le Cabinet : avec un relais d\'e-mails, le comptable peut revenir à l\'e-mail ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code', async () => {
     const { email, jeton } = await personne('karim');
     const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Ben Salah' })).corps.id);
@@ -260,6 +268,20 @@ describe('ton compte, à la souris', () => {
     // La clé du nouveau téléphone ; l'ancien vaut toujours tant que le nouveau n'a pas donné son premier code.
     const cle = fenetre(p).locator('.cpt-cle code');
     await cle.waitFor({ timeout: 10_000 });
+    // (1.387.80, issue 4 ENTREE-1) La fenêtre se lit : ses étapes s'empilent, numérotées, à l'ordinateur comme au
+    // téléphone (une classe partagée avec « Mon comptable » la rangeait en trois colonnes, et en une colonne de 24 px au
+    // téléphone : codes de secours coupés lettre par lettre).
+    const etapes = async () => fenetre(p).locator('ol.cpt-etapes-code > li').evaluateAll((li) => li.map((x) => {
+      const r = x.getBoundingClientRect();
+      return { haut: r.top, bas: r.bottom, large: r.width, avant: getComputedStyle(x, '::before').content };
+    }));
+    const ordi = await etapes();
+    expect(ordi.length).toBeGreaterThanOrEqual(3);
+    ordi.forEach((e, i) => { expect(e.avant).toContain('counter'); if (i) expect(e.haut).toBeGreaterThanOrEqual(ordi[i - 1].bas - 1); });
+    await p.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(async () => Math.min(...(await etapes()).map((e) => e.large)), { timeout: 5_000 }).toBeGreaterThan(250);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await p.setViewportSize({ width: 1440, height: 900 });
     const nouveau = (await cle.innerText()).replace(/\s/g, '');
     expect(nouveau).toMatch(/^[A-Z2-7]{16,}$/);
     expect(nouveau).not.toBe(ancien);
