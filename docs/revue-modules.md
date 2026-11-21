@@ -5974,3 +5974,12 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   rappel de fermeture : rien d'autre ne change.
 - Test : taper la pièce dans « Demander à », puis la croix et « Annuler » : chaque fois la question, « Annuler » garde la
   fenêtre et le texte. Preuve : retirer la ligne fait tomber le test.
+
+## 1.387.91 — « Inviter un client… » invite, il ne crée pas de dossier (issue 12, CABPORTEFEUILLE-20)
+
+- **CABPORTEFEUILLE-20** : dans Messages, « Inviter un client… » ouvrait la création d'un dossier — un dossier de plus,
+  qui se paie — alors que l'invitation se fait sur la fiche d'un client déjà tenu au cabinet. Un seul client tenu : sa
+  fiche s'ouvre à l'invitation, le curseur dans l'adresse. Plusieurs : « Quel client inviter ? » les liste (avec une
+  recherche au-delà de six), et « Un nouveau client… » reste possible. Aucun : la création, comme avant.
+- Test : le cabinet neuf, un client tenu, « Inviter un client… » mène à sa fiche, le curseur dans l'adresse, aucune
+  fenêtre. Preuve : remettre la création fait tomber le test.

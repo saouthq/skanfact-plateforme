@@ -31090,6 +31090,10 @@ prouver $'cab8-annuler-jette-la-saisie' modules/socle/ecrans/cabinet/app-1.js \
   $'    $$(\'[data-close]\', layer).forEach(b => { if (b.onclick === close) b.onclick = null; });' \
   $'' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'cabportefeuille20-inviter-cree-un-dossier' modules/socle/ecrans/cabinet/app-1.js \
+  $'        else if (estAssocie()) inviterUnTenu(); else location.hash = \'#/dossiers\';' \
+  $'        else if (estAssocie()) newDossierForm(); else location.hash = \'#/dossiers\';' \
+  $'(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -1958,13 +1958,44 @@
         <div class="msg-ap-l moi"><small>Toi · 09:10</small><div class="msg-ap-bulle moi">Non : l'avoir entre dans octobre, juillet ne se réécrit pas. Je m'en occupe.</div></div>
         <div class="msg-ap-l note"><div class="msg-ap-note">Note pour l'équipe · l'avoir arrive avec les achats d'octobre</div></div></div></div>`;
   }
+  // (1.387.91, issue 12 CABPORTEFEUILLE-20) « Inviter un client… » ouvrait la création d'un dossier — un dossier payant de plus
+  // — alors que l'invitation se fait sur la fiche d'un client DÉJÀ tenu au cabinet. Un seul tenu : sa fiche, à l'invitation.
+  // Plusieurs : on choisit lequel. Aucun : la création, comme avant (c'est bien un nouveau client).
+  function inviterUnTenu() {
+    const tenus = (S.dossiers || []).filter(d => d.manual && !d.archived && !d.demo)
+      .sort((x, y) => String(x.name || '').localeCompare(String(y.name || ''), 'fr', { numeric: true }));
+    const vers = d => { location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/fiche'; };
+    if (!tenus.length) { newDossierForm(); return; }
+    if (tenus.length === 1) { vers(tenus[0]); return; }
+    const avecFiltre = tenus.length > 6;
+    modal(`<h2>Quel client inviter ?</h2>
+      <p class="muted">Ces clients sont tenus au cabinet : invité, il reçoit son espace SkanFact et ses pièces arrivent seules. Son dossier reste le même.</p>
+      ${avecFiltre ? `<div class="field"><span>Chercher un client</span><input id="it-q" type="search" autocomplete="off" placeholder="Nom du client"></div>` : ''}
+      <div class="it-liste" id="it-liste" role="list">${tenus.map(d => `<button type="button" class="btn it-c" role="listitem" data-it="${esc(d.id)}">${esc(d.name || 'Client')}</button>`).join('')}</div>
+      <p class="muted" id="it-vide" hidden>Aucun client tenu à ce nom.</p>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-ghost" id="it-neuf">Un nouveau client…</button></div>`,
+    (layer, close) => {
+      $$('[data-it]', layer).forEach(b => { b.onclick = () => { const d = tenus.find(x => x.id === b.dataset.it); close(); if (d) vers(d); }; });
+      $('#it-neuf', layer).onclick = () => { close(); newDossierForm(); };
+      const q = $('#it-q', layer);
+      if (q) {
+        q.addEventListener('input', () => {
+          const t = K.sansAccents(q.value.trim().toLowerCase());
+          let n = 0;
+          $$('[data-it]', layer).forEach(b => { const ok = !t || K.sansAccents(b.textContent.toLowerCase()).includes(t); b.hidden = !ok; if (ok) n++; });
+          $('#it-vide', layer).hidden = n > 0;
+        });
+        setTimeout(() => q.focus(), 0);
+      }
+    }, null, { garde: () => false });
+  }
   function brancherNeufMsg(z) {
     $$('[data-msg-neuf]', z).forEach(b => {
       b.onclick = async () => {
         const g = b.dataset.msgNeuf;
         if (g === 'code') { try { await navigator.clipboard.writeText(api.codeCabinet()); b.textContent = 'Copié'; } catch { /* le code reste lisible */ } }
         else if (g === 'modeles') api.modeles();
-        else if (estAssocie()) newDossierForm(); else location.hash = '#/dossiers';
+        else if (estAssocie()) inviterUnTenu(); else location.hash = '#/dossiers';
       };
     });
   }

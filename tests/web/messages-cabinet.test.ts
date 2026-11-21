@@ -181,6 +181,14 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect((await neuf.locator('.msg-neuf-pas > li > b').allInnerTexts())).toEqual(['Ton code cabinet', 'Inviter un client', 'Préparer tes modèles']);
     expect(net(await neuf.locator('.msg-neuf-code').innerText())).toBe(cab.code);
     expect(await neuf.locator('.msg-neuf-ap').isVisible()).toBe(true);
+    // (1.387.91, issue 12 CABPORTEFEUILLE-20) « Inviter un client… » mène à l'invitation du client déjà tenu, jamais à la
+    // création d'un dossier (un dossier payant de plus) : la fiche de la clinique, le curseur dans l'adresse à inviter.
+    await neuf.getByRole('button', { name: 'Inviter un client…' }).click();
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id || ''), { timeout: 20_000 }).toBe('rejoindre-email');
+    expect(p.url()).toMatch(/#\/dossier\/[^/]+$/);
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/messages'; });
+    await p.locator('#msg-racine .msg-neuf').waitFor({ timeout: 15_000 });
 
     // ── Un client en ligne, Amel, qui promet ─────────────────────────────────────────────────────────────────────
     const amel = await personne('Amel Ennour');
