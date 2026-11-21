@@ -235,4 +235,38 @@ describe('la paie d\'un client hors SkanFact, au Cabinet, de bout en bout', () =
     expect(net(await p.locator('#pa-volet').innerText())).toContain('Prime exceptionnelle saisi sur le bulletin');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  it('(CABPAIE-6) un mois sans pointage se prépare d\'un geste : deux bulletins au brut de leur fiche, puis l\'étape suivante', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(salarie('s1', 'Salarié Numéro Un', 1234.567, '2025-01-01')) },
+      { collection: 'employees', cle: 's2', rang: null, revision: null, contenu: encoder(salarie('s2', 'Salarié Numéro Deux', 980, '2025-03-01')) },
+    ] })).statut).toBe(200);
+    const bulletins = async () => ((await api('GET', `/entreprises/${ent}/paie/dossier`, associe)).corps.objets as Objet[])
+      .filter((o) => o.collection === 'payslips').map((o) => decoder(o.contenu) as Record<string, unknown>);
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption('10');
+    const principal = () => p.locator('#view .btn-primary').evaluateAll((els) => els.filter((e) => e.id.startsWith('pa-')).map((e) => `${e.id} ${(e.textContent ?? '').replace(/\s+/g, ' ').trim()}`));
+    await expect.poll(() => p.locator('#pa-sans-pt').innerText().then(net).catch(() => '')).toBe('Préparer les 2 bulletins sur des mois complets');
+    await p.locator('#pa-sans-pt').click();
+    const fenetre = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.innerText().then(net)).toContain('Salarié Numéro Un, Salarié Numéro Deux : chacun part d\'un mois complet');
+    await fenetre.locator('#ok').click();
+    await expect.poll(async () => (await p.locator('#toast').textContent()) ?? '').toBe('2 bulletins préparés sur des mois complets.');
+    await expect.poll(async () => (await bulletins()).length).toBe(2);
+    expect((await bulletins()).map((b) => [b.employeeId, b.gross]).sort()).toEqual([['s1', 1234.567], ['s2', 980]]);
+    expect(await p.locator('#pa-sans-pt').count()).toBe(0);
+    await expect.poll(principal).toEqual(['pa-valider-bul Valider les 2 bulletins']);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

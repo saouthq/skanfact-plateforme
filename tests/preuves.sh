@@ -31244,6 +31244,10 @@ prouver $'cabpaie5-titre-du-trimestre-cnss' modules/personnel/ecrans/cabinet/pai
   $'    const tri = vue === \'cnss\' ? KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(L, livresState)) : null;' \
   $'    const tri = null;' \
   $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver $'cabpaie6-preparer-tous-les-bulletins' modules/personnel/ecrans/cabinet/paie.js \
+  $'    if (spt0) spt0.onclick = () => preparerLesBulletins(root, dossier);' \
+  $'    if (spt0) spt0.onclick = () => bulletinForm(root, dossier, null);' \
+  $'(CABPAIE-6) un mois sans pointage se prépare d\'un geste : deux bulletins au brut de leur fiche, puis l\'étape suivante'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

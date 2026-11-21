@@ -6234,3 +6234,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   remet à zéro avec le mois.
 - Tests : la CNSS du trimestre — le titre, pas de menu de mois, les trois mois cerclés, et ceux du trimestre choisi après un
   changement ; les Immobilisations sans frise. Trois preuves.
+
+## 1.388.13 — « Préparer sans pointage » prépare tous les bulletins du mois (issue 10, CABPAIE-6)
+
+- Sur un mois sans aucun bulletin, « Préparer sans pointage : des mois complets » ouvrait la fenêtre d'UN salarié : le
+  libellé promettait des mois complets au pluriel, le geste en faisait un.
+- Le bouton dit maintenant ce qu'il fera (« Préparer les 2 bulletins sur des mois complets ») et les prépare tous d'un
+  geste, après une question qui nomme les salariés et rappelle que chaque bulletin reste modifiable jusqu'à sa validation.
+  Chaque bulletin part de la même saisie que la fenêtre (brut de la fiche au prorata, congés, primes, échéances d'avance),
+  se juge par la même fonction et s'enregistre par la même porte ; un bulletin refusé nomme son salarié et sa raison, et
+  laisse partir les autres.
+- La fenêtre un par un reste par « Établir les bulletins » et « + Un bulletin… ».
+- Test : un mois d'octobre sans pointage — le libellé, la question, deux bulletins au brut de leur fiche, puis « Valider
+  les 2 bulletins » en bouton principal. Une preuve.

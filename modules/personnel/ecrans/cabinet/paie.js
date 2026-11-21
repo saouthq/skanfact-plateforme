@@ -425,7 +425,7 @@
         <div class="cp-pa-touches small muted">↑ ↓ un salarié · Entrée son bulletin · Espace vérifié · P le bulletin en PDF${P.geste && P.geste.id ? `<span id="pa-touche-geste"> · Ctrl Entrée ${esc(P.geste.t.replace(/…$/, '').replace(/^./, c => c.toLowerCase()))}</span>` : ''}</div></div>
         ${sel ? paieVoletBulletin(dossier, L, sel, avantDe(sel), P, o.nomDe) : ''}</div>`
       : `<div class="panel empty" id="pa-vide">${P.duMois && !P.pointe && (P.mode === 'tenue' || P.mode === 'cabinet') ? `<p><b>Le pointage ${esc(KC.deMois(KC.moisPaie(m)))} n'est pas encore là.</b> Sans lui, chaque bulletin part d'un mois complet ; une absence ou des heures sup se règlent à la main.</p>
-        <div class="ctrl-geste" id="pa-pt-attendu">${P.mode === 'tenue' && api.messagerie && !dossier.manual ? `<button type="button" class="btn btn-sm" id="pa-demander-pt">Le demander à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-saisir-pt">Le saisir moi-même</button><button type="button" class="btn btn-sm" id="pa-sans-pt">Préparer sans pointage : des mois complets</button></div>
+        <div class="ctrl-geste" id="pa-pt-attendu">${P.mode === 'tenue' && api.messagerie && !dossier.manual ? `<button type="button" class="btn btn-sm" id="pa-demander-pt">Le demander à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-saisir-pt">Le saisir moi-même</button><button type="button" class="btn btn-sm" id="pa-sans-pt">${P.duMois > 1 ? `Préparer les ${P.duMois} bulletins sur des mois complets` : 'Préparer le bulletin sur un mois complet'}</button></div>
         ${P.entrees.length ? `<p class="small" id="pa-entrees">${P.entrees.map(x => `<b>${esc(x.nom)}</b>, entrée le ${esc(fmtJour(x.embauche))}`).join(', ')} : ${P.entrees.length > 1 ? 'leur premier bulletin sera' : 'son premier bulletin sera'} au prorata.</p>` : ''}` : ''}${!P.actifs ? 'Aucun salarié déclaré : c\'est par là qu\'une paie commence.' : !P.duMois ? `Personne n'est en poste en ${esc(KC.moisPaie(m))} : ${P.horsDuMois.map(x => x.embauche && x.embauche > `${P.ym}-31` ? `${esc(x.nom)} entre le ${esc(fmtJour(x.embauche))}` : `${esc(x.nom)} est sorti le ${esc(fmtJour(x.sortie))}`).join(', ')}. Aucun bulletin à faire.` : P.mode === 'seule' || P.mode === 'sans' ? `Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} ne sont pas encore faits : ${esc(P.client)} les fait dans SkanFact, ils arrivent ici.` : `Aucun bulletin ${esc(KC.deMois(KC.moisPaie(m)))} : « Établir les bulletins » les prépare un à un, avec la fiche et le pointage de chacun.`}</div>`;
     const controles = paieControles(dossier, L, annee, m, bulletins, avants, masse, P, o);
     // Le jour d'après lequel l'écriture se valide se dit toujours (une information avant le geste) ; le bouton « La valider »
@@ -1473,7 +1473,7 @@
       if (xs.length) fenDemanderCl(dossier, { piece: objet, texte }, { hors: true, ecrit: true, apres: async () => { await relirePieces(); redraw(); } });
     }; });
     const spt0 = $('#pa-sans-pt', el);
-    if (spt0) spt0.onclick = () => bulletinForm(root, dossier, null);
+    if (spt0) spt0.onclick = () => preparerLesBulletins(root, dossier);
     const oav = $('#pa-ouvrir-avant', el);
     if (oav) oav.onclick = () => { s.paieMois = Math.max(1, Number(s.paieMois) - 1); s.paieBul = null; redraw(); };
     const pob = $('#pa-proposer-oubli', el);
@@ -2807,6 +2807,40 @@
         } catch (err) { $('#pc-refus', rm).hidden = false; $('#pc-refus', rm).textContent = plainError(err); bt.disabled = false; }
       };
     });
+  }
+  // (CABPAIE-6) « Préparer sans pointage » prépare TOUS les bulletins du mois d'un geste : il ouvrait la fenêtre d'un seul
+  // salarié. Chacun part de la même saisie que la fenêtre (`KC.saisieDuMois`), se juge par la même fonction
+  // (`KC.bulletinValide`, barèmes du dossier) et s'enregistre par la même porte (`api.saveBulletin`), un par un : un bulletin
+  // refusé nomme son salarié et sa raison, et laisse partir les autres. La question dit AVANT le geste pour qui, et que
+  // chaque bulletin reste modifiable jusqu'à sa validation.
+  async function preparerLesBulletins(root, dossier) {
+    const s = livresState, L = s.livre, m = Number(s.paieMois), mo = `${KC.deMois(KC.moisPaie(m))} ${s.annee}`;
+    const servis = new Set(KC.bulletinsDuMois(L, s.annee, m).map(x => x.salarieId));
+    const aServir = KC.salariesDuMois(L, s.annee, m).filter(x => !servis.has(x.id));
+    if (!aServir.length) return toast(`Chaque salarié a déjà son bulletin ${mo}.`);
+    const n = aServir.length;
+    if (!await confirmDialog(n > 1 ? `Préparer les ${n} bulletins ${mo} ?` : `Préparer le bulletin ${mo} ?`,
+      `<p>${aServir.map(x => `<b>${esc(x.nom)}</b>`).join(', ')} : chacun part d'un mois complet — le brut de sa fiche (au prorata d'une entrée ou d'une sortie), ses congés, ses primes de chaque mois, l'échéance de ses avances. Chaque bulletin reste modifiable jusqu'à sa validation.</p>`,
+      n > 1 ? `Préparer les ${n} bulletins` : 'Préparer le bulletin')) return;
+    const donnees = donneesDuPointage(dossier, L), baremes = KC.baremesDuBulletin(L, null, reglagesPaie(dossier, L));
+    const remplie = x => !!(Number(x.amount) || String(x.label || '').trim() || x.parJour || x.hs);
+    const faits = [], refuses = [];
+    for (const x of aServir) {
+      const emp = donnees.employees.find(e => e.id === x.id);
+      const i = emp ? KC.saisieDuMois(donnees, emp, Number(s.annee), m) : null;
+      const v = i ? { id: '', salarieId: x.id, annee: s.annee, mois: m, brut: i.gross, joursTravailles: Number(i.workedDays) || 26, joursAbsence: Number(i.absentDays) || 0,
+        primes: (i.bonuses || []).filter(remplie).map(p => ({ ...p, label: String(p.label || '').trim() || 'Prime' })),
+        retenues: (i.deductions || []).filter(remplie).map(r => ({ ...r, label: String(r.label || '').trim() || 'Retenue' })),
+        prorata: i.prorata && KC.round3(Number(i.prorata.brut)) === KC.round3(i.gross) ? i.prorata : null } : null;
+      const ok = v ? KC.bulletinValide(v, s.livre, baremes) : { ok: false, motif: 'sa fiche ne se lit pas.' };
+      if (!ok.ok) { refuses.push(`${x.nom} : ${ok.motif}`); continue; }
+      try { const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v }); s.livre = r.livre; faits.push(x.nom); }
+      catch (err) { refuses.push(`${x.nom} : ${plainError(err)}`); }
+    }
+    drawLivres(root, dossier);
+    if (refuses.length) infoDialog(faits.length ? `${pl(faits.length, 'bulletin préparé', 'bulletins préparés')}, ${pl(refuses.length, 'refusé', 'refusés')}` : 'Aucun bulletin préparé',
+      `${refuses.join('\n')}\n\nCeux-là s'établissent un par un (« + Un bulletin… »), une fois la raison corrigée.`);
+    else toast(`${pl(faits.length, 'bulletin préparé', 'bulletins préparés')} sur des mois complets.`);
   }
   function bulletinForm(root, dossier, b) {
     const s = livresState;
