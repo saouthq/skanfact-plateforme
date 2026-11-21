@@ -954,6 +954,10 @@
           texte: 'Le premier mois que tu tiens pour lui, écrit comme 01/2026. Tu reprends un dossier en cours d\'année ? Mets le mois où tu commences : les mois d\'avant ne te seront ni réclamés ni comptés à saisir.' },
         { page: '#/dossiers', cible: '#f-cnss', cote: 'droite', titre: 'S\'il a des salariés', facultatif: true,
           texte: 'Son matricule CNSS employeur : le fichier de télédéclaration du trimestre, dans l\'écran Paie, ne sort pas sans lui. Le code d\'exploitation, laissé vide, vaut 0000. Tu pourras les ajouter plus tard depuis sa fiche.' },
+        // (1.387.95, issue 12 CABPORTEFEUILLE-24) Un dossier tenu au-delà de ceux qu'offre l'abonnement se paie : la fenêtre le
+        // dit avant de créer, et la visite le montre quand c'est le cas (l'étape se saute sinon).
+        { page: '#/dossiers', cible: '#nd-abonnement', cote: 'dessus', titre: 'Ce qu\'il coûte', facultatif: true,
+          texte: 'Au-delà des dossiers que ton abonnement offre, un dossier tenu au cabinet se paie : la fenêtre te le dit ici, avant de le créer. Le dossier d\'un client qui a son propre abonnement SkanFact ne compte pas.' },
         { page: '#/dossiers', cible: '#modal-root #ok', cote: 'dessus', faire: 'clic', fait: () => reels().length > clientsAvant && aucuneFenetre(),
           titre: 'Créer', texte: 'La fiche s\'ouvre juste après.', action: 'Clique sur <b>« Créer le dossier »</b>.', essai: { clic: true } }
       ]

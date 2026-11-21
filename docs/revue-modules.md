@@ -6015,3 +6015,14 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   rien à changer.
 - Test : « Envoyer au support » avec le modèle intact est refusé, la page ne change pas. Preuve : retirer la règle fait
   tomber le test.
+
+## 1.387.95 — Le titre d'une visite qui attend s'écrit une fois ; « Ajouter un client » dit ce qu'il coûte (issue 12, CABPORTEFEUILLE-24)
+
+- **CABPORTEFEUILLE-24** : la bulle « La visite t'attend » rééchappait le titre que la tête de la bulle échappe déjà :
+  « Tenir la fiche d'un client » s'affichait « D&#39;UN CLIENT ». Le moteur des visites est partagé : les visites de
+  l'app entreprise en profitent aussi. Un test lit chaque appel à la tête de la bulle et refuse qu'on lui passe du texte
+  déjà échappé.
+- La visite « Ajouter un client » montre, quand la fenêtre l'annonce, que le dossier se paie au-delà de ceux qu'offre
+  l'abonnement (étape facultative : elle se saute quand il est offert). Elle citait déjà le vrai libellé « Ajouter un
+  client… » (fait en 1.374.0).
+- Preuve : remettre le double échappement fait tomber le test.

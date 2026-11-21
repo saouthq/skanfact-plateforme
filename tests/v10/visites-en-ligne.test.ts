@@ -243,4 +243,19 @@ describe('les visites de l\'entreprise, en ligne', () => {
     fenetre = true;
     expect([derniere.fait(), v.but(n0)]).toEqual([true, true]);
   });
+
+  // (1.387.95, issue 12 CABPORTEFEUILLE-24) `tete()` échappe ses textes : un appelant qui lui passait `h(p.titre)` les
+  // échappait deux fois, et « Tenir la fiche d'un client » s'affichait « D&#39;UN CLIENT » dans la bulle qui attend.
+  it('aucun appelant ne rééchappe ce que la tête de la bulle échappe déjà', () => {
+    const src = lireEcran('v10/visite.js');
+    const appels: string[] = [];
+    for (const m of src.matchAll(/\btete\(/g)) {
+      let i = (m.index ?? 0) + m[0].length, prof = 1;
+      const debut = i;
+      while (i < src.length && prof > 0) { const c = src[i]; if (c === '(') prof++; else if (c === ')') prof--; i++; }
+      appels.push(src.slice(debut, i - 1));
+    }
+    expect(appels.length).toBeGreaterThan(3);
+    expect(appels.filter((a) => /(^|,)\s*h\(/.test(a))).toEqual([]);
+  });
 });

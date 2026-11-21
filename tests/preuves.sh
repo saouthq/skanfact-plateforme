@@ -31110,6 +31110,10 @@ prouver $'cabportefeuille23-support-part-a-vide' modules/socle/ecrans/cabinet/ap
   $'          if (libelles.length && ecrit.length < 10) return refus(' \
   $'          if (false) return refus(' \
   $'Tes données : la copie de la nuit échouée se dit échouée, et « Défaire une erreur » écrit au support'
+prouver $'cabportefeuille24-titre-echappe-deux-fois' web/public/v10/visite.js \
+  $'${tete(iconeDe(coul), p.titre || \'Visite guidée\', \'La visite t\\\'attend\'' \
+  $'${tete(iconeDe(coul), h(p.titre || \'Visite guidée\'), \'La visite t\\\'attend\'' \
+  $'aucun appelant ne rééchappe ce que la tête de la bulle échappe déjà'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

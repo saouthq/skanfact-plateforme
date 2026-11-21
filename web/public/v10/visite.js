@@ -2043,7 +2043,7 @@
     els.bulle.className = 'visite-bulle mini';
     teinter(els.bulle, coul);
     els.bulle.innerHTML = `<i class="vb-pointe" hidden></i>
-      <div class="vb-haut">${tete(iconeDe(coul), h(p.titre || 'Visite guidée'), 'La visite t\'attend', 'fermer', 'Mettre la visite en pause (Échap)')}</div>
+      <div class="vb-haut">${tete(iconeDe(coul), p.titre || 'Visite guidée', 'La visite t\'attend', 'fermer', 'Mettre la visite en pause (Échap)')}</div>
       <div class="vb-corps"><div class="vb-texte">Lis ce que la fenêtre te dit, puis ferme-la : la visite se termine juste après.</div></div>`;
     typographier(els.bulle);
   }
