@@ -165,6 +165,14 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await p.locator('#rv-periode').selectOption(String(an));
     await expect.poll(banque, { timeout: 15_000 }).toContain('revu');
 
+    // ── (CABDECLARER-12) La frise EST la période révisée ; la bande « Période » ne la contredit plus ──────────
+    await p.locator(`[data-cp-mois="${an}-03"]`).click();
+    await expect.poll(() => p.locator('#rv-periode').inputValue(), { timeout: 15_000 }).toBe(`${an}-03`);
+    expect(await p.locator('.cp-mo.on').evaluateAll((l) => l.map((b) => (b as HTMLElement).dataset.cpMois))).toEqual([`${an}-03`]);
+    expect(await p.locator('#lv-mode').isVisible()).toBe(false);
+    await p.locator('#rv-periode').selectOption(String(an));
+    await expect.poll(() => p.locator('.cp-ex.on').count(), { timeout: 15_000 }).toBe(1);
+
     // ── Arrêter la révision d'un exercice qui court : la question le dit avant ─────────────────────
     await p.locator('#rv-arreter').click();
     const f = p.locator('#modal-root .modal').last();

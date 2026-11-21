@@ -8525,16 +8525,20 @@
     if (!s.livre) return '';
     const an = String(s.annee);
     const duReleve = s.mode === 'exercice' ? moisDuReleveCompta() : '';
+    // (1.388.6, issue 9, CABDECLARER-12) La Recherche ignore la période, l'Exercice et la Liasse portent l'exercice entier : une
+    // frise de mois y proposait un réglage qui ne change rien. Sur la Révision, elle cercle la période RÉVISÉE et un clic la change.
+    if (['recherche', 'exercice', 'liasse'].includes(s.onglet)) return '';
+    const laRev = s.onglet === 'revision' ? String(s.revPeriode || an) : '';
     // (1.350.0) Sur la Déclaration, la frise cercle le mois DÉCLARÉ à l'écran, comme elle cercle le mois du relevé sur la
     // Banque : l'écran s'ouvrait sur août pendant que la frise disait « Toute l'année ».
     const deLaDecl = s.onglet === 'declaration' ? (moisDeLaDeclaration()) : '';
     const laPaie = s.onglet === 'paie' && s.paieMois ? `${an}-${String(s.paieMois).padStart(2, '0')}` : '';
     const cases = moisDeLaFrise(dossier).map(({ m, nom, ton, dit }) => {
       // (1.387.22, CABPAIE-5) Sur la Paie, la frise cercle le mois de PAIE regardé, et un clic le change (ci-dessous).
-      const on = deLaDecl ? deLaDecl === m : laPaie ? laPaie === m : s.mode === 'mois' ? s.mois === m : duReleve === m;
+      const on = deLaDecl ? deLaDecl === m : laPaie ? laPaie === m : laRev ? laRev === m : s.mode === 'mois' ? s.mois === m : duReleve === m;
       return `<button type="button" class="cp-mo ${ton}${on ? ' on' : ''}" data-cp-mois="${m}" aria-pressed="${on}" title="${esc(`${moisLong(m)} ${an} : ${dit}`)}"><b>${esc(nom)}</b><small>${esc(dit)}</small></button>`;
     }).join('');
-    const tout = !deLaDecl && !laPaie && s.mode === 'exercice' && !duReleve;
+    const tout = laRev ? laRev === an : !deLaDecl && !laPaie && s.mode === 'exercice' && !duReleve;
     return `<div class="cp-an" role="group" aria-label="L'année ${esc(an)}"><span class="cp-an-t">${esc(an)} ${info('fd.mois')}</span>${cases}<button type="button" class="cp-ex${tout ? ' on' : ''}" data-cp-mois="" aria-pressed="${tout}">Toute l'année</button></div>`;
   }
   const ongletDispo = o => !!ONGLETS_COMPTA[o] && (!!livresState.livre || ONGLETS_SANS_LIVRE.includes(o));
@@ -8824,6 +8828,9 @@
                 : s.onglet === 'liasse' ? vueLiasse(dossier)
                   : s.onglet === 'inventaire' ? vueInventaire(dossier)
                   : s.onglet === 'paie' ? vuePaie(dossier)
+                  // (1.388.6, CABDECLARER-12) La Recherche cherche dans TOUT le livre : elle ne passe plus par « Aucune écriture sur
+                  // cette période », calculée sur une période qu'elle n'affiche pas.
+                  : s.onglet === 'recherche' ? vueRecherche(lignes)
                     // (1.378.3, issue 9 CABDECLARER-16) Un mois sans mouvement n'est pas un livre vide : la balance et le grand
                     // livre montrent les soldes reportés. « Aucune écriture… Saisir une première pièce » y cachait la banque.
                     : !lignes.length && !((s.onglet === 'balance' || s.onglet === 'grand-livre') && !s.aux && Object.values((s.periode || {}).ouverture || {}).some(v => Math.abs(Number(v) || 0) >= 0.0005))
@@ -8841,7 +8848,6 @@
                       : s.onglet === 'journal' ? vueJournal(lignes)
                         : s.onglet === 'grand-livre' ? vueGrandLivre(lignes)
                           : s.onglet === 'balance' ? vueBalance(lignes)
-                            : s.onglet === 'recherche' ? vueRecherche(lignes)
                               : vueLettrage(lignes);
 
     // D'OÙ viennent ces chiffres. Deux sources, et l'écran le dit en toutes lettres : une balance
@@ -8898,7 +8904,7 @@
     // (1.207.0) L'en-tête dit l'écran ouvert (« Banque ») et son groupe dans le fil ; la carte de la page suit le groupe.
     const titreEcran = $('#cp-titre'); if (titreEcran) titreEcran.textContent = ONGLETS_COMPTA[s.onglet] || 'La comptabilité';
     const fil = $('#cp-fil'); if (fil) fil.textContent = filCompta(s.onglet);
-    const cadre = $('#c-compta'); if (cadre) { cadre.classList.add('cp-modele'); cadre.dataset.groupe = gOuvert.id; }
+    const cadre = $('#c-compta'); if (cadre) { cadre.classList.add('cp-modele'); cadre.dataset.groupe = gOuvert.id; cadre.dataset.onglet = s.onglet; }
     el.innerHTML = `${sansLivre}
       ${/* Une pastille = « ce qui attend une décision », PARTOUT (T-10). Saisie compte les
             brouillards, Banque les lignes non rapprochées, Immobilisations les biens dont la
@@ -8944,6 +8950,9 @@
         if (s.onglet === 'declaration') { declState.mois = m; declState.ouverte = ''; }
         if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; }
       }
+      // (1.388.6, CABDECLARER-12) Sur la Révision, la frise EST le réglage de la période révisée (« Toute l'année » = l'exercice) :
+      // le rendu suivant relit la révision, la clé de `revDeLaRevision` ayant changé.
+      if (s.onglet === 'revision') { s.revPeriode = m || String(s.annee); s.revisionRev = ''; }
       s.page = 1;
       render();
     }; });

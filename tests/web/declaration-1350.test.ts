@@ -92,6 +92,8 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     expect(await mois()).toBe('2026-02');
     expect(await cercle()).toEqual(['2026-02']);
     expect(await p.locator('.cp-ex.on').count()).toBe(0);
+    // (CABDECLARER-12) La période se règle par la frise : la bande ne montre pas un second réglage.
+    expect(await p.locator('#lv-mode').isVisible()).toBe(false);
     // Janvier était à payer : aucun crédit n'arrive en février — et la case dit pourquoi elle ne lit pas le compte.
     expect(await ligne('Crédit du mois précédent')).toMatch(/Crédit du mois précédent Les mois précédents n'ont pas tous leur écriture de déclaration : le compte 4367 n'est pas soldé au 01\/02\/2026.* 0,000 DT/);
 

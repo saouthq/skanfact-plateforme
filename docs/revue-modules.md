@@ -6143,3 +6143,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   second clic n'en range donc pas un double. Les deux boutons restent gris : le vert reste l'étape suivante.
 - Test : après « Marquer déposée », joindre un PDF le range au classeur, rubrique accusé, au mois ; la ligne propose
   ensuite « Ouvrir l'accusé ». Une preuve.
+
+## 1.388.6 — Une seule période par écran : la frise, jamais une seconde bande qui dit autre chose (issue 9, CABDECLARER-12)
+
+- **CABDECLARER-12** : sur la Déclaration, la Révision, la Recherche, l'Exercice et la Liasse, la bande « Période » (L'exercice
+  / Un mois) restait affichée alors que ces écrans ne la lisent pas — et sur la Révision, la frise des mois suivait un
+  troisième réglage : trois périodes à l'écran, aucune d'accord. La bande garde le livre et ses gestes (« Reprendre les
+  soldes d'ouverture… ») mais plus ses contrôles de période ; sur la Révision, la frise EST la période révisée (un clic sur
+  mars révise mars, « Toute l'année » l'exercice) ; la Recherche, l'Exercice et la Liasse, qui portent l'exercice entier ou
+  tout le livre, n'ont plus de frise de mois qui ne changeait rien.
+- La Recherche cherche dans tout le livre : elle ne répond plus « Aucune écriture sur cette période », calculé sur une
+  période qu'elle n'affiche pas.
+- Tests : sur la Révision, un clic sur mars met la période révisée à mars, une seule case cerclée, pas de bande de période ;
+  la Déclaration n'affiche plus la bande. Deux preuves.

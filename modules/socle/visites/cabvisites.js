@@ -189,7 +189,7 @@
       return '';
     } },
     { sel: '.fd-cote', titre: 'La fiche du client', texte: 'Tout ce qu\'on sait de lui, d\'un coup d\'œil : ta mission et tes honoraires, qui le suit dans l\'équipe, son identité fiscale, son contact, ta note et l\'historique. Pour corriger une ligne : le bouton « ⋯ » en haut de la page, puis « Modifier la fiche ».' },
-    // La comptabilité d'un dossier : la même frise de mois sur les quatorze écrans, puis l'écran lui-même.
+    // La comptabilité d'un dossier : la même frise de mois sur les onze écrans qui ont une période, puis l'écran lui-même.
     { sel: '.cp-an', titre: 'L\'année, mois par mois', texte: 'Les douze mois de l\'exercice, chacun avec son état : déposé, à déposer, en cours, à venir. <b>Un clic sur un mois</b> ne montre que ce mois sur l\'écran ; « Toute l\'année » revient à l\'exercice entier.' },
     { sel: '#sx-zone', titre: 'Les pièces à saisir', texte: 'Les pièces que ton client t\'a envoyées et qui attendent leur écriture. Pour un client que tu tiens au cabinet, il n\'y en a pas : tu saisis depuis ses papiers, dans la grille juste en dessous.' },
     { sel: '.sx-km', titre: 'La grille de saisie', texte: 'Une pièce : son journal, sa date, son libellé, puis une ligne par compte. <b>Entrée</b> descend d\'une case à l\'autre, <b>Tab</b> solde la pièce. Enregistrée, elle part au brouillard, où elle se corrige encore.' },

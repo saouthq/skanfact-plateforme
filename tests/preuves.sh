@@ -31188,6 +31188,14 @@ prouver $'cabdeclarer11-accuse-seulement-au-classeur' modules/socle/ecrans/cabin
   $'      ${deposee ? ligneAccuseDeclaration(dossier, d.periode) : \'\'}' \
   $'      ${\'\'}' \
   $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer ; la forme copiée se retient'
+prouver $'cabdeclarer12-frise-ignoree-par-la-revision' modules/socle/ecrans/cabinet/app-1.js \
+  $'      if (s.onglet === \'revision\') { s.revPeriode = m || String(s.annee); s.revisionRev = \'\'; }' \
+  $'      if (false) { s.revPeriode = m || String(s.annee); s.revisionRev = \'\'; }' \
+  $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
+prouver $'cabdeclarer12-bande-periode-sur-la-revision' web/public/plateforme/comptabilite.css \
+  $'#c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="revision"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, #lv-du, #lv-au),' \
+  $'#c-compta.cp-modele:is([data-onglet="declaration"], [data-onglet="recherche"], [data-onglet="exercice"], [data-onglet="liasse"]) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, #lv-du, #lv-au),' \
+  $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
