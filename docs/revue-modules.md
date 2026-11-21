@@ -6259,3 +6259,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   SkanFact doit-il pouvoir garder le RIB de ses salariés ?) — À VÉRIFIER avec Skander.
 - Test : le bulletin d'un salarié qui n'est pas chef de famille dit « Pas chef de famille », jamais « célibataire ». Une
   preuve.
+
+## 1.388.15 — Les biens : un mot pour un état, la durée sur la ligne, le plan qui se referme (issue 10, CABPAIE-17 et -23)
+
+- La liste des biens disait « écrite » pour une dotation passée en écriture, le plan du même bien disait « passée » : les
+  deux disent « écrite ».
+- Le tableau « Les biens de l'exercice » ne disait pas la durée, que le tableau des biens du client, sur la même page, disait
+  (« 5 ans ») : la colonne s'appelle « Durée et méthode » et dit « 5 ans · Linéaire » ; l'export gagne une colonne « Durée
+  (ans) ». Le moteur (`etatImmobilisations`) rend la durée, sans changer aucun de ses autres lecteurs.
+- Le plan d'amortissement, ouvert sous la liste, ne se refermait que par le menu du bien, qui disait encore « Voir le plan » :
+  il a son bouton « Fermer le plan », et le menu dit « Fermer le plan d'amortissement » quand il est ouvert.
+- L'inventaire collé depuis un tableur (une grille reprise de l'an dernier) demande une maquette : à décider.
+- Tests : la ligne du bien dit « 5 ans · Linéaire » ; le plan dit « écrite » ; le menu propose de le fermer, et son bouton le
+  referme. Trois preuves.

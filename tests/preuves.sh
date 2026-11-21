@@ -31252,6 +31252,18 @@ prouver $'cabpaie10-situation-du-bulletin' modules/personnel/moteur/core-paie.js
   $'\'Chef de famille\' : \'Pas chef de famille\'' \
   $'\'Chef de famille\' : \'Célibataire\'' \
   $'(CABPAIE-10) le bulletin imprimé ne dit jamais « Célibataire » : SkanFact ne sait que « chef de famille » ou non'
+prouver $'cabpaie17-ecrite-dans-le-plan' modules/socle/ecrans/cabinet/app-1.js \
+  $'\'<span class="badge b-paid">écrite</span>\' : \'<span class="muted small">—</span>\'' \
+  $'\'<span class="badge b-paid">passée</span>\' : \'<span class="muted small">—</span>\'' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
+prouver $'cabpaie23-duree-sur-la-ligne' modules/socle/moteur/compta-1.js \
+  $'        duree: num(f.duree) || null,' \
+  $'        duree: null,' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
+prouver $'cabpaie23-fermer-le-plan' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (fp) fp.onclick = () => { immoState.ouverte = \'\'; drawLivres(root, dossier); };' \
+  $'if (fp) fp.onclick = () => {};' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

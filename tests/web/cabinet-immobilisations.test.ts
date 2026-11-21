@@ -85,6 +85,9 @@ describe('les immobilisations, à la souris', () => {
     const [bien] = await biens(cafe, associe);
     expect(bien?.fiche).toMatchObject({ libelle: 'Camionnette Isuzu', duree: '5', origine: { docId: `${achat}#0` } });
     await expect.poll(() => p.locator('[data-creer]').count()).toBe(0);
+    // (CABPAIE-23) La ligne du bien dit sa durée à côté de sa méthode, comme le tableau du client.
+    const ligneBien = p.locator('#c-livres tbody tr', { has: p.locator(`[data-rowmenu="IM:${bien?.id}"]`) });
+    await expect.poll(() => ligneBien.locator('td').nth(2).innerText().then((t) => t.replace(/\s+/g, ' ').trim())).toBe('5 ans · Linéaire');
 
     // ── La dotation de 2025, au brouillard, au millime du plan, liée à son bien ──────────────────────
     // (1.387.1, issue 10, CABPAIE-17) Le geste dit ce qu'il passe, et le montre avant de l'écrire : la pièce, ses lignes.
@@ -103,6 +106,16 @@ describe('les immobilisations, à la souris', () => {
     expect(ecrites.find((e) => e.id === lie?.ecriture)).toMatchObject({ statut: 'brouillard', date: '2025-12-31', lignes: [
       { compte: '681', debit: '6000.100', credit: '0.000' }, { compte: '28', debit: '0.000', credit: '6000.100' }] });
     await expect.poll(() => p.locator('#im-ecrire').isDisabled()).toBe(true);
+    // (CABPAIE-17) Un mot pour un état : la liste dit « écrite », le plan du bien aussi.
+    await p.locator(`[data-rowmenu="IM:${bien?.id}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Voir le plan d\'amortissement' }).click();
+    await expect.poll(() => p.locator('#im-plan tbody tr').first().locator('td').last().innerText().catch(() => '')).toBe('écrite');
+    // (CABPAIE-23) Le plan ouvert se referme par son bouton, et le menu le dit avant.
+    await p.locator(`[data-rowmenu="IM:${bien?.id}"]`).first().click();
+    expect(await p.getByRole('menuitem').filter({ hasText: 'Fermer le plan d\'amortissement' }).count()).toBe(1);
+    await p.keyboard.press('Escape');
+    await p.locator('#im-plan-fermer').click();
+    await expect.poll(() => p.locator('#im-plan').count()).toBe(0);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-immobilisations-2-dotation.png') });
 
     // ── Écrite : la durée ne change plus, le bien ne se supprime pas ─────────────────────────────────

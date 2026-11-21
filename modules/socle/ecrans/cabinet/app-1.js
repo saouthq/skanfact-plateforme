@@ -11463,7 +11463,7 @@
               seule, « Mise en service », « Cumul au 01/01 » et « Dotation 2026 » réclamaient leur
               largeur et coupaient le nom du bien à « Serveur Dell R45… » sur un tableau qui avait
               la place de l'écrire. Les VALEURS, elles, ne se coupent jamais. */''}
-        <th>Bien</th><th>Mise en service</th><th class="nw">Méthode ${info('im.verifier')}</th>
+        <th>Bien</th><th>Mise en service</th><th class="nw">Durée et méthode ${info('im.verifier')}</th>
         <th class="r nw">Valeur</th><th class="r">Cumul au 01/01</th><th class="r">Dotation ${esc(s.annee)}</th>
         <th class="r nw">Cumul</th><th class="r nw">VNC</th><th></th></tr></thead>
       ${/* (1.352.0) Les biens se paginent (120 biens : 6 000 px d'un tenant) ; le pied garde les totaux de TOUS les biens.
@@ -11478,7 +11478,7 @@
     r.couverte ? `<span class="badge" data-couverte title="Ce bien est entré dans les livres le ${esc(fmtJour(r.couverte))} : son entrée porte déjà l'amortissement de ${esc(s.annee)}. Rien à écrire ici.">dans son entrée</span>` : '',
     r.ecrite ? '<span class="badge b-paid">écrite</span>' : ''])}</td>
         <td class="nw">${esc(fmtJour(r.date))}</td>
-        <td class="nw">${esc(METHODE_LABEL[r.methode] || r.methode)}</td>
+        <td class="nw">${r.duree ? `${esc(String(r.duree).replace('.', ','))} an${r.duree >= 2 ? 's' : ''} · ` : ''}${esc(METHODE_LABEL[r.methode] || r.methode)}</td>
         ${/* Un total sous une colonne est lu comme sa somme (9.8.8) : un bien sorti le DIT. */''}
         <td class="r nw">${esc(money(r.valeur))}</td>
         <td class="r nw">${esc(money(r.ouverture))}</td>
@@ -11513,7 +11513,7 @@
     if (!f) return '';
     const plan = KC.planDuBien(f);
     const ced = KC.resultatCession(f);
-    return `<div class="panel mt" id="im-plan"><h2>${esc(f.libelle)} — le plan d'amortissement</h2>
+    return `<div class="panel mt" id="im-plan"><div class="ctrl-geste"><h2>${esc(f.libelle)} — le plan d'amortissement</h2><button type="button" class="btn btn-sm" id="im-plan-fermer">Fermer le plan</button></div>
       <p class="small muted">${esc(METHODE_LABEL[f.methode] || f.methode)}${
   f.methode === 'degressif' ? ` au taux de ${esc(taux(f.tauxDegressif))}\u00a0%${f.bascule ? ', avec bascule au linéaire' : ''}` : ''}
         · ${esc(f.duree)} ans · mise en service le ${esc(fmtJour(f.dateMiseEnService))}
@@ -11523,7 +11523,7 @@
       <tbody>${plan.map(p => `<tr class="${p.annee === annee ? 'dc-total' : ''}">
         <td class="nw">${esc(p.annee)}</td><td class="r nw">${esc(money(p.dotation))}</td>
         <td class="r nw">${esc(money(p.cumul))}</td><td class="r nw">${esc(money(p.vnc))}</td>
-        <td class="nw">${p.ecritureId ? '<span class="badge b-paid">passée</span>' : '<span class="muted small">—</span>'}</td></tr>`).join('')}</tbody></table></div>
+        <td class="nw">${p.ecritureId ? '<span class="badge b-paid">écrite</span>' : '<span class="muted small">—</span>'}</td></tr>`).join('')}</tbody></table></div>
       ${ced ? `<div class="${ced.resultat >= 0 ? 'ok-box' : 'warn-box'} mt">
         ${esc(ced.motif === 'rebut' ? 'Mise au rebut' : 'Cession')} le ${esc(fmtJour(ced.date))} —
         prix ${esc(money(ced.prix))}, valeur comptable ${esc(money(ced.vnc))},
@@ -11540,6 +11540,8 @@
     if (s.immo.erreur) return;
     bindPager(el, () => drawLivres(root, dossier), s);
     [$('#im-neuf', el), $('#im-neuf2', el)].forEach(b => { if (b) b.onclick = () => immoForm(root, dossier, null); });
+    // (CABPAIE-23) Le plan ouvert sous la liste se referme par un bouton à lui : il ne se refermait que par le menu du bien.
+    const fp = $('#im-plan-fermer', el); if (fp) fp.onclick = () => { immoState.ouverte = ''; drawLivres(root, dossier); };
     // (1.345.0) Rattacher une ligne du livre à la fiche saisie à la main : la fiche prend la ligne pour origine (elle ne se
     // propose plus « à créer ») et le compte que l'achat a débité, pour que sa sortie crédite le même. Une question à
     // trois issues : c'est lui, un autre bien (on crée sa fiche), ou on renonce.
@@ -11611,7 +11613,7 @@
       const f = (s.immo.fiches || []).find(x => x.id === id);
       if (!f) return [];
       return [
-        { icon: 'loupe', label: 'Voir le plan d\'amortissement', hint: 'Année par année, et l\'écriture de chacune',
+        { icon: 'loupe', label: immoState.ouverte === id ? 'Fermer le plan d\'amortissement' : 'Voir le plan d\'amortissement', hint: immoState.ouverte === id ? 'Il est ouvert sous le tableau' : 'Année par année, et l\'écriture de chacune',
           // (1.345.0) Le panneau s'ouvre SOUS le tableau, hors de l'écran : sans l'y amener, le geste paraissait ne rien
           // faire (7.18.0, un raccourci vise un panneau).
           run: () => { immoState.ouverte = immoState.ouverte === id ? '' : id; if (immoState.ouverte) pageFocus = 'im-plan'; drawLivres(root, dossier); } },
@@ -11672,6 +11674,7 @@
     if (cs) cs.onclick = async () => {
       const cols = [
         { label: 'Bien', get: r => r.libelle }, { label: 'Mise en service', get: r => K.csvDate(r.date) },
+        { label: 'Durée (ans)', get: r => (r.duree ? String(r.duree).replace('.', ',') : '') },
         { label: 'Méthode', get: r => METHODE_LABEL[r.methode] || r.methode },
         { label: 'Valeur', get: r => K.csvMontant(r.valeur) }, { label: 'Cumul au 01/01', get: r => K.csvMontant(r.ouverture) },
         { label: 'Dotation', get: r => K.csvMontant(r.dotation) }, { label: 'Cumul', get: r => K.csvMontant(r.cumul) },

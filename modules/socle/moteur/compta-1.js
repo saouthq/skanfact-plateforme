@@ -4378,6 +4378,8 @@
       const sorti = !!(ced && Number(ced.date.slice(0, 4)) <= y);
       return {
         id: f.id, libelle: f.libelle, compte: f.compte, methode: f.methode,
+        // (CABPAIE-23) La durée se lit sur la ligne du bien, comme dans le tableau des biens du client.
+        duree: num(f.duree) || null,
         date: txt(f.dateMiseEnService) || txt(f.dateAcquisition),
         valeur: round3(num(f.valeur)),
         ouverture: round3(ouverture),

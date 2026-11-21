@@ -490,6 +490,7 @@
   b('#im-neuf, #im-neuf2', 'Ajoute un bien : sa valeur, sa mise en service, sa durée.', { nom: 'Ajouter un bien', cle: 'bien' });
   b('#im-ecrire', 'Passe les dotations de l\'exercice en brouillard, au dernier jour.');
   b('#im-csv', 'Enregistre le tableau des immobilisations dans un fichier.');
+  b('#im-plan-fermer', 'Referme le plan d\'amortissement du bien, ouvert sous le tableau.');
   b('#iv-saisir, #iv-saisir2', 'Saisit ou reprend l\'inventaire de fin d\'exercice.', { nom: 'Inventaire', cle: 'inventaire' });
   b('#iv-ecrire', 'Passe l\'écriture de variation de stock.');
 
