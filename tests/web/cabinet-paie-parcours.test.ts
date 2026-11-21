@@ -300,6 +300,12 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     expect(suivi.notes.map((n) => n.texte).join(' | ')).toContain('Le contrat de Karim Riahi finit le');
     // 1.238.0 — la CNSS du trimestre face au compte du livre (écritures validées), et ce qui a été versé.
     await p.locator('.pa-so [data-pa-vue="cnss"]').click();
+    // (CABPAIE-5) L'en-tête dit le trimestre, sans second choix de mois ; la frise cercle les trois mois du trimestre.
+    await expect.poll(() => p.locator('#pa-tete h2').innerText().then(espace)).toMatch(/^CNSS du (1er|\de) trimestre \d{4}/);
+    expect(await p.locator('#pa-mois').count()).toBe(0);
+    const moisCercles = () => p.locator('.cp-an .cp-mo.on').evaluateAll((x) => x.map((e) => Number((e.getAttribute('data-cp-mois') ?? '').slice(5, 7))));
+    const duTrimestre = async () => { const t = Number(await p.locator('#pa-trim').inputValue()); return [t * 3 - 2, t * 3 - 1, t * 3]; };
+    expect(await moisCercles()).toEqual(await duTrimestre());
     expect(espace(await p.locator('#pa-cnss-livre').innerText())).toMatch(/^Le compte 4531 du livre \(écritures validées du trimestre\) : .* · la déclaration : .*/);
     // 1.243.0 — l'accusé de dépôt du trimestre : rangé au classeur depuis la Paie, puis « l'accusé est dans le classeur ».
     // 1.344.0 — un trimestre EN COURS ne se dépose pas : « Déposée ? Range son accusé » ne s'y propose plus, la phrase du
@@ -316,6 +322,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
       if (anA === A.an && tDe(moA) !== tDe(A.mo) && finDe(anA, tDe(moA)) < ajd) {
         trimFini = tDe(moA);
         await p.locator('#pa-trim').selectOption(String(trimFini));
+        await expect.poll(moisCercles).toEqual([trimFini * 3 - 2, trimFini * 3 - 1, trimFini * 3]);
       }
     }
     if (trimFini !== null) {

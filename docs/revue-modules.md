@@ -6221,3 +6221,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Test : sur un dossier tenu, sans pointage, une absence de deux jours et une prime exceptionnelle tapées sur le bulletin
   d'octobre se disent « saisi sur le bulletin » dans les écarts et dans le volet ; les écarts tombent juste au millime.
   Deux preuves.
+
+## 1.388.12 — Un seul réglage de période par écran : la frise des biens, la CNSS du trimestre (issue 10, CABPAIE-5)
+
+- Les Immobilisations et l'Inventaire se lisent sur l'exercice : la frise des mois y était posée et un clic de mois n'y
+  changeait rien. Elle ne s'y pose plus (comme sur la Recherche, l'Exercice et la Liasse).
+- La vue « CNSS du trimestre » portait trois réglages de période qui ne se suivaient pas : le titre et le menu du mois de
+  paie (« Paie octobre 2026 »), la frise qui cerclait ce mois, et son propre choix de trimestre. L'en-tête dit maintenant
+  « CNSS du 3e trimestre 2026 », sans menu de mois ; la frise cercle les trois mois du trimestre déclaré, et un clic sur un
+  mois choisit son trimestre.
+- Le trimestre choisi suivait d'un dossier et d'un exercice à l'autre (le défaut corrigé pour le mois en 1.387.22) : il se
+  remet à zéro avec le mois.
+- Tests : la CNSS du trimestre — le titre, pas de menu de mois, les trois mois cerclés, et ceux du trimestre choisi après un
+  changement ; les Immobilisations sans frise. Trois preuves.

@@ -31232,6 +31232,18 @@ prouver $'cabpaie4-source-de-la-prime' modules/personnel/ecrans/cabinet/paie.js 
   $'        : deLaFiche.has(String(label || \'\').trim()) ? \'fiche\' : \'saisi sur le bulletin\';' \
   $'        : \'fiche\';' \
   $'(CABPAIE-4) une absence et une prime tapées sur le bulletin d\'un mois sans pointage se disent « saisi sur le bulletin », pas « pointage »'
+prouver $'cabpaie5-frise-hors-des-immobilisations' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if ([\'recherche\', \'exercice\', \'liasse\', \'immobilisations\', \'inventaire\'].includes(s.onglet)) return \'\';' \
+  $'    if ([\'recherche\', \'exercice\', \'liasse\'].includes(s.onglet)) return \'\';' \
+  $'l\'acquisition se propose, la fiche se crée, la dotation s\'écrit au millime et se lie ; écrite, le plan ne change plus'
+prouver $'cabpaie5-frise-du-trimestre-cnss' modules/socle/ecrans/cabinet/app-1.js \
+  $': triPaie ? triPaie.includes(Number(m.slice(5, 7))) : laPaie ? laPaie === m' \
+  $': laPaie ? laPaie === m' \
+  $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver $'cabpaie5-titre-du-trimestre-cnss' modules/personnel/ecrans/cabinet/paie.js \
+  $'    const tri = vue === \'cnss\' ? KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(L, livresState)) : null;' \
+  $'    const tri = null;' \
+  $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

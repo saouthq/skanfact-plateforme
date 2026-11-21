@@ -73,6 +73,8 @@ describe('les immobilisations, à la souris', () => {
     // ── L'acquisition du livre se propose ; la fiche se crée depuis elle ───────────────────────────
     await aller();
     await expect.poll(() => p.locator('[data-creer]').count(), { timeout: 15_000 }).toBe(1);
+    // (CABPAIE-5) Les biens se lisent sur l'exercice : la frise des mois, qui n'y changeait rien, n'est pas posée.
+    expect(await p.locator('#view .cp-an').count()).toBe(0);
     await p.locator('[data-creer]').click();
     expect(await fenetre.locator('[name=valeur]').inputValue()).toMatch(/^36\s000,600$/);
     await fenetre.locator('[name=duree]').fill('5');

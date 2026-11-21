@@ -38,7 +38,7 @@
     // une garde au dessin, jamais une par porte. Revenu de 2027 à 2026, la Paie restait sur janvier, le premier mois de 2027,
     // pendant qu'octobre attendait le premier bulletin d'un salarié.
     // (1.387.22, CABPAIE-5) … et au dossier où il a été choisi : décembre choisi dans l'exemple ouvrait le dossier vide sur décembre.
-    if ((s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) || (s.paieMoisDossier && s.paieMoisDossier !== dossier.id)) s.paieMois = 0;
+    if ((s.paieMoisAnnee && s.paieMoisAnnee !== String(s.annee)) || (s.paieMoisDossier && s.paieMoisDossier !== dossier.id)) { s.paieMois = 0; s.paieTrimestre = 0; }
     s.paieMoisAnnee = String(s.annee); s.paieMoisDossier = dossier.id;
     if (!s.paieMois) s.paieMois = KC.moisPaieEnRetard(L, s.annee, K.today())
       || K.moisDeTravail((L.bulletins || []).filter(b => Number(b.annee) === Number(s.annee)).map(b => b.mois), s.annee, K.today());
@@ -266,8 +266,12 @@
       sans: `faite par ${P.client} seul dans SkanFact · le cabinet la lit et la passe en comptabilité` }[P.mode];
     const V = [['mois', 'Le mois'], ['salaries', 'Salariés', P.actifs], ['conges', 'Congés et avances'], ['cnss', 'CNSS du trimestre', P.sansCnss.length, 'alerte'], ['annee', 'L\'année']];
     const vueDe = ['pointage', 'ecarts', 'param'].includes(vue) ? 'mois' : vue === 'tous' ? 'annee' : vue;
-    return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>Paie ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(annee)}${(window.__beta || []).includes('paie') ? ' <span class="pastille-beta" title="Version bêta : la paie fonctionne, on la vérifie encore avec les premiers cabinets. Relis chaque bulletin avant de le remettre.">Bêta</span>' : ''}</h2>
-        <select id="pa-mois" aria-label="Le mois de la paie">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>
+    // (CABPAIE-5) « CNSS du trimestre » a son choix de trimestre (#pa-trim) : l'en-tête dit ce trimestre et ne pose pas un
+    // second choix de mois, qui ne changeait rien à l'écran.
+    const tri = vue === 'cnss' ? KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(L, livresState)) : null;
+    const titre = tri ? `CNSS du ${tri[1]} ${annee}` : `Paie ${KC.deMois(KC.moisPaie(m))} ${annee}`;
+    return `<div class="cp-pa-tete" id="pa-tete"><div class="cp-pa-titre"><h2>${esc(titre)}${(window.__beta || []).includes('paie') ? ' <span class="pastille-beta" title="Version bêta : la paie fonctionne, on la vérifie encore avec les premiers cabinets. Relis chaque bulletin avant de le remettre.">Bêta</span>' : ''}</h2>
+        ${tri ? '' : `<select id="pa-mois" aria-label="Le mois de la paie">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === m ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select>`}
         <p class="small muted" id="pa-qui">${esc(pl(P.actifs, 'salarié'))} · ${esc(qui)}</p></div>
       <div class="cp-pa-vues">${vue !== 'mois' && (P.mode === 'cabinet' || P.mode === 'tenue') && P.duMois && !P.valides ? '<button type="button" class="btn btn-sm" id="pa-bulletin">+ Un bulletin…</button>' : ''}
       <div class="pa-so" role="group" aria-label="La paie">${V.map(([k, t, nb, ton]) => `<button type="button" data-pa-vue="${k}" aria-pressed="${vueDe === k}">${esc(t)}${nb ? ` <span class="cp-pa-nb${ton ? ` ${ton}` : ''}">${nb}</span>` : ''}</button>`).join('')}</div></div></div>`;
