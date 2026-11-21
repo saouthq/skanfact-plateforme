@@ -31106,6 +31106,10 @@ prouver $'cabportefeuille22-ecrire-tenus-coche-qui-dit-non' modules/socle/ecrans
   $'      if (x) { location.hash = `#/messages/${encodeURIComponent(x.d.id)}`; return; }' \
   $'      if (x) { location.hash = `#/messages/${encodeURIComponent(x.d.id)}`; return; } toast(\'Les dossiers tenus au cabinet n\\\'ont pas de conversation : leur client n\\\'est pas sur SkanFact.\'); return;' \
   $'au bureau : la liste, la proposition, la fiche, noter une relance, confier deux dossiers'
+prouver $'cabportefeuille23-support-part-a-vide' modules/socle/ecrans/cabinet/app-2.js \
+  $'          if (libelles.length && ecrit.length < 10) return refus(' \
+  $'          if (false) return refus(' \
+  $'Tes données : la copie de la nuit échouée se dit échouée, et « Défaire une erreur » écrit au support'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

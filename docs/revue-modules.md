@@ -6005,3 +6005,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   dans la sélection : sa conversation, comme avant.
 - Test : deux dossiers tenus choisis, la tournée « 1 sur 2 » puis « 2 sur 2 », puis plus rien. Preuve : remettre le
   message vert fait tomber le test.
+
+## 1.387.94 — « Écrire au support » ne part plus à vide (issue 12, CABPORTEFEUILLE-23)
+
+- **CABPORTEFEUILLE-23** : « Défaire une erreur » (Réglages › Tes données) ouvre une demande au support préremplie d'un
+  texte à trous (« Le dossier : / Ce qui s'est passé : / Le jour et l'heure… »). Ses libellés seuls passaient la règle des
+  trois signes, et l'équipe recevait une demande vide. On compte maintenant ce qui a été écrit DANS les trous : moins de
+  dix signes, le refus le dit sur la zone de texte, la fenêtre reste, rien ne part. Côté entreprise, aucun texte à trous :
+  rien à changer.
+- Test : « Envoyer au support » avec le modèle intact est refusé, la page ne change pas. Preuve : retirer la règle fait
+  tomber le test.

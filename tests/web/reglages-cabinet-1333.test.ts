@@ -105,6 +105,12 @@ describe('les Réglages du Cabinet en ligne, à la souris', () => {
     expect(await tx.inputValue()).toMatch(/^Le dossier : \nCe qui s'est passé : /);
     // Le curseur attend le nom du dossier, pas la fin du texte.
     expect(await tx.evaluate((t) => (t as HTMLTextAreaElement).selectionStart)).toBe('Le dossier : '.length);
+    // (1.387.94, issue 12 CABPORTEFEUILLE-23) Le modèle seul ne part pas : le refus le dit, la fenêtre reste, rien n'est envoyé.
+    await p.locator('#sup-send').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('Écris ce qui s\'est passé, après chaque ligne : le modèle seul ne dit rien à l\'équipe.');
+    expect(await p.locator('#sup-send').count()).toBe(1);
+    expect(p.url()).not.toContain('#/support/');
+    await tx.evaluate((t) => { (t as HTMLTextAreaElement).focus(); (t as HTMLTextAreaElement).setSelectionRange('Le dossier : '.length, 'Le dossier : '.length); });
     await p.keyboard.type('Boulangerie du Lac');
     expect(await tx.inputValue()).toMatch(/^Le dossier : Boulangerie du Lac\nCe qui s'est passé : /);
     expect(erreurs).toEqual([]);
