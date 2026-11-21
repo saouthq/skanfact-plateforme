@@ -1514,7 +1514,9 @@
       try { return (await appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/presence?piece=${encodeURIComponent(piece)}${quitte ? '&quitte=1' : ''}`)).autres || []; } catch { return null; }
     },
     // (1.152.0) Les modèles de messages du cabinet, ouverts depuis la barre (« Le cabinet »).
-    modeles: () => /** @type {any} */ (window).SkanMessagerie.fenetreModeles({ modeles: modelesDuCabinet }),
+    // (1.387.92, issue 12 CABPORTEFEUILLE-21) Ouverte depuis « Écrire à… », la même fenêtre pose le modèle choisi dans le
+    // message (`utiliser`), rempli pour ce client (`client`).
+    modeles: (/** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.fenetreModeles({ modeles: modelesDuCabinet, ...(o && o.utiliser ? { utiliser: o.utiliser, client: o.client || null, mois: o.mois || null } : {}) }),
     // (1.152.0) Le code du cabinet, que le menu de la barre copie (le même que Réglages › Le code de ton cabinet).
     codeCabinet: () => code,
     // (1.152.0) La personne connectée, pour le pied de la barre : son nom, son adresse, son rôle au cabinet.

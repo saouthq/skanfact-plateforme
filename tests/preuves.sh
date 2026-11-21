@@ -31094,6 +31094,14 @@ prouver $'cabportefeuille20-inviter-cree-un-dossier' modules/socle/ecrans/cabine
   $'        else if (estAssocie()) inviterUnTenu(); else location.hash = \'#/dossiers\';' \
   $'        else if (estAssocie()) newDossierForm(); else location.hash = \'#/dossiers\';' \
   $'(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver $'cabportefeuille21-modele-absent-ou-on-ecrit' modules/socle/ecrans/cabinet/app-2.js \
+  $'      if (bMod) bMod.onclick = () => api.modeles({' \
+  $'      if (false) bMod.onclick = () => api.modeles({' \
+  $'au bureau : la liste, la proposition, la fiche, noter une relance, confier deux dossiers'
+prouver $'cabportefeuille21-de-octobre' web/public/plateforme/messagerie.js \
+  $'const x = deMot(m);' \
+  $'const x = \'de \' + m;' \
+  $'au bureau : la liste, la proposition, la fiche, noter une relance, confier deux dossiers'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

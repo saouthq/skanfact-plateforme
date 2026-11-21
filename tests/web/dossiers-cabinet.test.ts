@@ -168,6 +168,20 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(await fen2.locator('[data-ec-par="fil"]').innerText()).toMatch(/pas de compte SkanFact/);
     expect(await fen2.locator('[data-ec-par="mail"]').getAttribute('aria-pressed')).toBe('true');
     expect(await fen2.locator('#ec-msg').inputValue()).not.toMatch(/SkanFact/);
+    // (1.387.92, issue 12 CABPORTEFEUILLE-21) Un modèle de l'équipe sert là où on écrit : « Partir d'un modèle… » le pose dans
+    // le message, rempli pour ce client, et « de {mois} » s'élide devant une voyelle.
+    expect((await api('POST', `/cabinets/${cab.id}/messages/modeles`, associe, { titre: 'Déclaration déposée', texte: 'Bonjour {client}, ta déclaration de {mois} est déposée.' })).statut).toBeLessThan(300);
+    await fen2.getByRole('button', { name: 'Partir d\'un modèle…' }).click();
+    const modeles = p.locator('.msg-fenetre-fond');
+    await modeles.locator('[data-mo-utiliser]').first().click();
+    await expect.poll(() => modeles.count()).toBe(0);
+    const pose = await fen2.locator('#ec-msg').inputValue();
+    expect(pose).toMatch(/^Bonjour Transports Gabès, ta déclaration d(?:e |')\S+ \d{4} est déposée\.$/);
+    expect(pose).not.toMatch(/ de [aeiouéèêàâîôûh]/i);
+    expect(pose).not.toContain('{');
+    // Sur un mois donné (une relance), sans dépendre du jour où le test passe.
+    expect(await p.evaluate(() => (window as unknown as { SkanMessagerie: { remplir: (t: string, c: string | null, m: string | null) => string } }).SkanMessagerie
+      .remplir('Ta déclaration de {mois}. De {mois}, il manque tout, {client}.', 'Sami', 'avril 2026'))).toBe('Ta déclaration d\'avril 2026. D\'avril 2026, il manque tout, Sami.');
     await fen2.getByRole('button', { name: 'Annuler' }).click();
     expect(erreurs).toEqual([]);
     // Le délai de chaque essai d'écran (120 s), comme les autres : avec 20 s par défaut, le premier chargement (qui

@@ -182,8 +182,11 @@
   };
   // Un modèle posé dans un message : {client} devient le nom du client (gardé tel quel s'il n'est pas encore connu : la
   // demande groupée le remplace pour chacun), {mois} le mois qui vient de finir.
-  /** @param {string} texte @param {string | null} client */
-  const remplir = (texte, client) => texte.replace(/\{mois\}/g, moisPasse()).replace(/\{client\}/g, client || '{client}');
+  /** @param {string} texte @param {string | null} client @param {string | null} [mois] */
+  // (1.387.92, issue 12 CABPORTEFEUILLE-21) « de {mois} » s'élide devant une voyelle : « d'octobre 2026 », jamais « de octobre ».
+  // Ouvert pour une relance, {mois} prend les mois relancés (`mois`) plutôt que le mois passé.
+  const remplir = (texte, client, mois) => { const m = mois || moisPasse(); return texte.replace(/\b([dD])e \{mois\}/g, (_x, d) => { const x = deMot(m); return d === 'D' ? x[0].toUpperCase() + x.slice(1) : x; })
+    .replace(/\{mois\}/g, m).replace(/\{client\}/g, client || '{client}'); };
   const EXEMPLES = [
     { titre: 'Pièces du mois', texte: 'Bonjour {client}, pour boucler {mois}, il me manque des pièces. Peux-tu me les envoyer ici, en photo ou en PDF ? Merci.' },
     { titre: 'Déclaration déposée', texte: 'Bonjour {client}, ta déclaration de {mois} est déposée.' },
@@ -193,7 +196,7 @@
   // La fenêtre des modèles du cabinet : les lire, en prendre un (il se pose dans le champ, où il se relit et se change
   // avant de partir), en ajouter, les changer, les retirer. Toute l'équipe du cabinet partage les mêmes (0169).
   /** @param {{ modeles: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
-   *   utiliser?: (texte: string) => void, client?: string | null }} o */
+   *   utiliser?: (texte: string) => void, client?: string | null, mois?: string | null }} o */
   function fenetreModeles(o) {
     const fond = document.createElement('div');
     fond.className = 'msg-fenetre-fond';
@@ -249,7 +252,7 @@
     const apercu = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-apercu]'));
     const majApercu = () => {
       apercu.hidden = !texte.value.trim();
-      /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-apercu-txt]')).textContent = remplir(texte.value, o.client || null);
+      /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-apercu-txt]')).textContent = remplir(texte.value, o.client || null, o.mois || null);
     };
     const champs = () => { insiste = false; fermerBtn.textContent = 'Fermer'; refus.textContent = ''; majApercu(); };
     titre.addEventListener('input', champs);
@@ -284,7 +287,7 @@
         /** @type {HTMLElement} */ (n).onclick = () => {
           const m = modeles.find((x) => x.id === /** @type {HTMLElement} */ (n).dataset.moUtiliser);
           if (!m || !o.utiliser) return;
-          o.utiliser(remplir(m.texte, o.client || null));
+          o.utiliser(remplir(m.texte, o.client || null, o.mois || null));
           fermer(true);
         };
       });
@@ -2780,5 +2783,5 @@
     return { message: message && message.id, fichier: depot };
   }
   // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.
-  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles, dessin };
+  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles, dessin, remplir };
 })();

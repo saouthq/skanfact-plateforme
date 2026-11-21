@@ -6760,7 +6760,7 @@
       <label class="field" id="ec-mail-l"${par === 'mail' ? '' : ' hidden'}><span>Adresse e-mail</span><input type="email" id="ec-mail" value="${esc(D.email || '')}" placeholder="adresse@client.tn"></label>
       ${attendus.length ? `<div class="field" id="ec-att-l"${par === 'fil' ? '' : ' hidden'}><span>Ce qu'on attend</span><span class="ec-dems">${attendus.map((t, i) => `<label><input type="checkbox" data-ec-att="${i}" checked> ${esc(t)}</label>`).join('')}</span></div>
       <label class="field" id="ec-pour-l"${par === 'fil' ? '' : ' hidden'}><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>` : ''}
-      <label class="field"><span>Le message</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000">${esc(texte)}</textarea></label>
+      <div class="field"><span>Le message${api.modeles ? ` <button type="button" class="pc-lien" id="ec-modele">Partir d'un modèle…</button>` : ''}</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000" aria-label="Le message">${esc(texte)}</textarea></div>
       <p class="pc-note"><span id="ec-par-note">${NOTES[par]}</span>${mois.length ? ' Sa ligne dira « relancé aujourd\'hui ».' : ''} Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button>${relie && !tournee ? `<span id="ec-conv-l"${par === 'fil' ? '' : ' hidden'}> Un fichier à joindre ? <button type="button" class="pc-lien" id="ec-conv">Écrire plutôt dans la conversation</button></span>` : ''}</p>
       <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok" title="Ctrl+Entrée">${BOUTON[par]}</button></div>`,
     (layer, close) => {
@@ -6772,6 +6772,14 @@
       const noter = async (via, note) => { if (!mois.length) return; try { S = await api.noteRelance(D.id, mois, via, note); } catch { /* le message est parti ; sa trace se refera */ } if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); else if (/^#\/(relances|production|dossiers)(\/|$)/.test(location.hash) && !tournee) render(); };
       const fini = () => { close(); if (tournee) o.onDone(); };
       $('#ec-appel', layer).onclick = () => { close(); fenNoterRelance(D, mois); };
+      // (1.387.92, issue 12 CABPORTEFEUILLE-21) Les modèles de l'équipe servent là où on écrit à un client : le modèle choisi
+      // remplace le message, rempli pour lui ({client} son prénom, {mois} les mois relancés), et se relit avant de partir.
+      const bMod = $('#ec-modele', layer);
+      if (bMod) bMod.onclick = () => api.modeles({
+        client: D.contact ? String(D.contact).split(' ')[0] : D.name,
+        mois: mois.length === 1 ? K.monthLabel(mois[0]) : mois.length ? lesMois : null,
+        utiliser: t => { const z = $('#ec-msg', layer); if (!z) return; z.value = t; z.dispatchEvent(new Event('input', { bubbles: true })); z.focus(); },
+      });
       const montrer = (id, oui) => { const n = $(id, layer); if (n) n.hidden = !oui; };
       $$('[data-ec-par]', layer).forEach(b => { b.onclick = () => {
         par = b.dataset.ecPar;

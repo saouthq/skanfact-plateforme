@@ -5983,3 +5983,15 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   recherche au-delà de six), et « Un nouveau client… » reste possible. Aucun : la création, comme avant.
 - Test : le cabinet neuf, un client tenu, « Inviter un client… » mène à sa fiche, le curseur dans l'adresse, aucune
   fenêtre. Preuve : remettre la création fait tomber le test.
+
+## 1.387.92 — Les modèles de l'équipe servent là où on écrit à un client (issue 12, CABPORTEFEUILLE-21)
+
+- **CABPORTEFEUILLE-21** : les modèles de messages ne servaient que dans la conversation SkanFact. « Écrire à… » et
+  « Relancer… » (par WhatsApp, e-mail, copie ou la messagerie) proposent maintenant « Partir d'un modèle… » : le modèle
+  choisi remplace le message, rempli pour ce client — `{client}` son prénom (le nom du dossier sans contact), `{mois}` les
+  mois relancés (le mois passé pour un simple mot) — et se relit avant de partir.
+- « de {mois} » s'élide devant une voyelle : « ta déclaration d'octobre 2026 », jamais « de octobre ». La règle vit dans
+  la messagerie partagée : « Mon comptable », côté entreprise, en profite aussi.
+- Reste (finition) : l'aperçu du modèle montre encore `{client}` tel quel quand aucun client n'est choisi.
+- Test : un modèle de l'équipe posé dans « Écrire à Transports Gabès », rempli, élidé ; `remplir` sur « avril 2026 ».
+  Deux preuves : le bouton sans effet, et l'élision retirée.
