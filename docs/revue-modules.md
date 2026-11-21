@@ -6113,3 +6113,12 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   portefeuille).
 - Tests : à 1440 px, la barre porte « Les miens / Tous », la tête de page la cache, Messages dit « Les miens » sans sa
   liste ; au téléphone, Messages reprend sa liste ; un associé seul n'a pas de choix. Deux preuves.
+
+## 1.388.3 — De la feuille maîtresse au grand livre du compte (issue 9, CABDECLARER-6)
+
+- **CABDECLARER-6** : réviser un compte, c'est en regarder les lignes. Le menu « Actions » d'un compte de la Révision
+  n'offrait que signer, écrire une note et poser une question : aucun chemin vers ses lignes. Il propose « Voir son grand
+  livre » : le grand livre de CE compte, sur la période révisée (le mois s'allume dans la frise et la bande « Période » le
+  dit), d'où une ligne ouvre son écriture. « ← » ramène à la Révision.
+- Test : depuis avril, « Voir son grand livre » ouvre le 532, en avril, avec les agios d'avril ; le retour rend la Révision.
+  Une preuve.

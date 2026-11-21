@@ -31172,6 +31172,10 @@ prouver $'cab10-messages-dit-mes-dossiers' web/public/plateforme/messagerie.js \
   $'<option value="mes"${portee() === \'mes\' ? \' selected\' : \'\'}>Les miens</option><option value="tout"${portee() === \'tout\' ? \' selected\' : \'\'}>Tous</option>' \
   $'<option value="mes"${portee() === \'mes\' ? \' selected\' : \'\'}>Mes dossiers</option><option value="tout"${portee() === \'tout\' ? \' selected\' : \'\'}>Tout le cabinet</option>' \
   $'« Les miens » : les Relances de Leïla ne parlent que du dossier qu\'elle tient ; celles de Rim, que du sien'
+prouver $'cabdeclarer6-revision-sans-grand-livre' modules/socle/ecrans/cabinet/app-1.js \
+  $'              s.compte = id; s.page = 1;' \
+  $'              s.page = 1;' \
+  $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

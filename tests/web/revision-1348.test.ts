@@ -149,6 +149,22 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     expect(net(await p.locator('#rv-poser').innerText())).toBe('Poser la question de ton cabinet');
     await p.screenshot({ path: path.join(PHOTOS, 'revision-1348-a-feuille.png'), fullPage: true });
 
+    // ── (CABDECLARER-6) De la feuille maîtresse au grand livre du compte, sur la période révisée, puis retour ────────
+    await p.locator('#rv-periode').selectOption(`${an}-04`);
+    await expect.poll(banque, { timeout: 15_000 }).toMatch(/^532 Banques 10 000,500 D/);
+    await p.locator('[data-rowmenu="RV:532"]').click();
+    await p.getByRole('menuitem').filter({ hasText: 'Voir son grand livre' }).click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toContain('/comptabilite/grand-livre');
+    await expect.poll(() => p.locator('#lv-compte').inputValue().catch(() => ''), { timeout: 15_000 }).toBe('532');
+    expect(await p.locator('details.gl-compte[open]').evaluateAll((d) => d.map((x) => (x as HTMLElement).dataset.gl))).toEqual(['532']);
+    expect(await p.locator('.cp-an .cp-mo.on').getAttribute('data-cp-mois')).toBe(`${an}-04`);
+    expect(net(await p.locator('details.gl-compte[open]').innerText())).toContain('AGIOS-4');
+    expect(await p.locator('#lv-mode').inputValue()).toBe('mois');
+    await p.goBack();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toContain('/comptabilite/revision');
+    await p.locator('#rv-periode').selectOption(String(an));
+    await expect.poll(banque, { timeout: 15_000 }).toContain('revu');
+
     // ── Arrêter la révision d'un exercice qui court : la question le dit avant ─────────────────────
     await p.locator('#rv-arreter').click();
     const f = p.locator('#modal-root .modal').last();

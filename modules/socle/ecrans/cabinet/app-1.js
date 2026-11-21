@@ -10839,6 +10839,19 @@
           { icon: c.revu ? 'non' : 'oui', label: c.revu ? 'Retirer ma signature' : 'Signer ce compte', cle: c.revu ? 'retirer-signature' : 'signer-compte',
             hint: c.revu ? `${['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' ')} ; le compte redeviendra « à revoir ».` : 'Je l\'ai revu : il est juste.',
             run: () => signer(id, !c.revu) },
+          // (1.388.3, issue 9, CABDECLARER-6) De la feuille maîtresse aux lignes du compte : le grand livre de CE compte, sur la
+          // période révisée, d'où une ligne ouvre son écriture et sa pièce. `allerSousOnglet` pousse l'adresse : « ← » ramène ici.
+          { icon: 'loupe', label: 'Voir son grand livre', cle: 'voir-grand-livre', hint: 'Les lignes de ce compte sur la période révisée ; une ligne ouvre son écriture.',
+            run: () => {
+              const per = String(s.revPeriode || (s.revision && s.revision.dossier && s.revision.dossier.periode) || s.annee);
+              if (/^\d{4}-\d{2}$/.test(per)) { s.mode = 'mois'; s.mois = per; } else s.mode = 'exercice';
+              s.compte = id; s.page = 1;
+              // La bande « Période » n'est pas redessinée par drawLivres : elle se remet d'accord ici.
+              const md = $('#lv-mode'); if (md) md.value = s.mode;
+              const mo = $('#lv-mois'); if (mo) { mo.hidden = s.mode !== 'mois'; if (s.mode === 'mois') mo.value = s.mois; }
+              ['#lv-du', '#lv-au'].forEach(q => { const x = $(q); if (x) x.hidden = true; });
+              allerSousOnglet(root, dossier, 'grand-livre');
+            } },
           { icon: 'modifier', label: 'Écrire une note de revue', hint: 'Ce qu\'il reste à vérifier sur ce compte.',
             run: () => noteForm(root, dossier, { compte: id, cycle: c.cycle }) },
           { icon: 'email', label: 'Poser une question au client', hint: 'Elle s\'affichera chez lui, en face de la pièce.',
