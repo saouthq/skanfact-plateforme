@@ -31160,6 +31160,10 @@ prouver $'cab9-role-cabinet-assistant-de-saisie' serveur/porte/porte.ts \
   $'roles.map(nomDuRoleCabinet)' \
   $'roles.map(nomDuRole)' \
   $'le propriétaire choisit son cabinet par son code ; l\'associé accepte ; le périmètre décide ; le cabinet valide ; arrêté, il ne voit plus rien'
+prouver $'cab15-la-barre-repete-la-navigation' modules/socle/ecrans/cabinet/app-1.js \
+  $'Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : \'\'}<span class="point"></span></a>`;' \
+  $'Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : \'\'}<span class="point"></span></a><div class="cp-nav-b"><a class="cp-sg" href="${base}/comptabilite/saisie">Saisir</a></div>`;' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -6083,3 +6083,17 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   équipe » cite les trois rôles que propose l'invitation.
 - Tests : Rim (saisie) ne voit pas « Déclarer et clôturer », lit la phrase, aucun vert, quatre boutons éteints avec leur
   bulle ; sept tests serveur lisent le nouveau nom du rôle. Quatre preuves.
+
+## 1.388.1 — La comptabilité d'un dossier se navigue une fois : dans la page (issue 6, CAB-15)
+
+- **CAB-15** (décidé) : à l'ordinateur, la comptabilité d'un dossier se naviguait deux fois — dans la barre de gauche (trois
+  groupes, puis les écrans du groupe ouvert) et dans la page (les mêmes groupes et écrans en onglets), et le même groupe
+  portait deux noms (« Déclarer » dans la barre, « Déclarer et clôturer » dans la page). On garde la navigation de la PAGE :
+  elle colle en haut, porte ce qui attend écran par écran, existe au téléphone, et c'est elle que suivent les visites. La
+  barre garde une seule entrée, « Comptabilité », qui rouvre l'écran qu'on y avait laissé et dit ce qui attend (« 3 à
+  traiter »). Pour un dossier sans livre, la barre listait cinq écrans qui menaient tous à « Commencer le livre » : elle
+  n'en promet plus aucun.
+- Vérifié à côté : le volet « Tout le dossier » suivait encore l'ancienne règle du rôle pour « Déclarer et clôturer » ; il
+  suit le droit sur CE dossier, comme la page et le serveur (CAB-9).
+- Test : la barre du dossier ouvert porte cinq entrées, dont « Comptabilité », et aucun groupe ni écran ; un seul lien vers
+  la comptabilité visible ; l'entrée dit l'écran ouvert. Une preuve.

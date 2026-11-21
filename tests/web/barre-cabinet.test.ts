@@ -156,19 +156,24 @@ describe('la barre du Cabinet, à la souris', () => {
     await ouvrir(p, cab.id, `#/dossier/${boulangerie.ent}`);
     const carte = p.locator('#b-dossier');
     expect(await carte.innerText()).toMatch(/^BE\nDossier ouvert · Relié\nBoulangerie El Amal\n/);
-    // (1.207.0) Le dossier dans la barre, comme la maquette de la comptabilité : les pages qui existent pour un dossier, puis
-    // la comptabilité (ses trois groupes, les écrans du groupe ouvert).
+    // (1.207.0) Le dossier dans la barre : les pages qui existent pour un dossier, puis la comptabilité.
+    // (1.388.1, issue 6, CAB-15) La comptabilité se navigue dans la PAGE (#c-groupes, #c-tabs) ; la barre n'en garde qu'une
+    // entrée, « Comptabilité », au lieu de la répéter (le même groupe y portait un autre nom : « Déclarer »).
     const entrees = p.locator('#nav-dossier > a.lien');
     expect(await entrees.evaluateAll((l) => l.map((a) => [(a as HTMLElement).innerText.split('\n')[0], a.getAttribute('href')]))).toEqual([
       ['Fiche du dossier', `#/dossier/${boulangerie.ent}`], ['Le classeur', `#/dossier/${boulangerie.ent}/classeur`],
-      ['Pièces du dossier', `#/pieces/${boulangerie.ent}`], ['Messages', `#/messages/${boulangerie.ent}`]]);
+      ['Pièces du dossier', `#/pieces/${boulangerie.ent}`], ['Messages', `#/messages/${boulangerie.ent}`],
+      ['Comptabilité', `#/dossier/${boulangerie.ent}/comptabilite/saisie`]]);
     expect(await entrees.filter({ hasText: 'Pièces du dossier' }).locator('.compte').innerText()).toBe('2 à classer');
-    const ecrans = p.locator('#nav-dossier .cp-nav-b .cp-ns');
-    expect(await ecrans.evaluateAll((l) => l.map((a) => (a as HTMLElement).innerText.split('\n')[0]))).toEqual(['Saisie', 'Banque', 'Paie', 'Immobilisations', 'Inventaire']);
-    expect(await p.locator('#nav-dossier .cp-nav-b .cp-sg').evaluateAll((l) => l.map((a) => (a as HTMLElement).innerText.split('\n')[0]?.replace(/\d+$/, '')))).toEqual(['Saisir', 'Consulter', 'Déclarer']);
-    await ecrans.filter({ hasText: 'Banque' }).click();
-    await expect.poll(() => ecrans.filter({ hasText: 'Banque' }).getAttribute('aria-current')).toBe('page');
-    expect(await p.locator('#nav-dossier .cp-nav-t').innerText()).toMatch(/Comptabilité · Banque/i);
+    expect(await p.locator('#nav-dossier .cp-sg, #nav-dossier .cp-ns, #nav-dossier .cp-nav-b').count()).toBe(0);
+    const compta = entrees.filter({ hasText: 'Comptabilité' });
+    await compta.click();
+    // Sans livre, la page propose de le commencer (la barre listait cinq écrans qui menaient tous à cette même page).
+    await expect.poll(() => p.locator('#view').innerText(), { timeout: 20_000 }).toMatch(/2026 n'a pas encore de livre[\s\S]*Commencer le livre de 2026…/);
+    await expect.poll(() => compta.getAttribute('aria-current')).toBe('page');
+    expect(await compta.getAttribute('data-tip')).toMatch(/^Comptabilité · Saisie/);
+    // Une seule navigation de la comptabilité à l'ordinateur : la page.
+    expect(await p.locator('#nav-dossier [href*="/comptabilite/"]:visible').count()).toBe(1);
     // (1.387.3, issue 10, CABPAIE-20) « Tout le dossier » : chaque page du dossier, sous le nom de son onglet, par groupe —
     // la Saisie, les Immobilisations et l'Inventaire y manquaient, et trois entrées portaient un autre nom que leur onglet.
     await p.locator('#nav .nav-volet[data-famille="Tout le dossier"]').click();
@@ -185,6 +190,8 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.keyboard.press('Escape');
 
     // ── Changer de dossier : la recherche, puis Entrée ; on garde l'écran (la banque) ──
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}/comptabilite/banque`; }, boulangerie.ent);
+    await expect.poll(() => compta.getAttribute('data-tip')).toMatch(/^Comptabilité · Banque/);
     await carte.click();
     const choix = p.locator('.pop-dossier');
     expect(await choix.locator('[data-aller-dossier] .lib').evaluateAll((l) => l.map((x) => x.childNodes[0]?.textContent)))

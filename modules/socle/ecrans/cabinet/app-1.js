@@ -2535,9 +2535,6 @@
   const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
     echeances: 'Les déclarations de tes dossiers, par date', production: 'Ce qui presse, puis où en est chaque dossier', messages: 'Les conversations avec tes clients',
     dossiers: 'Le portefeuille, ses chiffres, ses filtres', relances: 'Les clients à qui des mois manquent', ecritures: 'Le mois de tous tes clients, en un fichier', reglages: 'Le cabinet, ton compte, l\'affichage' };
-  // La comptabilité d'un dossier dans la barre (1.207.0, maquette) : son titre (« Comptabilité · Banque »), les trois groupes
-  // (Saisir, Consulter, Déclarer) et les écrans du groupe ouvert, chacun avec ce qui l'attend quand le livre de ce dossier
-  // est lu. Un groupe ouvre l'écran qu'on y avait laissé, sinon son premier.
   // (1.387.3) Le volet « Tout le dossier » : l'icône et la phrase de chaque écran de la comptabilité. Une clé par écran de
   // ONGLETS_COMPTA — un test confronte les tables, sinon un écran neuf naîtrait sans phrase dans le volet.
   const IC_VOLET = { saisir: 'ecritures', consulter: 'livres', cloturer: 'bilan', banque: 'banque', paie: 'paie', lettrage: 'lettrage', declaration: 'declaration', revision: 'revision' };
@@ -2549,20 +2546,16 @@
     declaration: 'La TVA et les retenues du mois', revision: 'Les comptes revus, les questions au client',
     exercice: 'Clôture, à-nouveaux, exercice suivant', liasse: 'Les états de fin d\'exercice'
   };
+  // (1.388.1, issue 6, CAB-15) La comptabilité d'un dossier se navigue dans la PAGE (les trois groupes et leurs écrans,
+  // #c-groupes et #c-tabs) : elle colle en haut, porte ce qui attend écran par écran, existe au téléphone, et c'est elle que
+  // suivent les visites. La barre la répétait à l'ordinateur — le même groupe sous deux noms (« Déclarer » et « Déclarer et
+  // clôturer »). Elle n'en garde qu'une entrée, « Comptabilité », qui rouvre l'écran qu'on y avait laissé et dit ce qui attend.
   function comptaDansBarre(D, base, ouvert) {
     const memeDossier = livresState.dossierId === D.id && !!livresState.livre;
-    const g = groupeCompta(ouvert || 'saisie');
-    const n = o => (memeDossier ? ((pastilleCompta(o) || {}).n || 0) : 0);
-    // (1.388.0, issue 6, CAB-9) « Déclarer » se propose à qui valide CE dossier (son droit prime sur le rôle au cabinet, comme au
-    // serveur) — la même règle que la page (drawLivres) ; ouvert par son adresse, il reste, pour qu'on sache où l'on est.
-    const groupes = GROUPES_COMPTA.filter(x => x.id !== 'cloturer' || peutValiderCl(D) || x.id === g.id);
-    const seg = groupes.map(x => {
-      const k = x.onglets.reduce((t, o) => t + n(o), 0);
-      const cible = ((livresState.dernierParGroupe || {})[x.id] && x.onglets.includes(livresState.dernierParGroupe[x.id])) ? livresState.dernierParGroupe[x.id] : x.onglets[0];
-      return `<a href="${base}/comptabilite/${cible}" class="cp-sg${x.id === g.id ? ' vu' : ''}" data-tip="${esc(x.label)}">${esc(x.id === 'cloturer' ? 'Déclarer' : x.label)}${k ? `<small>${esc(K.nbFr(k))}</small>` : ''}</a>`;
-    }).join('');
-    const ecrans = g.onglets.map(o => `<a href="${base}/comptabilite/${o}" class="lien cp-ns${ouvert === o ? ' active' : ''}" data-route="d-${o}"${ouvert === o ? ' aria-current="page"' : ''} data-tip="${esc(ONGLETS_COMPTA[o])}">${esc(ONGLETS_COMPTA[o])}${n(o) ? `<span class="nav-count compte ${o === 'declaration' ? 'alerte' : 'calme'}">${esc(K.nbFr(n(o)))}</span>` : ''}</a>`).join('');
-    return `<div class="cp-nav-b" role="group" aria-label="La comptabilité"><p class="cp-nav-t">Comptabilité${ouvert ? `<span> · ${esc(ONGLETS_COMPTA[ouvert] || '')}</span>` : ''}</p><div class="cp-sgs">${seg}</div><div class="cp-ecr">${ecrans}</div></div>`;
+    const cible = ouvert || (memeDossier && livresState.onglet && ONGLETS_COMPTA[livresState.onglet] ? livresState.onglet : 'saisie');
+    const k = memeDossier ? Object.keys(ONGLETS_COMPTA).reduce((t, o) => t + ((pastilleCompta(o) || {}).n || 0), 0) : 0;
+    const meta = k ? `${K.nbFr(k)} à traiter` : '';
+    return `<a href="${base}/comptabilite/${cible}" data-route="d-compta" class="lien${ouvert ? ' active' : ''}"${ouvert ? ' aria-current="page"' : ''} data-tip="${esc('Comptabilité' + (ouvert ? ` · ${ONGLETS_COMPTA[ouvert] || ''}` : '') + (meta ? ` · ${meta}` : ''))}"><span class="ic">${icB('livres')}</span>Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : ''}<span class="point"></span></a>`;
   }
   function drawNav() {
     const nav = $('#nav');
@@ -2570,7 +2563,6 @@
     const hash = location.hash.replace(/^#\//, '') || 'production';
     const [route, arg, sous] = hash.split('/');
     const D = dossierOuvert();
-    const role = monRole();
     const pri = prioritesDuJour();
     const retard = declarationsEnRetard();
     const nRel = lignesRelances().length;
@@ -2629,7 +2621,8 @@
         + ligneVolet('classeur', 'Le classeur', 'Chaque pièce, mois par mois, et ce qui manque', { href: `${base}/classeur` })
         + ligneVolet('pieces', 'Pièces du dossier', 'Ce que le client a envoyé, à classer', { href: `#/pieces/${encodeURIComponent(D.id)}` })
         + (D.manual ? '' : ligneVolet('messages', 'Messages', 'La conversation avec le client', { href: `#/messages/${encodeURIComponent(D.id)}` }))
-        + GROUPES_COMPTA.filter(x => role !== 'saisie' || x.id !== 'cloturer').map(x => `<p class="pl-groupe">${esc(x.label)}</p>`
+        // (1.388.1, CAB-9) « Déclarer et clôturer » à qui valide CE dossier : la règle de la page et du serveur.
+        + GROUPES_COMPTA.filter(x => x.id !== 'cloturer' || peutValiderCl(D)).map(x => `<p class="pl-groupe">${esc(x.label)}</p>`
           + `<div class="pl-grille">${x.onglets.map(o => `<a class="pl-c" href="${base}/comptabilite/${o}" title="${esc(DIT_VOLET[o])}"><span class="tuile-ic">${icB(IC_VOLET[o] || IC_VOLET[x.id], 16)}</span>${esc(ONGLETS_COMPTA[o])}</a>`).join('')}</div>`).join('')
         + '</div></div></div>';
       html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
