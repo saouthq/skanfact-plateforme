@@ -86,7 +86,9 @@ describe('les Messages du Cabinet, à la souris', () => {
     // La pastille de la barre dit le même chiffre que l'onglet « À traiter » (la portée de la barre).
     await expect.poll(async () => net(await p.locator('#nav-messages').innerText())).toBe('1');
     // ── La liste : la portée (la direction voit tout le cabinet), les onglets, le mois de chaque client ────────────
-    expect(await p.locator('[data-portee-choix]').inputValue()).toBe('tout');
+    // (1.388.2, CAB-10) Seul dans son cabinet, la portée ne trie rien : pas de choix, la liste dit « Tous ».
+    expect(await p.locator('[data-portee-choix]').count()).toBe(0);
+    expect(net(await p.locator('.msg-portee').innerText())).toMatch(/^Tous/);
     expect(net(await p.locator('.msg-liste-n').innerText())).toBe('2 conversations');
     expect(net(await p.locator('.msg-filtres').innerText())).toBe('À traiter 1 Attend le client 1 Tout 2');
     const ligne = (nom: string) => p.locator('.msg-dossier').filter({ hasText: nom });

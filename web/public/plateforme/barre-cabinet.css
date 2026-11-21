@@ -14,6 +14,14 @@
 .portee button[aria-pressed="true"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .1); }
 .portee.seul { font-size: 11px; font-weight: 600; color: var(--sb-gris-2); padding: 2px 8px; }
 body.barre-repliee #barre .portee { display: none; }
+/* (1.388.2, issue 6, CAB-10) Une seule bascule « Les miens / Tous » à l'ordinateur : celle de la barre. La tête de page et
+   Messages ne la répètent que quand la barre ne la montre pas (téléphone, barre repliée) ; Messages écrit alors l'état. */
+.msg-portee-txt { display: none; }
+@media (min-width: 761px) {
+  /* `#view#view` : la règle des vues de la charte pèse deux identifiants (son :is() contient #c-tabs). */
+  body:not(.barre-repliee) #view#view .ctx-cab .portee, body:not(.barre-repliee) .msg-portee-choix { display: none; }
+  body:not(.barre-repliee) .msg-portee-txt { display: inline; }
+}
 
 /* Relié ou tenu */
 .type-d { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; line-height: 15px; vertical-align: 1px; letter-spacing: .02em; }

@@ -122,7 +122,8 @@ describe('(1.334.0) les Relances et les Échéances du Cabinet, à la souris', (
     await p.locator(attendre).first().waitFor({ timeout: 25_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     // Les dossiers que la page regarde (Leïla) : « Tous » d'habitude, « Les miens » quand on le demande.
-    const bascule = p.locator(`[data-portee-page="${porteeVoulue}"][aria-pressed="false"]`);
+    // (1.388.2, CAB-10) À l'ordinateur, la bascule est celle de la barre (la tête de page ne la répète plus).
+    const bascule = p.locator(`#nav [data-portee="${porteeVoulue}"][aria-pressed="false"]:visible, [data-portee-page="${porteeVoulue}"][aria-pressed="false"]:visible`);
     if (await bascule.count()) await bascule.first().click();
   }
 
@@ -272,6 +273,18 @@ describe('(1.334.0) les Relances et les Échéances du Cabinet, à la souris', (
     expect(await l.p.locator('#group').count()).toBe(0);
     expect(await lignes.locator('.btn-primary').innerText()).toBe('Ouvrir les pièces');
     expect(await lignes.locator('[data-rl-pieces]').getAttribute('data-rl-pieces')).toBe(cafe.ent);
+    // (issue 6, CAB-10) Une seule bascule à l'ordinateur, la barre, avec les mêmes mots partout ; la tête de page et Messages
+    // ne la répètent pas (Messages écrit l'état).
+    expect(await l.p.locator('#nav [data-portee]:visible').allInnerTexts()).toEqual(['Les miens', 'Tous']);
+    expect(await l.p.locator('#page-rel .ctx-cab .portee').isVisible()).toBe(false);
+    await l.p.evaluate(() => { location.hash = '#/messages'; });
+    await expect.poll(() => l.p.locator('.msg-portee-txt').innerText().catch(() => ''), { timeout: 20_000 }).toBe('Les miens');
+    expect(await l.p.locator('[data-portee-choix]').isVisible()).toBe(false);
+    expect(await l.p.locator('[data-portee-choix] option').allInnerTexts()).toEqual(['Les miens', 'Tous']);
+    // Au téléphone, la barre est repliée : Messages reprend sa liste de choix.
+    await l.p.setViewportSize({ width: 390, height: 844 });
+    await expect.poll(() => l.p.locator('[data-portee-choix]').isVisible(), { timeout: 20_000 }).toBe(true);
+    expect(await l.p.locator('.msg-portee-txt').isVisible()).toBe(false);
     expect(l.erreurs).toEqual([]);
 
     // Rim, en Saisie : la librairie, confiée.

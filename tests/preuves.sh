@@ -31164,6 +31164,14 @@ prouver $'cab15-la-barre-repete-la-navigation' modules/socle/ecrans/cabinet/app-
   $'Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : \'\'}<span class="point"></span></a>`;' \
   $'Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : \'\'}<span class="point"></span></a><div class="cp-nav-b"><a class="cp-sg" href="${base}/comptabilite/saisie">Saisir</a></div>`;' \
   $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
+prouver $'cab10-deux-bascules-a-l-ordinateur' web/public/plateforme/barre-cabinet.css \
+  $'  body:not(.barre-repliee) #view#view .ctx-cab .portee, body:not(.barre-repliee) .msg-portee-choix { display: none; }' \
+  $'  body:not(.barre-repliee) .msg-portee-choix { display: none; }' \
+  $'« Les miens » : les Relances de Leïla ne parlent que du dossier qu\'elle tient ; celles de Rim, que du sien'
+prouver $'cab10-messages-dit-mes-dossiers' web/public/plateforme/messagerie.js \
+  $'<option value="mes"${portee() === \'mes\' ? \' selected\' : \'\'}>Les miens</option><option value="tout"${portee() === \'tout\' ? \' selected\' : \'\'}>Tous</option>' \
+  $'<option value="mes"${portee() === \'mes\' ? \' selected\' : \'\'}>Mes dossiers</option><option value="tout"${portee() === \'tout\' ? \' selected\' : \'\'}>Tout le cabinet</option>' \
+  $'« Les miens » : les Relances de Leïla ne parlent que du dossier qu\'elle tient ; celles de Rim, que du sien'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -2084,7 +2084,8 @@
       ...(api.imputerQuestion ? { imputer: gestes.imputer } : {}),
       info: info('msg.portee'),
       portee: () => (dir && portee() === 'tous' ? 'tout' : 'mes'),
-      ...(dir ? { changerPortee: v => { prefs.set('portee', v === 'tout' ? 'tous' : 'miens'); drawNav(); } } : {}),
+      // (1.388.2, issue 6, CAB-10) Seul dans son cabinet, la portée ne trie rien (portee() vaut « tous ») : pas de choix.
+      ...(dir && aPlusieurs() ? { changerPortee: v => { prefs.set('portee', v === 'tout' ? 'tous' : 'miens'); drawNav(); } } : {}),
       dansPortee,
       ligne,
       resume,
@@ -2600,7 +2601,7 @@
       + `</div><div class="panneau-pied"><span>${ICONE_EPINGLE} épingle une page pour l'avoir dans « Mon cabinet »</span></div></div></div>`;
     let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">Mon cabinet${estAssocie() && !aPlusieurs() ? '' : estAssocie()
       ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>`
-      : '<span class="portee seul">Mes dossiers</span>'}</p>${ordre.map(lienCab).join('')}${voletCabinet}</div>`;
+      : '<span class="portee seul">Les miens</span>'}</p>${ordre.map(lienCab).join('')}${voletCabinet}</div>`;
     html += '<div class="sep"></div>';
     if (!D) {
       html += `<div class="nav nav-dossier vide-d" id="nav-dossier"><div class="dossier" style="cursor:default"><span class="marque-s vide" aria-hidden="true">${icB('dossiers', 15, 2)}</span><span class="lib"><small>Dossier ouvert</small><b>Pas encore de dossier</b><small>Il s'ouvre ici dès le premier</small></span></div></div>`;
@@ -2802,7 +2803,9 @@
     if (t.closest('#b-dossier')) { e.preventDefault(); ouvrirChoixDossier(t.closest('#b-dossier')); return; }
     if (t.closest('#brand-btn') && $('#barre')) { e.preventDefault(); ouvrirMenuCabinet(t.closest('#brand-btn')); return; }
     const p = t.closest('#nav [data-portee]');
-    if (p) { e.preventDefault(); prefs.set('portee', p.dataset.portee); render(); return; }
+    // (1.388.2, issue 6, CAB-10) À l'ordinateur, c'est la seule bascule (la tête de page ne la répète qu'au téléphone) : elle
+    // remet à zéro ce que remettaient les bascules des pages (les coches des Relances, « le travail de qui »).
+    if (p) { e.preventDefault(); prefs.set('portee', p.dataset.portee); relState.coches.clear(); tbState.qui = ''; render(); return; }
     const a = t.closest('.sb [data-cab-action]');
     if (a) { e.preventDefault(); actionCabinet(a.dataset.cabAction, a); return; }
     const etoile = t.closest('.pop-dossier [data-etoile]');
@@ -4549,7 +4552,7 @@
       return { d, mo, pc, sp, reclame: !d.manual && (!!mo.manque || sp.length > 0), eq: equipeDe(d), nl: m.nonLus || 0, at: m.etat === 'a_traiter' };
     };
     const L = actifs.map(lignesDe);
-    const VUES = [['tous', 'Tous'], ['mes', 'Mes dossiers'], ['manque', 'Pièces manquantes'], ['tenus', 'Tenus au cabinet'], ['archives', 'Archivés']];
+    const VUES = [['tous', 'Tous'], ['mes', 'Les miens'], ['manque', 'Pièces manquantes'], ['tenus', 'Tenus au cabinet'], ['archives', 'Archivés']];
     const dansVue = (v, x) => v === 'tous' ? true : v === 'mes' ? aMoi(x.d) : v === 'manque' ? x.reclame && !x.pc : v === 'tenus' ? x.d.manual : false;
     const compte = v => v === 'archives' ? archives.length : L.filter(x => dansVue(v, x)).length;
     const q = st.q.trim().toLowerCase();

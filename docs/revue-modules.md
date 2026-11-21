@@ -6097,3 +6097,19 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   suit le droit sur CE dossier, comme la page et le serveur (CAB-9).
 - Test : la barre du dossier ouvert porte cinq entrées, dont « Comptabilité », et aucun groupe ni écran ; un seul lien vers
   la comptabilité visible ; l'entrée dit l'écran ouvert. Une preuve.
+
+## 1.388.2 — « Les miens / Tous » : un seul mot, et une seule bascule à l'ordinateur (issue 6, CAB-10)
+
+- **CAB-10** (décidé) : la même préférence (quels dossiers je regarde) avait quatre commandes et trois mots — la barre
+  (« Les miens / Tous »), la tête de page (les mêmes), Messages (« Mes dossiers / Tout le cabinet ») et un texte « Mes
+  dossiers » pour un collaborateur. Partout maintenant : « Les miens / Tous », les mots de la barre (les seuls qui tiennent
+  dans son titre). À l'ordinateur, barre dépliée, une seule bascule : celle de la barre ; la tête de page ne la répète plus
+  et Messages écrit seulement l'état (« Les miens » ou « Tous »). Barre repliée ou au téléphone, Messages reprend sa liste.
+- La bascule de la barre remet à zéro ce que remettaient celles des pages (les coches des Relances, « le travail de qui »
+  du tableau de bord).
+- Seul dans son cabinet, la portée ne trie rien : Messages ne propose plus un choix qui ne faisait rien (« Mes dossiers »
+  laissait la liste sur tout le cabinet) et dit « Tous ».
+- La vue « Mes dossiers » de Tous les dossiers devient « Les miens » (c'est un filtre de la page, qui montre tout le
+  portefeuille).
+- Tests : à 1440 px, la barre porte « Les miens / Tous », la tête de page la cache, Messages dit « Les miens » sans sa
+  liste ; au téléphone, Messages reprend sa liste ; un associé seul n'a pas de choix. Deux preuves.

@@ -2287,11 +2287,12 @@
           }
         };
       }
-      // La portée : « Mes dossiers » ou « Tout le cabinet » (la direction choisit ; un collaborateur ne voit que les siens).
+      // La portée : « Les miens » ou « Tous », les mots de la barre (la direction choisit ; un collaborateur ne voit que les siens).
+      // (1.388.2, issue 6, CAB-10) À l'ordinateur, la barre porte la bascule : la liste n'en écrit que l'état (barre-cabinet.css).
       const po = /** @type {HTMLElement} */ (corps.querySelector('[data-portee]'));
       po.innerHTML = o.changerPortee
-        ? `<label class="msg-portee-choix"><span class="msg-cache">Quels dossiers</span><select data-portee-choix><option value="mes"${portee() === 'mes' ? ' selected' : ''}>Mes dossiers</option><option value="tout"${portee() === 'tout' ? ' selected' : ''}>Tout le cabinet</option></select></label>${o.info ? o.info : ''}`
-        : `<b>Mes dossiers</b>${o.info ? o.info : ''}`;
+        ? `<b class="msg-portee-txt">${portee() === 'tout' ? 'Tous' : 'Les miens'}</b><label class="msg-portee-choix"><span class="msg-cache">Quels dossiers</span><select data-portee-choix><option value="mes"${portee() === 'mes' ? ' selected' : ''}>Les miens</option><option value="tout"${portee() === 'tout' ? ' selected' : ''}>Tous</option></select></label>${o.info ? o.info : ''}`
+        : `<b>${portee() === 'tout' ? 'Tous' : 'Les miens'}</b>${o.info ? o.info : ''}`;
       const choix = /** @type {HTMLSelectElement | null} */ (po.querySelector('[data-portee-choix]'));
       if (choix && o.changerPortee) { const changer = o.changerPortee; choix.onchange = () => { resume = null; filtre = null; choisi = null; changer(choix.value); dessiner(); }; }
       /** @type {HTMLElement} */ (corps.querySelector('[data-liste-n]')).textContent = pl(ds.length, 'conversation');
