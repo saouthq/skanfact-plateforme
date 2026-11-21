@@ -755,6 +755,32 @@ describe('la barre du Cabinet, à la souris', () => {
     await ctx.close();
   }, 180_000);
 
+  it('(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/dossiers');
+    await expect.poll(() => lien(p, 'Pièces reçues').locator('.compte').innerText(), { timeout: 15_000 }).toBe('2');
+    await p.keyboard.press('Control+k');
+    await p.locator('#pal-q').fill('agil');
+    const res = p.locator('#pal-res .res[data-i]').filter({ hasText: 'ticket-agil.png' });
+    await expect.poll(() => res.count()).toBe(1);
+    expect(await res.locator('.kind').textContent()).toBe('pièce');
+    expect(await res.locator('.sub').textContent()).toBe('Pièces reçues · Boulangerie El Amal');
+    await res.click();
+    await expect.poll(() => p.url()).toContain(`#/pieces/${boulangerie.ent}`);
+    // C'est la pièce choisie qui s'ouvre, pas la farine, arrivée la première et ouverte d'office.
+    await expect.poll(() => p.locator('#pc-voir .pc-vt b').innerText(), { timeout: 15_000 }).toBe('ticket-agil.png');
+    await p.keyboard.press('Control+k');
+    await p.locator('#pal-q').fill('zzqx');
+    await expect.poll(() => p.locator('#pal-rien').innerText()).toMatch(/^Rien ne correspond\. Une écriture se cherche dans son dossier/);
+    await p.keyboard.press('Escape');
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 60_000);
+
   it('(1.186.0) épingler une page du volet « Le cabinet » dans « Mon cabinet », la ranger, la retirer', async () => {
     const { associe, cab } = await unCabinet();
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();

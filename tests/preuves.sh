@@ -31122,6 +31122,14 @@ prouver $'cabportefeuille26-tout-lu-sans-nouvelle' web/public/plateforme/barre.j
   $'<b>Nouvelles</b>${l.length ? `<button type="button" data-tout-lu' \
   $'<b>Nouvelles</b>${true ? `<button type="button" data-tout-lu' \
   $'au bureau : les deux groupes, un lien par page, le volet à côté, l\'épingle, ranger, « Créer », la cloche, le pied'
+prouver $'cab5-palette-sans-pieces' modules/socle/ecrans/cabinet/app-2.js \
+  $'      items = ecrans.concat(rows, pieces, acts, qa ? aidesPour(brut) : []);' \
+  $'      items = ecrans.concat(rows, acts, qa ? aidesPour(brut) : []);' \
+  $'(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier'
+prouver $'cab5-ouvre-la-premiere-piece' modules/socle/ecrans/cabinet/app-2.js \
+  $'          Object.assign(pieceState, { onglet: \'aclasser\', sel: pc.id, q: \'\', filtre: \'tout\' });' \
+  $'          Object.assign(pieceState, { onglet: \'aclasser\', sel: \'\', q: \'\', filtre: \'tout\' });' \
+  $'(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

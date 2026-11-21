@@ -9783,7 +9783,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const root = document.createElement('div');
     root.id = 'palette-root';
     root.innerHTML = `<div class="palette">
-      <input type="text" id="pal-q" placeholder="Chercher un client, ou taper une action…" autocomplete="off" spellcheck="false">
+      <input type="text" id="pal-q" placeholder="Chercher un client, une pièce reçue, ou taper une action…" autocomplete="off" spellcheck="false">
       <div class="results" id="pal-res"></div>
       <div class="hint">↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer</div></div>`;
     document.body.appendChild(root);
@@ -9857,15 +9857,27 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       // connaît pas l'application.
       const qa = K.sansAccents(brut);
       const acts = actions.filter(a => !qa || K.sansAccents(a.main).includes(qa) || (a.text || '').includes(qa));
-      items = ecrans.concat(rows, acts, qa ? aidesPour(brut) : []);
+      // (1.387.97, issue 6, CAB-5) Les pièces reçues À CLASSER, déjà lues pour la barre (`piecesLues`), par la même recherche
+      // que la page Pièces reçues (`pieceCorrespond`) : la pièce s'ouvre elle-même, dans son dossier. Les écritures et les
+      // pièces classées ne sont pas en mémoire : l'état vide le dit pour elles.
+      const pieces = qa ? (piecesLues.pieces || []).filter(pc => (S.dossiers || []).some(x => x.id === pc.entreprise) && pieceCorrespond(pc, brut)).slice(0, 8).map(pc => ({
+        kind: 'pièce', main: (pc.fichier && pc.fichier.nom) || 'Pièce reçue',
+        sub: `Pièces reçues · ${((S.dossiers || []).find(x => x.id === pc.entreprise) || {}).name || ''}`,
+        go: () => {
+          Object.assign(pieceState, { onglet: 'aclasser', sel: pc.id, q: '', filtre: 'tout' });
+          pieceState.replies.delete(pc.entreprise);
+          vers(`#/pieces/${encodeURIComponent(pc.entreprise)}`);
+        }
+      })) : [];
+      items = ecrans.concat(rows, pieces, acts, qa ? aidesPour(brut) : []);
       if (sel >= items.length) sel = Math.max(0, items.length - 1);
       $('#pal-res', root).innerHTML = items.length
         ? items.map((x, i) => `<div class="res ${i === sel ? 'sel' : ''}" data-i="${i}">
             <span class="kind">${esc(x.kind)}</span><span class="main">${esc(x.main)}</span>
             ${x.sub ? `<span class="sub">${esc(x.sub)}</span>` : ''}</div>`).join('')
-        // (1.379.0, issue 6, CAB-5) La palette cherche les clients et les gestes ; une pièce ou une écriture se cherche dans
-        // son dossier : l'état vide le dit, au lieu de laisser croire qu'elle n'existe pas.
-        : '<div class="res" id="pal-rien"><span class="main muted">Rien ne correspond. Une pièce ou une écriture se cherche dans son dossier : Consulter › Recherche.</span></div>';
+        // (1.379.0 ; 1.387.97, issue 6, CAB-5) La palette cherche les clients, les gestes et les pièces à classer ; une écriture
+        // ou une pièce déjà classée se cherche dans son dossier : l'état vide le dit, au lieu de laisser croire qu'elle n'existe pas.
+        : '<div class="res" id="pal-rien"><span class="main muted">Rien ne correspond. Une écriture se cherche dans son dossier : Consulter › Recherche ; une pièce déjà classée, dans le classeur du dossier.</span></div>';
       $$('.res[data-i]', root).forEach(el => {
         el.onclick = () => { const x = items[Number(el.dataset.i)]; close(); if (x) x.go(); };
       });

@@ -1964,9 +1964,9 @@
   function inviterUnTenu() {
     const tenus = (S.dossiers || []).filter(d => d.manual && !d.archived && !d.demo)
       .sort((x, y) => String(x.name || '').localeCompare(String(y.name || ''), 'fr', { numeric: true }));
-    const vers = d => { location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/fiche'; };
+    const versFiche = d => { location.hash = '#/dossier/' + encodeURIComponent(d.id) + '/fiche'; };
     if (!tenus.length) { newDossierForm(); return; }
-    if (tenus.length === 1) { vers(tenus[0]); return; }
+    if (tenus.length === 1) { versFiche(tenus[0]); return; }
     const avecFiltre = tenus.length > 6;
     modal(`<h2>Quel client inviter ?</h2>
       <p class="muted">Ces clients sont tenus au cabinet : invité, il reçoit son espace SkanFact et ses pièces arrivent seules. Son dossier reste le même.</p>
@@ -1975,7 +1975,7 @@
       <p class="muted" id="it-vide" hidden>Aucun client tenu à ce nom.</p>
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-ghost" id="it-neuf">Un nouveau client…</button></div>`,
     (layer, close) => {
-      $$('[data-it]', layer).forEach(b => { b.onclick = () => { const d = tenus.find(x => x.id === b.dataset.it); close(); if (d) vers(d); }; });
+      $$('[data-it]', layer).forEach(b => { b.onclick = () => { const d = tenus.find(x => x.id === b.dataset.it); close(); if (d) versFiche(d); }; });
       $('#it-neuf', layer).onclick = () => { close(); newDossierForm(); };
       const q = $('#it-q', layer);
       if (q) {
@@ -3555,6 +3555,11 @@
   // Un achat d'un dossier qui n'a pas confié la saisie de ses achats au cabinet : le client la saisit lui-même.
   const nonConfiee = (p, D) => !p.depot && (p.genre === 'achat' || p.genre === 'ticket') && Array.isArray(D.perimetre) && !D.perimetre.includes('saisie_achats');
   // Le genre d'une pièce : ce que le client en a fait, sinon ce que dit son nom ou la demande à laquelle elle répond.
+  // (1.387.97, issue 6, CAB-5) Ce qu'on cherche dans une pièce reçue : son nom, qui l'envoie, son mot, la demande à laquelle
+  // elle répond, l'achat où le client l'a rangée, son dossier. La page Pièces reçues et la palette (Ctrl K) lisent le MÊME
+  // texte : deux recherches sur les mêmes pièces ne donnent qu'une réponse.
+  const pieceCorrespond = (p, q) => !q || `${(p.fichier && p.fichier.nom) || ''} ${p.de || ''} ${p.texte || ''} ${p.demande || ''} ${p.achat || ''} ${(((S && S.dossiers) || []).find(x => x.id === p.entreprise) || { name: 'Dossier retiré' }).name}`
+    .toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q));
   function genrePiece(p) {
     const nom = `${p.fichier.nom} ${p.demande || ''}`;
     if (p.achat) return 'rangee';
@@ -3602,7 +3607,7 @@
     const q = st.q.trim().toLowerCase();
     const parDossier = st.dossier && !d ? source.filter(p => p.entreprise === st.dossier) : source;
     const filtre = (FILTRES.find(f => f[0] === st.filtre) || FILTRES[0])[2];
-    const l = parDossier.filter(filtre).filter(p => !q || `${p.fichier.nom} ${p.de} ${p.texte} ${p.demande || ''} ${p.achat || ''} ${dossierDe(p.entreprise).name}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)));
+    const l = parDossier.filter(filtre).filter(p => pieceCorrespond(p, q));
     // Les dossiers, le plus pressé d'abord, puis celui dont la pièce est la plus récente ; leurs pièces dans l'ordre d'arrivée.
     const groupes = [...new Set(l.map(p => p.entreprise))].sort((a, b) => (presse.get(b) ? 1 : 0) - (presse.get(a) ? 1 : 0));
     // Dans un dossier, l'ordre d'arrivée (la plus ancienne d'abord) ; classées, la plus récemment classée d'abord.

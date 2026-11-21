@@ -6037,3 +6037,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   phrase dit ce que « lu » change (la nouvelle se tait, la pastille reste tant que la tâche n'est pas faite).
 - Tests : barre repliée, les trois portes visibles dans la barre et Aide qui mène à sa page ; la cloche d'une entreprise
   neuve. Deux preuves.
+
+## 1.387.97 — Ctrl K trouve une pièce reçue (issue 6, CAB-5)
+
+- **CAB-5** : la palette du Cabinet (Ctrl K) cherchait les écrans, les clients, les gestes et l'aide, jamais les pièces,
+  alors que les pièces à classer sont déjà lues pour la barre. Elle les trouve maintenant — par la même recherche que la
+  page Pièces reçues (nom du fichier, qui l'envoie, son mot, la demande, l'achat, le dossier) — et un clic ouvre CETTE
+  pièce dans son dossier, pas la première arrivée. Le champ le dit (« Chercher un client, une pièce reçue… »). Les
+  écritures et les pièces déjà classées ne sont pas en mémoire : l'état vide dit où les chercher.
+- Test : « agil » trouve « ticket-agil.png », rangée « pièce », et l'ouvre ; un mot qui ne correspond à rien dit où
+  chercher une écriture. Deux preuves.
