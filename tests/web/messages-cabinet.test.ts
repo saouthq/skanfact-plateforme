@@ -191,6 +191,21 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/messages'; });
     await p.locator('#msg-racine .msg-neuf').waitFor({ timeout: 15_000 });
+    // (issue 12 CABPORTEFEUILLE-21) Sans client, l'aperçu lit un nom d'exemple ; une variable inconnue se dit, puis se refuse.
+    await neuf.getByRole('button', { name: 'Écrire un modèle', exact: true }).click();
+    const fmN = p.getByRole('dialog', { name: 'Modèles de messages' });
+    await fmN.locator('[data-mo-titre]').fill('Merci');
+    await fmN.locator('[data-mo-texte]').fill('Bonjour {client}, merci {nom}.');
+    expect(await fmN.locator('[data-mo-apercu] small').textContent()).toBe('Ce que lira un client (Sami, pour l\'exemple)');
+    expect(await fmN.locator('[data-mo-apercu-txt]').textContent()).toBe('Bonjour Sami, merci {nom}.');
+    expect(net(await fmN.locator('[data-mo-inconnu]').innerText())).toBe('{nom} restera tel quel : seuls {client} et {mois} se remplissent.');
+    expect(await fmN.locator('[data-mo-inconnu]').isVisible()).toBe(true);
+    await fmN.getByRole('button', { name: 'Ajouter le modèle', exact: true }).click();
+    expect(net(await fmN.locator('[data-mo-refus]').innerText())).toMatch(/^\{nom\} ne se remplit pas/);
+    expect(await fmN.locator('[data-mo]').count()).toBe(0);
+    await fmN.getByRole('button', { name: 'Fermer', exact: true }).click();
+    await fmN.getByRole('button', { name: /^Fermer/ }).click();
+    expect(await fmN.count()).toBe(0);
 
     // ── Un client en ligne, Amel, qui promet ─────────────────────────────────────────────────────────────────────
     const amel = await personne('Amel Ennour');

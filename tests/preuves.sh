@@ -31488,6 +31488,32 @@ prouver $'cabportefeuille19-la-case-dit-qu-elle-ne-se-lit-pas' web/public/platef
   $'return false; } });' \
   $'(issue 12, CABPORTEFEUILLE-19) une date de validité qui n\'existe pas se refuse : la case se montre, la fenêtre reste'
 
+# 1.388.21 — les modèles de messages, le support, deux visites (CABPORTEFEUILLE-21, 23, 24).
+prouver $'cabportefeuille21-l-apercu-lit-un-nom-d-exemple' web/public/plateforme/messagerie.js \
+  $'remplir(texte.value, o.client || CLIENT_EXEMPLE, o.mois || null);' \
+  $'remplir(texte.value, o.client || null, o.mois || null);' \
+  $'(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver $'cabportefeuille21-la-variable-inconnue-se-dit' web/public/plateforme/messagerie.js \
+  $'      signal.hidden = !inc.length;' \
+  $'      signal.hidden = true;' \
+  $'(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver $'cabportefeuille21-la-variable-inconnue-se-refuse' web/public/plateforme/messagerie.js \
+  $'      if (inc.length) { refus.textContent =' \
+  $'      if (false) { refus.textContent =' \
+  $'(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver $'cabportefeuille23-la-question-part-telle-quelle' modules/socle/ecrans/cabinet/app-2.js \
+  $'const libelles = pre && pre.trous ? String(' \
+  $'const libelles = pre ? String(' \
+  $'Tes données : la copie de la nuit échouée se dit échouée, et « Défaire une erreur » écrit au support'
+prouver $'cabportefeuille24-le-bouton-se-nomme-tel-quel' modules/socle/visites/cabvisites.js \
+  $'depuis un tableur.\', action: \'Clique sur {bouton}.\'' \
+  $'depuis un tableur.\', action: \'Clique sur <b>« Ajouter un client… »</b>.\'' \
+  $'« je suis un cabinet comptable » sur la porte : le cabinet se crée, on choisit son départ, le Cabinet s\'ouvre ; « Verrouiller » ferme la session'
+prouver $'cabportefeuille24-resserrer-eclaire-la-periode' modules/socle/visites/cabvisites.js \
+  $'cible: [\'#tb-dossiers .filtres\', \'#tb-dossiers\'], cote: \'dessus\', titre: \'Resserrer\',' \
+  $'cible: [\'#tb-retard\', \'#tb-dossiers\'], cote: \'dessous\', titre: \'Resserrer\',' \
+  $'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

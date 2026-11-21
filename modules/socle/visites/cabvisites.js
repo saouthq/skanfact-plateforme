@@ -711,7 +711,7 @@
     const ecranDeDossier = cle => cle === 'dossier' || cle === 'dossier-paquets' || cle === 'dossier-classeur' || /^compta/.test(cle);
     const DOSSIER_MANQUE = {
       skanfact: { texte: 'Il faut un client sur SkanFact qui t\'a confié son dossier : donne-lui le code de ton cabinet (Réglages → Mon cabinet), puis accepte son dossier sur la page Dossiers.' },
-      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Ajouter un client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
+      hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le depuis « Tous les dossiers », ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
       // La visite proposée se calcule : commencer un livre s'il y a un client à tenir, sinon en ajouter un
       // — jamais un bouton éteint qui renvoie à un autre bouton éteint (26/09).
       saisie: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le, sa Saisie s\'ouvre aussitôt.', visite: 'ajouter-client' },
@@ -948,8 +948,9 @@
       bravo: 'Ton client est dans le portefeuille',
       conclusion: 'Rien ne lui est réclamé : tu tiens ses livres ici. S\'il utilise SkanFact, il te confie lui-même son dossier avec le code de ton cabinet.',
       etapes: [
+        // (issue 12 CABPORTEFEUILLE-24) Le bouton s'appelle « Ajouter mes clients… » sur un portefeuille vide : la visite le lit.
         { page: '#/dossiers', cible: '#new-d', cote: 'dessous', faire: 'clic', avant: () => { clientsAvant = reels().length; },
-          titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur <b>« Ajouter un client… »</b>.', essai: { clic: true } },
+          titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur {bouton}.', essai: { clic: true } },
         { page: '#/dossiers', cible: '#f-name', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'Son nom', texte: 'Tel qu\'il s\'écrit sur ses papiers, forme juridique comprise.', action: 'Tape le nom du client.', essai: { taper: 'Client Essai SARL' } },
         { page: '#/dossiers', cible: '#f-mat', cote: 'droite', titre: 'Son matricule', facultatif: true,
@@ -1925,8 +1926,10 @@
           texte: 'Le jour du mois suivant où chaque client a envoyé tout son mois, face à ton seuil (Le cabinet › Réglages). Ceux qui envoient tard, ou rien, passent en tête.' },
         { page: '#/production', cible: ['#tb-exporter', '#page-bord h1'], cote: 'dessous', titre: 'Exporter',
           texte: 'La grille en tableur, ou en PDF pour une réunion, avec la période et les filtres que tu as posés.' },
-        { page: '#/production', cible: ['#tb-retard', '#tb-dossiers'], cote: 'dessous', titre: 'Resserrer',
-          texte: 'Six mois, l\'année ou douze mois ; les puces gardent les dossiers en retard, à saisir ou à réviser ; en haut de la page, le choix d\'une personne.' },
+        // (issue 12 CABPORTEFEUILLE-24) L'étape éclairait le compte « N mois en retard » de l'onglet Production, au-dessus de ce
+        // qu'elle décrit : elle éclaire la période, et nomme les puces juste dessous.
+        { page: '#/production', cible: ['#tb-dossiers .filtres', '#tb-dossiers'], cote: 'dessus', titre: 'Resserrer',
+          texte: 'Cherche un dossier, ou resserre la période : six mois, l\'année, douze mois, ou une période de ton choix ; juste dessous, les puces ne gardent que les dossiers en retard, à saisir ou à réviser. Quand ton équipe compte plusieurs personnes, le haut de la page choisit le travail de qui.' },
         { page: '#/production', cible: '#view tr[data-tb-id]', cote: 'dessous', faire: 'clic',
           titre: 'Ouvre un dossier', texte: 'La ligne mène à sa comptabilité ; son menu ⋯, à ses échéances, sa conversation et sa fiche.',
           action: 'Clique sur la ligne d\'un client.', essai: { clic: true } }

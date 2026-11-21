@@ -8464,7 +8464,7 @@
     if (api.dessinerSauvegardes && $('#sv-panel')) void api.dessinerSauvegardes($('#sv-panel'));
     const svs = $('#sv-support');
     if (svs) svs.onclick = () => ecrireAuSupportCab('question', { sujet: 'Défaire une erreur',
-      texte: 'Le dossier : \nCe qui s\'est passé : \nLe jour et l\'heure, juste avant l\'erreur : ', curseur: 'Le dossier : '.length });
+      texte: 'Le dossier : \nCe qui s\'est passé : \nLe jour et l\'heure, juste avant l\'erreur : ', curseur: 'Le dossier : '.length, trous: true });
     void api.dessinerCompte($('#compte-panel'), { modal, toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined) });
     void api.dessinerAppareils($('#appareils-panel'));
     // Les onglets, le sommaire et la recherche : la mécanique vient de src/renderer/reglages.js,
@@ -9109,7 +9109,9 @@
           if (texte.length < 3) return refus($('#sup-texte-demande', layer), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
           // (1.387.94, issue 12 CABPORTEFEUILLE-23) Le texte à trous (« Le dossier : … ») partait tel quel : ses libellés seuls
           // passaient la règle des trois signes, et l'équipe recevait une demande vide. On compte ce qui a été écrit DANS les trous.
-          const libelles = String((pre && pre.texte) || '').split('\n').map(l => l.trim()).filter(Boolean);
+          // Seul un texte À TROUS (`pre.trous`) se retire avant de compter : la question que l'Aide n'a pas trouvée est préremplie
+          // elle aussi, et elle part telle quelle (« Pose-la telle quelle ») — la compter comme un modèle la refusait.
+          const libelles = pre && pre.trous ? String(pre.texte || '').split('\n').map(l => l.trim()).filter(Boolean) : [];
           const ecrit = libelles.reduce((t, l) => t.split(l).join(' '), texte).replace(/\s+/g, ' ').trim();
           if (libelles.length && ecrit.length < 10) return refus($('#sup-texte-demande', layer), 'Écris ce qui s\'est passé, après chaque ligne : le modèle seul ne dit rien à l\'équipe.');
         }

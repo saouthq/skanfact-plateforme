@@ -6433,3 +6433,22 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   que de laisser SkanFact le deviner sur son nom (le serveur ne garde pas cette rubrique aujourd'hui).
 - Tests : `fiche-dossier-cabinet`, `fec-tiers-1378`, `declaration-1350`, `barre-cabinet`, `classeur-cabinet` (un nouveau
   parcours, la date impossible puis la date juste) ; dix preuves.
+
+## 1.388.21 — Les modèles de messages, le support, deux visites (issue 12, CABPORTEFEUILLE-21, 23, 24)
+
+- **Un modèle de message se relit avec un vrai nom** (CABPORTEFEUILLE-21). Ouverte sans client (les Réglages, la page
+  Messages d'un cabinet neuf, la demande groupée), la fenêtre des modèles montrait « Bonjour {client} » dans « Ce que lira
+  le client » : elle lit maintenant « Ce que lira un client (Sami, pour l'exemple) » et « Bonjour Sami, … ». Ce qui part
+  ne change pas : sans client connu, {client} reste dans le texte, et la demande groupée le remplace pour chacun.
+- **Une variable inconnue se dit, puis se refuse** (CABPORTEFEUILLE-21) : « {nom} », « {Client} » ou « { client } »
+  partaient tels quels chez chaque client. Sous l'aperçu : « {nom} restera tel quel : seuls {client} et {mois} se
+  remplissent. » ; à l'enregistrement : « {nom} ne se remplit pas : … Corrige ce mot, ou retire les accolades. »
+- **La question que l'Aide n'a pas trouvée part telle quelle** (CABPORTEFEUILLE-23). La 1.387.94 refusait un texte
+  envoyé sans rien ajouter, pour que le modèle « Défaire une erreur » (un texte à trous) ne parte pas vide ; elle
+  refusait aussi la question préremplie depuis l'Aide (« Pose-la telle quelle »). Seul le texte à trous se compte
+  maintenant.
+- **Deux visites guidées disent ce que l'écran montre** (CABPORTEFEUILLE-24). « Ajouter un client » nomme le bouton tel
+  qu'il est écrit (« Ajouter mes clients… » sur un portefeuille vide). « Suivre la production », à l'étape « Resserrer »,
+  éclaire la recherche et la période au-dessus de la grille (elle éclairait le compte « N mois en retard » de l'onglet),
+  nomme les puces juste dessous, et ne parle du choix d'une personne que pour une équipe de plusieurs.
+- Tests : `messages-cabinet`, `reglages-cabinet-1333`, `cabinet-production`, `cabinet` ; six preuves.

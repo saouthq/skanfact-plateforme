@@ -113,8 +113,21 @@ describe('les Réglages du Cabinet en ligne, à la souris', () => {
     await tx.evaluate((t) => { (t as HTMLTextAreaElement).focus(); (t as HTMLTextAreaElement).setSelectionRange('Le dossier : '.length, 'Le dossier : '.length); });
     await p.keyboard.type('Boulangerie du Lac');
     expect(await tx.inputValue()).toMatch(/^Le dossier : Boulangerie du Lac\nCe qui s'est passé : /);
-    expect(erreurs).toEqual([]);
+    // (issue 12 CABPORTEFEUILLE-23, suite) La règle ne vise que le texte à trous : la question que l'Aide n'a pas trouvée
+    // part TELLE QUELLE, sans un mot de plus.
     await p.context().close();
+    const pa = await reglages(leila, 'donnees', '#pan-donnees');
+    await pa.evaluate(() => { location.hash = '#/aide'; });
+    await pa.locator('#aide-q').click();
+    await pa.keyboard.type('xylophone tablette');
+    await pa.locator('#aide-res .empty').waitFor({ timeout: 5_000 });
+    await pa.locator('#aide-q-support').click();
+    await pa.locator('#modal-root #sup-texte-demande').waitFor({ timeout: 5_000 });
+    expect(await pa.locator('#modal-root #sup-texte-demande').inputValue()).toBe('xylophone tablette');
+    await pa.locator('#sup-send').click();
+    await expect.poll(() => pa.url(), { timeout: 10_000 }).toMatch(/#\/support\/[0-9a-f-]{36}$/);
+    expect(erreurs).toEqual([]);
+    await pa.context().close();
   });
 
   it('une touche ne fait qu\'un geste : refusée à la frappe, signalée si elle était déjà enregistrée, refusée à l\'enregistrement', async () => {

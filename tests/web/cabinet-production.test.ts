@@ -151,6 +151,16 @@ describe('la production du cabinet, à la souris', () => {
       // (1.374.0) « Quand les pièces arrivent » ne se montre que si son bloc est à l'écran : aucun client ne dépose ici.
       await bulle.getByRole('button', { name: 'Suivant' }).click();
       await expect.poll(() => bulle.innerText()).toMatch(titre);
+      // (issue 12 CABPORTEFEUILLE-24) « Resserrer » éclaire la période au-dessus de la grille, pas le compte du retard de l'onglet.
+      if (titre.source === 'Resserrer') {
+        await expect.poll(() => p.evaluate(() => {
+          const t = document.querySelector<SVGRectElement>('#visite-voile .vv-trou'), f = document.querySelector('#tb-dossiers .filtres');
+          if (!t || !f) return false;
+          const px = (v: string) => Number(v.replace(/px$/, ''));
+          const r = f.getBoundingClientRect(), x = px(t.style.x), y = px(t.style.y);
+          return x <= r.left + 4 && y <= r.top + 4 && x + px(t.style.width) >= r.right - 4 && y + px(t.style.height) >= r.bottom - 4;
+        }), { timeout: 5_000 }).toBe(true);
+      }
     }
     await ligne('Garage du Port').locator('td.cl').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Tu suis la production/);

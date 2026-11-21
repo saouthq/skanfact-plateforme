@@ -193,6 +193,13 @@
     { titre: 'Bien reçu', texte: 'Bien reçu, merci {client}. Je m\'en occupe.' },
   ];
 
+  // (issue 12 CABPORTEFEUILLE-21) Ouverte sans client (les Réglages, la page Messages d'un cabinet neuf, la demande
+  // groupée), la fenêtre montrait « Bonjour {client} » dans « Ce que lira le client » : l'aperçu lit un nom d'exemple. Ce
+  // qui part garde {client} tel quel quand le client n'est pas connu (la demande groupée le remplace pour chacun).
+  const CLIENT_EXEMPLE = 'Sami';
+  // Les variables qu'aucun remplissage ne connaît (« {nom} », « {Client} ») : elles partiraient telles quelles.
+  /** @param {string} t @returns {string[]} */
+  const variablesInconnues = (t) => [...new Set(String(t || '').match(/\{[^{}\n]*\}/g) || [])].filter((v) => v !== '{client}' && v !== '{mois}');
   // La fenêtre des modèles du cabinet : les lire, en prendre un (il se pose dans le champ, où il se relit et se change
   // avant de partir), en ajouter, les changer, les retirer. Toute l'équipe du cabinet partage les mêmes (0169).
   /** @param {{ modeles: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
@@ -212,7 +219,7 @@
           <label class="msg-ep-mot"><span>Titre</span><input type="text" maxlength="80" placeholder="Par exemple : Pièces du mois" data-mo-titre></label>
           <label class="msg-ep-mot"><span>Texte</span><textarea rows="4" maxlength="4000" placeholder="Bonjour {client}, …" data-mo-texte></textarea></label>
           <span class="msg-mo-poser-mots">Insérer : <button type="button" class="msg-mo-mot" data-mo-mot="{client}">{client}</button><button type="button" class="msg-mo-mot" data-mo-mot="{mois}">{mois}</button></span>
-          <div class="msg-mo-apercu" data-mo-apercu hidden><small>Ce que lira ${esc(o.client || 'le client')}</small><span data-mo-apercu-txt></span></div>
+          <div class="msg-mo-apercu" data-mo-apercu hidden><small>Ce que lira ${o.client ? esc(o.client) : `un client (${CLIENT_EXEMPLE}, pour l'exemple)`}</small><span data-mo-apercu-txt></span><span class="msg-mo-inconnu" data-mo-inconnu hidden></span></div>
           <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-mo-refus></p>
             <button type="button" class="btn" data-mo-annuler hidden>Annuler la modification</button>
             <button type="submit" class="btn btn-primary" data-mo-poser>Ajouter le modèle</button></div>
@@ -252,7 +259,11 @@
     const apercu = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-apercu]'));
     const majApercu = () => {
       apercu.hidden = !texte.value.trim();
-      /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-apercu-txt]')).textContent = remplir(texte.value, o.client || null, o.mois || null);
+      /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-apercu-txt]')).textContent = remplir(texte.value, o.client || CLIENT_EXEMPLE, o.mois || null);
+      const inc = variablesInconnues(texte.value);
+      const signal = /** @type {HTMLElement} */ (apercu.querySelector('[data-mo-inconnu]'));
+      signal.hidden = !inc.length;
+      signal.textContent = inc.length ? `${inc.join(', ')} ${inc.length > 1 ? 'resteront tels quels' : 'restera tel quel'} : seuls {client} et {mois} se remplissent.` : '';
     };
     const champs = () => { insiste = false; fermerBtn.textContent = 'Fermer'; refus.textContent = ''; majApercu(); };
     titre.addEventListener('input', champs);
@@ -282,7 +293,7 @@
                 <button type="button" class="msg-lien" data-mo-modifier="${esc(m.id)}">Modifier</button>
                 <button type="button" class="msg-lien" data-mo-retirer="${esc(m.id)}">Retirer</button>`}</span></div>`).join('')
         : `<div class="msg-vide msg-mo-vide"><b>Aucun modèle encore.</b><span>Pars d'un exemple, ou écris à droite la phrase que tu envoies le plus souvent : toute l'équipe l'aura.</span>
-            <span class="msg-mo-exemples">${EXEMPLES.map((x, i) => `<button type="button" class="msg-mo-ex" data-mo-exemple="${i}" aria-label="${esc(x.titre)}"><b>${esc(x.titre)}</b><span>${esc(remplir(x.texte, o.client || null))}</span></button>`).join('')}</span></div>`;
+            <span class="msg-mo-exemples">${EXEMPLES.map((x, i) => `<button type="button" class="msg-mo-ex" data-mo-exemple="${i}" aria-label="${esc(x.titre)}"><b>${esc(x.titre)}</b><span>${esc(remplir(x.texte, o.client || CLIENT_EXEMPLE, o.mois || null))}</span></button>`).join('')}</span></div>`;
       liste.querySelectorAll('[data-mo-utiliser]').forEach((n) => {
         /** @type {HTMLElement} */ (n).onclick = () => {
           const m = modeles.find((x) => x.id === /** @type {HTMLElement} */ (n).dataset.moUtiliser);
@@ -340,6 +351,8 @@
       if (poser.disabled) return;
       if (!titre.value.trim()) { refus.textContent = 'Donne un titre à ce modèle (par exemple : Pièces du mois).'; titre.focus(); return; }
       if (!texte.value.trim()) { refus.textContent = 'Écris le texte de ce modèle : la phrase que tu envoies souvent.'; texte.focus(); return; }
+      const inc = variablesInconnues(texte.value);
+      if (inc.length) { refus.textContent = `${inc.join(', ')} ne se ${inc.length > 1 ? 'remplissent' : 'remplit'} pas : seuls {client} (le nom du client) et {mois} se remplissent. Corrige ${inc.length > 1 ? 'ces mots' : 'ce mot'}, ou retire les accolades.`; texte.focus(); return; }
       poser.disabled = true;
       try {
         await o.modeles.poser(enCours, titre.value, texte.value);

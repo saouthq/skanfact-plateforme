@@ -837,6 +837,9 @@
 .msg-mo-apercu { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px 12px 4px 12px; background: var(--primary-soft); font-size: 13px; line-height: 1.45; white-space: pre-line; }
 .msg-mo-apercu[hidden] { display: none; }
 .msg-mo-apercu small { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--primary); }
+/* (issue 12 CABPORTEFEUILLE-21) Une variable inconnue se dit sous l'aperçu, avant d'enregistrer : en clair, pas en étiquette. */
+.msg-mo-inconnu { font-size: 12.5px; font-weight: 600; color: var(--warning); white-space: normal; }
+.msg-mo-inconnu[hidden] { display: none; }
 @media (max-width: 760px) { .msg-mo-corps { grid-template-columns: minmax(0, 1fr); }}
 /* (1.182.0) La pièce demandée suit ses étapes sur une ligne, reliées d'un trait (Demandée — Relancée — Attendue ou
    Reçue), la date à côté de chaque étape : la frise en deux étages prenait la hauteur d'un message de plus. L'état se lit
