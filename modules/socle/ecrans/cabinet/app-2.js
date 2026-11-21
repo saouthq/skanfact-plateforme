@@ -1492,6 +1492,7 @@
       const actions = [];
       if (x.g === 'ok') {
         if (x.e) actions.push({ icon: 'loupe', label: 'Voir l\'écriture en face', hint: `${pieceBq(x.e)} — toutes ses lignes`, run: () => ecritureDialog(x.e, x.rang) });
+        if (x.e && x.e.statut === 'brouillard' && x.e.source !== 'skanfact' && attenteBl(x.e) && !lectureSeuleLivre()) actions.push({ icon: 'modifier', label: 'Dire ce que c\'est…', hint: 'la ligne est au compte d\'attente (471) : le bon compte, et la banque reste rapprochée', run: () => direCeQueCest(root, dossier, x.e) });
         if (!lectureSeuleLivre()) actions.push({ icon: 'non', label: 'Défaire le rapprochement', hint: 'Même « d\'office » se défait : l\'automatique propose, c\'est toi qui décides', run: () => {
           const e = x.e, rang = x.rang;
           gesteBanque(root, dossier, R, l.id, async () => { await defaireBq(dossier, R, l.id); return 'Rapprochement défait : la ligne revient à traiter.'; }, e ? () => poserBq(dossier, R, l.id, e.id, rang) : null);
@@ -1971,7 +1972,7 @@
         ? `<div class="ok-box mb">Le libellé contient « ${esc(brouillon.regle)} » : le compte ${esc(contre.compte)} est proposé.</div>`
         : `<div class="info-box mb">Aucune règle ne reconnaît ce libellé. Choisis le compte : il sera retenu, et le prochain relevé le proposera tout seul.</div>`}
       <form id="bf" class="grid-2">
-        <label class="field">${lbl('Journal', 'bq.eJournal')}<input name="journal" value="${esc(brouillon.journal)}"></label>
+        <label class="field">${lbl('Journal', 'bq.eJournal')}<select name="journal">${(() => { const js = ((s.livre && s.livre.journaux && s.livre.journaux.length) ? s.livre.journaux : KC.JOURNAUX_PAR_DEFAUT).filter(j => j.code !== 'AN'); const tous = !brouillon.journal || js.some(j => j.code === brouillon.journal) ? js : [{ code: brouillon.journal, libelle: '' }, ...js]; return tous.map(j => `<option value="${esc(j.code)}"${j.code === brouillon.journal ? ' selected' : ''}>${esc(j.code)}${j.libelle ? ` — ${esc(j.libelle)}` : ''}</option>`).join(''); })()}</select></label>
         <label class="field">${lbl('Date', 'bq.eDate')}<input type="date" name="date" value="${esc(brouillon.date)}"></label>
         <label class="field span-2">${lbl('Libellé', 'bq.eLibelle')}<input name="libelle" value="${esc(tiersR ? `${brouillon.libelle} · ${tiersR.nom}`.slice(0, 120) : brouillon.libelle)}"></label>
         <label class="field">${lbl('Compte ' + esc(R.compte), 'bq.eBanque')}<input value="${esc(money(ligne.montant))}" disabled></label>
@@ -2567,6 +2568,20 @@
     lignes: [ligneVide(), ligneVide()]
   });
   const ligneVide = () => ({ compte: '', libelle: '', debit: '', credit: '' });
+  // (CABSAISIE-5) Les tiers que ce livre connaît, chacun sur le compte de tiers (40x, 41x) où il est écrit : la case Compte de la
+  // grille les propose par leur NOM. Un même tiers ne vient qu'une fois (son identifiant, sinon son nom).
+  const tiersDuLivreSa = () => {
+    const vus = new Map();
+    for (const e of ((livresState.livre || {}).ecritures || [])) {
+      for (const l of (e.lignes || [])) {
+        const nom = String(l.tiers || '').trim();
+        if (!nom || !/^4[01]/.test(String(l.compte || ''))) continue;
+        const cle = l.tiersId || '~' + sansAccentsCl(nom);
+        if (!vus.has(cle)) vus.set(cle, { nom, tiersId: l.tiersId || null, compte: String(l.compte) });
+      }
+    }
+    return [...vus.values()];
+  };
   // (1.174.5) La saisie ouverte pour une pièce (le classeur, les Pièces reçues) : son journal nommé par sa nature (achats,
   // banque, ventes ; la saisie prend le code de ce livre), une date, son nom en libellé ; enregistrée, la pièce se joint à
   // l'écriture (`depuis`). Une saisie déjà commencée pour ce dossier n'est pas écrasée.
@@ -2639,18 +2654,40 @@
     const d = new Date(vj + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + 1);
     return `La période est validée jusqu'au ${fmtJour(vj)} : une écriture ne s'y écrit plus. Date-la du ${fmtJour(d.toISOString().slice(0, 10))} ou après.`;
   };
+  // (CABSAISIE-10) Hors des bornes de l'exercice ouvert, une écriture tomberait dans un livre que l'écran ne montre pas.
+  const motifHorsExercice = date => {
+    const ex = ((livresState.livre || {}).exercice) || {};
+    const d = String(date || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || !ex.du || !ex.au || (d >= ex.du && d <= ex.au)) return '';
+    return `Elle est datée du ${fmtJour(d)}, hors de l'exercice ${ex.annee || livresState.annee} (du ${fmtJour(ex.du)} au ${fmtJour(ex.au)}). Corrige la date, ou choisis son exercice en haut de la page.`;
+  };
   const verdictSaisie = (p, plan, opts) => {
     const illisibles = montantsIllisibles(p);
     if (illisibles.length) return { ok: false, motif: illisibles[0], motifs: illisibles };
     const valide = motifPeriodeValidee(p.date);
-    if (valide) return { ok: false, motif: valide, motifs: [valide] };
+    if (valide) return { ok: false, motif: valide, motifs: [valide], champ: 'date' };
+    // (CABSAISIE-10) La date se juge AVANT le geste, par la fonction qui éteint les boutons : une date hors de l'exercice, ou
+    // une date à venir pour « Enregistrer et valider », passait « Équilibrée » et ne se refusait qu'au serveur.
+    const horsEx = motifHorsExercice(p.date);
+    if (horsEx) return { ok: false, motif: horsEx, motifs: [horsEx], champ: 'date' };
+    if (opts && opts.valider && /^\d{4}-\d{2}-\d{2}$/.test(String(p.date || '')) && String(p.date) > K.today()) {
+      const m = `Elle est datée du ${fmtJour(p.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Enregistre-la au brouillard : elle se validera à partir de ce jour-là.`;
+      return { ok: false, motif: m, motifs: [m] };
+    }
     return KC.ecritureValide(ecritureSaisie(p), plan, opts);
   };
 
-  const ecritureSaisie = p => ({
-    date: p.date, journal: p.journal, piece: p.piece, libelle: p.libelle,
-    source: 'saisie', pieceJointe: p.pieceJointe || null, lignes: lignesReelles(p)
-  });
+  // (CABSAISIE-15) « · en attente » est posé par Banque › Mettre en attente (471) : une pièce qui n'a plus de 471 ne le
+  // garde pas — sinon son libellé ment au livre-journal, au lettrage et à l'export.
+  const SUFFIXE_ATTENTE = / · en attente$/;
+  const ecritureSaisie = p => {
+    const lignes = lignesReelles(p), reste471 = lignes.some(l => /^471/.test(l.compte));
+    const net = t => (reste471 ? String(t || '') : String(t || '').replace(SUFFIXE_ATTENTE, ''));
+    return {
+      date: p.date, journal: p.journal, piece: p.piece, libelle: net(p.libelle),
+      source: 'saisie', pieceJointe: p.pieceJointe || null, lignes: lignes.map(l => ({ ...l, libelle: net(l.libelle) }))
+    };
+  };
 
   // Une touche, sous la forme des réglages : « Enter », « Control+Enter », « F2 ».
   function toucheDe(ev) {
@@ -2667,7 +2704,7 @@
   // `compta.comptesQuiCorrespondent` : l'écran ne trie rien lui-même, sinon sa façon de classer
   // finirait par différer de celle qu'un test prouve. Les classes `.sugg-*` viennent de la feuille
   // PARTAGÉE (9.2.1) : même composant visuel des deux côtés, et aucune règle en double.
-  function suggererCompte(input, planDe, onPick, contexteDe) {
+  function suggererCompte(input, planDe, onPick, contexteDe, tiersDe) {
     const host = input.closest('td') || input.parentElement;
     if (!host) return;
     host.classList.add('sugg-host');
@@ -2675,6 +2712,13 @@
     const fermer = () => { if (pop) pop.remove(); pop = null; items = []; };
     const dessiner = () => {
       items = KC.comptesQuiCorrespondent(planDe(), input.value, 8, contexteDe ? contexteDe() : '');
+      // (CABSAISIE-5) Un tiers se cherche par son NOM, dans la même case : « minot » ne proposait que des comptes, jamais la
+      // Minoterie dont le livre porte déjà les factures. Il vient APRÈS les comptes, sur son compte de tiers ; trois au plus.
+      const q = sansAccentsCl(input.value).trim();
+      const tiers = tiersDe && q.length >= 2 && !/^\d+$/.test(q) ? tiersDe()
+        .filter(t => sansAccentsCl(t.nom).includes(q) && !items.some(c => c.compte === t.compte && sansAccentsCl(c.libelle) === sansAccentsCl(t.nom)))
+        .slice(0, 3).map(t => ({ compte: t.compte, libelle: t.nom, tiers: t.nom, tiersId: t.tiersId || null, estTiers: true })) : [];
+      if (tiers.length) items = items.slice(0, 8 - tiers.length).concat(tiers);
       if (!items.length || document.activeElement !== input) { fermer(); return; }
       // La liste vit sur le BODY, en position fixe calculée sur le champ (T-33) : dans la cellule,
       // elle était rognée par le `.scroll-x` du tableau — une seule entrée visible, coupée en deux.
@@ -2686,7 +2730,7 @@
       pop.style.minWidth = Math.max(320, r.width) + 'px';
       sel = Math.min(sel, items.length - 1);
       pop.innerHTML = items.map((c, i) => `<div class="sugg-it ${i === sel ? 'sel' : ''}" data-i="${i}">
-        <b>${esc(c.compte)}</b> <span class="muted">${esc(c.libelle || '')}</span>${c.horsPlan ? ' <span class="small muted" title="Pas encore dans le plan de ce dossier : il y entrera à l\'enregistrement">· plan de référence</span>' : ''}${c.parLibelle ? ' <span class="small ok-inline" title="Le libellé de la ligne nomme aussi ce compte">· d\'après le libellé</span>' : ''}</div>`).join('');
+        <b>${esc(c.compte)}</b> <span class="muted">${esc(c.libelle || '')}</span>${c.horsPlan ? ' <span class="small muted" title="Pas encore dans le plan de ce dossier : il y entrera à l\'enregistrement">· plan de référence</span>' : ''}${c.parLibelle ? ' <span class="small ok-inline" title="Le libellé de la ligne nomme aussi ce compte">· d\'après le libellé</span>' : ''}${c.estTiers ? ' <span class="small muted" title="Un tiers de ce dossier : la ligne le portera, sur ce compte">· tiers</span>' : ''}</div>`).join('');
       $$('.sugg-it', pop).forEach(d => {
         // `mousedown` et pas `click` : le `blur` du champ referme la liste avant qu'un `click`
         // n'arrive, et le choix se perdrait sans que rien ne plante.
@@ -3287,6 +3331,23 @@
   // d'un Entrée, et la validation du mois la laisse au brouillard (validée, elle ne changerait plus de mois).
   const dateDemandeeSx = (dossier, e) => (e && e.piece ? ((piecesLues.demandes || []).find(d => d.entreprise === dossier.id && !d.recueLe && String(d.texte || '').includes(`bonne date de ${e.piece}`)) || null) : null);
   const moisAvantSx = m => { const [a, n] = m.split('-').map(Number); return n === 1 ? `${a - 1}-12` : `${a}-${String(n - 1).padStart(2, '0')}`; };
+  // (CABSAISIE-11) Le mois regardé dans la période validée : la carte du mois vide le dit AVANT le geste, et la grille
+  // s'ouvre au premier jour ouvert (même règle que la Banque, 1.385.8). Sinon la grille s'ouvre DANS le mois regardé
+  // (aujourd'hui s'il est en cours, son dernier jour sinon), comme « Au kilomètre ».
+  const finDuMoisSx = m => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
+  const dateDuMoisSx = m => {
+    const auj = K.today(), d = auj.slice(0, 7) === m ? auj : finDuMoisSx(m);
+    if (!motifPeriodeValidee(d)) return d;
+    const o = premierJourOuvertSa();
+    return o.slice(0, 4) === m.slice(0, 4) ? o : d;
+  };
+  const fermeDuMoisSx = m => {
+    if (!motifPeriodeValidee(`${m}-01`)) return null;
+    const vj = String((((livresState.livre || {}).exercice) || {}).valideJusqua || ''), o = premierJourOuvertSa();
+    if (o.slice(0, 4) !== m.slice(0, 4)) return { tout: true, clos: true, texte: `L'exercice ${m.slice(0, 4)} est validé jusqu'au ${fmtJour(vj)} : plus aucune écriture ne s'y date.` };
+    if (vj >= finDuMoisSx(m)) return { tout: false, clos: true, texte: `La période est validée jusqu'au ${fmtJour(vj)} : une écriture ${deMois(m)} ne s'y date plus. La grille s'ouvre au ${fmtJour(o)}, premier jour ouvert.` };
+    return { tout: false, clos: false, texte: `La période est validée jusqu'au ${fmtJour(vj)} : une écriture ${deMois(m)} se date du ${fmtJour(o)} au plus tôt.` };
+  };
   function zoneSx(dossier, P) {
     if (!P.pret) return '<div class="sx-attente mu">Lecture des pièces du mois…</div>';
     const m = moisSx();
@@ -3312,13 +3373,15 @@
       if (videCacheSx(P)) {
         const av = moisAvantSx(m), faites = (P.items || []).filter(y => (y.p || y.doc) && y.mois === av && y.etat[2] === 'ordre' && y.etat[1] !== 'en double').length;
         const brAv = auBrouillardSx(av);
+        const fermeSx = fermeDuMoisSx(m);
         const b2 = n => `<span class="apx-b" style="width:${n}%"></span>`;
         return `<div class="bq-ecran sx-vide-p"><div class="apx"><div class="apx-f" aria-hidden="true"><div class="apx-pills">${'<span class="apx-b"></span>'.repeat(6)}</div>
           <div class="apx-2"><div class="apx-r apx-cad">${b2(30)}${[82, 64, 90, 58, 76, 70].map(b2).join('')}</div><div class="apx-r apx-cad">${[1, 2, 3, 4, 5].map(() => '<span class="apx-b" style="height:28px"></span>').join('')}</div></div></div>
           <div class="apx-c" id="sx-vide"><span class="apx-ic">${CL_IC.ok}</span><b>${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant</b>
             <p>${dossier.manual ? 'Ce dossier est tenu au cabinet : ses pièces se déposent dans son classeur, puis s\'ouvrent ici, en grand, face à leur fiche.' : `Quand ${esc(qui || 'le client')} photographie une facture ou un ticket dans SkanFact, la pièce arrive ici, en grand, face à sa fiche déjà remplie. Ses ventes et sa caisse arrivent seules au livre.`}${br ? ` ${esc(pl(br, 'écriture attend', 'écritures attendent'))} au brouillard.` : ''}</p>
-            ${dossier.manual ? '' : `<div class="cp-gestes"><button type="button" class="btn btn-primary" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button></div>`}
-            <div class="cp-gestes"><button type="button" class="btn${dossier.manual ? ' btn-primary' : ''}" id="sx-vide-main">Une écriture à la main</button><button type="button" class="btn" id="sx-vide-km">Au kilomètre</button></div>
+            ${dossier.manual ? '' : `<div class="cp-gestes"><button type="button" class="btn${fermeSx && fermeSx.clos ? '' : ' btn-primary'}" id="sx-demander-mois">Demander les pièces ${esc(deMois(m))}${qui ? ` à ${esc(qui)}` : ''}</button></div>`}
+            ${fermeSx ? `<p class="ambre" id="sx-vide-ferme">${esc(fermeSx.texte)}</p>` : ''}
+            <div class="cp-gestes"><button type="button" class="btn${dossier.manual && !(fermeSx && fermeSx.clos) ? ' btn-primary' : ''}" id="sx-vide-main"${fermeSx && fermeSx.tout ? ` disabled title="${esc(fermeSx.texte)}"` : ''}>Une écriture à la main</button><button type="button" class="btn" id="sx-vide-km"${fermeSx && fermeSx.tout ? ` disabled title="${esc(fermeSx.texte)}"` : ''}>Au kilomètre</button></div>
             ${faites || brAv ? `<span class="apx-mini" id="sx-vide-av">${esc(cap(moisLong(av)))} : ${esc(pl(faites, 'pièce saisie', 'pièces saisies'))}${brAv ? ` · ${esc(pl(brAv, 'écriture attend', 'écritures attendent'))} au brouillard` : ''}</span>` : ''}</div></div></div>`;
       }
       return `<div class="sx-vide" id="sx-vide"><span class="sx-vide-ic">${CL_IC.ok}</span><span class="txt"><b>${m ? `${esc(cap(moisLong(m)))} : aucune pièce à saisir pour l'instant` : `Aucune pièce à saisir en ${esc(livresState.annee)} pour l'instant`}</b>
@@ -3676,14 +3739,25 @@
       // Au kilomètre sur un mois : la grille s'ouvre aux achats de ce mois (rien n'est écrasé de ce qu'on a commencé).
       const m = moisSx();
       if (sxState.mode === 'km' && m && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur)) {
-        const auj = K.today(), fin = new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).toISOString().slice(0, 10);
         saisieState.dossierId = dossier.id;
-        saisieState.piece = pieceVide(journalAchatsSx(), auj.slice(0, 7) === m ? auj : fin);
+        // (CABSAISIE-11) Dans le mois regardé, et au premier jour ouvert s'il est dans la période validée.
+        saisieState.piece = pieceVide(journalAchatsSx(), dateDuMoisSx(m));
       }
       drawLivres(root, dossier);
     }; });
     { const vb = $('#sx-vers-banque', el); if (vb) { vb.onclick = () => allerSousOnglet(root, dossier, 'banque'); setTimeout(() => { try { vb.focus(); } catch { /* rien */ } }, 0); } }
-    const ouvrirVide = km => { sxState.mainVide = moisSx(); if (km) sxState.mode = 'km'; drawLivres(root, dossier); const c = $('#sa-date'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } };
+    const ouvrirVide = km => {
+      const mv = moisSx(); sxState.mainVide = mv; if (km) sxState.mode = 'km';
+      // (CABSAISIE-11) La grille s'ouvre dans le mois regardé, au premier jour ouvert s'il est validé ; rien de commencé
+      // n'est écrasé (même garde que « Au kilomètre »), et une pièce en cours d'un AUTRE dossier n'est pas touchée.
+      if (mv && !pieceEnCours(saisieState.piece) && !(saisieState.piece && saisieState.piece.depuisClasseur)) {
+        const p0 = saisieState.dossierId === dossier.id ? saisieState.piece : null;
+        const j = (p0 && p0.journal) || (km ? journalAchatsSx() : reglagesSaisie().journalParDefaut || dossier.dernierJournal || ((((livresState.livre || {}).journaux) || [])[0] || {}).code || '');
+        saisieState.dossierId = dossier.id;
+        saisieState.piece = pieceVide(j, dateDuMoisSx(mv));
+      }
+      drawLivres(root, dossier); const c = $('#sa-date'); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); }
+    };
     for (const [id, km] of [['#sx-vide-main', false], ['#sx-vide-km', true]]) { const b = $(id, el); if (b) b.onclick = () => ouvrirVide(km); }
     const vd = $('#sx-vers-declaration', el);
     if (vd) { vd.onclick = () => { if (vd.dataset.mois) { declState.mois = vd.dataset.mois; if (vd.dataset.mois !== livresState.mois) { livresState.mois = vd.dataset.mois; livresState.mode = 'mois'; } } allerSousOnglet(root, dossier, 'declaration'); }; setTimeout(() => { try { vd.focus(); } catch { /* rien */ } }, 0); }
@@ -4108,13 +4182,14 @@
     // l'enregistrer, et on le distingue d'un compte déjà au plan.
     const neuf = c => { const n = String(c || '').trim(); return !!n && !nom(n) && !!KC.libelleDuPlan(n); };
     const intitule = c => nom(c) || (neuf(c) ? KC.libelleDuPlan(String(c).trim()) : '');
+    const tiersVu = l => (/^4[01]/.test(String(l.compte || '').trim()) && String(l.tiers || '').trim()) || '';
     // Chaque case porte son `aria-label` : le rapport entre une case et son en-tête de colonne est
     // évident à l'œil et invisible au clavier comme à la voix. Le numéro de ligne y est, sinon cinq
     // cases annoncent toutes « Compte » et on ne sait plus laquelle on remplit.
     const lab = (quoi, i) => `aria-label="${quoi} — ligne ${i + 1}"`;
     return (p.lignes || []).map((l, i) => `<tr data-i="${i}">
       <td><input data-k="compte" class="sa-compte" ${lab('Compte', i)} autocomplete="off" value="${esc(l.compte)}"></td>
-      <td class="sa-nom muted small${neuf(l.compte) ? ' sa-nom-neuf' : ''}" data-nom="${i}"${neuf(l.compte) ? ` title="${esc(TITRE_COMPTE_NEUF)}"` : ''}>${esc(intitule(l.compte))}</td>
+      <td class="sa-nom muted small${neuf(l.compte) ? ' sa-nom-neuf' : ''}" data-nom="${i}"${neuf(l.compte) ? ` title="${esc(TITRE_COMPTE_NEUF)}"` : tiersVu(l) ? ` title="${esc(intitule(l.compte) + ' · ' + tiersVu(l))}"` : ''}>${esc(intitule(l.compte))}${tiersVu(l) ? ` · ${esc(tiersVu(l))}` : ''}</td>
       <td><input data-k="libelle" ${lab('Libellé', i)} autocomplete="off" value="${esc(l.libelle)}" placeholder="${esc(p.libelle || '')}"></td>
       <td><input data-k="debit" class="r sa-montant${montantRefuse(l.debit) ? ' sa-ko' : ''}" ${lab('Débit', i)}${montantRefuse(l.debit) ? ' aria-invalid="true"' : ''} inputmode="decimal" autocomplete="off" value="${esc(l.debit)}"></td>
       <td><input data-k="credit" class="r sa-montant${montantRefuse(l.credit) ? ' sa-ko' : ''}" ${lab('Crédit', i)}${montantRefuse(l.credit) ? ' aria-invalid="true"' : ''} inputmode="decimal" autocomplete="off" value="${esc(l.credit)}"></td>
@@ -4135,6 +4210,10 @@
     // sans curseur, et la saisie au clavier commençait par un clic (vu en recette le 21/10/2026). Seulement à la souris et au
     // clavier (au doigt, le clavier de l'écran s'ouvrirait), quand rien d'autre n'a le curseur ni de fenêtre ouverte.
     requestAnimationFrame(() => {
+      // (CABSAISIE-15) Un geste qui amène une ligne précise (« Dire ce que c'est… ») y pose le curseur, le temps d'arriver.
+      const vise = saisieState.focusApres && saisieState.focusApres.jusqua > Date.now() ? saisieState.focusApres : null;
+      if (!vise) saisieState.focusApres = null;
+      if (vise) { const c = $(`#sa-lignes tr[data-i="${vise.i}"] input[data-k="${vise.k}"]`, el); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); if (c.select) c.select(); return; } }
       const libre = !document.activeElement || document.activeElement === document.body;
       if (libre && matchMedia('(hover: hover) and (pointer: fine)').matches && !document.querySelector('#modal-root .modal')) {
         // (plateforme) 1.100.0 — sans défiler : arrivée au brouillard (« Voir le brouillard »), la page remontait à la
@@ -4206,6 +4285,14 @@
       const bOk = $('#sa-ok', el), bVal = $('#sa-okvalider', el);
       if (bOk) { bOk.disabled = !v.ok; bOk.title = v.ok ? '' : v.motif; }
       if (bVal) { bVal.disabled = !vv.ok; bVal.title = vv.ok ? '' : vv.motif; }
+      // (CABSAISIE-10) Un refus qui porte sur la DATE (période validée, hors de l'exercice) se voit sur la case Date ; la phrase
+      // reste sous la grille, où elle ne pousse rien. Une date illisible garde la marque que lui pose `lire`.
+      const dtC = $('#sa-date', el);
+      if (dtC && !(dtC.value.trim() && !p.date)) {
+        const surDate = !v.ok && v.champ === 'date';
+        dtC.classList.toggle('sa-ko', surDate);
+        if (surDate) dtC.setAttribute('aria-invalid', 'true'); else dtC.removeAttribute('aria-invalid');
+      }
       // 10.14.0 — un compte neuf pour le dossier se LIT ici, il n'éteint rien : il entrera au plan à
       // l'enregistrement (6.3.0). Un refus passe devant : c'est lui qui bloque.
       const av = (v.ok && vv.ok && v.avertissements) || [];
@@ -4253,6 +4340,7 @@
           p.touchee = true;
           if (k === 'compte') {
             const n = inp.value.trim();
+            if (p.lignes[i].tiersPose && n !== p.lignes[i].tiersPose) { delete p.lignes[i].tiers; delete p.lignes[i].tiersId; delete p.lignes[i].lettre; delete p.lignes[i].tiersPose; }
             const c = (s.livre.plan || []).find(x => x.compte === n);
             // Le même intitulé qu'au dessin : le nom du plan du dossier, sinon celui qu'il PRENDRA.
             const ref = !c && n ? KC.libelleDuPlan(n) : '';
@@ -4322,8 +4410,12 @@
             // passait sur des noms de comptes. Le nom vit dans la colonne Intitulé ; le champ vide
             // montre, en attente, le libellé de la pièce qu'il reprendra.
             p.lignes[i].compte = c.compte; p.touchee = true;
+            // (CABSAISIE-5) Un tiers choisi par son nom : la ligne le porte (son nom, et son identifiant s'il en a un), comme une
+            // ligne reprise d'une écriture rangée ; un compte choisi ensuite le détache.
+            if (c.estTiers) Object.assign(p.lignes[i], { tiers: c.tiers, tiersId: c.tiersId || null, lettre: '', tiersPose: c.compte });
+            else if (p.lignes[i].tiersPose) { delete p.lignes[i].tiers; delete p.lignes[i].tiersId; delete p.lignes[i].lettre; delete p.lignes[i].tiersPose; }
             redessinerLignes({ i, k: 'libelle' });
-          }, () => (p.lignes[i] && p.lignes[i].libelle) || p.libelle || '');
+          }, () => (p.lignes[i] && p.lignes[i].libelle) || p.libelle || '', tiersDuLivreSa);
         }
       });
       $$('[data-sup]', corps).forEach(b => {
@@ -4414,6 +4506,8 @@
     chaine.forEach((champ, i) => {
       if (!champ) return;
       champ.addEventListener('keydown', ev => {
+        // (CABSAISIE-8) La touche « Dupliquer la pièce » marche aussi depuis l'en-tête : le curseur y est après « Enregistrer ».
+        if (toucheDe(ev) === t.dupliquer) { ev.preventDefault(); dupliquerPiece(); return; }
         const avance = ev.key === 'Tab' && !ev.shiftKey && !ev.ctrlKey && !ev.altKey && !ev.metaKey;
         if (!avance && toucheDe(ev) !== t.ligneSuivante) return;
         ev.preventDefault();
@@ -4463,14 +4557,21 @@
     if (tch) tch.addEventListener('toggle', () => prefs.set('saTouches', tch.open));
 
     const dupliquerPiece = () => {
-      const base = lignesReelles(p);
+      // (CABSAISIE-8) La bulle promet « une pièce identique à celle qu'on vient d'enregistrer » : juste après « Enregistrer », la
+      // grille est vide (la saisie au kilomètre enchaîne), la pièce de départ est donc celle qu'on vient de ranger.
+      const d = saisieState.derniere && saisieState.derniere.dossierId === dossier.id ? saisieState.derniere : null;
+      const enCours = lignesReelles(p);
+      const base = enCours.length ? enCours : (d ? d.lignes : []);
       // (1.381.1, issue 11, constat 8) Sur une grille vide, la touche ne faisait rien, sans un mot : on dit pourquoi.
-      if (!base.length) { toast('Rien à dupliquer : la grille est vide. Ouvre une écriture, ou tape la première.'); return; }
-      p.lignes = base.map(l => ({ compte: l.compte, libelle: l.libelle, debit: montantChamp(l.debit), credit: montantChamp(l.credit) }))
+      if (!base.length) { toast('Rien à dupliquer : la grille est vide et aucune pièce n\'a encore été enregistrée ici. Ouvre une écriture, ou tape la première.'); return; }
+      if (!enCours.length && d) { p.journal = d.journal; p.date = d.date; p.libelle = d.libelle; }
+      p.lignes = base.map(l => ({ compte: l.compte, libelle: l.libelle, debit: montantChamp(l.debit), credit: montantChamp(l.credit),
+        ...(l.tiers !== undefined ? { tiers: l.tiers, tiersId: l.tiersId || null, lettre: '' } : {}) }))
         .concat([ligneVide()]);
-      p.id = ''; p.piece = '';
+      p.id = ''; p.piece = ''; p.pieceJointe = null; p.touchee = true;
       toast('Pièce dupliquée : la nouvelle n\'a ni numéro ni pièce, tape-les.');
       drawLivres(root, dossier);
+      const pc2 = $('#sa-piece'); if (pc2) pc2.focus();
     };
 
     const enregistrer = async (puisValider) => {
@@ -4508,10 +4609,13 @@
           .filter(c => /^\d{1,12}$/.test(c) && !connus.includes(c) && (
             (!connus.some(k => c.startsWith(k)) && !KC.libelleDuPlan(c))
             || (c.length >= 5 && !connus.some(k => k.length === c.length && k.slice(0, 3) === c.slice(0, 3))))))];
+        // (CABSAISIE-5) Le nom qu'il prendra, par la règle d'assurerCompte : le plan de référence, sinon le libellé de sa ligne
+        // (le serveur met celui de la pièce quand la ligne n'en a pas).
+        const nomDuCompteNeuf = c => KC.libelleDuPlan(c) || String(((ecr.lignes || []).find(l => String(l.compte || '').trim() === c) || {}).libelle || '').trim() || String(ecr.libelle || '').trim() || 'Compte hors plan';
         if (inconnus.length && !(await confirmDialog(
           inconnus.length > 1 ? 'Créer ces comptes ?' : `Créer le compte ${inconnus[0]} ?`,
           `<p>${inconnus.length > 1 ? `Les comptes <b>${esc(inconnus.join(', '))}</b> n'existent` : `Le compte <b>${esc(inconnus[0])}</b> n'existe`} pas encore dans le plan de ce dossier, et aucun compte voisin ne lui ressemble. C'est peut-être une faute de frappe.</p>
-           <p class="small muted">Si tu continues, ${inconnus.length > 1 ? 'ils entrent' : 'il entre'} au plan du dossier ; tu pourras ${inconnus.length > 1 ? 'les' : 'le'} renommer dans le plan de comptes.</p>`,
+           <p class="small muted">Si tu continues, ${inconnus.length > 1 ? 'ils entrent' : 'il entre'} au plan du dossier sous ${inconnus.length > 1 ? 'les noms' : 'le nom'} ${inconnus.map(c => `<b>${esc(c)} « ${esc(nomDuCompteNeuf(c))} »</b>`).join(', ')} : celui que lui donne le plan de référence, sinon le libellé de sa ligne.</p>`,
           inconnus.length > 1 ? 'Créer ces comptes' : 'Créer ce compte', false, 'Corriger'))) {
           const i = (p.lignes || []).findIndex(l => String(l.compte || '').trim() === inconnus[0]);
           if (i >= 0) allerA(i, 'compte');
@@ -4559,6 +4663,8 @@
         }
         // On enchaîne : même journal, même date, tout le reste vide. C'est ça, la saisie au
         // kilomètre — on ne revient jamais au menu entre deux pièces.
+        // (CABSAISIE-8) La pièce qu'on vient de ranger reste à portée de F4 (« Dupliquer la pièce ») : la grille, elle, repart vide.
+        saisieState.derniere = { dossierId: dossier.id, journal: p.journal, date: p.date, libelle: p.libelle, lignes: lignesReelles(p) };
         saisieState.piece = pieceVide(p.journal, p.date);
         // (1.174.5) Saisie depuis les Pièces reçues : on y revient, sur la pièce suivante (la maquette « Juste après »).
         if (jointe && dc.retour) {
@@ -4629,6 +4735,26 @@
     })).concat([ligneVide()])
   });
 
+  // (CABSAISIE-15) « Dire ce que c'est… » : la ligne mise au compte d'attente remonte dans la grille, le curseur sur le
+  // compte du 471 — on tape le bon compte, rien d'autre ne bouge (la reprise garde le rapprochement, § 1.386.3), et
+  // « · en attente » part avec le 471 (ecritureSaisie). Une pièce en cours d'un AUTRE dossier se gare, comme ailleurs.
+  // Une pièce reprise d'une écriture s'ouvre dans la grille VISIBLE : un mois qui a des pièces reçues les montre face à
+  // leur fiche, un mois vide montre sa carte « Une écriture à la main » — la grille restait cachée dessous, et la pièce
+  // reprise y tombait sans que rien ne s'affiche.
+  const montrerLaGrille = () => { sxState.mode = 'km'; sxState.grille = true; sxState.mainVide = moisSx(); };
+  function direCeQueCest(root, dossier, e) {
+    if (saisieState.dossierId && saisieState.dossierId !== dossier.id && pieceEnCours(saisieState.piece)) saisieState.enAttente[saisieState.dossierId] = saisieState.piece;
+    const p = pieceDepuis(e);
+    const i = p.lignes.findIndex(l => /^471/.test(String(l.compte || '')));
+    saisieState.dossierId = dossier.id;
+    saisieState.piece = p;
+    montrerLaGrille();
+    // Elle vaut deux secondes : la grille peut se redessiner une seconde fois en arrivant (le livre relu), et le curseur
+    // posé au premier dessin partirait avec lui.
+    saisieState.focusApres = { i: Math.max(0, i), k: 'compte', jusqua: Date.now() + 2000 };
+    allerSousOnglet(root, dossier, 'saisie');
+  }
+
   async function supprimerBrouillard(root, dossier, e) {
     const ok = await confirmDialog('Supprimer ce brouillard ?',
       `<p>${esc(e.journal)} ${esc(e.piece || '(sans pièce)')} du ${esc(fmtJour(e.date))}.</p>${ceQuellePorte(e, 'il')}<p>Il n'a pas de numéro : il ne laissera aucun trou dans la numérotation, et rien n'en restera.</p>`,
@@ -4651,6 +4777,10 @@
     let id = ecritureId;
     if (!id) {
       if (!saisieState.piece || !saisieState.piece.id) {
+        // (CABSAISIE-9) Le refus se dit AVANT la question : sur une grille vide, « Enregistrer d'abord ? » s'ouvrait, puis
+        // « Cette écriture n'entre pas ». Le même verdict que les boutons de la grille, et une seule fenêtre.
+        const v0 = verdictSaisie(saisieState.piece || pieceVide(), (s.livre.plan || []).map(c => c.compte));
+        if (!v0.ok) { await infoDialog('Rien à joindre pour l\'instant', 'Un justificatif se range avec son écriture : tape-la d\'abord, puis joins-le.\n\n' + v0.motifs.join('\n')); return; }
         const suite = await confirmDialog('Enregistrer d\'abord ?',
           '<p>Un justificatif se range avec une écriture. Celle-ci n\'est pas encore enregistrée.</p><p>Je l\'enregistre en brouillard, puis j\'ouvre le sélecteur de fichier — elle reste modifiable.</p>',
           'Enregistrer et joindre');
@@ -5076,8 +5206,10 @@
       // (plateforme) 1.105.0 — gardée sur ce poste sans réseau (docs/hors-ligne.md, H15) : elle part d'abord au serveur.
       if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
         run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : elle part seule au serveur au retour du réseau, puis se valide comme les autres. D\'ici là, tu peux la reprendre dans la grille ou la supprimer.') });
+      if (e.source !== 'skanfact' && attenteBl(e)) a.push({ icon: 'modifier', label: 'Dire ce que c\'est…', hint: 'Elle remonte dans la grille, le curseur sur le compte d\'attente (471)',
+        run: () => direCeQueCest(root, dossier, e) });
       if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',
-        run: () => { saisieState.piece = pieceDepuis(e); allerSousOnglet(root, dossier, 'saisie'); } });
+        run: () => { saisieState.piece = pieceDepuis(e); montrerLaGrille(); allerSousOnglet(root, dossier, 'saisie'); } });
       if (e.source !== 'skanfact') detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard', hint: 'Il n\'a pas de numéro : rien ne restera', danger: true,
         run: () => supprimerBrouillard(root, dossier, e) };
     }
@@ -7896,7 +8028,7 @@
       `<h2>${existe ? 'Modifier le guide' : 'Nouveau guide'}</h2>
        <div class="grid-2">
          <label class="field obligatoire">${lbl('Nom', 'sa.gNom')}<input type="text" id="g-nom" value="${esc(g.nom || '')}" placeholder="Achat avec TVA 19 %"></label>
-         <label class="field narrow obligatoire">${lbl('Journal', 'sa.gJournal')}<input type="text" id="g-journal" maxlength="5" value="${esc(g.journal || '')}" placeholder="AC"></label>
+         <label class="field obligatoire">${lbl('Journal', 'sa.gJournal')}<select id="g-journal"><option value="">Choisis le journal</option>${[...(g.journal && !KC.JOURNAUX_PAR_DEFAUT.some(j => j.code === g.journal) ? [{ code: g.journal, libelle: '' }] : []), ...KC.JOURNAUX_PAR_DEFAUT.filter(j => j.code !== 'AN')].map(j => `<option value="${esc(j.code)}"${j.code === g.journal ? ' selected' : ''}>${esc(j.code)}${j.libelle ? ` — ${esc(j.libelle)}` : ''}</option>`).join('')}</select></label>
        </div>
        <h3 class="mt">Les lignes ${info('sa.guideLigne')}</h3>
        <div class="scroll-x"><table class="list compact sa-table"><thead><tr>

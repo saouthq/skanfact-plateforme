@@ -31268,6 +31268,71 @@ prouver $'cabpaie15-preparer-le-prix-de-cession' modules/socle/ecrans/cabinet/ap
   $'    if (ivt) ivt.onclick = () => {' \
   $'    if (ivt) ivt.onclick = () => { return;' \
   $'(1.345.0) l\'achat se rattache, la sortie s\'annonce et se date, le plan vient à l\'écran, la période validée se dit avant'
+# 1.388.17 — la grille de saisie du Cabinet (CABSAISIE-5, 8, 9, 10, 11, 15, 19, 20, 21).
+prouver $'cabsaisie5-un-tiers-par-son-nom' modules/socle/ecrans/cabinet/app-2.js \
+  $'      if (tiers.length) items = items.slice(0, 8 - tiers.length).concat(tiers);' \
+  $'      if (false) items = items.slice(0, 8 - tiers.length).concat(tiers);' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie5-le-nom-du-compte-neuf' modules/socle/ecrans/cabinet/app-2.js \
+  $'sous ${inconnus.length > 1 ? \'les noms\' : \'le nom\'} ' \
+  $'sous ${inconnus.length > 1 ? \'les nomz\' : \'le nomz\'} ' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie8-f4-duplique-la-piece-rangee' modules/socle/ecrans/cabinet/app-2.js \
+  $'      const base = enCours.length ? enCours : (d ? d.lignes : []);' \
+  $'      const base = enCours;' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie8-f4-depuis-l-en-tete' modules/socle/ecrans/cabinet/app-2.js \
+  $'        if (toucheDe(ev) === t.dupliquer) { ev.preventDefault(); dupliquerPiece(); return; }' \
+  $'        if (false) { ev.preventDefault(); dupliquerPiece(); return; }' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie9-joindre-refuse-avant-la-question' modules/socle/ecrans/cabinet/app-2.js \
+  $'const v0 = verdictSaisie(saisieState.piece || pieceVide(), (s.livre.plan || []).map(c => c.compte));' \
+  $'const v0 = { ok: true, motifs: [] };' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie10-date-a-venir-dite-avant' modules/socle/ecrans/cabinet/app-2.js \
+  $'&& String(p.date) > K.today()) {' \
+  $'&& String(p.date) > K.today() && false) {' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie10-hors-de-l-exercice' modules/socle/ecrans/cabinet/app-2.js \
+  $'    if (horsEx) return { ok: false, motif: horsEx, motifs: [horsEx], champ: \'date\' };' \
+  $'    if (false) return { ok: false, motif: horsEx, motifs: [horsEx], champ: \'date\' };' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie11-le-mois-valide-se-dit' modules/socle/ecrans/cabinet/app-2.js \
+  $'        const fermeSx = fermeDuMoisSx(m);' \
+  $'        const fermeSx = null;' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
+prouver $'cabsaisie11-la-grille-au-premier-jour-ouvert' modules/socle/ecrans/cabinet/app-2.js \
+  $'        saisieState.piece = pieceVide(j, dateDuMoisSx(mv));' \
+  $'        saisieState.piece = pieceVide(j, dateProposee(livresState.annee));' \
+  $'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
+prouver $'cabsaisie15-en-attente-part-avec-le-471' modules/socle/ecrans/cabinet/app-2.js \
+  $'    const net = t => (reste471 ? String(t || \'\') : String(t || \'\').replace(SUFFIXE_ATTENTE, \'\'));' \
+  $'    const net = t => String(t || \'\');' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie15-dire-ce-que-c-est' modules/socle/ecrans/cabinet/app-2.js \
+  $'      if (e.source !== \'skanfact\' && attenteBl(e)) a.push({ icon: \'modifier\', label: \'Dire ce que c\\\'est…\',' \
+  $'      if (false && attenteBl(e)) a.push({ icon: \'modifier\', label: \'Dire ce que c\\\'est…\',' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie15-le-curseur-sur-le-471' modules/socle/ecrans/cabinet/app-2.js \
+  $'      if (vise) { const c = ' \
+  $'      if (false) { const c = ' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie15-la-grille-reprise-se-montre' modules/socle/ecrans/cabinet/app-2.js \
+  $'  const montrerLaGrille = () => { sxState.mode = \'km\'; sxState.grille = true; sxState.mainVide = moisSx(); };' \
+  $'  const montrerLaGrille = () => {};' \
+  $'un modèle de banque ne lit pas un fichier aux titres clairs'
+prouver $'cabsaisie19-contrepassee-et-son-miroir-s-annulent' modules/socle/ecrans/cabinet/app-1.js \
+  $'      const annulee = e.statut === \'contrepassee\';' \
+  $'      const annulee = e.statut === \'contrepassee\'; if (annulee) continue;' \
+  $'(1.343.0) la bande réservée, les pastilles et le filtre, la réponse du client qui nomme son fournisseur, Entrée qui choisit sans enregistrer, le geste annoncé dans la carte'
+prouver $'cabsaisie20-le-journal-se-choisit' modules/socle/ecrans/cabinet/app-2.js \
+  $'${lbl(\'Journal\', \'bq.eJournal\')}<select name="journal">' \
+  $'${lbl(\'Journal\', \'bq.eJournal\')}<input name="journal" value="BQ"><select hidden name="journal_">' \
+  $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
+prouver $'cabsaisie21-la-lettre-joue-l-entree' web/public/v10/rowmenu.js \
+  $'if (e.key.length === 1 && /^[a-z]$/i.test(e.key)' \
+  $'if (false && /^[a-z]$/i.test(e.key)' \
+  $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

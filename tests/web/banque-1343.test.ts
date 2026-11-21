@@ -203,6 +203,14 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
     await fenF.getByRole('button', { name: 'Créer le brouillard' }).click();
     await expect.poll(() => fenF.locator('#bf-err').innerText().then(net).catch(() => '')).toMatch(/La période est validée jusqu'au 31\/03\/2026 : une écriture ne s'y écrit plus/);
     expect(((await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, associe)).corps.ecritures as unknown[]).length).toBe(avantFrais);
+    // (CABSAISIE-19) Une écriture contre-passée et son miroir s'annulent dans la tuile de la fiche, comme dans le livre :
+    // le second compte reste à 3 000,000 (le miroir compté seul donnait 3 500,000).
+    const fr = await saisir('2026-04-05', 'BQ', 'FR-5322', 'Frais du second compte', [['627', '500', ''], ['5322', '', '500']]);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [fr] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/${fr}/contrepasser`, associe, { date: '2026-04-06' })).statut).toBe(201);
+    await p.reload();
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}`; }, ent);
+    await expect.poll(async () => net(await tuileBq.locator('.fd-ch-cb').innerText().catch(() => '')), { timeout: 30_000 }).toMatch(/5322 : 3\s000,000/);
     expect(erreurs).toEqual([]);
     await ctx.close();
   }, 180_000);

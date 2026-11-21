@@ -159,8 +159,15 @@ describe('la banque, à la souris', () => {
     await p.locator('#bq-cherche').press('Escape');
 
     // ── L'écriture manquante, depuis la ligne : un brouillard rapproché, et la règle retenue ────────
-    await (await menu(`LIG:${L2}`)).filter({ hasText: 'Écrire autre chose…' }).click();
+    // (CABSAISIE-21) Menu ouvert, la lettre annoncée au bout de l'entrée la joue : E écrit autre chose, pour CETTE ligne.
+    await (await menu(`LIG:${L2}`)).filter({ hasText: 'Écrire autre chose…' }).waitFor();
+    await p.keyboard.press('e');
     await expect.poll(() => fenetre.innerText()).toMatch(/Aucune règle ne reconnaît ce libellé/);
+    // (CABSAISIE-20) Le journal se choisit dans ceux du dossier : BQ proposé, OD au choix, pas d'à-nouveaux.
+    expect(await fenetre.locator('select[name=journal]').inputValue()).toBe('BQ');
+    const opts = await fenetre.locator('select[name=journal] option').evaluateAll((os) => os.map((o) => (o as HTMLOptionElement).value));
+    expect(opts).toContain('OD');
+    expect(opts).not.toContain('AN');
     await fenetre.locator('[name=compte]').fill('6061');
     await fenetre.locator('[name=retenir]').check();
     await fenetre.locator('[name=motif]').fill('STEG');

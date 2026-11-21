@@ -185,7 +185,7 @@
   /** @param {string} texte @param {string | null} client @param {string | null} [mois] */
   // (1.387.92, issue 12 CABPORTEFEUILLE-21) « de {mois} » s'élide devant une voyelle : « d'octobre 2026 », jamais « de octobre ».
   // Ouvert pour une relance, {mois} prend les mois relancés (`mois`) plutôt que le mois passé.
-  const remplir = (texte, client, mois) => { const m = mois || moisPasse(); return texte.replace(/\b([dD])e \{mois\}/g, (_x, d) => { const x = deMot(m); return d === 'D' ? x[0].toUpperCase() + x.slice(1) : x; })
+  const remplir = (texte, client, mois) => { const m = mois || moisPasse(); return texte.replace(/\b([dD])e \{mois\}/g, (_x, d) => { const x = deMot(m); return d === 'D' ? x.charAt(0).toUpperCase() + x.slice(1) : x; })
     .replace(/\{mois\}/g, m).replace(/\{client\}/g, client || '{client}'); };
   const EXEMPLES = [
     { titre: 'Pièces du mois', texte: 'Bonjour {client}, pour boucler {mois}, il me manque des pièces. Peux-tu me les envoyer ici, en photo ou en PDF ? Merci.' },

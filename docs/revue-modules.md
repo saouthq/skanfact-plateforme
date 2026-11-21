@@ -6288,3 +6288,50 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - La TVA d'une cession, s'il y en a, s'ajoute à la main dans la grille — À VÉRIFIER avec le comptable pilote.
 - Test : la camionnette cédée 30 000 — la grille porte 30 000 au crédit du 775 et au débit d'un compte vide, rien n'est
   écrit au serveur, puis la grille se vide. Une preuve.
+
+## 1.388.17 — La grille de saisie du Cabinet : neuf gestes qui disaient trop tard ou ne faisaient rien (issue 11, CABSAISIE-5, 8, 9, 10, 11, 15, 19, 20, 21)
+
+- **Un tiers se cherche par son nom dans la case Compte** (CABSAISIE-5). « minot » proposait des comptes et jamais la
+  Minoterie dont le livre porte déjà les factures. Les tiers que le livre connaît (sur un 40x / 41x) viennent après les
+  comptes, trois au plus, marqués « · tiers » ; la ligne choisie porte le tiers (nom et identifiant), l'Intitulé le
+  montre, et un compte retapé ou choisi ensuite le détache. Une ligne tapée entre donc au lettrage et à la balance
+  auxiliaire sous son tiers.
+- **« Créer le compte 471471 ? » ne promet plus un renommage qui n'existe pas** : aucun écran ne renomme un compte. La
+  question dit le nom que le compte PRENDRA (le plan de référence, sinon le libellé de sa ligne). Nommer librement un
+  compte neuf demanderait une table de plan au serveur : non fait, À DÉCIDER si un cabinet le demande.
+- **F4 juste après « Enregistrer » duplique la pièce qu'on vient de ranger** (CABSAISIE-8), comme la bulle le promet : la
+  grille repart vide (saisie au kilomètre), la pièce de départ est donc celle qui vient d'être enregistrée — date,
+  journal et libellé compris, sans numéro ni pièce ni justificatif. F4 marche aussi depuis l'en-tête (Date, Pièce,
+  Libellé), là où le curseur est après « Enregistrer » : il n'y faisait rien.
+- **« Joindre » sur une grille vide refuse en UNE fenêtre** (CABSAISIE-9), avant la question « Enregistrer d'abord ? » —
+  un refus se dit avant la question, par le même verdict que les boutons de la grille.
+- **La date se juge avant le geste** (CABSAISIE-10). Une date à venir éteint « Enregistrer et valider » en disant pourquoi
+  (le brouillard reste permis) — la même règle que le menu d'une ligne, au lieu d'un refus du serveur après coup. Une
+  date hors de l'exercice ouvert (02/01/2027 dans la grille de 2026) est refusée en le nommant : elle partait dans un
+  livre que l'écran ne montre pas. La case Date porte la marque rouge quand le refus vient d'elle. Le serveur garde son
+  refus ; le test le joue encore, horloge du poste avancée.
+- **Un mois validé le dit sur sa carte vide** (CABSAISIE-11) : « La période est validée jusqu'au 31/08/2026 : une
+  écriture de juillet ne s'y date plus. La grille s'ouvre au 01/09/2026, premier jour ouvert. » « Une écriture à la
+  main » et « Au kilomètre » ouvrent la grille DANS le mois regardé, ou au premier jour ouvert (la règle de la Banque,
+  1.385.8) ; un exercice entièrement validé éteint les deux boutons ; « Demander les pièces » perd son vert sur un mois
+  clos (il n'a plus d'étape suivante).
+- **Une ligne mise au compte d'attente trouve son compte** (CABSAISIE-15). « Dire ce que c'est… » (menu d'un brouillard
+  au 471, et menu de la ligne rapprochée de la Banque) reprend la pièce dans la grille, le curseur sur le 471 ; on tape le
+  bon compte, la banque reste rapprochée, et « · en attente » part du libellé avec le 471 — il mentait au livre-journal,
+  au lettrage et à l'export. Trouvé en le jouant : une pièce reprise d'une écriture (« Reprendre dans la grille » aussi)
+  tombait dans une grille CACHÉE quand le mois avait des pièces reçues ou montrait sa carte vide. Elle s'ouvre désormais
+  dans la grille visible.
+- **La tuile Banque d'une fiche compte une contre-passation comme le livre** (CABSAISIE-19) : l'originale était sautée et
+  son miroir compté seul, la tuile portait l'inverse de l'écriture corrigée (5322 : 3 500 au lieu de 3 000). Les montants
+  de l'originale comptent, ses COMPTES (écritures du mois, lignes) non. À DÉCIDER (Skander) : la tuile compte tout
+  l'exercice, la Banque compare au livre à la date du relevé — la tuile pourrait dire sa date.
+- **Le journal se choisit dans une liste fermée** (CABSAISIE-20) dans « Écrire autre chose… » de la Banque et dans un
+  guide : une faute de frappe (« VTE ») n'était refusée qu'après coup. Les à-nouveaux n'y sont pas. « Le plan de
+  comptes » depuis la Saisie : il n'existe pas d'écran du plan d'un dossier — À DÉCIDER.
+- **La lettre au bout d'une entrée de menu se joue à la touche** (CABSAISIE-21, `rowmenu.js`, partagé) : menu ouvert, E
+  écrit autre chose, A met en attente… pour la ligne DU MENU, jamais la ligne sélectionnée de la page. Aucune entrée de
+  l'app entreprise ne porte de lettre seule : rien ne change ailleurs.
+- Tests : `cabinet-banque-1375`, `cabinet-saisie`, `banque-1343`, `cabinet-banque`, `cabinet-guides` ; seize preuves.
+- Au passage : deux erreurs de vérification restées dans des versions non encore envoyées — une assertion non nulle dans
+  `livres-1378-3` (1.388.7, refusée par le lint) et une initiale lue sans garde dans `messagerie.js` (1.388.2, refusée par
+  les types). Toutes deux corrigées avant l'envoi.

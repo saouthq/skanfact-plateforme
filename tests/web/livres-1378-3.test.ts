@@ -182,7 +182,7 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     // Tout en bas de la page (sans animation : le défilement doux serait encore en route à la mesure), l'en-tête du tableau,
     // qui le dépasse encore, doit être juste sous la barre : c'est lui qu'on lit sous la barre, pas une ligne.
     const colle = () => p.evaluate(async () => {
-      const v = document.getElementById('view')!, nav = document.querySelector('.c-nav')!, th = document.querySelector('#c-livres table.list thead th') as HTMLElement;
+      const v = document.getElementById('view') as HTMLElement, nav = document.querySelector('.c-nav') as HTMLElement, th = document.querySelector('#c-livres table.list thead th') as HTMLElement;
       v.scrollTo({ top: v.scrollHeight, behavior: 'instant' });
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(null))));
       const b = nav.getBoundingClientRect().bottom, r = th.getBoundingClientRect();

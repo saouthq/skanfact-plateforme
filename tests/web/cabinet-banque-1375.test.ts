@@ -146,18 +146,35 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
       if (debit) await tr.locator('input[data-k="debit"]').fill(debit);
       if (credit) await tr.locator('input[data-k="credit"]').fill(credit);
     }
-    await p.locator('#sa-okvalider').click();
-    const fen = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fen.innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/Gardée au brouillard, pas validée[\s\S]*enregistrée au brouillard[\s\S]*Elle n'a pas pu être validée/);
-    await fen.getByRole('button').last().click();
-    // La grille est vide : un second clic n'a plus rien à enregistrer.
+    // ── (CABSAISIE-10) Une date à venir se dit AVANT : « Enregistrer et valider » s'éteint en disant pourquoi, le brouillard reste ──
+    await expect.poll(() => p.locator('#sa-okvalider').isDisabled()).toBe(true);
+    expect(await p.locator('#sa-okvalider').getAttribute('title')).toMatch(/^Elle est datée du \d\d\/\d\d\/\d{4}\s:\sune écriture ne se valide pas avant sa date/);
+    await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^Pour valider\s:\sElle est datée du/);
+    expect(await p.locator('#sa-ok').isDisabled()).toBe(false);
+    await p.locator('#sa-ok').click();
     await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
     expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').map((e) => e.statut)).toEqual(['brouillard']);
+    // ── (CABSAISIE-8) F4 juste après « Enregistrer » rouvre la pièce qu'on vient de ranger, sans numéro ni pièce ──────
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('sa-piece');
+    await p.keyboard.press('F4');
+    await expect.poll(() => p.locator('#sa-lignes input[data-k="compte"]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toEqual(['6132', '401', '']);
+    expect(await p.locator('#sa-lignes tr[data-i="0"] input[data-k="debit"]').inputValue()).toBe('100,000');
+    expect(await p.locator('#sa-piece').inputValue()).toBe('');
+    expect(await p.locator('#sa-libelle').inputValue()).toBe('Loyer de demain');
+    expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN').length).toBe(1);
+    await p.locator('#sa-vider').click();
+    await expect.poll(() => p.locator('#sa-lignes input[data-k="compte"]').first().inputValue()).toBe('');
 
     // ── (1.382.1, issue 11 constat 10) une date illisible se dit, avec ce qui est tapé ──────────────────────
     await p.locator('#sa-date').fill('32/13');
     await p.locator('#sa-piece').focus();
     await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(/^«\s32\/13\s» n'est pas une date de \d{4}/);
+    expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
+    // ── (CABSAISIE-10) Une date hors de l'exercice se dit avant le geste, sur la case Date ─────────────────────────
+    await p.locator('#sa-date').fill(`02/01/${demain.getFullYear() + 1}`);
+    await p.locator('#sa-piece').focus();
+    await expect.poll(() => p.locator('#sa-refus').innerText()).toMatch(new RegExp(`hors de l.exercice ${demain.getFullYear()}`));
+    expect(await p.locator('#sa-ok').getAttribute('title')).toMatch(/hors de l.exercice/);
     expect(await p.locator('#sa-date').getAttribute('aria-invalid')).toBe('true');
 
     // ── (1.385.1, issue 11 constat 23) une case de la grille se voit : un bord, et le fond du panneau (clair et sombre) ──
@@ -213,9 +230,51 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     await p.locator('#sa-ok').click();
     const q = p.locator('#modal-root .modal').last();
     await expect.poll(() => q.innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/Créer le compte 471471 \?[\s\S]*aucun compte voisin ne lui ressemble/);
+    expect((await q.innerText()).replace(/\s+/g, ' ')).toMatch(/il entre au plan du dossier sous le nom 471471 « .+ »/);
+    expect(await q.innerText()).not.toMatch(/renommer dans le plan de comptes/);
     await q.getByRole('button', { name: 'Corriger' }).click();
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.value)).toBe('471471');
     expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-FAUTE')).toEqual([]);
+
+    // ── (CABSAISIE-9) Sur une grille vide, « Joindre » refuse en UNE fenêtre, avant toute question, sans rien enregistrer ─
+    await p.locator('#sa-vider').click();
+    await expect.poll(() => p.locator('#sa-lignes input[data-k="compte"]').first().inputValue()).toBe('');
+    let selecteurOuvert = false;
+    const surFichier = () => { selecteurOuvert = true; };
+    p.on('filechooser', surFichier);
+    const avantJoindre = (await ecritures(cafe, associe)).length;
+    await p.locator('#sa-joindre').click();
+    const rien = p.locator('#modal-root .modal').last();
+    await expect.poll(() => rien.locator('h2').innerText().catch(() => '')).toBe('Rien à joindre pour l\'instant');
+    expect(await p.locator('#modal-root .modal').count()).toBe(1);
+    expect(await rien.innerText()).toMatch(/au moins deux lignes/);
+    await rien.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    p.off('filechooser', surFichier);
+    expect(selecteurOuvert).toBe(false);
+    expect((await ecritures(cafe, associe)).length).toBe(avantJoindre);
+
+    // ── (CABSAISIE-5) Un tiers se cherche par son nom dans la case Compte, et la ligne enregistrée le garde ─────────
+    const Y = demain.getFullYear();
+    expect((await api('POST', `/entreprises/${cafe}/compta/ecritures`, associe, { date: `${Y}-01-05`, journal: 'AC', piece: 'MIN-1', libelle: 'Farine de janvier',
+      lignes: [{ compte: '606', debit: '200' }, { compte: '401', tiers: 'Minoterie du Cap Bon', credit: '200' }] })).statut).toBe(201);
+    await aller(`#/dossier/${cafe}/comptabilite/saisie/${Y}`);
+    await p.locator('#sa-date').fill(`01/02/${Y}`);
+    await p.locator('#sa-piece').fill('OD-TIERS');
+    await p.locator('#sa-libelle').fill('Farine de février');
+    const c0 = p.locator('#sa-lignes tr[data-i="0"] input[data-k="compte"]');
+    await c0.fill('minot');
+    await p.locator('.sugg-pop .sugg-it', { hasText: 'Minoterie du Cap Bon' }).click();
+    await expect.poll(() => c0.inputValue()).toBe('401');
+    expect(await p.locator('#sa-lignes [data-nom="0"]').innerText()).toMatch(/Minoterie du Cap Bon/);
+    await p.locator('#sa-lignes tr[data-i="0"] input[data-k="credit"]').fill('50');
+    if (!(await p.locator('#sa-lignes tr[data-i="1"]').count())) await p.locator('#sa-ajouter').click();
+    await p.locator('#sa-lignes tr[data-i="1"] input[data-k="compte"]').fill('606');
+    await p.locator('#sa-lignes tr[data-i="1"] input[data-k="debit"]').fill('50');
+    await p.locator('#sa-ok').click();
+    await expect.poll(async () => (((await ecritures(cafe, associe)).find((e) => e.piece === 'OD-TIERS')?.lignes ?? []) as { compte: string; tiers?: string }[]).find((l) => l.compte === '401')?.tiers, { timeout: 10_000 }).toBe('Minoterie du Cap Bon');
+    // La grille repart vide (la saisie au kilomètre enchaîne) avant le pas suivant : on n'écrit pas dans une grille qui se redessine.
+    await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
 
     // ── (1.375.1) « Joindre un justificatif… » : le fichier va au classeur du dossier, joint à l'écriture ─────
     await p.locator('#sa-date').fill(`01/01/${demain.getFullYear()}`);
@@ -255,15 +314,61 @@ describe('(1.375.0) la revue « saisie et banque »', () => {
     //    face n'invite plus à « demander » sans geste — elle offre le compte d'attente ─────────────────────────────
     await p.evaluate((e) => { location.hash = `#/dossier/${e}/comptabilite/banque/2026`; }, cafe);
     await p.locator('table.bq-t').first().waitFor({ timeout: 20_000 });
-    let sansFace = '';
+    let sansFace = '', idSansFace = '';
     for (const id of await p.locator('table.bq-t tr[data-groupe="dec"]').evaluateAll((rs) => rs.map((r) => (r as HTMLElement).dataset.bqLigne ?? ''))) {
       await p.locator(`table.bq-t tr[data-bq-ligne="${id}"] td.bq-d`).click();
       const t = (await p.locator('.bq-livre').innerText()).replace(/\s+/g, ' ');
-      if (/Rien dans le livre au même montant/.test(t)) { sansFace = t; break; }
+      if (/Rien dans le livre au même montant/.test(t)) { sansFace = t; idSansFace = id; break; }
     }
     expect(sansFace).toMatch(/ou la mettre au compte d'attente \(471\) le temps de demander au client ce que c'est/);
     expect(await p.locator('.bq-livre #bq-attente').innerText()).toBe('Mettre en attente (471)');
     expect(await p.locator('.bq-livre #bq-demander').count()).toBe(0);
+    // (CABSAISIE-15) La ligne mise en attente trouve son compte : « Dire ce que c'est… » la reprend dans la grille, le
+    // curseur sur le 471 ; enregistrée sur 627, elle perd « · en attente » et la banque reste rapprochée.
+    await p.locator('.bq-livre #bq-attente').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Mettre au 471' }).click();
+    type EcrL = Ecr & { date: string; libelle: string };
+    let att: EcrL | undefined;
+    await expect.poll(async () => { att = (await ecritures(cafe, associe)).find((e) => e.statut === 'brouillard' && e.lignes.some((l) => l.compte.startsWith('471'))) as EcrL | undefined; return att?.libelle ?? ''; }, { timeout: 15_000 }).toMatch(/ · en attente$/);
+    if (!att) throw new Error('l\'écriture mise en attente est introuvable');
+    const enAtt: EcrL = att;
+    await p.evaluate(({ e, d }) => { location.hash = `#/dossier/${e}/comptabilite/saisie/${d.slice(0, 4)}`; }, { e: cafe, d: enAtt.date });
+    await p.locator(`[data-cp-mois="${enAtt.date.slice(0, 7)}"]`).click();
+    await p.locator(`[data-rowmenu="B:${enAtt.id}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Dire ce que c\'est…' }).click();
+    const cpt = p.locator('#sa-lignes input[data-k="compte"]:focus');
+    await expect.poll(() => cpt.inputValue().catch(() => ''), { timeout: 10_000 }).toMatch(/^471/);
+    await cpt.fill('627');
+    await p.locator('#sa-ok').click();
+    await expect.poll(async () => ((await ecritures(cafe, associe)).find((e) => e.id === enAtt.id)?.lignes ?? []).some((l) => l.compte === '627'), { timeout: 15_000 }).toBe(true);
+    const leve = (await ecritures(cafe, associe)).find((e) => e.id === enAtt.id) as EcrL | undefined;
+    expect(leve?.libelle).not.toMatch(/en attente/);
+    expect(leve?.lignes.some((l) => l.compte.startsWith('471'))).toBe(false);
+    const rel = (await api('GET', `/entreprises/${cafe}/compta/releves?annee=2026`, associe)).corps.releves as { lignes: { id: string; rapprochement?: { ecriture?: string } | null }[] }[];
+    expect(rel.flatMap((r) => r.lignes).find((l) => l.id === idSansFace)?.rapprochement?.ecriture).toBe(enAtt.id);
+
+    // ── (1.375.0) Le serveur garde le dernier mot : un poste dont l'horloge avance laisse partir une validation que le serveur
+    //    refuse — la pièce est au brouillard UNE fois, la grille se vide ────────────────────────────────────────────
+    await p.context().clock.setFixedTime(demain);
+    await aller(`#/dossier/${cafe}/comptabilite/saisie/${demain.getFullYear()}`);
+    await p.locator('#sa-journal').selectOption('OD');
+    await p.locator('#sa-date').fill(fr);
+    await p.locator('#sa-piece').fill('OD-DEMAIN-2');
+    await p.locator('#sa-libelle').fill('Loyer de demain');
+    for (const [i, [compte, debit, credit]] of ([['6132', '100', ''], ['401', '', '100']] as const).entries()) {
+      if (!(await p.locator(`#sa-lignes tr[data-i="${i}"]`).count())) await p.locator('#sa-ajouter').click();
+      const tr = p.locator(`#sa-lignes tr[data-i="${i}"]`);
+      await tr.locator('input[data-k="compte"]').fill(compte);
+      if (debit) await tr.locator('input[data-k="debit"]').fill(debit);
+      if (credit) await tr.locator('input[data-k="credit"]').fill(credit);
+    }
+    await expect.poll(() => p.locator('#sa-okvalider').isDisabled()).toBe(false);
+    await p.locator('#sa-okvalider').click();
+    const fen = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.innerText().catch(() => ''), { timeout: 10_000 }).toMatch(/Gardée au brouillard, pas validée[\s\S]*enregistrée au brouillard[\s\S]*Elle n'a pas pu être validée/);
+    await fen.getByRole('button').last().click();
+    await expect.poll(() => p.locator('#sa-piece').inputValue()).toBe('');
+    expect((await ecritures(cafe, associe)).filter((e) => e.piece === 'OD-DEMAIN-2').map((e) => e.statut)).toEqual(['brouillard']);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

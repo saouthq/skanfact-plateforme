@@ -5038,19 +5038,23 @@
     // aucun relevé.
     const parCompteBq = {};
     for (const e of (livre && livre.ecritures) || []) {
-      if (e.statut === 'contrepassee') continue;
+      // (CABSAISIE-19) Une écriture contre-passée garde ses MONTANTS : son miroir (validé, compté) les annule. La sauter
+      // laissait le seul miroir — la banque, le CA et le 471 de la fiche portaient l'inverse de l'écriture corrigée, quand
+      // le livre (et la Banque) disent zéro. Les COMPTES (écritures du mois, dernière date, lignes) restent ceux d'avant :
+      // l'originale n'y entre pas.
+      const annulee = e.statut === 'contrepassee';
       const x = m0(String(e.date).slice(0, 7));
-      if (e.journal !== 'AN') x.ecr++;
+      if (!annulee && e.journal !== 'AN') x.ecr++;
       if (e.statut === 'brouillard') x.br++;
-      if (String(e.date) > derniere) derniere = String(e.date);
+      if (!annulee && String(e.date) > derniere) derniere = String(e.date);
       const br = e.statut === 'brouillard';
       if (br && (e.lignes || []).some(l => /^70/.test(String(l.compte || '')))) brVente++;
       if (br && (e.lignes || []).some(l => /^532/.test(String(l.compte || '')))) brBanque++;
       for (const l of e.lignes || []) {
         const c = String(l.compte || ''), d = Number(l.debit) || 0, k = Number(l.credit) || 0;
-        if (/^70/.test(c)) { x.ca += k - d; lignesVente++; }
-        if (/^532/.test(c)) { banque += d - k; x.banque++; lignesBanque++; parCompteBq[c] = (parCompteBq[c] || 0) + d - k; }
-        if (/^471/.test(c)) { attente += d - k; if (!l.lettre) attenteLignes++; }
+        if (/^70/.test(c)) { x.ca += k - d; if (!annulee) lignesVente++; }
+        if (/^532/.test(c)) { banque += d - k; if (!annulee) { x.banque++; lignesBanque++; } parCompteBq[c] = (parCompteBq[c] || 0) + d - k; }
+        if (/^471/.test(c)) { attente += d - k; if (!annulee && !l.lettre) attenteLignes++; }
       }
     }
     const decl = {};
@@ -5070,7 +5074,7 @@
     const rapproche = releves.filter(r => (r.lignes || []).every(l => l.rapprochement && l.rapprochement.niveau !== 'aucun')).map(r => r.au).pop() || '';
     const nomBanque = (releves[releves.length - 1] || {}).banque || '';
     // (1.371.0) Ce que « Par où commencer » coche : le livre existe-t-il, ses soldes repris, ses salariés, ses biens.
-    const debut = { existe: !!livre, soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ((livre && livre.ecritures) || []).some(e => e.journal === 'AN' && e.statut !== 'contrepassee'),
+    const debut = { existe: !!livre, soldes: (((livre && livre.ouverture) || {}).lignes || []).length > 0 || ((livre && livre.ecritures) || []).some(e => e.journal === 'AN' && e.statut !== 'contrepassee' && !e.contrepasseDe),
       salaries: ((livre && livre.salaries) || []).length, biens: ((livre && livre.immobilisations) || []).length };
     const nomDuCompte = c => String((((livre && livre.plan) || []).find(x => x.compte === c) || {}).libelle || '').trim();
     const comptesBq = Object.keys(parCompteBq).sort().map(c => ({ compte: c, nom: nomDuCompte(c), solde: Math.round(parCompteBq[c] * 1000) / 1000 }));

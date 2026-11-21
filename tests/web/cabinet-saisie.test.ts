@@ -215,6 +215,15 @@ describe('la saisie du Cabinet, à la souris', () => {
     // Deux chemins, un chiffre : la balance de l'écran (les écritures validées, comme la v10) est celle
     // du serveur, compte par compte, une fois août validé (l'achat du client était au brouillard).
     expect((await api('POST', `/entreprises/${ent}/compta/valider`, associe, { jusqua: '2026-08-31' })).statut).toBe(200);
+    // (CABSAISIE-11) Juillet est dans la période validée et n'a aucune écriture (toutes celles du test sont en août) : la
+    // carte du mois vide le dit avant le geste, et « Une écriture à la main » ouvre la grille au premier jour ouvert.
+    await aller(`#/dossier/${ent}/comptabilite/saisie/2026`);
+    await p.locator('[data-cp-mois="2026-07"]').click();
+    await expect.poll(() => p.locator('#sx-vide-ferme').innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toBe('La période est validée jusqu\'au 31/08/2026 : une écriture de juillet ne s\'y date plus. La grille s\'ouvre au 01/09/2026, premier jour ouvert.');
+    expect(await p.locator('#sx-vide-main').isDisabled()).toBe(false);
+    await p.locator('#sx-vide-main').click();
+    await p.locator('#sa-lignes').waitFor({ state: 'visible' });
+    expect(await p.locator('#sa-date').inputValue()).toBe('01/09/2026');
     await aller(`#/dossier/${ent}/comptabilite/balance/2026`);
     await p.waitForTimeout(1000);
     const millimes = (t: string) => BigInt(t.replace(/[^0-9,-]/g, '').replace(',', '') || '0');

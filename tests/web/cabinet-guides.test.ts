@@ -102,7 +102,7 @@ describe('les guides d\'écritures, à la souris', () => {
     await ouvrir('#set-tabs [data-tab="compta"]', '#sr-guide-new');
     await ouvrir('#sr-guide-new', '#g-nom');
     await fenetre.locator('#g-nom').fill('Loyer du garage');
-    await fenetre.locator('#g-journal').fill('od');
+    await fenetre.locator('#g-journal').selectOption('OD');
     await fenetre.locator('#g-add').click();
     const ligneG = (i: number) => fenetre.locator(`#g-lignes tr[data-i="${i}"]`);
     await ligneG(0).locator('[data-k="compte"]').fill('6132');

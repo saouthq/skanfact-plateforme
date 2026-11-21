@@ -241,6 +241,15 @@
     // toute la page pour atteindre la deuxième entrée.
     const clavier = e => {
       if (e.key === 'Escape') { e.stopPropagation(); close(); bouton.focus(); return; }
+      // (CABSAISIE-21) Une entrée qui porte sa lettre (« E », « P », « A »… au bout de la ligne) se joue à la touche, menu
+      // ouvert : les lettres étaient annoncées et ne faisaient rien. La lettre vise l'entrée DE CE MENU — jamais la ligne
+      // sélectionnée de la page, que le bouton du menu ne sélectionne pas. Une entrée grisée se joue aussi : son clic dit
+      // ce qui manque.
+      if (e.key.length === 1 && /^[a-z]$/i.test(e.key) && !e.altKey && !e.ctrlKey && !e.metaKey && !(e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable]'))) {
+        const lettre = $$('button[data-i]', m).find(x => ((x.querySelector('.rm-note') || {}).textContent || '').trim() === e.key.toUpperCase());
+        if (lettre) { e.preventDefault(); e.stopPropagation(); lettre.click(); }
+        return;
+      }
       if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Home' && e.key !== 'End') return;
       const items = $$('button[data-i]', m);
       if (!items.length) return;
