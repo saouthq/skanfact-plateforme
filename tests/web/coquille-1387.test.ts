@@ -145,6 +145,27 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await expect.poll(() => p2.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/relances');
     const barre = fs.readFileSync(path.join(RACINE, 'web/public/plateforme/barre.js'), 'utf8');
     expect(barre).toContain("w.__versRetard(id)");
+    // (1.387.77, ENTSOCLE-14) Chercher un client n'est pas modifier la facture : on quitte sans question ni brouillon gardé.
+    await p2.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
+    const qui = p2.locator('#ed-pq-q');
+    await qui.waitFor({ timeout: 30_000 });
+    await qui.pressSequentially('z', { delay: 30 });
+    await p2.evaluate(() => (window as unknown as { __naviguer: (h: string) => void }).__naviguer('#/dashboard'));
+    await expect.poll(() => p2.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/dashboard');
+    expect(await p2.locator('#modal-root .modal').count()).toBe(0);
+    expect(net(await p2.locator('#toast').innerText().catch(() => ''))).not.toContain('Rouvrir');
+    // (1.387.77, ENTSOCLE-12) Une page de « Tout le reste » allume sa famille dans la barre.
+    const ailleurs = await p2.evaluate(() => { const a = document.querySelector('#nav .nav-fam .volet a.pl-l[data-route]') as HTMLElement | null; return a ? { route: String(a.dataset.route), famille: String((a.closest('.nav-fam') as HTMLElement).dataset.famille) } : null; });
+    expect(ailleurs).not.toBeNull();
+    await p2.evaluate((r) => (window as unknown as { __naviguer: (h: string) => void }).__naviguer(`#/${r}`), ailleurs!.route);
+    await expect.poll(() => p2.evaluate((f) => [...document.querySelectorAll('#nav .nav-volet.ici')].map((b) => (b as HTMLElement).dataset.famille).join('|') === f, ailleurs!.famille), { timeout: 10_000 }).toBe(true);
+    // (1.387.77, ENTSOCLE-13) Recharger garde l'onglet des Paramètres où l'on était.
+    await p2.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await p2.locator('#set-tabs [data-tab="app"]').click();
+    await expect.poll(() => p2.locator('#set-tabs [data-tab="app"]').getAttribute('class'), { timeout: 10_000 }).toContain('active');
+    await p2.reload();
+    await p2.locator('#set-tabs').waitFor({ timeout: 30_000 });
+    await expect.poll(() => p2.locator('#set-tabs [data-tab="app"]').getAttribute('class'), { timeout: 10_000 }).toContain('active');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 150_000);

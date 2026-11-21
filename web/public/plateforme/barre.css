@@ -125,6 +125,9 @@ body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0p
 #barre .lien.active > .ic, #barre .lien[aria-current="page"] > .ic { color: var(--sb-sarcelle); }
 #barre .lien[aria-expanded="true"] { background: var(--sb-actif); color: var(--sb-encre); box-shadow: var(--sb-actif-ombre); }
 #barre .lien[aria-expanded="true"] > .ic { color: var(--sb-sarcelle); }
+/* (1.387.77) La famille de la page ouverte : l'encre et l'icône, sans le fond (il dit « volet ouvert »). */
+#barre .lien.nav-volet.ici { color: var(--sb-encre); font-weight: 600; }
+#barre .lien.nav-volet.ici > .ic { color: var(--sb-sarcelle); }
 #barre .lien .nav-lock { width: 12px; height: 12px; margin-inline-start: 0; opacity: .55; fill: none; stroke: currentColor; stroke-width: 2; }
 #barre .lien .chev { color: var(--sb-gris-2); display: flex; opacity: .7; margin-left: auto; }
 #barre .lien .chev svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }

@@ -3714,6 +3714,7 @@
   // (plateforme) 1.79.0 — la page du dernier dessin : un redessin sur place ne repropose pas sa visite.
   let dernierePageGuide = '';
   function render(keepScroll) {
+    reprendreOuJEtais();
     return C.enLot(() => {
     const view = $('#view');
     const scroll = keepScroll ? view.scrollTop : 0;
@@ -3766,6 +3767,10 @@
     $$('nav a, .sidebar-foot a').forEach(a => a.classList.toggle('active', a.dataset.route === active));
     // (1.269.0) Une vue sans lien dans la barre allume sa page : « En retard » allume Factures, « Immobilisations » la Comptabilité.
     { const vue = C.pageById(active); if (vue && vue.vueDe && !$(`nav a[data-route="${active}"]`)) $$(`nav a[data-route="${vue.vueDe}"]`).forEach(a => a.classList.add('active')); }
+    // (1.387.77, issue 14 ENTSOCLE-12) Une page de « Tout le reste » n'allumait rien : sur Clients ou Catalogue, la barre
+    // ne disait pas où l'on est. Sa famille le dit (sans fond : le fond reste au volet ouvert), sauf si la page est
+    // déjà allumée dans « Au quotidien ».
+    { const auQuotidien = !!$('#nav .nav-quotidien a.active'); $$('#nav .nav-fam').forEach(f => { const b = $('.nav-volet', f); if (b) b.classList.toggle('ici', !auQuotidien && !!$('.volet a.pl-l.active', f)); }); }
     // `drawNav` réécrit `nav.innerHTML`, ce qui remet le défilement à zéro : sur les quatre dernières
     // pages (Statistiques, Paie, Comptabilité, et tout ce qui suit), l'entrée allumée était cent
     // pixels sous le bord et AUCUNE entrée en vert n'était visible. On arrivait au bon écran sans
@@ -6469,7 +6474,7 @@
     const bandeauConflit = () => {
       const e = ecartsConflit(), qui = conflitPiece.qui || 'L\'autre poste', sien = conflitPiece.qui ? `celle de ${conflitPiece.qui}` : 'la sienne';
       if (!e.length) { conflitPiece = null; return ''; }
-      return `<div class="bandeau ambre" id="ed-conflit" role="alert">${lfIc('alerte', 18)}<span class="txt"><b>${h(qui)} a changé ${h(e[0].quoi)} pendant que tu écrivais${e.length > 1 ? ` (et ${pl(e.length - 1, 'autre valeur')})` : ''}</b><span>Toi : ${h(e[0].toi)} · ${h(qui)} : ${h(e[0].lui)}. Rien n'est écrasé : choisis la version à garder ; l'autre reste dans l'archive des conflits.</span></span>
+      return `<div class="bandeau ambre" id="ed-conflit" role="alert">${lfIc('alerte', 18)}<span class="txt"><b>${h(qui)} a changé ${h(e[0].quoi)} pendant que tu écrivais${e.length > 1 ? ` (et ${pl(e.length - 1, 'autre valeur', 'autres valeurs')})` : ''}</b><span>Toi : ${h(e[0].toi)} · ${h(qui)} : ${h(e[0].lui)}. Rien n'est écrasé : choisis la version à garder ; l'autre reste dans l'archive des conflits.</span></span>
         <button type="button" class="btn btn-sm" data-conflit="mienne">Garder la mienne</button><button type="button" class="btn btn-sm" data-conflit="autre">Prendre ${h(sien)}</button></div>`;
     };
     // (maquette « accord ») Où en est l'accord d'un brouillon de facture, en mots pour sa pastille.
@@ -9910,7 +9915,9 @@
       }
       if (pq) {
         const qi = $('#ed-pq-q', pq);
-        qi.oninput = () => { pqSel = 0; dessinerPourQui(); };
+        // (1.387.77, issue 14 ENTSOCLE-14) Chercher n'est pas modifier : une lettre tapée ici remontait au formulaire, qui
+        // marquait la pièce « modifiée » — et quitter demandait d'enregistrer une facture sans client ni ligne.
+        qi.oninput = e => { if (e && e.stopPropagation) e.stopPropagation(); pqSel = 0; dessinerPourQui(); };
         qi.onkeydown = e => {
           if (e.key === 'ArrowDown') { e.preventDefault(); pqSel = Math.min(pqSel + 1, pqListe.length); dessinerPourQui(); }
           else if (e.key === 'ArrowUp') { e.preventDefault(); pqSel = Math.max(pqSel - 1, 0); dessinerPourQui(); }
@@ -9979,7 +9986,7 @@
           const lb = $('[data-aj-libre]', popA.pop); if (lb) lb.onmousedown = e => { e.preventDefault(); const t = brut; ajout.value = ''; fermerA(); ajouterLibre(t); };
           ajout.setAttribute('aria-expanded', 'true');
         };
-        ajout.oninput = () => { selA = 0; selBouge = false; dessinerA(); };
+        ajout.oninput = e => { if (e && e.stopPropagation) e.stopPropagation(); selA = 0; selBouge = false; dessinerA(); };
         ajout.onfocus = () => { if (ajout.value.trim()) dessinerA(); };
         ajout.onkeydown = e => {
           const brut = ajout.value.trim();
@@ -15437,6 +15444,31 @@
   }
   window.addEventListener('hashchange', () => { if (presenceSuivi && !location.hash.startsWith('#/doc/' + presenceSuivi.piece)) arreterPresence(); });
   window.addEventListener('pagehide', () => arreterPresence());
+  // (1.387.77, issue 14 ENTSOCLE-13) Recharger gardait la page et perdait l'endroit : « Toutes les années », page 2
+  // revenait à « 2026 », page 1 ; l'onglet « L'application » des Paramètres revenait à « Mon entreprise ». L'endroit se
+  // note en quittant (dans cet onglet du navigateur seulement) et se reprend une fois, pour la MÊME entreprise.
+  const OU_J_ETAIS = 'skanfact.ou_j_etais';
+  window.addEventListener('pagehide', () => {
+    try {
+      const liste = k => { const { year, yearAuto, yearTouched, st, page } = listState[k]; return { year, yearAuto, yearTouched, st, page }; };
+      sessionStorage.setItem(OU_J_ETAIS, JSON.stringify({ nom: (data && data.company && data.company.name) || '', onglet: settingsTab, devis: liste('devis'), facture: liste('facture') }));
+    } catch (_) { /* un navigateur sans mémoire d'onglet : on recharge comme avant */ }
+  });
+  let ouRepris = false;
+  function reprendreOuJEtais() {
+    if (ouRepris || !data || !data.company) return;
+    ouRepris = true;
+    try {
+      const x = JSON.parse(sessionStorage.getItem(OU_J_ETAIS) || 'null');
+      sessionStorage.removeItem(OU_J_ETAIS);
+      if (!x || x.nom !== (data.company.name || '')) return;
+      if (typeof x.onglet === 'string') settingsTab = x.onglet;
+      for (const k of ['devis', 'facture']) {
+        const l = x[k];
+        if (l && typeof l === 'object') Object.assign(listState[k], { year: String(l.year || ''), yearAuto: !!l.yearAuto, yearTouched: !!l.yearTouched, st: String(l.st || ''), page: Math.max(1, Number(l.page) || 1) });
+      }
+    } catch (_) { /* une note illisible ne vaut rien */ }
+  }
 
   // ---------- palette de recherche (Cmd/Ctrl+K) ----------
   //

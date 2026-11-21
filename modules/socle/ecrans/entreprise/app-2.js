@@ -7304,7 +7304,7 @@
       ${panneau('p-depannage')}
         <p class="small muted mb">Quand quelque chose ne va pas, le journal vaut mieux qu'une description : il dit où
         ${bridge.journalDeLEcran ? 'l\'écran s\'est arrêté ; tu le lis avant, et il ne part avec ta demande que si tu le coches.' : 'l\'application s\'est arrêtée, et il ne contient ni nom de client, ni montant.'} Et quand quelque chose manque,
-        dis-le : SkanFact est écrit par une seule personne, et c'est ce qui décide de la suite.</p>
+        dis-le : ce sont les retours de ceux qui s'en servent qui décident de la suite.</p>
         <div class="inline">
           ${/* 10.12.0 — vert au repos, « Signaler un problème » disait qu'il y en avait un. */''}
           <button type="button" class="btn" id="set-support">Signaler un problème…</button>
@@ -9046,7 +9046,7 @@
     try { info = await bridge.supportInfo(); } catch {}
     const tech = `SkanFact ${info.version || '?'} · ${info.platform || '?'}`;
     modal(`<h2>Proposer une amélioration</h2>
-      <p class="small">SkanFact est écrit par une seule personne, et ce sont les idées de ceux qui s'en servent tous les jours qui décident de la suite. Dis ce qui te manque — même si ça te paraît petit : c'est souvent le petit geste répété tous les lundis qui fait gagner le plus.</p>
+      <p class="small">Ce sont les idées de ceux qui s'en servent tous les jours qui décident de la suite. Dis ce qui te manque — même si ça te paraît petit : c'est souvent le petit geste répété tous les lundis qui fait gagner le plus.</p>
       <label class="field obligatoire">${lbl('Ce que tu aimerais faire', 'aide.ideeQuoi')}
         <textarea id="idee-quoi" rows="3" placeholder="Ex. : envoyer la même relance à plusieurs clients d'un coup."></textarea></label>
       <label class="field">${lbl('Comment tu fais aujourd\'hui', 'aide.ideeAujourdhui')}

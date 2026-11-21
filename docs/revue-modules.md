@@ -5739,3 +5739,14 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   « Dernier devis émis ») pour un lecteur d'écran.
 - Restent : 6, 9, 11 à 14, 16 à 20, 23.
 - Tests : `tests/moteur/reussites-en-ligne-1387.test.ts`, `tests/web/coquille-1387.test.ts`.
+
+## 1.387.77 — La coquille : où l'on est, où l'on était (issue 14)
+
+- **ENTSOCLE-12 — la barre dit où l'on est.** Une page de « Tout le reste » (Clients, Catalogue, Stock…) allume sa
+  famille (encre et icône ; le fond reste au volet ouvert).
+- **ENTSOCLE-13 — recharger garde l'endroit.** L'onglet des Paramètres, l'année, le filtre et la page des listes de
+  devis et de factures se reprennent après un rechargement, dans le même onglet du navigateur et pour la même entreprise.
+- **ENTSOCLE-14 — chercher n'est pas modifier.** Une lettre tapée dans « Chercher un client » ou dans la barre d'ajout
+  ne marque plus la pièce modifiée : on quitte sans question.
+- **ENTSOCLE-22, suite.** « (et 2 autres valeurs) » ; « SkanFact est écrit par une seule personne » retiré de l'Aide.
+- Test : `tests/web/coquille-1387.test.ts`.
