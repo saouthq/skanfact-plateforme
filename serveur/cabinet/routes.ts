@@ -474,6 +474,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           dossiers: ids.map(({ entreprise }) => ({
             entreprise,
             derniere: L.get(entreprise)?.derniere ?? null,
+            // (CABPORTEFEUILLE-15) Un dossier sans aucune écriture n'est pas « soldé » : l'écran doit pouvoir le dire.
+            livre: L.has(entreprise),
             brouillards: Number(L.get(entreprise)?.brouillards ?? 0),
             attente: A.get(entreprise)?.solde ?? '0',
             releves: Number(B.get(entreprise)?.releves ?? 0),

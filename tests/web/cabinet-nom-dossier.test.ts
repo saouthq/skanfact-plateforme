@@ -146,6 +146,61 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
       .find((x) => x.entreprise === ent)?.contenu.email, { timeout: 15_000 }).toBe('contact@menuiserie.tn');
     expect((await lu(ent))?.raisonSociale).toBe('Menuiserie Ben Salah');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-nom-client.png') });
+
+    // ── (CABPORTEFEUILLE-10) Trois cases fautives : les trois en rouge d'un coup, rien ne part ; « Annuler » demande ──
+    const puts: string[] = [];
+    p.on('request', (r) => { if (r.method() === 'PUT' && /\/fiches\/|\/dossiers\//.test(r.url())) puts.push(r.url()); });
+    f = await fiche(tenu);
+    await f.locator('#f-email').fill('pas-un-email');
+    await f.locator('#f-phone').fill('abc');
+    await f.locator('#f-fees').fill('-5');
+    await f.locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root [aria-invalid="true"]').count()).toBe(3);
+    await expect.poll(toast).toMatch(/^L'adresse e-mail ne se lit pas[\s\S]*\(Et 2 autres cases en rouge\.\)$/);
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-email');
+    expect(puts).toEqual([]);
+    await f.locator('#no').click();
+    await expect.poll(async () => p.locator('#modal-root h2').last().innerText().catch(() => '')).toBe('Abandonner cette saisie ?');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Abandonner', exact: true }).click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+
+    // ── (CABPORTEFEUILLE-11) Le matricule d'un autre dossier du portefeuille, écrit autrement : refusé sur sa case ──
+    const atelier = await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Atelier Ennasr', matriculeFiscal: `${chiffres}B/A/M/000` });
+    expect(atelier.statut).toBeLessThan(300);
+    f = await fiche(tenu);
+    await f.locator('#f-mat').fill(`${chiffres}b.a.m.000`);
+    await f.locator('#ok').click();
+    await expect.poll(toast).toBe('Ce matricule est déjà celui d\'Atelier Ennasr, dans ton portefeuille : deux dossiers ne portent pas le même. Relis-le sur la carte d\'identification fiscale de Boulangerie Ennour.');
+    await expect.poll(() => f.locator('#f-mat').getAttribute('aria-invalid')).toBe('true');
+    expect(puts).toEqual([]);
+    expect((await lu(tenu))?.matriculeFiscal).toBe(matricule);
+    // À la création, le même matricule ne propose plus « Créer quand même » : deux homonymes existent, pas deux matricules.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await expect.poll(async () => {
+      if (!await p.locator('#modal-root #f-name').count()) await p.getByRole('button', { name: 'Ajouter un client…' }).first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator('#modal-root #f-name').count();
+    }, { timeout: 20_000 }).toBe(1);
+    const second = p.locator('#modal-root .modal').last();
+    await second.locator('#f-name').fill('Atelier du Nord');
+    await second.locator('#f-mat').fill(`${chiffres}B/A/M/000`);
+    await second.locator('#ok').click();
+    await expect.poll(async () => p.locator('#modal-root h2').last().innerText().catch(() => '')).toBe('Atelier Ennasr est déjà dans ton portefeuille');
+    expect(await p.locator('#modal-root #dq-creer').isVisible()).toBe(false);
+    expect(await p.locator('#modal-root .modal').last().innerText()).toContain('deux dossiers ne portent pas le même matricule');
+    await p.locator('#dq-non').click();
+    // (CABPORTEFEUILLE-10) La fiche dit le régime, et « Honoraires : à écrire sur la fiche » mène à sa case.
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${tenu}`);
+    await p.locator('#page-fd').waitFor({ timeout: 15_000 });
+    await p.locator('#fd-hon').click();
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-fees');
+    await p.keyboard.press('Escape');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

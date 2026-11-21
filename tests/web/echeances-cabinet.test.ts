@@ -213,6 +213,49 @@ describe('les Échéances du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   });
 
+  it('(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe', async () => {
+    const { associe, cab, librairie, menuiserie } = await unCabinet();
+    const net = (t: string) => t.replace(/\s+/g, ' ').trim();
+    expect((await api('PUT', `/cabinets/${cab.id}/reglages`, associe, { contenu: { regimes: [{ id: 'is', label: 'Société à l\'IS', tva: '', cnss: true,
+      annuelles: [{ id: 'is', label: 'Déclaration de l\'IS', mois: 3, jour: 25 }] }] }, revision: null })).statut).toBeLessThan(300);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${librairie.ent}`, associe, { contenu: { forme: 'Personne physique', contact: 'Hela Ben Salah', regime: 'is' }, revision: null })).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${menuiserie.ent}`, associe, { contenu: { regime: 'is' }, revision: null })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(new Date('2026-11-03T09:00:00+01:00'));
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id);
+    const groupe = (g: string) => p.locator('#page-ech .ec-g').filter({ has: p.locator(`.ec-gt.${g}`) });
+    // « À déposer » : la plus proche en tête (le 15 avant le 28), et l'IS de l'exercice en cours n'y est pas.
+    const bientot = (await groupe('bientot').locator('.ec-i').allInnerTexts()).map(net);
+    expect(bientot).toEqual([expect.stringMatching(/^15 nov\..*personnes physiques/), expect.stringMatching(/^28 nov\. Déclaration d'octobre/)]);
+    expect(bientot.join(' ')).not.toMatch(/Déclaration de l'IS/);
+    // Elle est « à venir » : rien n'est réclamé avant la fin de l'exercice, aucune relance.
+    if (await p.locator('#ec-plus-tard').count()) await p.locator('#ec-plus-tard').click();
+    const is = groupe('avenir').locator('.ec-i').filter({ hasText: /Déclaration de l'IS/ });
+    await expect.poll(() => is.count()).toBe(1);
+    await is.click();
+    const det = p.locator('#page-ech .ec-det');
+    await expect.poll(async () => net(await det.innerText().catch(() => ''))).toMatch(/L'exercice 2026 n'est pas terminé : rien n'est réclamé avant sa fin\./);
+    expect(await det.getByRole('button', { name: 'Relancer' }).count()).toBe(0);
+    // La synthèse de septembre (les sociétés : la menuiserie, à réviser) dit ce qu'elle compte : un dossier pas prêt.
+    await groupe('retard').locator('.ec-i').filter({ hasText: /Déclaration de septembre/ }).filter({ hasNotText: 'personnes physiques' }).click();
+    await expect.poll(async () => net(await det.locator('.ec-som-l').innerText().catch(() => ''))).toMatch(/1 dossier pas prêt : ce qui manque est sur sa ligne/);
+    expect(await det.locator('.ec-som-l').innerText()).not.toMatch(/retenue/);
+    // La CNSS se pointe d'un coup, et la fenêtre le dit ; puis « Tout est déposé pour le 3ᵉ trimestre ».
+    await groupe('retard').locator('.ec-i').filter({ hasText: 'CNSS' }).click();
+    await p.locator('[data-ec-menu="@tete"]').click();
+    await p.locator('#ec-pointer').click();
+    await expect.poll(async () => net(await p.locator('#modal-root .pc-note').innerText().catch(() => ''))).toMatch(/se pointe d'un coup/);
+    await p.locator('#ec-toute-oui').click();
+    await expect.poll(async () => net(await p.locator('#page-ech .ec-det .ec-ban.vert').innerText().catch(() => ''))).toBe('Tout est déposé pour le 3ᵉ trimestre.');
+    await expect.poll(() => p.locator('#toast .toast-undo').isVisible()).toBe(true);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('des clients sans aucune écriture : la page quitte son squelette et dit pourquoi elle est vide', async () => {
     // La première lecture ne change rien à ce que la page savait (rien) : elle redessine quand même (1.168.0).
     const { associe, cab } = await unCabinet(false);

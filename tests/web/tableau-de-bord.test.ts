@@ -176,6 +176,16 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await expect.poll(lignes).toEqual(['Menuiserie Ben Ali']);
     expect(await p.locator('#tb-q').evaluate((i) => i === document.activeElement)).toBe(true);
     await p.locator('#tb-q').fill('');
+    // (CABPORTEFEUILLE-13) Sous un filtre, une recherche qui ne trouve rien le dit, et propose de chercher partout.
+    await camp.locator('[data-tb-etape="fini"]').click();
+    await expect.poll(lignes).toEqual(['Garage Triki']);
+    await p.locator('#tb-q').fill('menuis');
+    await expect.poll(() => p.locator('#tb-vide').innerText().catch(() => '')).toMatch(/^Aucun dossier « menuis » parmi « .+ : déposée »\s+1 dossier correspond hors de ce filtre\.\s+Chercher dans tous les dossiers$/);
+    expect(await p.locator('#tb-vide').innerText()).not.toMatch(/quel que soit/);
+    await p.locator('#tb-vide [data-tb-filtre="tous"]').click();
+    await expect.poll(lignes).toEqual(['Menuiserie Ben Ali']);
+    await p.locator('#tb-q').fill('');
+    await expect.poll(async () => (await lignes()).length).toBe(3);
 
     // Le menu ⋯ d'une ligne : sa comptabilité, ses échéances, écrire au contact, sa fiche.
     const ligneM = p.locator('#tb-grille tbody tr[data-tb-id]').filter({ hasText: 'Menuiserie Ben Ali' });
@@ -317,6 +327,16 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await p.locator(`#tb-grille tr[data-tb-id="${garage.ent}"] [data-tb-case="${moisFini}"]`).click();
     await expect.poll(() => p.locator('#tb-fiche .tb-mc-f').innerText().catch(() => '')).toMatch(/Au brouillard ce mois\s*2 écritures/);
     expect(await p.locator('#tb-fiche .tb-mc-a .btn-primary').innerText()).toBe('Voir les 2 au brouillard');
+    // (CABPORTEFEUILLE-15) Un dossier sans aucune écriture n'a pas de compte d'attente : « — », jamais « soldé ».
+    expect((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Transports Gabès' })).statut).toBeLessThan(300);
+    await p.keyboard.press('Escape');
+    await p.reload();
+    await p.locator('#page-bord #tb-grille').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator('[data-tb-vue="revision"]').click();
+    const ligneT = p.locator('#tb-revision tbody tr').filter({ hasText: 'Transports Gabès' });
+    await expect.poll(() => ligneT.locator('td').nth(3).innerText().catch(() => ''), { timeout: 15_000 }).toBe('—');
+    expect(await p.locator('#tb-revision tbody tr').filter({ hasText: 'Menuiserie Ben Ali' }).locator('td').nth(3).innerText()).toBe('soldé');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

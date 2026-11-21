@@ -62,7 +62,7 @@ describe('les Dossiers du Cabinet, à la souris', () => {
       expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, associe, { contenu: fiche, revision: null })).statut).toBeLessThan(300);
       return { j, ent };
     };
-    const librairie = await client('Librairie Ennour', 'Amel Nouri', '2026-08-14', { contact: 'Amel', fonction: 'responsable', forme: 'SARL', ville: 'Ariana', fees: 250_125 });
+    const librairie = await client('Librairie Ennour', 'Amel Nouri', '2026-08-14', { contact: 'Amel', fonction: 'responsable', forme: 'SARL', ville: 'Ariana', fees: 250_125, phone: '+216 98 765 432' });
     const menuiserie = await client('Menuiserie Ben Ali', 'Hédi Ben Ali', '2026-09-15', { contact: 'Hédi', fonction: 'gérant', forme: 'SUARL', ville: 'Ben Arous', fees: 350_000 });
     const { jeton: mounir } = await personne('Mounir Ben Hassen');
     const hotel = String((await api('POST', '/entreprises', mounir, { raisonSociale: 'Hôtel Les Pins' })).corps.id);
@@ -129,6 +129,25 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     // La liste se redessine à son retour, avec la recherche d'avant : on vide jusqu'à ce que la liste entière revienne
     // (rouge GitHub de 37ca3e7 : vidée avant le second dessin, elle restait réduite à la Menuiserie).
     await expect.poll(async () => { await p.locator('#q').fill(''); return p.locator('#page-tb tr[data-id]').filter({ hasText: 'Librairie Ennour' }).count(); }, { timeout: 20_000 }).toBe(1);
+    // (CABPORTEFEUILLE-13) Un morceau du téléphone le trouve, collé ou avec ses espaces.
+    const nomsLus = () => p.locator('#page-tb tr[data-id] td.cl b').allInnerTexts();
+    await p.locator('#q').fill('98765');
+    await expect.poll(nomsLus, { timeout: 10_000 }).toEqual(['Librairie Ennour']);
+    await p.locator('#q').fill('98 765 432');
+    await expect.poll(nomsLus, { timeout: 10_000 }).toEqual(['Librairie Ennour']);
+    await expect.poll(async () => { await p.locator('#q').fill(''); return p.locator('#page-tb tr[data-id]').filter({ hasText: 'Menuiserie Ben Ali' }).count(); }, { timeout: 20_000 }).toBe(1);
+
+    // (CABPORTEFEUILLE-12) Sur un portable, le menu de la dernière ligne s'ouvre AU-DESSUS : ses entrées restent dans l'écran.
+    await p.setViewportSize({ width: 1440, height: 640 });
+    const derniere = p.locator('#page-tb tr[data-id]').last();
+    await derniere.evaluate((t) => t.scrollIntoView({ block: 'end' }));
+    await derniere.locator('[data-cd-menu]').click();
+    const rect = await p.locator('.cd-page .cd-menu:not(.cd-menu-p)').evaluate((m) => { const r = m.getBoundingClientRect(); return { top: r.top, bas: r.bottom, h: innerHeight }; });
+    expect(rect.top).toBeGreaterThanOrEqual(0);
+    expect(rect.bas).toBeLessThanOrEqual(rect.h);
+    await p.mouse.click(5, 5);
+    await expect.poll(() => p.locator('.cd-page .cd-menu:not(.cd-menu-p)').count()).toBe(0);
+    await p.setViewportSize({ width: 1440, height: 900 });
 
     // « Noter une relance faite… » : un appel, rangé sur sa fiche ; la vue « Pièces manquantes » le dit.
     await ligne('Librairie Ennour').getByRole('button', { name: /Les gestes de/ }).click();

@@ -31368,6 +31368,84 @@ prouver $'cabportefeuille8-le-dernier-desarchive-rend-la-liste' modules/socle/ec
   $'    if (false) dosState.vue = \'\';' \
   $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
 
+# 1.388.19 — le portefeuille du Cabinet, suite (CABPORTEFEUILLE-9 à 16).
+prouver $'cabportefeuille9-la-question-nomme-les-pieces' modules/socle/ecrans/cabinet/app-1.js \
+  $', et ${pl(n, \'pièce reçue\', \'pièces reçues\')} à classer` : \'\'}' \
+  $', et quelques pièces` : \'\'}' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'cabportefeuille9-la-pastille-pieces-se-relit' modules/socle/ecrans/cabinet/app-1.js \
+  $'    await relirePieces(); return etat;' \
+  $'    return etat;' \
+  $'un clic charge un dossier d\'exemple complet (deux exercices, la paie, la banque, les déclarations), hors abonnement, qui se retire d\'un geste'
+prouver $'cabportefeuille10-toutes-les-cases-en-rouge' modules/socle/ecrans/cabinet/app-2.js \
+  $'            for (const [el, msg] of fautes.slice(1).reverse()) refus(el, msg);' \
+  $'            void 0;' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'cabportefeuille10-annuler-demande' modules/socle/ecrans/cabinet/app-2.js \
+  $'<button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>' \
+  $'<button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'cabportefeuille10-honoraires-menent-a-leur-case' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const hn = $(\'#fd-hon\', view); if (hn) hn.onclick = () => dossierForm(d, { focus: \'#f-fees\' });' \
+  $'    const hn = $(\'#fd-hon\', view); if (hn) hn.onclick = () => dossierForm(d);' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'cabportefeuille11-meme-matricule-refuse' modules/socle/ecrans/cabinet/app-2.js \
+  $'          if (dejaM) faute(\'#f-mat\',' \
+  $'          if (false) faute(\'#f-mat\',' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'cabportefeuille11-creer-quand-meme-cache' modules/socle/ecrans/cabinet/app-2.js \
+  $'        if (parMat) { const cr = $(\'#dq-creer\', layer);' \
+  $'        if (false) { const cr = $(\'#dq-creer\', layer);' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'cabportefeuille12-le-menu-s-ouvre-au-dessus' modules/socle/ecrans/cabinet/app-1.js \
+  $'      if (r.height > bas && haut > bas) mnu.classList.add(\'haut\');' \
+  $'      if (false) mnu.classList.add(\'haut\');' \
+  $'au bureau : la liste, la proposition, la fiche, noter une relance, confier deux dossiers'
+prouver $'cabportefeuille13-le-telephone-sans-espaces' modules/socle/ecrans/cabinet/app-1.js \
+  $'${x.d.phone || \'\'} ${String(x.d.phone || \'\').replace(/\\s/g, \'\')} ${x.d.email || \'\'}' \
+  $'${x.d.phone || \'\'} ${x.d.email || \'\'}' \
+  $'au bureau : la liste, la proposition, la fiche, noter une relance, confier deux dossiers'
+prouver $'cabportefeuille13-la-recherche-sous-un-filtre' modules/socle/ecrans/cabinet/app-1.js \
+  $'        return libF && ailleurs' \
+  $'        return false && ailleurs' \
+  $'une page : À faire, la campagne du mois, la grille, la charge ; une personne vaut pour toute la page'
+prouver $'cabportefeuille14-l-aide-dit-ce-que-cherche-la-palette' web/public/plateforme/barre.js \
+  $'\'Rechercher un dossier, un écran, une pièce reçue\'' \
+  $'\'Rechercher un dossier, une écriture, un écran\'' \
+  $'(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier'
+prouver $'cabportefeuille14-un-dossier-s-appelle-dossier' modules/socle/ecrans/cabinet/app-2.js \
+  $'        kind: \'dossier\', main: r.name,' \
+  $'        kind: \'client\', main: r.name,' \
+  $'(issue 6, CAB-5) Ctrl K trouve une pièce reçue : elle s\'ouvre elle-même, dans son dossier ; une écriture se cherche dans le dossier'
+prouver $'cabportefeuille15-sans-livre-pas-solde' modules/socle/ecrans/cabinet/app-1.js \
+  $'      const att = rv.livre === false ? \'<span class="muted">—</span>\' :' \
+  $'      const att = false ? \'<span class="muted">—</span>\' :' \
+  $'Révision, Bilans et la fiche d\'un mois : tout est lu dans les livres'
+prouver $'cabportefeuille15-le-serveur-dit-le-livre' serveur/cabinet/routes.ts \
+  $'            livre: L.has(entreprise),' \
+  $'            livre: true,' \
+  $'Révision, Bilans et la fiche d\'un mois : tout est lu dans les livres'
+prouver $'cabportefeuille16-la-plus-proche-en-tete' modules/socle/ecrans/cabinet/app-2.js \
+  $'.sort([\'bientot\', \'jour\', \'avenir\'].includes(g) ? (a, b) => -parDate(a, b) : parDate);' \
+  $'.sort(g === \'avenir\' ? (a, b) => -parDate(a, b) : parDate);' \
+  $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
+prouver $'cabportefeuille16-l-is-en-cours-a-venir' modules/socle/ecrans/cabinet/app-2.js \
+  $'      const enCours = !e0.avenir && /^an-/.test(e0.id)' \
+  $'      const enCours = false && /^an-/.test(e0.id)' \
+  $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
+prouver $'cabportefeuille16-dossier-pas-pret' modules/socle/ecrans/cabinet/app-2.js \
+  $'${pl(bloq, \'dossier pas prêt\', \'dossiers pas prêts\')} : ce qui manque est sur ${bloq > 1 ? \'leur\' : \'sa\'} ligne' \
+  $'${bloq} retenue${bloq > 1 ? \'s\' : \'\'} : ce qui manque est sur la ligne' \
+  $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
+prouver $'cabportefeuille16-pour-le-trimestre' modules/socle/ecrans/cabinet/app-2.js \
+  $'x.t.sorte === \'cnss\' ? ` pour le ${x.t.moisNom}` : \'\';' \
+  $'x.t.sorte === \'cnss\' ? ` pour ${x.t.moisNom}` : \'\';' \
+  $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
+prouver $'cabportefeuille16-la-cnss-se-pointe-d-un-coup' modules/socle/ecrans/cabinet/app-2.js \
+  $'${x.t.sorte === \'mens\' ? \'<p class="pc-note">Si tu les as' \
+  $'${true ? \'<p class="pc-note">Si tu les as' \
+  $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

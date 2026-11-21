@@ -1360,7 +1360,7 @@
     // accents dans un champ de recherche, surtout pas sur un clavier arabe-français.
     const q = sansAccents(opts.q).trim();
     const kept = q
-      ? rows.filter(r => sansAccents(r.name + ' ' + r.matricule + ' ' + r.email + ' ' + r.phone + ' ' + r.contact).includes(q))
+      ? rows.filter(r => sansAccents(r.name + ' ' + r.matricule + ' ' + r.email + ' ' + r.phone + ' ' + String(r.phone || '').replace(/\s/g, '') + ' ' + r.contact).includes(q))
       : rows;
     const cmp = SORTS[opts.sort] || SORTS.urgence;
     const out = kept.slice().sort(cmp);

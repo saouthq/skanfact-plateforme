@@ -5903,7 +5903,7 @@
           // se créait à côté de « Garage Triki » sans un mot. Créer reste possible (deux homonymes existent).
           const meme = dossierDejaLa(f);
           if (meme) {
-            const r = await questionDoublon(meme);
+            const r = await questionDoublon(meme, !!cleMatDossier(f.matricule) && cleMatDossier(meme.matricule) === cleMatDossier(f.matricule));
             if (r === 'ouvrir') { close(); location.hash = '#/dossier/' + encodeURIComponent(meme.id); return; }
             if (r !== 'creer') return;
           }
@@ -5935,7 +5935,7 @@
     const n = cleNomDossier(f.name), m = cleMatDossier(f.matricule);
     return (S.dossiers || []).find(d => (n && cleNomDossier(d.name) === n) || (m && cleMatDossier(d.matricule) === m)) || null;
   }
-  function questionDoublon(d) {
+  function questionDoublon(d, parMat) {
     return new Promise(resolve => {
       modal(`<h2>${esc(d.name)} est déjà dans ton portefeuille</h2>
         <p>${d.archived ? 'Son dossier est archivé : le désarchiver le remet dans les listes, avec ses mois et ses écritures.' : `${d.manual ? 'Tenu au cabinet' : 'Relié à SkanFact'}${d.matricule ? `, matricule ${esc(d.matricule)}` : ''}.`} Un second dossier séparerait ses pièces, ses écritures et sa conversation en deux.</p>
@@ -5943,6 +5943,8 @@
       (layer, close) => {
         $('#dq-non', layer).onclick = () => { close(); resolve(null); };
         $('#dq-creer', layer).onclick = () => { close(); resolve('creer'); };
+        // (CABPORTEFEUILLE-11) Deux clients peuvent s'appeler pareil, pas porter le même matricule : il désigne l'entreprise.
+        if (parMat) { const cr = $('#dq-creer', layer); if (cr) cr.hidden = true; const t = $('p', layer); if (t) t.textContent = 'Ce matricule est déjà dans ton portefeuille : deux dossiers ne portent pas le même matricule. Ouvre celui-là, ou corrige le matricule.'; }
         $('#dq-ouvrir', layer).onclick = () => { close(); resolve('ouvrir'); };
       },
       () => resolve(null));
@@ -6124,12 +6126,11 @@
        <div class="modal-actions">
          <button class="btn btn-danger" id="del">Retirer du portefeuille…</button>
          <span class="grow"></span>
-         <button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+         <button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (layer, close) => {
         change = suivreSaisie(layer);
         // Ouverte pour UNE case (le matricule CNSS que le fichier du trimestre réclame), elle y va.
         if (opts && opts.focus) { const c = $(opts.focus, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); if (c.type !== 'checkbox' && typeof c.select === 'function') c.select(); } }
-        $('#no', layer).onclick = close;
         $('#del', layer).onclick = async () => {
           const ok = await confirmTyped('Retirer ce dossier du portefeuille ?',
             `<p>Le dossier <strong>${esc(dossier.name)}</strong> sort de ton portefeuille : ni toi ni ton équipe ne le verrez plus.</p>
@@ -6145,14 +6146,30 @@
         };
         $('#ok', layer).onclick = async () => {
           const f = readDossierFields(layer);
-          if (!f.name) return toast('Le nom ne peut pas être vide.', 'error');
+          // (CABPORTEFEUILLE-10) On relève TOUTES les cases fautives, on les montre en rouge, la première avec le curseur :
+          // une faute à la fois faisait cliquer « Enregistrer » autant de fois qu'il y avait de cases à reprendre, et
+          // l'adresse, le téléphone ou les honoraires illisibles n'étaient refusés qu'après coup, par le serveur.
+          const fautes = []; const faute = (sel, msg) => fautes.push([$(sel, layer), msg]);
+          if (!f.name) faute('#f-name', 'Le nom du client manque : écris sa raison sociale.');
+          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) faute('#f-mat', MATRICULE_FISCAL_FORME);
+          // (CABPORTEFEUILLE-11) Deux dossiers ne portent jamais le même matricule : il désigne l'entreprise.
+          const cleM = dossier.manual ? cleMatDossier(f.matricule) : '';
+          const dejaM = cleM && cleM !== cleMatDossier(dossier.matricule) ? (S.dossiers || []).find(x => x.id !== dossier.id && cleMatDossier(x.matricule) === cleM) : null;
+          if (dejaM) faute('#f-mat', `Ce matricule est déjà celui ${deFr(dejaM.name)}${dejaM.archived ? ' (archivé)' : ''}, dans ton portefeuille : deux dossiers ne portent pas le même. Relis-le sur la carte d'identification fiscale ${deFr(f.name || dossier.name)}.`);
+          if (f.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) faute('#f-email', 'L\'adresse e-mail ne se lit pas : écris-la comme « gerant@entreprise.tn ».');
+          if (f.phone && (!/^\+?[\d\s.()-]+$/.test(f.phone) || f.phone.replace(/\D/g, '').length < 8)) faute('#f-phone', 'Le téléphone s\'écrit en chiffres, au moins huit : « +216 71 234 567 » ou « 22 345 678 ».');
+          const hon = String(($('#f-fees', layer) || { value: '' }).value).trim(), honN = KC.nombreStrict(hon);
+          if (hon && (!Number.isFinite(honN) || honN < 0)) faute('#f-fees', Number.isFinite(honN) ? 'Les honoraires ne peuvent pas être négatifs : écris le montant mensuel HT, ou laisse la case vide.' : 'Les honoraires s\'écrivent en dinars, comme « 450,000 » : le montant mensuel HT.');
           // Un matricule CNSS se refuse À LA SAISIE quand sa forme est fausse : sinon le refus
           // n'arriverait qu'au fichier du trimestre, le jour de l'échéance.
-          if (f.cnssEmployeur && !KC.lireMatriculeCnss(f.cnssEmployeur).ok) return refus($('#f-cnss', layer), 'Le matricule CNSS s\'écrit 123456-72 : huit chiffres au plus, puis la clé sur deux.');
-          if (f.cnssCode && !/^\d{1,4}$/.test(f.cnssCode)) return refus($('#f-cnss-code', layer), 'Le code d\'exploitation tient en quatre chiffres (0000 pour le code ordinaire).');
-          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus($('#f-mat', layer), MATRICULE_FISCAL_FORME);
+          if (f.cnssEmployeur && !KC.lireMatriculeCnss(f.cnssEmployeur).ok) faute('#f-cnss', 'Le matricule CNSS s\'écrit 123456-72 : huit chiffres au plus, puis la clé sur deux.');
+          if (f.cnssCode && !/^\d{1,4}$/.test(f.cnssCode)) faute('#f-cnss-code', 'Le code d\'exploitation tient en quatre chiffres (0000 pour le code ordinaire).');
           const mois = K.moisTape($('#f-from', layer).value);
-          if (!mois.ok) return refus($('#f-from', layer), mois.motif);
+          if (!mois.ok) faute('#f-from', mois.motif);
+          if (fautes.length) {
+            for (const [el, msg] of fautes.slice(1).reverse()) refus(el, msg);
+            return refus(fautes[0][0], fautes.length > 1 ? `${fautes[0][1]} (Et ${pl(fautes.length - 1, 'autre case', 'autres cases')} en rouge.)` : fautes[0][1]);
+          }
           try {
             const patch = { ...f };
             // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57).
@@ -6546,7 +6563,12 @@
       autresMoisSans.get(d.id).push(e.mois[0]);
     }
     for (const v of autresMoisSans.values()) v.sort();
-    return [...l, ...echeancesAVenir()].map(e => {
+    const cur = K.today().slice(0, 7);
+    return [...l, ...echeancesAVenir()].map(e0 => {
+      // (issue 12, CABPORTEFEUILLE-16) Une déclaration annuelle de l'exercice EN COURS ne se réclame pas avant sa fin : elle
+      // est « à venir », sans lignes ni relance. On réclamait l'IS 2026 en novembre 2026.
+      const enCours = !e0.avenir && /^an-/.test(e0.id) && e0.mois[e0.mois.length - 1] >= cur;
+      const e = enCours ? { ...e0, avenir: true, exerciceEnCours: true } : e0;
       const pointee = !e.avenir && K.echeanceDeposee(S, e);
       const lignes = e.avenir ? [] : lignesEcheance(e, piecesPar, pointee);
       const fait = lignes.filter(x => EC_FAIT(x.st)).length;
@@ -6578,7 +6600,9 @@
     if (!toutes.length) { drawEcheancesVides(view); return; }
     const ordreGroupe = ['jour', 'retard', 'bientot', 'avenir', 'depose'];
     const parDate = (a, b) => (a.e.date < b.e.date ? 1 : -1);
-    const enGroupe = g => toutes.filter(x => x.groupe === g).sort(g === 'avenir' ? (a, b) => -parDate(a, b) : parDate);
+    // (issue 12, CABPORTEFEUILLE-16) Ce qui vient se lit dans l'ordre du calendrier, la plus proche en tête ; le passé (en
+    // retard, déposées), du plus récent au plus ancien. « À déposer » mettait la plus urgente en bas.
+    const enGroupe = g => toutes.filter(x => x.groupe === g).sort(['bientot', 'jour', 'avenir'].includes(g) ? (a, b) => -parDate(a, b) : parDate);
     const choisie = toutes.find(x => x.cle === st.sel) || ordreGroupe.map(g => enGroupe(g)[0]).find(Boolean);
     st.sel = choisie.cle;
     const nPresse = toutes.filter(x => x.groupe === 'retard' || x.groupe === 'jour' || (x.groupe === 'bientot' && x.e.jours <= 7)).length;
@@ -6640,10 +6664,12 @@
     const prets = x.lignes.filter(l => ['prete', 'preparee'].includes(l.st)).length, bloq = x.afaire - prets;
     // (1.334.0) « 2 prêtes à déposer » comptait aussi celle qui reste à préparer : la légende dit chacune.
     const nPrete = x.lignes.filter(l => l.st === 'prete').length, nPreparee = prets - nPrete;
-    const resume = x.groupe === 'avenir' ? (e.id === 'employeur' ? `<div class="ec-ban gris">${EC_IC.attente}<span><b>L'année ${esc(x.t.moisNom)} n'est pas terminée : rien n'est réclamé avant sa fin.</b> La déclaration annuelle se fait d'après la paie de l'année, salarié par salarié, dans la Paie de chaque dossier (à déposer au plus tard le ${esc(jourMois(e.date))}, À VÉRIFIER).</span></div>`
+    // « Tout est déposé pour 3ᵉ trimestre » : l'article qui manquait. Une déclaration d'octobre, celle du 3ᵉ trimestre.
+    const pourQuoi = x.t.sorte === 'mens' ? ` pour ${x.t.moisNom}` : x.t.sorte === 'cnss' ? ` pour le ${x.t.moisNom}` : '';
+    const resume = x.groupe === 'avenir' ? (e.exerciceEnCours ? `<div class="ec-ban gris">${EC_IC.attente}<span><b>L'exercice ${esc(e.mois[0].slice(0, 4))} n'est pas terminé : rien n'est réclamé avant sa fin.</b> ${esc(e.detail || '')}</span></div>` : e.id === 'employeur' ? `<div class="ec-ban gris">${EC_IC.attente}<span><b>L'année ${esc(x.t.moisNom)} n'est pas terminée : rien n'est réclamé avant sa fin.</b> La déclaration annuelle se fait d'après la paie de l'année, salarié par salarié, dans la Paie de chaque dossier (à déposer au plus tard le ${esc(jourMois(e.date))}, À VÉRIFIER).</span></div>`
       : `<div class="ec-ban gris">${EC_IC.attente}<span><b>${esc(K.monthLabel(e.mois[0]).replace(/^./, c => c.toUpperCase()))} n'est pas terminé : rien n'est réclamé avant sa fin.</b> Ce qui est déjà là, dossier par dossier.</span></div>`)
-      : x.fait === x.lignes.length ? `<div class="ec-ban vert">${EC_IC.coche}<span><b>Tout est déposé pour ${esc(x.t.moisNom)}.</b></span></div>`
-        : `<div class="ec-som">${barre(x, true)}<span class="ec-som-l"><b>${x.fait} sur ${x.lignes.length}</b>${x.fait ? `<span><i class="ec-pt vert"></i>${pl(x.fait, 'déposée')}</span>` : ''}${nPreparee ? `<span><i class="ec-pt sarcelle"></i>${nPreparee} préparée${nPreparee > 1 ? 's' : ''}, à déposer</span>` : ''}${nPrete ? `<span><i class="ec-pt sarcelle"></i>${nPrete} à préparer</span>` : ''}${bloq ? `<span><i class="ec-pt ${tonReste(x)}"></i>${bloq} retenue${bloq > 1 ? 's' : ''} : ce qui manque est sur la ligne</span>` : ''}</span></div>`;
+      : x.fait === x.lignes.length ? `<div class="ec-ban vert">${EC_IC.coche}<span><b>Tout est déposé${esc(pourQuoi)}.</b></span></div>`
+        : `<div class="ec-som">${barre(x, true)}<span class="ec-som-l"><b>${x.fait} sur ${x.lignes.length}</b>${x.fait ? `<span><i class="ec-pt vert"></i>${pl(x.fait, 'déposée')}</span>` : ''}${nPreparee ? `<span><i class="ec-pt sarcelle"></i>${nPreparee} préparée${nPreparee > 1 ? 's' : ''}, à déposer</span>` : ''}${nPrete ? `<span><i class="ec-pt sarcelle"></i>${nPrete} à préparer</span>` : ''}${bloq ? `<span><i class="ec-pt ${tonReste(x)}"></i>${pl(bloq, 'dossier pas prêt', 'dossiers pas prêts')} : ce qui manque est sur ${bloq > 1 ? 'leur' : 'sa'} ligne</span>` : ''}</span></div>`;
     const puces = `<div class="pc-fl ec-fl" role="group" aria-label="Montrer">${[['tout', 'Tout', x.lignes.length], ['faire', 'À faire', x.afaire], ['deposees', 'Déposées', x.fait]].map(([k, t, n]) => `<button type="button" data-ec-filtre="${k}" aria-pressed="${st.filtre === k}">${t}<span>${n}</span></button>`).join('')}</div>`;
     const filtres = x.lignes.length > 15 ? `<div class="ec-outils">${puces}<label class="pc-cherche"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ec-q" placeholder="Chercher un dossier…" aria-label="Chercher un dossier" value="${esc(st.q)}"></label></div>`
       : x.lignes.length < 4 ? '' : puces;
@@ -6790,7 +6816,8 @@
   // Les dossiers qu'une échéance à venir concernera (le Tableau de bord les compte, 1.195.0).
   function concerneAVenir(e) {
     const emp = e.id === 'employeur' ? new Set(e.employeurs || []) : null;
-    return d => !d.archived && (emp ? emp.has(d.id) : e.id !== 'tva-m' || (K.periodeTva(S, d) === 'mensuelle' && !!e.physiques === K.personnePhysique(S, d)));
+    const noms = e.exerciceEnCours ? new Set([...(e.restants || []), ...(e.deposes || [])]) : null;
+    return d => !d.archived && (noms ? noms.has(d.name) : emp ? emp.has(d.id) : e.id !== 'tva-m' || (K.periodeTva(S, d) === 'mensuelle' && !!e.physiques === K.personnePhysique(S, d)));
   }
   function lignesAVenir(e, x) {
     const emp = e.id === 'employeur' ? new Set(e.employeurs || []) : null;
@@ -6800,7 +6827,7 @@
       const n = e.mois.reduce((s, m) => s + ecrituresConnues(d.id, m), 0);
       const suivi = suiviPar(d);
       const geste = emp ? ['paie', 'Ouvrir sa paie'] : ['dossier', 'Ouvrir le dossier'];
-      return `<div class="ec-r doux"><span class="ec-rd">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${typeD(d)}${K.personnePhysique(S, d) ? '<span>personne physique</span>' : ''}${suivi ? `<span>suivi par ${esc(suivi)}</span>` : ''}</small></span></span><span class="ec-re"><span class="ec-st gris">${emp ? 'L\'année continue' : 'Le mois continue'}</span><small>${emp ? 'employeur, d\'après sa paie ou ses comptes' : n ? `${pl(n, 'écriture')} déjà là${cnss ? ' sur le trimestre' : ''}` : d.manual ? 'pas encore saisi au cabinet' : 'rien pour l\'instant'}</small></span><span class="ec-rm"><span class="muted">—</span></span><span class="ec-rg"><button type="button" class="btn btn-sm" data-ec-geste="${geste[0]}" data-ec-d="${esc(d.id)}">${geste[1]}</button></span></div>`;
+      return `<div class="ec-r doux"><span class="ec-rd">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${typeD(d)}${K.personnePhysique(S, d) ? '<span>personne physique</span>' : ''}${suivi ? `<span>suivi par ${esc(suivi)}</span>` : ''}</small></span></span><span class="ec-re"><span class="ec-st gris">${emp || e.exerciceEnCours ? 'L\'année continue' : 'Le mois continue'}</span><small>${emp ? 'employeur, d\'après sa paie ou ses comptes' : n ? `${pl(n, 'écriture')} déjà là${cnss ? ' sur le trimestre' : ''}` : d.manual ? 'pas encore saisi au cabinet' : 'rien pour l\'instant'}</small></span><span class="ec-rm"><span class="muted">—</span></span><span class="ec-rg"><button type="button" class="btn btn-sm" data-ec-geste="${geste[0]}" data-ec-d="${esc(d.id)}">${geste[1]}</button></span></div>`;
     }).join('') || `<p class="muted small" style="padding:12px 18px">Aucun dossier ne la dépose pour l'instant.</p>`;
   }
   function menuLigneEch(l, x) {
@@ -7112,7 +7139,7 @@
       .filter(([l]) => l.length).map(([l, p, u]) => `${l.length > 1 ? `${l.length} ${p} (${l.join(', ')})` : `${l[0]} ${u}`}`);
     modal(`<h2>Marquer toute la ${esc(minuscule(x.t.court))} déposée ?</h2><p class="muted pc-m-sous">Le pense-bête pour chaque dossier d'un coup.</p>
       <div class="pc-avert ambre">${EC_IC.alerte}<span><b>Elle n'est pas prête pour ${pl(pasPrets.length, 'dossier')}</b> : ${esc(phrases.join(', '))}. Les marquer déposés ferait taire leur relance.</span></div>
-      <p class="pc-note">Si tu les as déposées quand même (pièces reçues ailleurs, ou néant), pointe-les plutôt sur leur ligne : chacune garde sa date et son paiement.</p>
+      ${x.t.sorte === 'mens' ? '<p class="pc-note">Si tu les as déposées quand même (pièces reçues ailleurs, ou néant), pointe-les plutôt sur leur ligne : chacune garde sa date et son paiement.</p>' : '<p class="pc-note">Cette déclaration se pointe d\'un coup pour tous ses dossiers : il n\'y a pas de pointage dossier par dossier.</p>'}
       <div class="modal-actions"><button type="button" class="btn btn-primary" id="ok">Annuler</button><button type="button" class="btn" id="ec-toute-oui">Marquer déposée quand même</button></div>`,
     (layer, close) => {
       $('#ok', layer).onclick = close;
@@ -8510,7 +8537,7 @@
     })());
     if ($('#r-demo-voir')) $('#r-demo-voir').onclick = () => ouvrirExemple();
     if ($('#r-demo-off')) $('#r-demo-off').onclick = async () => {
-      if (api.exempleEnLigne && !await confirmDialog('Retirer le dossier d\'exemple ?', 'Il part avec ses livres, sa paie et ses relevés. Tes vrais dossiers ne bougent pas, et tu pourras le recharger à neuf.', 'Retirer l\'exemple')) return;
+      if (api.exempleEnLigne && !await confirmerRetraitExemple()) return;
       try { S = await chargerOuRetirerExemple(false); render(); toast(api.exempleEnLigne ? 'Dossier d\'exemple retiré.' : 'Exemple effacé.'); } catch (e) { toast(plainError(e), 'error'); }
     };
     $('#c-save').onclick = async () => {
@@ -9934,7 +9961,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const root = document.createElement('div');
     root.id = 'palette-root';
     root.innerHTML = `<div class="palette">
-      <input type="text" id="pal-q" placeholder="Chercher un client, une pièce reçue, ou taper une action…" autocomplete="off" spellcheck="false">
+      <input type="text" id="pal-q" placeholder="Chercher un dossier, une pièce reçue, ou taper une action…" autocomplete="off" spellcheck="false">
       <div class="results" id="pal-res"></div>
       <div class="hint">↑ ↓ pour choisir · Entrée pour ouvrir · Échap pour fermer</div></div>`;
     document.body.appendChild(root);
@@ -9987,7 +10014,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       const brut = $('#pal-q', root).value.trim();
       const q = brut.toLowerCase();
       const rows = K.dossierList(S, null, { q, withArchived: true }).slice(0, 30).map(r => ({
-        kind: 'client', main: r.name,
+        kind: 'dossier', main: r.name,
         sub: [r.matricule, r.missingCount ? pl(r.missingCount, 'mois', 'mois') + ' manquant' + (r.missingCount > 1 ? 's' : '') : ''].filter(Boolean).join(' · '),
         go: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); }
       }));

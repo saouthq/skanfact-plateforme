@@ -6366,3 +6366,43 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   parti) : à poser à Skander.
 - Tests : `tableau-de-bord`, `barre-cabinet`, `portefeuille-1340` ; neuf preuves (la preuve « 1.340.0 i » sur la case de
   la fiche est remplacée par celle de la question).
+
+## 1.388.19 — Le portefeuille du Cabinet, suite : l'exemple, la fiche, la recherche, les Échéances (issue 12, CABPORTEFEUILLE-9 à 16)
+
+- **Retirer l'exemple dit ce qui part avec lui** (CABPORTEFEUILLE-9) : ses livres, sa paie, ses relevés, et les pièces
+  reçues ou déposées qu'on y a mises ; « Tu pourras le recharger, à neuf : ce que tu y as saisi ou déposé ne reviendra
+  pas. » Une seule question pour les deux portes (le bandeau, les Réglages). Après le retrait, la pastille « Pièces »
+  de la barre se relit : elle gardait le compte des pièces de l'exemple.
+- **La fiche d'un dossier montre toutes ses fautes d'un coup** (CABPORTEFEUILLE-10) : nom vide, matricule mal écrit,
+  e-mail illisible, téléphone en lettres, honoraires négatifs, matricule CNSS, code d'exploitation, mois de début —
+  toutes les cases fautives en rouge, le curseur dans la première, « (Et 2 autres cases en rouge.) ». Avant, une seule
+  faute à la fois, et l'e-mail, le téléphone et les honoraires n'étaient refusés que par le serveur, après coup.
+  « Annuler » passe par la question « Abandonner cette saisie ? » : il jetait la fiche sans demander. La fiche affiche
+  le régime fiscal, et « Honoraires : à écrire sur la fiche » ouvre la fenêtre le curseur dans la case.
+  Les huit autres fenêtres dont « Annuler » jette la saisie sans demander sont un lot à part (À FAIRE).
+- **Deux dossiers ne portent jamais le même matricule** (CABPORTEFEUILLE-11). Corriger le matricule d'un dossier tenu
+  vers celui d'un autre client du portefeuille (archivé compris) est refusé sur sa case, en nommant l'autre dossier. À la
+  création, un même matricule n'offre plus « Créer quand même » (deux homonymes existent, pas deux matricules). Le
+  serveur n'impose pas cette unicité : décision possible, à poser à Skander.
+- **Le menu d'une ligne de dossier reste dans l'écran** (CABPORTEFEUILLE-12) : sans place dessous, il s'ouvre au-dessus de
+  son bouton, et il défile s'il n'a la place nulle part. Sur un portable, « Archiver » et « Retirer » sortaient de
+  l'écran, et faire défiler la page refermait le menu.
+- **Un morceau du téléphone trouve le client** (CABPORTEFEUILLE-13), collé ou avec ses espaces (« 98765 » trouve
+  « +216 98 765 432 »), dans la liste des dossiers et dans Ctrl K. Au Tableau de bord, une recherche sans résultat sous
+  un filtre le dit (« Aucun dossier « menuis » parmi « … : déposée » — 1 dossier correspond hors de ce filtre ») et
+  propose « Chercher dans tous les dossiers ». Elle affirmait « quel que soit le filtre », ce qui était faux.
+- **La palette dit « dossier »** (CABPORTEFEUILLE-14), le mot de tout le Cabinet, et l'aide des raccourcis ne promet
+  plus qu'elle cherche une écriture.
+- **Un dossier sans livre n'est ni « soldé » ni « clos »** (CABPORTEFEUILLE-15). Révision : « — » au compte d'attente
+  d'un dossier sans aucune écriture (le serveur dit maintenant si le livre existe), « aucun relevé », « aucun livre » au
+  pied. Bilans : « 1 clos, 3 sans livre » au lieu de « tous clos ». Grille : un mois où personne ne doit rien dit « — »,
+  plus « 0 sur 0 », et « 0 % » sans dénominateur devient « — ».
+- **Les Échéances dans l'ordre du calendrier** (CABPORTEFEUILLE-16) : « À déposer » met la plus proche en tête (la plus
+  urgente était en bas). Une déclaration annuelle de l'exercice EN COURS (l'IS 2026 en novembre 2026) passe « à venir »,
+  sans lignes ni relance : « L'exercice 2026 n'est pas terminé : rien n'est réclamé avant sa fin. » « 1 retenue » devient
+  « 1 dossier pas prêt : ce qui manque est sur sa ligne » ; « Tout est déposé pour le 3ᵉ trimestre. » (l'article
+  manquait) ; la fenêtre « Tout déposer » d'une CNSS ne promet plus un pointage dossier par dossier qui n'existe pas.
+  À DÉCIDER (Skander) : une case « N'emploie personne » sur la fiche, pour ne plus réclamer la CNSS à un dossier sans
+  salarié.
+- Tests : `cabinet-exemple-1370`, `cabinet-nom-dossier`, `dossiers-cabinet`, `tableau-de-bord`, `barre-cabinet`,
+  `echeances-cabinet` (un nouveau parcours à heure fixe, le 3 novembre) ; dix-neuf preuves.

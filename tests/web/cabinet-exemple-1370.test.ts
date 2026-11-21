@@ -20,6 +20,7 @@ import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
+const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 const PHOTOS = path.join(RACINE, 'dist/photos');
 
 describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
@@ -83,6 +84,7 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
     await p.locator('#demo-banner').waitFor({ timeout: 30_000 });
     expect(net(await p.locator('#demo-banner').innerText())).toContain('Dossier d\'exemple');
     expect(p.url()).toMatch(/#\/dossier\//);
+    const exId = decodeURIComponent(/#\/dossier\/([^/]+)/.exec(p.url())?.[1] ?? '');
     // (1.378.6 ; issue 9, CABDECLARER-19) Les tuiles comptent les brouillards, la balance non : la fiche le dit.
     await expect.poll(async () => net(await p.locator('.fd-ch-t').filter({ hasText: /Chiffre d'affaires/i }).innerText().catch(() => '')), { timeout: 30_000 }).toMatch(/lu dans ses livres · \d+ brouillards? compris/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-exemple-2-dossier.png') });
@@ -158,12 +160,23 @@ describe('le dossier d\'exemple du Cabinet (1.370.0)', () => {
     expect(net(await p.locator('#view').innerText())).toContain('Exemple · Pâtisserie El Amal');
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-exemple-3-tableau.png') });
 
-    // Il se retire d'un geste, avec ses livres.
-    await p.evaluate(() => { location.hash = '#/reglages'; });
+    // Il se retire d'un geste, avec ses livres. (CABPORTEFEUILLE-9) La question dit ce qui part avec lui — ses pièces
+    // reçues comprises — et qu'un rechargement repart à neuf ; la pastille « Pièces » ne garde pas leur compte.
+    expect((await api('POST', `/cabinets/${cabinet}/classeur/${exId}/documents`, associe, { rubrique: 'piece', periode: `${A}-${String(M).padStart(2, '0')}`,
+      titre: 'Ticket de caisse', provenance: 'WhatsApp du gérant', nom: 'ticket.png', contenu: PNG })).statut).toBe(201);
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/reglages`);
+    await expect.poll(async () => net(await p.locator('#nav-pieces').innerText().catch(() => '')).trim(), { timeout: 30_000 }).toMatch(/^\d+$/);
+    const nPieces = Number(net(await p.locator('#nav-pieces').innerText()).trim());
+    expect(nPieces).toBeGreaterThan(0);
     await p.locator('#set-tabs [data-tab="app"]').click();
     await p.locator('#r-demo-off').click();
+    await expect.poll(async () => net(await p.locator('#modal-root .modal').last().innerText().catch(() => '')), { timeout: 10_000 })
+      .toContain(`${nPieces} pièce${nPieces > 1 ? 's reçues' : ' reçue'} à classer`);
+    expect(net(await p.locator('#modal-root .modal').last().innerText())).toContain('ce que tu y as saisi ou déposé ne reviendra pas');
     await p.getByRole('button', { name: 'Retirer l\'exemple', exact: true }).last().click();
     await p.locator('#r-demo-on').waitFor({ timeout: 30_000 });
+    await expect.poll(async () => (await p.locator('#nav-pieces:visible').count()) === 0 || net(await p.locator('#nav-pieces').innerText()).trim() === '', { timeout: 15_000 }).toBe(true);
     const reste = await api('GET', `/cabinets/${cabinet}/portefeuille`, associe);
     expect(reste.corps.dossiers).toEqual([]);
     expect(erreurs).toEqual([]);

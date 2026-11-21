@@ -95,6 +95,8 @@
 .cd-page .cd-kb { justify-content: flex-end; }
 .cd-page .cd-menu { position: absolute; right: 6px; top: calc(100% - 4px); z-index: 30; width: 300px; text-align: left; white-space: normal; }
 .cd-page .cd-menu .sep { height: 1px; background: var(--sb-trait); margin: 4px 0; }
+/* (CABPORTEFEUILLE-12) Un menu qui n'a pas la place en dessous s'ouvre au-dessus de son bouton. */
+.cd-page .cd-menu.haut { top: auto; bottom: calc(100% + 4px); }
 .cd-page .cd-rt { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: var(--sb-papier); border: 1px solid var(--sb-trait); box-shadow: var(--sb-ombre); }
 .cd-page .cd-rt-ic { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); flex: none; }
 .cd-page .cd-rt-t { display: grid; gap: 2px; flex: 1; }

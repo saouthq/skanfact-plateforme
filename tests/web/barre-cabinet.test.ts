@@ -789,6 +789,18 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.keyboard.press('Control+k');
     await p.locator('#pal-q').fill('zzqx');
     await expect.poll(() => p.locator('#pal-rien').innerText()).toMatch(/^Rien ne correspond\. Une écriture se cherche dans son dossier/);
+    // (CABPORTEFEUILLE-14) Un dossier s'y range sous « dossier », le mot de tout le Cabinet, pas « client ».
+    await p.locator('#pal-q').fill('boulang');
+    const dos = p.locator('#pal-res .res[data-i]').filter({ has: p.locator('.main', { hasText: /^Boulangerie El Amal$/ }) });
+    await expect.poll(() => dos.count()).toBeGreaterThan(0);
+    expect((await dos.first().locator('.kind').textContent())?.trim().toLowerCase()).toBe('dossier');
+    expect(await p.locator('#pal-q').getAttribute('placeholder')).toBe('Chercher un dossier, une pièce reçue, ou taper une action…');
+    await p.keyboard.press('Escape');
+    // L'aide des raccourcis dit ce que la palette cherche vraiment : pas d'écriture.
+    await p.locator('#view h1').first().click();
+    await p.keyboard.press('?');
+    await expect.poll(() => p.locator('.sb-raccourcis').innerText().catch(() => '')).toMatch(/Rechercher un dossier, un écran, une pièce reçue/);
+    expect(await p.locator('.sb-raccourcis').innerText()).not.toMatch(/une écriture/);
     await p.keyboard.press('Escape');
     expect(erreurs).toEqual([]);
     await p.context().close();

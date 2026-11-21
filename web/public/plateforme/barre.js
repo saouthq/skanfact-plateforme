@@ -487,7 +487,7 @@
     const cab = auCabinet();
     voile.innerHTML = `<div class="sb-raccourcis" role="dialog" aria-modal="true" aria-label="Raccourcis clavier" tabindex="-1"><h3>Raccourcis clavier</h3><dl>
       <dt><kbd>N</kbd></dt><dd>${cab ? 'Créer (dans le dossier ouvert)' : 'Créer (la liste de ton métier)'}</dd>
-      <dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></dt><dd>${cab ? 'Rechercher un dossier, une écriture, un écran' : 'Rechercher une page, un client, une pièce'}</dd>
+      <dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></dt><dd>${cab ? 'Rechercher un dossier, un écran, une pièce reçue' : 'Rechercher une page, un client, une pièce'}</dd>
       <dt><kbd>G</kbd><kbd>A</kbd></dt><dd>${cab ? 'Aller au tableau de bord' : 'Aller à l\'accueil'}</dd>
       <dt><kbd>G</kbd><kbd>${cab ? 'D' : 'F'}</kbd></dt><dd>${cab ? 'Aller à tous les dossiers' : 'Aller aux factures'}</dd>
       ${cab ? `<dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Ouvrir un de tes dossiers (les favoris d'abord) ; <kbd>Alt</kbd> + chiffre aussi</dd>` : ''}

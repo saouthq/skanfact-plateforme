@@ -58,7 +58,15 @@
     // disait « aucun exercice » du garage, et la découverte sautait son chapitre « D'un exercice à
     // l'autre » sans un mot — un état lu une fois se périme (7.1.x).
     await chargerQuestionsAttente(false);
-    return etat;
+    // (CABPORTEFEUILLE-9) Les pièces de l'exemple partent (ou arrivent) avec lui : la pastille « Pièces » se relit.
+    await relirePieces(); return etat;
+  }
+  // (CABPORTEFEUILLE-9) Une seule question pour les deux portes (le bandeau, les Réglages). Elle dit ce qui part avec
+  // l'exemple — ses pièces reçues comprises — et qu'un rechargement repart à neuf : ce qu'on y a saisi ne revient pas.
+  function confirmerRetraitExemple() {
+    const ex = exempleEnLigne();
+    const n = ex ? ((piecesLues && piecesLues.pieces) || []).filter(p => p.entreprise === ex.id).length : 0;
+    return confirmDialog('Retirer le dossier d\'exemple ?', `<p>Il part avec ses livres, sa paie et ses relevés${n ? `, et ${pl(n, 'pièce reçue', 'pièces reçues')} à classer` : ''}. Tes vrais dossiers ne bougent pas.</p><p class="small muted">Tu pourras le recharger, à neuf : ce que tu y as saisi ou déposé ne reviendra pas.</p>`, 'Retirer l\'exemple');
   }
   let fermerPalette = null;              // de quoi refermer la palette quand une fenêtre s'ouvre au-dessus
   // Un raccourci vise un PANNEAU, pas une page (7.18.0) — porté de l'app entreprise (T-20). Le
@@ -3046,10 +3054,12 @@
     const nRev = lu ? L.filter(x => (revueDe(x, P.dernier) || {}).aRevoir).length : 0;
     const B = lu ? L.map(bilanDe) : [];
     const nTard = B.filter(b => b.retard).length, nFinir = B.filter(b => b.ex && !b.ex.clos).length;
+    // (CABPORTEFEUILLE-15) « Tous clos » ne se dit pas d'un portefeuille où des dossiers n'ont pas de livre.
+    const nClos = B.filter(b => b.ex && b.ex.clos).length, nSans = B.filter(b => !b.ex).length;
     const an = revState.annee || anneeBilansTb();
     const tag = (cl, t, id = '') => `<span class="tb-cnt ${cl}"${id ? ` id="${id}"` : ''}>${esc(t)}</span>`;
     const vue = (v, nom, t) => `<button type="button" role="tab" data-tb-vue="${v}" aria-selected="${tbState.vue === v}">${nom}${t}</button>`;
-    return `<div class="segment tb-vues" role="tablist" aria-label="Ce que montre le tableau">${vue('production', 'Production', tag(nRetard ? 'alerte' : 'ok', nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour', 'tb-retard'))}${vue('revision', 'Révision', lu ? tag(nRev ? 'attire' : 'ok', nRev ? `${nRev} à revoir` : 'à jour') : '')}${vue('bilans', `Bilans ${an}`, lu && B.some(b => b.ex) ? tag(nTard ? 'alerte' : nFinir ? 'attire' : 'ok', nTard ? `${nTard} en retard` : nFinir ? `${nFinir} à finir` : 'tous clos') : '')}</div>`;
+    return `<div class="segment tb-vues" role="tablist" aria-label="Ce que montre le tableau">${vue('production', 'Production', tag(nRetard ? 'alerte' : 'ok', nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour', 'tb-retard'))}${vue('revision', 'Révision', lu ? tag(nRev ? 'attire' : 'ok', nRev ? `${nRev} à revoir` : 'à jour') : '')}${vue('bilans', `Bilans ${an}`, lu && B.some(b => b.ex) ? tag(nTard ? 'alerte' : nFinir ? 'attire' : nSans ? '' : 'ok', nTard ? `${nTard} en retard` : nFinir ? `${nFinir} à finir` : nSans ? `${nClos} clos, ${nSans} sans livre` : 'tous clos') : '')}</div>`;
   }
   // La recherche des onglets Révision et Bilans (la même que la Production), et les états de la lecture.
   function cadreRevueTb(L, P, vues, sous, corps, note) {
@@ -3073,7 +3083,9 @@
       const der = !rv.derniere ? '<span class="muted">aucune</span>' : `${esc(jjmmTb(rv.derniere))}${moisC && dm < moisC ? `<small class="tb-at">${dm === moisC.slice(0, 7) ? '' : ecartMoisTb(dm, moisC) === 1 ? `rien pour ${esc(moisLong(moisC))}` : `rien depuis ${esc(moisLong(moisApres(dm)))}`}</small>` : ''}`;
       const ban = !rv.releves ? '<span class="muted">aucun relevé</span>' : !rv.rapproche ? '<span class="tb-at">aucun relevé rapproché</span>'
         : `${esc(jjmmTb(rv.rapproche))}${r.banqueTard ? `<small class="tb-at">${pl(Math.max(1, ecartMoisTb(rv.rapproche.slice(0, 7), moisC)), 'mois', 'mois')} en arrière</small>` : ''}`;
-      const att = r.attente === 0n ? '<span class="tb-ok">soldé</span>' : `<b class="tb-al">${esc(enDinars(r.attente))} DT</b>`;
+      // (CABPORTEFEUILLE-15) Sans livre, le compte d'attente n'est pas « soldé » : il n'existe pas. `=== false` et non `!` :
+      // la réponse d'un serveur d'avant n'a pas le champ et garde l'affichage d'avant.
+      const att = rv.livre === false ? '<span class="muted">—</span>' : r.attente === 0n ? '<span class="tb-ok">soldé</span>' : `<b class="tb-al">${esc(enDinars(r.attente))} DT</b>`;
       const cre = !rv.credit ? '<span class="muted">aucun</span>' : `${esc(enDinars(rv.credit.montant))} DT${rv.credit.depuis < rv.credit.periode ? `<small>reporté depuis ${esc(moisLong(rv.credit.depuis))}</small>` : ''}`;
       const bro = rv.brouillards ? `<b class="tb-at">${pl(rv.brouillards, 'écriture')}</b>` : '<span class="muted">aucune</span>';
       return `<tr class="clickable${r.aRevoir ? ' tb-revoir' : ''}" data-tb-id="${esc(x.d.id)}">${celDossierTb(x)}<td>${der}</td><td>${ban}</td><td class="r">${att}</td><td class="r">${cre}</td><td class="r">${bro}</td>${menuTb(x)}</tr>`;
@@ -3082,7 +3094,7 @@
     const sAtt = fl.reduce((t, o) => t + o.r.attente, 0n), nAtt = fl.filter(o => o.r.attente !== 0n).length;
     const sCre = fl.reduce((t, o) => t + bigTb(o.r.rv.credit && o.r.rv.credit.montant), 0n), nCre = fl.filter(o => o.r.rv.credit).length;
     const sBro = fl.reduce((t, o) => t + o.r.rv.brouillards, 0);
-    const pied = `<tr class="tb-pied-l"><td><b>Le cabinet</b><small>${pl(fl.length, 'dossier')}</small></td><td></td><td><b>${ajourB} à jour</b><small>sur ${avecRel.length} avec des relevés</small></td><td class="r"><b>${esc(enDinars(sAtt))}</b><small>${nAtt ? pl(nAtt, 'compte à solder', 'comptes à solder') : 'tout est soldé'}</small></td><td class="r">${nCre ? `<b>${esc(enDinars(sCre))}</b><small>${pl(nCre, 'dossier en crédit', 'dossiers en crédit')}</small>` : '<span class="muted">aucun crédit</span>'}</td><td class="r">${sBro ? `<b>${sBro}</b><small>${sBro > 1 ? 'écritures' : 'écriture'}</small>` : '<span class="muted">aucune</span>'}</td><td></td></tr>`;
+    const pied = `<tr class="tb-pied-l"><td><b>Le cabinet</b><small>${pl(fl.length, 'dossier')}</small></td><td></td><td>${avecRel.length ? `<b>${ajourB} à jour</b><small>sur ${avecRel.length} avec des relevés</small>` : '<span class="muted">aucun relevé</span>'}</td><td class="r"><b>${esc(enDinars(sAtt))}</b><small>${nAtt ? pl(nAtt, 'compte à solder', 'comptes à solder') : fl.some(o => o.r.rv.livre !== false) ? 'tout est soldé' : 'aucun livre'}</small></td><td class="r">${nCre ? `<b>${esc(enDinars(sCre))}</b><small>${pl(nCre, 'dossier en crédit', 'dossiers en crédit')}</small>` : '<span class="muted">aucun crédit</span>'}</td><td class="r">${sBro ? `<b>${sBro}</b><small>${sBro > 1 ? 'écritures' : 'écriture'}</small>` : '<span class="muted">aucune</span>'}</td><td></td></tr>`;
     const corps = !fl.length && tbState.q ? videQTb() : `<div class="lf-tab"><table class="lf-table tb-t tb-rev" id="tb-revision"><thead><tr><th>Dossier</th><th>Dernière écriture</th><th>Banque rapprochée</th><th class="r">Compte d'attente</th><th class="r">Crédit de TVA</th><th class="r">Au brouillard</th><th class="cx"></th></tr></thead><tbody>${(pagerBar(fl.length, tbState.pg, 'dossier'), paginate(fl, tbState.pg)).map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table>${pagerBar(fl.length, tbState.pg, 'dossier')}</div>`;
     return cadreRevueTb(L, P, vues, `ce que la révision lit dans chaque livre, au ${jjmmTb(auj)}`, corps,
       'Tout est lu dans les livres : le dernier relevé de banque entièrement rapproché, le solde du compte d\'attente (471), le crédit de TVA que reporte la dernière déclaration, les écritures au brouillard. Rien ne se coche à la main.');
@@ -3127,7 +3139,7 @@
       et(decF, 'Déclaration', decF ? 'déposée' : `due le ${esc(jjmmTb(due))}${tard ? ` · en retard de ${pl(Math.max(1, joursEntre(due, K.today())), 'jour')}` : ' (À VÉRIFIER)'}`, (revF || c.etape === 'declare') && !decF, tard && !decF),
     ].join('');
     const r = revueDe(x, f.mois);
-    const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? 'soldé' : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard ce mois<b${c.brouillards ? ' class="attire"' : ''}>${c.brouillards ? pl(c.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
+    const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? (r.rv.livre === false ? 'aucune écriture' : 'soldé') : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard ce mois<b${c.brouillards ? ' class="attire"' : ''}>${c.brouillards ? pl(c.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
     const an = f.mois.slice(0, 4);
     const prim = c.aClasser && !saisiF ? ['pieces', `Classer ${c.aClasser > 1 ? `les ${c.aClasser} pièces` : 'la pièce'}`]
       : c.brouillards && !revF ? ['saisie', `Voir les ${c.brouillards} au brouillard`] : c.etape === 'declare' ? ['declaration', 'Préparer la déclaration'] : ['journal', `Ouvrir ${moisLong(f.mois)}`];
@@ -3298,11 +3310,22 @@
     const pied = `<tr class="tb-pied-l"><td><b>Déclarés</b><small>${pl(fl.length, 'dossier')}</small></td>${P.cols.map(m => {
       if (m > P.dernier) return '<td class="c"><small class="muted">à venir</small></td>';
       const dus = fl.filter(x => x.mois.has(m) && x.mois.get(m).etape !== 'hors'), f = dus.filter(x => x.mois.get(m).etape === 'fini').length;
+      // (CABPORTEFEUILLE-15) Un mois où personne ne doit rien ne se compte pas « 0 sur 0 » : « — » (règle 9.6.0).
+      if (!dus.length) return '<td class="c"><small class="muted">—</small></td>';
       return `<td class="c"><b class="${f < dus.length ? 'tb-pas' : ''}">${f}</b><small>sur ${dus.length}</small></td>`;
-    }).join('')}${tel ? '' : (() => { let dus = 0, f = 0; fl.forEach(x => P.cols.forEach(m => { const c = m <= P.dernier && x.mois.get(m); if (c && c.etape !== 'hors') { dus++; if (c.etape === 'fini') f++; } })); return `<td class="r"><b>${dus ? Math.round(f / dus * 100) : 0} %</b><small>${f} sur ${dus} mois</small></td>`; })()}<td></td></tr>`;
+    }).join('')}${tel ? '' : (() => { let dus = 0, f = 0; fl.forEach(x => P.cols.forEach(m => { const c = m <= P.dernier && x.mois.get(m); if (c && c.etape !== 'hors') { dus++; if (c.etape === 'fini') f++; } })); return dus ? `<td class="r"><b>${Math.round(f / dus * 100)} %</b><small>${f} sur ${dus} mois</small></td>` : '<td class="r"><small class="muted">—</small></td>'; })()}<td></td></tr>`;
     const th = `<tr><th>Dossier</th>${P.cols.map(m => `<th class="c${m > P.dernier ? ' tb-th-av' : ''}">${esc(moisCourt(m))}</th>`).join('')}${tel ? '' : '<th class="r">Sur la période</th>'}<th class="cx"></th></tr>`;
     const corps = !fl.length
-      ? (q ? `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis, quel que soit le filtre.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`
+      ? (q ? (() => {
+        // (issue 12, CABPORTEFEUILLE-13) Sous un filtre, la recherche ne lit que lui : la phrase le DIT (« quel que soit le
+        // filtre » était faux), et un bouton en sort, la recherche gardée.
+        const LIBF = { retard: 'En retard', manque: 'Pièces manquantes', saisir: 'À saisir', reviser: 'À réviser', tenus: 'Tenus' };
+        const libF = nomEtape ? `${cap(moisLong(moisC))} : ${nomEtape.toLowerCase()}` : (LIBF[tbState.filtre] || '');
+        const ailleurs = libF ? filtreQTb(L).length : 0;
+        return libF && ailleurs
+          ? `<div class="tb-vide" id="tb-vide"><b>Aucun dossier « ${esc(tbState.q)} » parmi « ${esc(libF)} »</b><span>${pl(ailleurs, 'dossier correspond', 'dossiers correspondent')} hors de ce filtre.</span><button type="button" class="btn btn-sm" data-tb-filtre="tous">Chercher dans tous les dossiers</button></div>`
+          : videQTb();
+      })()
         : (() => {
           // (1.195.0, maquette « Un filtre sans dossier ») Ce que le filtre ne trouve pas, chez qui, et le filtre qu'on retire.
           const LIB = { retard: ['Aucun dossier en retard', 'En retard'], manque: ['Aucune pièce manquante', 'Pièces manquantes'], saisir: ['Aucun mois à saisir', 'À saisir'], reviser: ['Aucun mois à réviser', 'À réviser'], tenus: ['Aucun dossier tenu au cabinet', 'Tenus'] };
@@ -4183,7 +4206,7 @@
     const off = $('#demo-off', el);
     off.onclick = async () => {
       // (1.379.11, issue 12 constat 9) Le bandeau retirait l'exemple d'un clic ; les Réglages demandaient. Une seule façon.
-      if (api.exempleEnLigne && !await confirmDialog('Retirer le dossier d\'exemple ?', 'Il part avec ses livres, sa paie et ses relevés. Tes vrais dossiers ne bougent pas, et tu pourras le recharger à neuf.', 'Retirer l\'exemple')) return;
+      if (api.exempleEnLigne && !await confirmerRetraitExemple()) return;
       S = await chargerOuRetirerExemple(false); VISITES = null;
       // Quitté depuis la fiche d'un dossier FICTIF, on revient au portefeuille : l'écran restait sur
       // un dossier qui venait de partir (vu à la souris). Sur la fiche d'un vrai dossier, on reste.
@@ -4576,7 +4599,11 @@
     const dansVue = (v, x) => v === 'tous' ? true : v === 'mes' ? aMoi(x.d) : v === 'manque' ? x.reclame && !x.pc : v === 'tenus' ? x.d.manual : false;
     const compte = v => v === 'archives' ? archives.length : L.filter(x => dansVue(v, x)).length;
     const q = st.q.trim().toLowerCase();
-    const cherche = x => `${x.d.name} ${x.d.matricule || ''} ${x.d.phone || ''} ${x.d.email || ''} ${x.d.contact || ''}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q));
+    // (issue 12, CABPORTEFEUILLE-13) Le jumeau de l'app entreprise (lcTrouve, 1.309.0) : le téléphone se lit aussi sans ses
+    // espaces (« 98765 » trouve « +216 98 765 432 »), et un numéro tapé avec ses espaces se cherche d'un bloc, dans le téléphone.
+    const qTel = /^[\d\s.()+-]+$/.test(q) && /[\s.()-]/.test(q) ? q.replace(/[\s.()+-]/g, '') : '';
+    const cherche = x => qTel.length >= 4 ? String(x.d.phone || '').replace(/\D/g, '').includes(qTel)
+      : `${x.d.name} ${x.d.matricule || ''} ${x.d.phone || ''} ${String(x.d.phone || '').replace(/\s/g, '')} ${x.d.email || ''} ${x.d.contact || ''}`.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q));
     const base = st.vue === 'archives' ? archives.map(lignesDe) : L.filter(x => dansVue(st.vue, x));
     let l = (q ? (st.vue === 'archives' ? base : L.concat(archives.map(lignesDe))).filter(cherche) : base)
       .filter(x => !st.suivi || (x.d.droits && x.d.droits[st.suivi]));
@@ -4737,6 +4764,17 @@
     const cf = $('#cd-confier', view); if (cf) cf.onclick = e => { e.stopPropagation(); st.confier = st.confier === '*' ? '' : '*'; redessiner(); };
     $$('[data-cd-a]', view).forEach(b => { b.onclick = () => confierA(b.dataset.cdA, st.confier === '*' ? choisis.map(x => x.d) : tous.filter(d => d.id === st.confier)); });
     $$('[data-cd-menu]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); st.menu = st.menu === b.dataset.cdMenu ? '' : b.dataset.cdMenu; st.menuPage = false; redessiner(); }; });
+    // (CABPORTEFEUILLE-12) Le menu ouvert reste dans l'écran : au-dessus de son bouton s'il n'a pas la place dessous, et il
+    // défile s'il n'a la place nulle part. Ouvert toujours vers le bas, il sortait de l'écran sur les dernières lignes, et
+    // faire défiler la page pour atteindre « Archiver » le refermait.
+    const mnu = $('.cd-menu:not(.cd-menu-p)', view);
+    if (mnu && mnu.parentElement) {
+      const r = mnu.getBoundingClientRect(), bt = mnu.parentElement.getBoundingClientRect();
+      const bas = window.innerHeight - bt.bottom - 12, haut = bt.top - 12;
+      if (r.height > bas && haut > bas) mnu.classList.add('haut');
+      const place = mnu.classList.contains('haut') ? haut : bas;
+      if (r.height > place) { mnu.style.maxHeight = `${Math.max(220, place)}px`; mnu.style.overflowY = 'auto'; }
+    }
     const relancer = id => { const D = tous.find(d => d.id === id); if (D) fenRelancer(D, itemsEcheances()); };
     $$('[data-cd-relancer]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); relancer(b.dataset.cdRelancer); }; });
     $$('[data-cd-debut]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); fenDebutMission(tous.find(d => d.id === b.dataset.cdDebut)); }; });
@@ -5349,9 +5387,9 @@
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
     const cote = `<aside class="fd-cote" aria-label="La fiche">
-      ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honFiche(d) ? `${esc(dtCd(honFiche(d)))} DT HT par mois` : 'à écrire sur la fiche') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
+      ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honFiche(d) ? `${esc(dtCd(honFiche(d)))} DT HT par mois` : '<button type="button" class="lien-manque" id="fd-hon">à écrire sur la fiche</button>') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
       ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : '<span class="muted small">Personne ne suit encore ce dossier.</span>'}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
-      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', esc(({ mensuelle: 'mensuelle · déclarée le 28', trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod] || 'mensuelle par défaut, à préciser sur la fiche · déclarée le 28'))}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
+      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.regime ? kv('Régime', esc(labelOf(K.choixRegimes(S, d.regime), d.regime) || d.regime)) : ''}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', esc(({ mensuelle: 'mensuelle · déclarée le 28', trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod] || 'mensuelle par défaut, à préciser sur la fiche · déclarée le 28'))}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
       ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
         : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}
@@ -5415,6 +5453,7 @@
     const fx = $('#fd-pop-x', view); if (fx) fx.onclick = () => { ficheFd.mois = ''; redessiner(); };
     $$('[data-fd-vers]', view).forEach(b => { b.onclick = () => { ficheFd.mois = ''; location.hash = b.dataset.fdVers; }; });
     const nt = $('#fd-note', view); if (nt) nt.onclick = () => fenNoteFd(d);
+    const hn = $('#fd-hon', view); if (hn) hn.onclick = () => dossierForm(d, { focus: '#f-fees' });
     const nr = $('#note-rel', view); if (nr) nr.onclick = () => fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
     brancherDroits(view, d);
     const rj = $('#d-rejoindre', view);
