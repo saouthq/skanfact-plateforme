@@ -233,15 +233,23 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect(await interrupteur('Proforma, bons et contrats').isChecked()).toBe(true);
     expect(await interrupteur('Caisse').isChecked()).toBe(false);
     expect(await assistant(p).locator('.as-module .propose').count()).toBe(2);
-    const menu = () => assistant(p).locator('#as-menu .page').allInnerTexts();
+    // (1.387.79, issue 14 ENTSOCLE-11) L'aperçu range les pages comme la barre : « Au quotidien » (l'accueil et les pages du
+    // métier), puis « Tout le reste », une ligne par famille (« Vendre · Devis, Clients »).
+    const menu = async () => (await assistant(p).locator('#as-menu .page').allInnerTexts()).map(net)
+      .flatMap((t) => (/ · /.test(t) ? t.split(' · ').slice(1).join(' · ').split(', ') : [t]));
     expect(await menu()).toEqual(expect.arrayContaining(['Accueil', 'Factures', 'Achats', 'Autres pièces', 'Comptabilité']));
     expect(await menu()).not.toContain('Caisse');
-    // (1.269.0) Le même menu que la barre : les vues d'une page n'ont pas leur ligne, et les familles suivent leur ordre.
-    expect((await menu()).filter((x) => ['Relances', 'Facturation récurrente', 'Immobilisations'].includes(x))).toEqual([]);
-    const familles = await assistant(p).locator('#as-menu .famille').allTextContents();
+    // (1.269.0) Le même menu que la barre : dans « Tout le reste », les vues d'une page n'ont pas leur ligne, et les familles
+    // suivent leur ordre. (Une vue que le métier met « Au quotidien », comme les Relances, y est, comme dans la barre.)
+    const reste = async () => (await assistant(p).locator('#as-menu .page.groupe').allInnerTexts()).map(net).flatMap((t) => t.split(' · ').slice(1).join(' · ').split(', '));
+    expect((await reste()).filter((x) => ['Relances', 'Facturation récurrente', 'Immobilisations'].includes(x))).toEqual([]);
+    expect((await assistant(p).locator('#as-menu .famille').allTextContents()).map(net)).toEqual(['Au quotidien', 'Tout le reste']);
+    const familles = (await assistant(p).locator('#as-menu .page.groupe b').allTextContents()).map(net);
     const ORDRE = ['Vendre', 'Acheter', 'Articles et stock', 'Personnel', 'Argent', 'Piloter'];
     expect(familles).toEqual(ORDRE.filter((x) => familles.includes(x)));
     expect(familles.length).toBeGreaterThanOrEqual(3);
+    const auQuotidien = async () => (await assistant(p).locator('#as-menu .page:not(.groupe)').allInnerTexts()).map(net);
+    expect((await auQuotidien())[0]).toBe('Accueil');
     // Vu sans y toucher, le menu ne s'écrit pas en route : une reprise le croirait choisi, et ne le rangerait plus
     // d'après le métier.
     await assistant(p).getByRole('button', { name: 'Retour', exact: true }).click();
@@ -253,6 +261,7 @@ describe('l\'assistant de démarrage, à la souris', () => {
     await assistant(p).locator('.as-module').filter({ has: p.getByText('Caisse', { exact: true }) }).click();
     await expect.poll(menu).toContain('Caisse');
     await p.screenshot({ path: path.join(PHOTOS, 'assistant-5-menu.png') });
+    const vuAuQuotidien = await auQuotidien();
     await suite(p).click();
 
     // L'entreprise s'ouvre : son menu est celui qu'on a vu ; la fiche, le régime, les modules et le catalogue du métier
@@ -260,6 +269,10 @@ describe('l\'assistant de démarrage, à la souris', () => {
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     expect(await assistant(p).count()).toBe(0);
     await expect.poll(() => p.locator('#toast').innerText()).toBe('C\'est prêt.');
+    // « Au quotidien » de la barre est celui que l'aperçu montrait, dans le même ordre.
+    const barreJour = (await p.locator('#nav .nav-quotidien > a.lien[data-route]:not([hidden])').allInnerTexts()).map(net);
+    expect(vuAuQuotidien.length).toBeGreaterThan(1);
+    vuAuQuotidien.forEach((nom, i) => expect(barreJour[i] || '').toContain(nom));
     // La porte de l'entrée a déjà fait choisir entre l'exemple et l'entreprise : l'accueil ne repose pas la question.
     expect(await p.locator('#view .premiers-pas').count()).toBe(1);
     expect(await p.locator('#view .pp-accueil').count()).toBe(0);

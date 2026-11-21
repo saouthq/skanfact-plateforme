@@ -7704,7 +7704,7 @@
     if (bridge.accesSupport && $('#acces-panel')) bridge.accesSupport.dessiner($('#acces-panel'), { toast: (t, erreur) => toast(t, erreur), nomDePage: p => PAGE_LABELS[p] || p });
     if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question') : null });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
-    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
+    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question', { sujet: 'Remettre en place ou effacer les données de l\'entreprise' }) : null });
     if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
@@ -10753,6 +10753,7 @@
         enregistrer: () => save(true),
         apercu: (co, lignes) => { const ex = factureDApercu(co); if (lignes) ex.doc.lines = lignes; return C.documentHtml(ex.doc, ex.client, co, {}); },
         menu: modules => C.navPages({ ...data, company: { ...data.company, modules } }).filter(p => !pageCachee(p.id)),
+        quotidien: (activite, ids) => (window.__quotidienDuMetier ? window.__quotidienDuMetier(activite, ids) : []),
         deconnecter: () => { if (bridge.deconnecter) bridge.deconnecter(); },
         courriel: () => (bridge.courrielDuCompte ? bridge.courrielDuCompte() : Promise.resolve(''))
       }).then(fait => { drawNav(); return fait; });

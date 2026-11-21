@@ -5789,3 +5789,15 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - **ENTSOCLE-9 (en partie, issue 14)** — les visites citent les boutons tels qu'ils sont écrits (« Enregistrer le
   devis », le bouton du bandeau de l'exemple selon qu'une vraie entreprise existe ou non, le cadre des justificatifs).
 - Tests : `tests/web/coquille-1387.test.ts` (deux tests de plus), `tests/web/liste-devis.test.ts`.
+
+## 1.387.80 — L'aperçu « Ton menu » est le vrai menu ; l'onglet Données dit où demander (issue 14)
+
+- **ENTSOCLE-11 — l'aperçu « Ton menu » de l'assistant** montrait les familles (« Vendre : Devis, Factures… ») quand la
+  barre ouvre sur « Au quotidien » (l'accueil et les pages du métier) puis « Tout le reste ». L'aperçu range maintenant
+  les pages comme la barre, par la même règle (`quotidienDe`, partagée par la barre et l'assistant) ; une vue que le
+  métier met au quotidien (les Relances d'un prestataire) y est, comme dans la barre. Le test compare l'aperçu à la
+  barre de l'entreprise ouverte, page par page, dans l'ordre.
+- **ENTSOCLE-16 — l'onglet Données** promettait « SkanFact sait le remettre en place » sans aucun geste pour le faire :
+  le panneau dit que la remise en place et l'effacement de l'entreprise se demandent au support (l'équipe vérifie que
+  la demande vient bien de toi), et « Écrire au support » ouvre la demande, le sujet déjà posé.
+- Tests : `tests/web/assistant.test.ts` (retourné vers la règle), `tests/web/export-complet.test.ts`.

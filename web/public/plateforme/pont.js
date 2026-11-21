@@ -2096,14 +2096,14 @@
     ? `${Math.max(1, Math.round(octets / 1024))} Ko`
     : `${(octets / (1024 * 1024)).toFixed(1).replace('.', ',')} Mo`);
   // La ligne qui dit le résultat a sa place réservée : elle ne pousse pas le panneau du dessous au moment du clic (10.12.0).
-  /** @param {HTMLElement} el */
-  function dessinerExport(el) {
+  /** @param {HTMLElement} el @param {{ ecrire?: (() => void) | null }} [o] */
+  function dessinerExport(el, o) {
     el.innerHTML = `<p class="small muted mb">Un seul fichier qui contient tout ce que ton entreprise a sur SkanFact : ses pièces et leurs règlements, ses clients et fournisseurs, ses achats, sa caisse, sa paie, sa comptabilité, ses messages avec ton cabinet, son équipe et la trace de chaque geste. Aucun mot de passe ni aucune clé d'accès n'y figure.</p>
-      <p class="small muted mb">Il est à toi : garde-le où tu veux. C'est un fichier texte (du JSON, une ligne par élément), que n'importe quel outil sait lire, et SkanFact sait le remettre en place tel quel. Chaque téléchargement est noté dans la trace de l'entreprise.</p>
-      <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button></div>
+      <p class="small muted mb">Il est à toi : garde-le où tu veux. C'est un fichier texte (du JSON, une ligne par élément), que n'importe quel outil sait lire. Le remettre en place, ou fermer l'entreprise et effacer ses données, se demande au support : l'équipe le fait pour toi, après avoir vérifié que la demande vient de toi (1.387.79, issue 14). Chaque téléchargement est noté dans la trace de l'entreprise.</p>
+      <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button>${o && o.ecrire ? '<button type="button" class="btn-lien" id="export-support">Écrire au support</button>' : ''}</div>
       <p class="small mt" role="status" id="export-etat" style="min-height: 1.5em"></p>`;
     const bouton = /** @type {HTMLButtonElement} */ (el.querySelector('#export-telecharger'));
-    const etat = /** @type {HTMLElement} */ (el.querySelector('#export-etat'));
+    const etat = /** @type {HTMLElement} */ (el.querySelector('#export-etat')), sup = /** @type {HTMLElement | null} */ (el.querySelector('#export-support')); if (sup && o && o.ecrire) sup.onclick = o.ecrire;
     bouton.onclick = async () => {
       bouton.disabled = true;
       bouton.textContent = 'Préparation du fichier…';

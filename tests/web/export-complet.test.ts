@@ -17,6 +17,8 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
 
+const net = (t: string) => t.replace(/\s+/g, ' ').trim();
+
 describe('toutes les données de l\'entreprise, à la souris', () => {
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
@@ -74,6 +76,13 @@ describe('toutes les données de l\'entreprise, à la souris', () => {
     await donnees(p, ent);
     const bouton = p.locator('#export-telecharger');
     await bouton.waitFor({ timeout: 15_000 });
+    // (1.387.79, issue 14) La remise en place et l'effacement ne se promettent pas d'un clic : le panneau dit qu'ils se
+    // demandent au support, et le bouton y mène, le sujet déjà posé.
+    expect(net(await p.locator('#export-panel').innerText())).toContain('se demande au support');
+    await p.locator('#export-support').click();
+    await expect.poll(() => p.locator('#sup-sujet').inputValue().catch(() => ''), { timeout: 10_000 }).toContain('effacer les données');
+    await p.keyboard.press('Escape');
+    for (let i = 0; i < 2 && await p.locator('#modal-root .modal').count(); i++) await p.getByRole('button', { name: /^Abandonner/ }).first().click().catch(() => undefined);
     await p.screenshot({ path: path.join(PHOTOS, 'export-complet-panneau.png') });
     const dessous = async () => (await p.locator('#services-panel').boundingBox())?.y ?? -1;
     const avant = await dessous();

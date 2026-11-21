@@ -83,7 +83,7 @@
   /**
    * Ouvre l'assistant. Rend `true` quand il est allé au bout (« Ouvrir mon entreprise »), `false` quand on l'a fermé.
    * @param {{ rejoue: boolean, C: any, OB: any, donnees: () => any, enregistrer: () => void,
-   *   apercu: (co: any, lignes?: any[]) => string, menu: (modules: string[]) => { id: string, titre: string, famille?: string }[],
+   *   apercu: (co: any, lignes?: any[]) => string, menu: (modules: string[]) => { id: string, titre: string, famille?: string }[], quotidien?: (activite: string, ids: string[]) => string[],
    *   deconnecter: () => void, courriel: () => Promise<string> }} o
    * @returns {Promise<boolean>}
    */
@@ -435,20 +435,20 @@
       };
       // Le vrai menu (celui que la barre de gauche dessinera), rangé par famille comme elle.
       const apercuMenu = () => {
-        /** @type {{ nom: string, pages: { id: string, titre: string }[] }[]} */
-        const familles = [];
-        // (1.269.0 ; 17 § 1) Comme la barre : une vue d'une page (`vueDe`) n'a pas sa ligne, et les six familles suivent
-        // leur ordre, pas celui des pages (sinon « Articles et stock » paraîtrait deux fois).
+        // (1.387.79, ENTSOCLE-11) Le menu tel que la barre le dessinera : « Au quotidien » (`o.quotidien`, d'après le métier), puis « Tout le reste » par famille.
+        /** @type {{ nom: string, pages: { id: string, titre: string }[] }[]} */ const familles = [];
         const rang = (/** @type {string} */ nom) => { const i = (C.FAMILLES_DU_MENU || []).indexOf(nom); return nom ? (i < 0 ? 99 : i + 1) : 0; };
-        o.menu(modulesChoisis()).filter((/** @type {any} */ p) => !p.vueDe).forEach((/** @type {any} */ p) => {
-          const nom = p.famille || '';
-          const g = familles.find((x) => x.nom === nom);
-          if (g) g.pages.push(p); else familles.push({ nom, pages: [p] });
+        const tout = o.menu(modulesChoisis()), pages = tout.filter((/** @type {any} */ p) => !p.vueDe);
+        const jour = typeof o.quotidien === 'function' ? o.quotidien(a.activity, tout.map((/** @type {any} */ p) => p.id)) : [];
+        pages.filter((/** @type {any} */ p) => !jour.length || (p.id !== 'dashboard' && !jour.includes(p.id))).forEach((/** @type {any} */ p) => {
+          const nom = p.famille || ''; const g = familles.find((x) => x.nom === nom); if (g) g.pages.push(p); else familles.push({ nom, pages: [p] });
         });
         familles.sort((x, y) => rang(x.nom) - rang(y.nom));
+        const titre = (/** @type {string} */ id) => esc(((tout.find((/** @type {any} */ p) => p.id === id)) || { titre: id }).titre);
         return `<span class="as-etiquette">Ton menu</span><ul class="as-menu" id="as-menu">
             <li class="qui"><span class="as-logo" aria-hidden="true">S</span><span><b>SkanFact</b>${esc(societe().name || '')}</span></li>
-            ${familles.map((g) => (g.nom ? `<li class="famille">${esc(g.nom)}</li>` : '') + g.pages.map((p) => `<li class="page${p.id === 'dashboard' ? ' accueil' : ''}">${esc(p.titre)}</li>`).join('')).join('')}
+            ${jour.length ? `<li class="famille">Au quotidien</li>${['dashboard', ...jour].map((id) => `<li class="page${id === 'dashboard' ? ' accueil' : ''}">${titre(id)}</li>`).join('')}<li class="famille">Tout le reste</li>${familles.map((g) => `<li class="page groupe"><b>${esc(g.nom || 'Autres')}</b> · ${g.pages.map((p) => esc(p.titre)).join(', ')}</li>`).join('')}`
+              : familles.map((g) => (g.nom ? `<li class="famille">${esc(g.nom)}</li>` : '') + g.pages.map((p) => `<li class="page${p.id === 'dashboard' ? ' accueil' : ''}">${esc(p.titre)}</li>`).join('')).join('')}
           </ul><span class="as-note">${dit('Tout se change ensuite dans Paramètres → L\'application.')}</span>`;
       };
       const brancherMenu = () => {

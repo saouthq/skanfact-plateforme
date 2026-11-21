@@ -3078,12 +3078,20 @@
   }
   window.__roleBarre = roleBarre;
   const cleMenu = () => `${roleBarre()}-${metier()}`;
+  // Les pages « Au quotidien » d'un début de liste (le métier ou le rôle), parmi celles qui existent : une page absente
+  // laisse sa place à la suivante du repli.
+  function quotidienDe(debut, ids) {
+    const liste = debut.filter(x => ids.includes(x));
+    for (const x of QUOTIDIEN_REPLI) { if (liste.length >= Math.min(4, debut.length)) break; if (ids.includes(x) && !liste.includes(x)) liste.push(x); }
+    return liste;
+  }
+  // (1.387.79, issue 14 ENTSOCLE-11) L'aperçu « Ton menu » de l'assistant les range pour le métier qu'on vient de choisir.
+  window.__quotidienDuMetier = (activite, ids) => quotidienDe((METIERS[METIER_DE[String(activite || '').trim()]] || METIERS.services).quotidien, ids);
   function navQuotidien(pages) {
     const role = roleBarre();
     const ids = pages.map(p => p.id);
     const debut = role === 'commercial' ? ['devis', 'factures', 'clients', 'relances'] : role === 'caissier' ? ['caisse', 'clients'] : METIERS[metier()].quotidien;
-    let liste = debut.filter(x => ids.includes(x));
-    for (const x of QUOTIDIEN_REPLI) { if (liste.length >= Math.min(4, debut.length)) break; if (ids.includes(x) && !liste.includes(x)) liste.push(x); }
+    let liste = quotidienDe(debut, ids);
     // (1.248.1) Une entreprise qui a des salariés en poste paie chaque mois : la Paie se place « Au quotidien » d'elle-même
     // (recette du 02/11 : elle était cachée sous « Piloter ») ; qui la retire l'en retire.
     if (role === 'proprietaire' && ids.includes('paie') && !liste.includes('paie') && ((data && data.employees) || []).some(e => e.active !== false && !(e.endDate && e.endDate < C.today()))) liste.push('paie');
