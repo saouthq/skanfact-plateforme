@@ -218,8 +218,9 @@ body.barre-repliee #barre .abo, body.barre-repliee #barre .maj { width: 40px; he
 body.barre-repliee #barre .abo .lib, body.barre-repliee #barre .abo .chev, body.barre-repliee #barre .maj .lib, body.barre-repliee #barre .maj u { display: none; }
 body.barre-repliee #barre .changer-caissier { width: 40px; align-self: center; }
 body.barre-repliee #barre .changer-caissier .lib { display: none; }
-body.barre-repliee #barre .pied-liens { justify-content: center; }
-body.barre-repliee #barre .pied-liens .btn-icone { display: none; }
+/* (1.387.96, issue 12 CABPORTEFEUILLE-26) Repliée, la barre gardait la personne et cachait Réglages, Me guider et Aide —
+   les trois portes de secours, celles qu'on cherche quand on est perdu. Elles s'empilent en colonne, sous la personne. */
+body.barre-repliee #barre .pied-liens { flex-direction: column; justify-content: center; gap: 4px; }
 body.barre-repliee #barre .moi { padding: 0; flex: none; justify-content: center; }
 body.barre-repliee #barre .moi-nom { display: none; }
 /* La bulle de la barre repliée : posée sur la page (la liste défile et s'efface aux bords, elle y serait coupée). */

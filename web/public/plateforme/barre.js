@@ -451,10 +451,12 @@
     if (ouverte && ouvreur === bouton) { fermer(true); return; }
     const l = nouvelles(); const vues = lues();
     const nonLues = l.filter((x) => !vues.includes(x.cle));
-    const html = `<div class="pop-tete"><b>Nouvelles</b><button type="button" data-tout-lu${nonLues.length ? '' : ' disabled'}>Tout marquer comme lu</button></div>`
+    // (1.387.96, issue 12 CABPORTEFEUILLE-26) Sans nouvelle, ni « Tout marquer comme lu » ni la phrase des pastilles : il n'y a
+    // rien à marquer. Avec, la phrase dit ce que « lu » change : la nouvelle se tait, la tâche reste à faire.
+    const html = `<div class="pop-tete"><b>Nouvelles</b>${l.length ? `<button type="button" data-tout-lu${nonLues.length ? '' : ' disabled'}>Tout marquer comme lu</button>` : ''}</div>`
       + (l.length ? l.map((x, k) => `<button type="button" class="notif" data-notif="${k}"><span class="ic ${x.ton}">${ic(x.ic, 16, 2)}</span><span class="lib">${x.html}<small>${esc(x.sous)}</small></span>${vues.includes(x.cle) ? '' : '<span class="pt-nl" aria-label="non lu"></span>'}</button>`).join('')
         : '<p class="rien">Rien de neuf : rien n\'attend de toi pour l\'instant.</p>')
-      + '<div class="trait"></div><span class="note">Les pastilles de la barre restent : ici, tout est au même endroit.</span>';
+      + (l.length ? '<div class="trait"></div><span class="note">Lue, une nouvelle ne revient plus ici ; la pastille de la barre, elle, reste tant que la tâche n\'est pas faite.</span>' : '');
     const el = ouvrir('sb-pop sb-notifs', html, bouton, 'Nouvelles', 'dialog');
     const r = bouton.getBoundingClientRect();
     el.style.left = `${Math.round(tablette() ? r.right + 12 : document.body.classList.contains('barre-repliee') ? 78 : Math.max(10, r.right - 56))}px`;

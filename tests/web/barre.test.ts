@@ -238,6 +238,11 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await p.locator('#b-cloche').click();
     await expect.poll(() => p.locator('.sb-notifs').isVisible(), { timeout: 5_000 }).toBe(true);
     expect(net(await p.locator('.sb-notifs').innerText())).toContain('Nouvelles');
+    // (1.387.96, issue 12 CABPORTEFEUILLE-26) Une entreprise neuve n'a aucune nouvelle : rien à marquer, ni « Tout marquer
+    // comme lu », ni la phrase des pastilles.
+    expect(await p.locator('.sb-notifs .notif').count()).toBe(0);
+    expect(await p.locator('.sb-notifs [data-tout-lu], .sb-notifs .note').count()).toBe(0);
+    expect(net(await p.locator('.sb-notifs .rien').innerText())).toMatch(/^Rien de neuf/);
     await p.keyboard.press('Escape');
     // La personne : son menu, avec ses portes et « Se déconnecter ».
     await p.locator('#b-moi').click();
@@ -277,6 +282,17 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await expect.poll(() => bulle.isVisible(), { timeout: 5_000 }).toBe(true);
     expect(await bulle.innerText()).toMatch(/^Factures/);
     expect((await bulle.boundingBox())?.x ?? 0).toBeGreaterThan(await bordBarre(p));
+    // (1.387.96, issue 12 CABPORTEFEUILLE-26) Repliée, la barre garde Paramètres, Me guider et Aide, visibles, dans la barre,
+    // et chacun mène à sa page.
+    for (const nom of ['Paramètres', 'Me guider', 'Aide']) {
+      const b = p.locator('#barre .pied-liens a', { has: p.locator('svg') }).and(p.locator(`[aria-label="${nom}"]`));
+      expect(await b.isVisible(), nom).toBe(true);
+      const r = await b.boundingBox();
+      expect((r?.x ?? 0) + (r?.width ?? 0), nom).toBeLessThanOrEqual(await bordBarre(p) + 1);
+    }
+    await p.locator('#barre .pied-liens a[aria-label="Aide"]').click();
+    await expect.poll(() => p.url()).toContain('#/aide');
+    await p.goBack();
     await p.screenshot({ path: path.join(PHOTOS, 'barre-repliee.png') });
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });

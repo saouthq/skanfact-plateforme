@@ -31114,6 +31114,14 @@ prouver $'cabportefeuille24-titre-echappe-deux-fois' web/public/v10/visite.js \
   $'${tete(iconeDe(coul), p.titre || \'Visite guidée\', \'La visite t\\\'attend\'' \
   $'${tete(iconeDe(coul), h(p.titre || \'Visite guidée\'), \'La visite t\\\'attend\'' \
   $'aucun appelant ne rééchappe ce que la tête de la bulle échappe déjà'
+prouver $'cabportefeuille26-repliee-cache-les-portes' web/public/plateforme/barre.css \
+  $'body.barre-repliee #barre .pied-liens { flex-direction: column; justify-content: center; gap: 4px; }' \
+  $'body.barre-repliee #barre .pied-liens { justify-content: center; } body.barre-repliee #barre .pied-liens .btn-icone { display: none; }' \
+  $'repliée et au clavier : [ replie et se garde, la bulle dit le nom, ? les raccourcis, G puis F les factures'
+prouver $'cabportefeuille26-tout-lu-sans-nouvelle' web/public/plateforme/barre.js \
+  $'<b>Nouvelles</b>${l.length ? `<button type="button" data-tout-lu' \
+  $'<b>Nouvelles</b>${true ? `<button type="button" data-tout-lu' \
+  $'au bureau : les deux groupes, un lien par page, le volet à côté, l\'épingle, ranger, « Créer », la cloche, le pied'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -6026,3 +6026,14 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   l'abonnement (étape facultative : elle se saute quand il est offert). Elle citait déjà le vrai libellé « Ajouter un
   client… » (fait en 1.374.0).
 - Preuve : remettre le double échappement fait tomber le test.
+
+## 1.387.96 — La barre repliée garde Réglages, Me guider et Aide (issue 12, CABPORTEFEUILLE-26)
+
+- **CABPORTEFEUILLE-26** : repliée, la barre gardait la personne et cachait les trois portes de secours (Réglages ou
+  Paramètres, Me guider, Aide) — celles qu'on cherche quand on est perdu. Elles s'empilent maintenant en colonne sous la
+  personne, dans les deux applications (la feuille de la barre est partagée).
+- Au Cabinet, Relances avait la cloche des Nouvelles : elle a son dessin (une enveloppe qui repart).
+- La cloche sans nouvelle ne montre plus « Tout marquer comme lu » ni la phrase des pastilles ; avec des nouvelles, la
+  phrase dit ce que « lu » change (la nouvelle se tait, la pastille reste tant que la tâche n'est pas faite).
+- Tests : barre repliée, les trois portes visibles dans la barre et Aide qui mène à sa page ; la cloche d'une entreprise
+  neuve. Deux preuves.
