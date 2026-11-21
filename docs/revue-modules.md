@@ -6247,3 +6247,15 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - La fenêtre un par un reste par « Établir les bulletins » et « + Un bulletin… ».
 - Test : un mois d'octobre sans pointage — le libellé, la question, deux bulletins au brut de leur fiche, puis « Valider
   les 2 bulletins » en bouton principal. Une preuve.
+
+## 1.388.14 — Un bulletin ne dit plus « Célibataire » (issue 10, CABPAIE-10)
+
+- Le bulletin imprimé, le volet d'un bulletin au Cabinet et la fiche d'un salarié dans SkanFact écrivaient « Célibataire »
+  dès qu'un salarié n'était pas chef de famille : une situation que SkanFact ne connaît pas (on ne lui demande que s'il est
+  chef de famille, pour la déduction annuelle). Les trois disent « Pas chef de famille », comme la fiche du Cabinet.
+- Le RIB d'un salarié n'est PAS ajouté à la fiche du Cabinet : depuis la 1.266.7, le serveur interdit au cabinet de lire le
+  RIB entier et de l'écrire (il ne voit que ses quatre derniers chiffres). Pour un dossier tenu au cabinet, « RIB à
+  demander » reste donc sans geste au Cabinet : c'est une décision à prendre (le cabinet qui tient la paie d'un client hors
+  SkanFact doit-il pouvoir garder le RIB de ses salariés ?) — À VÉRIFIER avec Skander.
+- Test : le bulletin d'un salarié qui n'est pas chef de famille dit « Pas chef de famille », jamais « célibataire ». Une
+  preuve.

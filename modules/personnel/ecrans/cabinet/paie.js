@@ -1015,7 +1015,7 @@
     const etat = b.valideLe ? 'validé' : enCorr ? 'correction proposée' : b.bonAPayerLe ? 'approuvé' : b.verifieLe ? 'vérifié' : P.mode === 'seule' ? `fait par ${P.client}` : 'à vérifier';
     const sit = c.situation || {};
     const situation = [x.poste, KC.contractLabel(x.contrat || 'cdi').split(' —')[0] + (x.sortie ? ` · fin le ${fmtJour(x.sortie)}` : ''),
-      (sit.headOfFamily || x.chefDeFamille) ? 'chef de famille' : 'célibataire', Number(sit.children || x.enfants) ? `${sit.children || x.enfants} enfant${Number(sit.children || x.enfants) > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+      (sit.headOfFamily || x.chefDeFamille) ? 'chef de famille' : 'pas chef de famille', Number(sit.children || x.enfants) ? `${sit.children || x.enfants} enfant${Number(sit.children || x.enfants) > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
 
     // (plateforme) 1.238.0 — « Contrôlé : … » (la maquette) : ce que les contrôles du mois disent de CE bulletin.
     const data = donneesDuPointage(dossier, L);

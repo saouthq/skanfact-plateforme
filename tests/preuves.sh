@@ -31248,6 +31248,10 @@ prouver $'cabpaie6-preparer-tous-les-bulletins' modules/personnel/ecrans/cabinet
   $'    if (spt0) spt0.onclick = () => preparerLesBulletins(root, dossier);' \
   $'    if (spt0) spt0.onclick = () => bulletinForm(root, dossier, null);' \
   $'(CABPAIE-6) un mois sans pointage se prépare d\'un geste : deux bulletins au brut de leur fiche, puis l\'étape suivante'
+prouver $'cabpaie10-situation-du-bulletin' modules/personnel/moteur/core-paie.js \
+  $'\'Chef de famille\' : \'Pas chef de famille\'' \
+  $'\'Chef de famille\' : \'Célibataire\'' \
+  $'(CABPAIE-10) le bulletin imprimé ne dit jamais « Célibataire » : SkanFact ne sait que « chef de famille » ou non'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

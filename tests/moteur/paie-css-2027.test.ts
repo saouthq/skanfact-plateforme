@@ -59,6 +59,15 @@ describe('la CSS s\'arrête avec sa règle', () => {
     expect(decembre).not.toContain('non retenue');
   });
 
+  it('(CABPAIE-10) le bulletin imprimé ne dit jamais « Célibataire » : SkanFact ne sait que « chef de famille » ou non', () => {
+    const N = { ...SONIA, headOfFamily: false, children: 0 };
+    const data = { employees: [N], payslips: [], payrollSettings: {} };
+    const slip = { id: 'b-n', employeeId: 's1', year: 2026, month: 6, ...SAISIE, computed: compta.computePayslip(N, { ...SAISIE, year: 2026, month: 6 }, compta.baremesPaie({})), issuedAt: '2026-06-28' };
+    const lu = texte(core.payslipHtml(slip, data, core.DEFAULT_COMPANY));
+    expect(lu).toContain('Pas chef de famille');
+    expect(lu).not.toMatch(/célibataire/i);
+  });
+
   it('le contrôle du mois dit « Barèmes de 2027 pas encore relus », pas en décembre 2026', () => {
     expect(compta.baremesNonRelus(2026, 12)).toBeNull();
     expect(compta.baremesNonRelus(2027, 1)).toEqual({ annee: 2027, relusJusquAu: '2026-12-31' });

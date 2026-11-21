@@ -472,7 +472,7 @@
       ${emp.cnss ? `<div class="kv"><span>N° CNSS</span><span>${escapeHtml(emp.cnss)}</span></div>` : ''}
       ${emp.hireDate ? `<div class="kv"><span>Embauché le</span><span>${fmtDate(emp.hireDate)}</span></div>` : ''}
       <div class="kv"><span>Contrat</span><span>${escapeHtml(contractLabel(emp.contract || 'cdi'))}</span></div>
-      <div class="kv"><span>Situation</span><span>${emp.headOfFamily ? 'Chef de famille' : 'Célibataire'}${Number(emp.children) ? ` · ${plFr(emp.children, 'enfant')} à charge` : ''}</span></div>
+      <div class="kv"><span>Situation</span><span>${emp.headOfFamily ? 'Chef de famille' : 'Pas chef de famille'}${Number(emp.children) ? ` · ${plFr(emp.children, 'enfant')} à charge` : ''}</span></div>
     </div>
     <div class="box"><h2>Période</h2>
       <div class="kv"><span>Mois</span><span><b>${escapeHtml(label)}</b></span></div>

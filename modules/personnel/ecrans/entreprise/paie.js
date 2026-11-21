@@ -5583,7 +5583,7 @@
             ${e.trialEnd ? dl('Période d\'essai', e.trialEnd >= auj ? `jusqu'au ${C.fmtDate(e.trialEnd)}` : `finie le ${C.fmtDate(e.trialEnd)}`) : ''}
             ${(e.primes || []).length ? dl('Primes de chaque mois', e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}`).join(' · ')) : ''}
             ${dl('Net estimé', C.money(c.net, cur), (e.primes || []).length ? 'primes de la fiche comprises, hors retenues du mois' : 'hors primes et retenues du mois')}
-            ${dl('Situation', `${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}`, 'elle compte dans son impôt')}
+            ${dl('Situation', `${e.headOfFamily ? 'chef de famille' : 'pas chef de famille'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}`, 'elle compte dans son impôt')}
           </dl></section>
           ${/* (1.248.1) La fiche dit le doublon que la liste montre : « contrôlé, clé juste » rassurait sur un RIB qui était aussi
                 celui de trois collègues (recette du 02/11). */''}
