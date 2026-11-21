@@ -264,4 +264,116 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 150_000);
+
+  it('la vignette et le grand aperçu disent le même nombre de pages, quel que soit le zoom (issue 15, V-16)', async () => {
+    const lea = await personne('lea');
+    const ent = String((await api('POST', '/entreprises', lea, { raisonSociale: 'Atelier Lumière' })).corps.id);
+    const cx = await contexte(lea);
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await p.locator('#view .premiers-pas').first().waitFor({ timeout: 30_000 });
+    await plusTard(p);
+    // On cherche, dans la page même et avec le moteur de l'application, une longueur de facture qui se coupe autrement à
+    // 50 % qu'au zoom du PDF : c'est elle qui faisait dire « 2 pages » à la vignette et « 1 page » au grand aperçu.
+    const desc = 'Pose et raccordement, fourniture du petit matériel, essais en présence du client et nettoyage du chantier';
+    const trouve = await p.evaluate(async (texte) => {
+      const w = window as unknown as { SkanCore: Obj; __data: Obj };
+      const K = w.SkanCore, co = w.__data.company;
+      const cl = { id: 'c1', name: 'Hôtel Dar El Marsa', city: 'La Marsa' };
+      const compte = (html: string) => new Promise<number>((res) => {
+        const f = document.createElement('iframe');
+        f.style.cssText = 'position:fixed;left:-5000px;top:0;width:900px;height:1200px';
+        f.onload = () => { try { const d = f.contentDocument as Document; d.documentElement.style.zoom = ''; K.fitToPage(d); res(K.paginate(d)); } catch { res(-1); } f.remove(); };
+        f.srcdoc = html; document.body.appendChild(f);
+      });
+      for (let k = 4; k <= 40; k++) {
+        const doc = { id: 'x', type: 'facture', number: '', status: 'brouillon', date: '2026-11-10', dueDate: '2026-12-10', clientId: 'c1', subject: 'Éclairage',
+          lines: Array.from({ length: k }, (_, i) => ({ label: `Luminaire n° ${i + 1}`, description: texte, qty: 1, unit: '', unitPrice: 10, vatRate: 19 })),
+          discountRate: 0, withholdingRate: 0, applyStamp: true, stampFee: 1, notes: '', currency: 'DT', payments: [] };
+        const petit = await compte(K.documentHtml(doc, cl, co, { preview: true, zoom: 0.5 }));
+        const vrai = await compte(K.documentHtml(doc, cl, co, { preview: true, zoom: 1 }));
+        if (petit !== vrai) return { k, petit, vrai };
+      }
+      return null;
+    }, desc);
+    expect(trouve, 'aucune longueur ne se coupe autrement à 50 % : la donnée ne discrimine pas').not.toBeNull();
+    const k = (trouve as { k: number; vrai: number }).k;
+    const vrai = (trouve as { k: number; vrai: number }).vrai;
+    const pose = await api('POST', `/entreprises/${ent}/dossier-v10`, lea, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel Dar El Marsa', city: 'La Marsa', email: '', paymentTermsDays: 30, withholdingRate: 0 } },
+      { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: '2026-11-10', dueDate: '2026-12-10', clientId: 'c1', createdAt: 6,
+        subject: 'Éclairage', lines: Array.from({ length: k }, (_, i) => ({ label: `Luminaire n° ${i + 1}`, description: desc, qty: n('1'), unit: '', unitPrice: n('10.000'), vatRate: 19 })),
+        discountRate: 0, withholdingRate: 0, applyStamp: true, stampFee: 1, notes: '', currency: 'DT', regimeTva: 'reel', payments: [] } },
+    ] });
+    expect(pose.statut, JSON.stringify(pose.corps)).toBe(200);
+    await p.reload();
+    await p.locator('#view .premiers-pas').first().waitFor({ timeout: 30_000 });
+    await p.evaluate(() => { location.hash = '#/doc/f1'; });
+    const attendu = vrai <= 1 ? /^1 page/ : new RegExp(`^${vrai} pages$`);
+    await expect.poll(async () => net(await p.locator('#pv-pages').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(attendu);
+    await p.locator('#pv-ouvrir').click();
+    await expect.poll(async () => net(await p.locator('#pv-full-pages').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(attendu);
+    // À 125 %, toujours le même compte.
+    for (let i = 0; i < 4 && !/125 %/.test(await p.locator('#pv-zoom-val').innerText()); i++) await p.locator('#pv-zoom-in').click();
+    await expect.poll(async () => net(await p.locator('#pv-full-pages').innerText().catch(() => '')), { timeout: 20_000 }).toMatch(attendu);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 150_000);
+
+  it('le devis sans modèle ni texte prêt propose le geste sur place, « sans coût » dit où le saisir, la vue Avoirs a ses statuts (issue 15, V-18)', async () => {
+    const nour = await personne('nour');
+    const ent = String((await api('POST', '/entreprises', nour, { raisonSociale: 'Menuiserie Nour' })).corps.id);
+    const pose = await api('POST', `/entreprises/${ent}/dossier-v10`, nour, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel Dar El Marsa', city: 'La Marsa', email: '', paymentTermsDays: 30, withholdingRate: 0 } },
+      { collection: 'documents', cle: 'd1', rang: 0, revision: null, contenu: { id: 'd1', type: 'devis', number: '', status: 'brouillon', date: '2026-11-10', dueDate: '2026-12-10', clientId: 'c1', createdAt: 6,
+        subject: 'Placards', lines: [{ label: 'Placard chêne', description: '', qty: n('2'), unit: '', unitPrice: n('450.000'), vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: false, stampFee: 0,
+        notes: '', currency: 'DT', regimeTva: 'reel', payments: [] } },
+      { collection: 'documents', cle: 'f1', rang: 1, revision: null, contenu: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: '2026-11-12', dueDate: '2026-12-12', clientId: 'c1', createdAt: 7,
+        subject: 'Placards', lines: [{ label: 'Placard chêne', description: '', qty: n('1'), unit: '', unitPrice: n('450.000'), vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: true, stampFee: 1,
+        notes: '', currency: 'DT', regimeTva: 'reel', payments: [] } },
+    ] });
+    expect(pose.statut, JSON.stringify(pose.corps)).toBe(200);
+    const cx = await contexte(nour);
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d1`);
+    await p.locator('#ed-modele').waitFor({ timeout: 30_000 });
+    await plusTard(p);
+    // « Modèle » sans aucun modèle : ni recherche, ni « Ajouter à la suite / Remplacer les lignes ».
+    await p.locator('#ed-modele').click();
+    const bulle = p.locator('.ed-pop').last();
+    await expect.poll(async () => net(await bulle.innerText().catch(() => '')), { timeout: 10_000 }).toContain('Aucun modèle');
+    expect(await bulle.locator('[data-mode], #pop-tpl-q').count()).toBe(0);
+    await p.keyboard.press('Escape');
+    // « Texte prêt » vide : le texte s'écrit sur place et part dans les notes.
+    await p.locator('#ed-texte2').click();
+    const bt = p.locator('.ed-pop #pop-txt-neuf');
+    await bt.waitFor({ timeout: 10_000 });
+    expect(net(await p.locator('.ed-pop').last().innerText())).not.toContain('Paramètres');
+    await bt.click();
+    const f = p.locator('#modal-root .modal').last();
+    await f.locator('input[name=name]').fill('Garantie');
+    await f.locator('textarea[name=text]').fill('Garantie deux ans pièces et main-d\'œuvre.');
+    await f.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#notes').inputValue(), { timeout: 10_000 }).toContain('Garantie deux ans');
+    // « Calculer les prix » sur des lignes sans coût dit où le saisir.
+    await p.locator('#calc-prix').first().click();
+    const cp = p.locator('#modal-root .modal').last();
+    await expect.poll(async () => net(await cp.innerText().catch(() => '')), { timeout: 10_000 }).toContain('se saisit sur la fiche de l\'article');
+    await cp.getByRole('button', { name: 'Annuler', exact: true }).click();
+    // La vue « Avoirs » des factures : ses statuts sont ceux d'un avoir. (Le texte ajouté aux notes s'enregistre d'abord.)
+    await p.locator('#save').click({ timeout: 10_000 });
+    await expect.poll(() => p.locator('#save').isVisible(), { timeout: 15_000 }).toBe(false);
+    await p.evaluate(() => { location.hash = '#/factures'; });
+    await p.locator('#lf-filtres [data-kind="avoir"]').click({ timeout: 30_000 });
+    await expect.poll(async () => (await p.locator('#st option').allInnerTexts()).map(net).join(' | '), { timeout: 10_000 }).toContain('Avoir émis');
+    expect((await p.locator('#st option').allInnerTexts()).map(net).join(' | ')).not.toContain('Payée en partie');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 150_000);
 });

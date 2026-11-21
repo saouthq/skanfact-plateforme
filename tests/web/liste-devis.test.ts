@@ -44,6 +44,8 @@ describe('la liste des devis, à la souris et au clavier', () => {
   };
   const jour = (decalage: number) => new Date(Date.now() + decalage * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
   const jm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  // (1.387.79) La date de la colonne porte son année quand elle n'est pas celle d'aujourd'hui (« 14/12 » lu en novembre).
+  const jmA = (iso: string) => iso.slice(0, 4) === jour(0).slice(0, 4) ? jm(iso) : `${jm(iso)}/${iso.slice(0, 4)}`;
   const plusTard = async (p: Page) => {
     await p.waitForTimeout(300);
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
@@ -105,11 +107,11 @@ describe('la liste des devis, à la souris et au clavier', () => {
     // 2. Le statut, la validité, ce que le devis a donné.
     const statuts = await Promise.all(['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'].map((id) => td(id, 'st')));
     expect(statuts).toEqual(['Brouillon', 'Envoyé', 'Expiré', 'Accepté', 'Facturé', 'Accepté', 'Refusé']);
-    expect(await td('q1', 'ech')).toBe(`${jm(jour(20))} pas encore envoyé`);
-    expect(await td('q2', 'ech')).toBe(`${jm(jour(20))} encore 20 jours`);
-    expect(await td('q3', 'ech')).toBe(`${jm(jour(-5))} expiré depuis 5 jours`);
-    expect(await td('q4', 'ech')).toBe(`accepté le ${jm(jour(-2))}`);
-    expect(await td('q7', 'ech')).toBe(`refusé le ${jm(jour(-1))}`);
+    expect(await td('q1', 'ech')).toBe(`${jmA(jour(20))} pas encore envoyé`);
+    expect(await td('q2', 'ech')).toBe(`${jmA(jour(20))} encore 20 jours`);
+    expect(await td('q3', 'ech')).toBe(`${jmA(jour(-5))} expiré il y a 5 jours`);
+    expect(await td('q4', 'ech')).toBe(`réponse le ${jmA(jour(-2))}`);
+    expect(await td('q7', 'ech')).toBe(`réponse le ${jmA(jour(-1))}`);
     expect(await td('q4', 'ld-suite')).toBe('à facturer');
     expect(await td('q5', 'ld-suite')).toBe(numeros.f5);
     expect(await td('q6', 'ld-suite')).toBe(`${numeros.a6} (acompte) · solde à facturer`);

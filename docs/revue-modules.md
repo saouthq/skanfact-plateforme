@@ -5765,3 +5765,27 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   article » ni « Émettre ».
 - **ENTSOCLE-22** — « -3 » dans la numérotation est refusé sur la ligne (vérifié par un test).
 - Test : `tests/web/coquille-1387.test.ts` (deux tests de plus).
+
+## 1.387.79 — Le document du client et les petits états du cycle de vente (issue 15, V-16 et V-18)
+
+- **V-16 — la vignette disait « 2 pages », le grand aperçu « 1 page (resserrée) ».** La mise en page se faisait au
+  zoom de l'aperçu : à 50 % ou à 125 %, le texte ne se coupe pas aux mêmes endroits. Elle se fait maintenant au zoom du
+  PDF (1), puis l'aperçu reprend son zoom : la vignette, le grand aperçu (à tous ses zooms) et l'aperçu d'un contrat
+  disent le même nombre de pages que le PDF. Le test cherche, avec le moteur de l'application, une longueur de facture
+  qui se coupe autrement à 50 % ; sans elle, il tombe (la donnée ne discriminerait pas).
+- **V-18 — la liste des devis.** « Valable jusqu'au » porte l'année quand ce n'est pas celle-ci ; un devis qui a reçu
+  sa réponse dit « réponse le … » (le statut dit déjà « accepté » ou « refusé ») ; « expiré il y a 20 jours » tient sur
+  une ligne.
+- **V-18 — « Texte prêt » vide** renvoyait à « Paramètres → Textes », qui n'existe pas (les textes vivent au
+  Catalogue) : « Écrire un texte prêt… » l'écrit sur place, et il part dans les notes.
+- **V-18 — « Modèle » sans modèle** ne montre plus ni recherche ni « Ajouter à la suite / Remplacer les lignes ».
+- **V-18 — « Calculer les prix »** sur des lignes toutes sans coût dit où le saisir (la fiche de l'article).
+- **V-18 — la vue « Avoirs » des factures** propose les statuts d'un avoir (Brouillon, Avoir émis).
+- **V-18** — la note de retenue de la fenêtre d'encaissement ne commence plus une ligne par « : une retenue subie » ;
+  « Total de la sélection » tient sur une ligne ; « + Nouvelle proforma » porte la croix des autres pages ; le devis
+  dit « Il a répondu au téléphone ? Note-le ici : la fenêtre propose aussi de faire la facture ».
+- Gardé : « Il a accepté… » après une modification (le libellé long débordait de sa carte, preuve de la 1.307.0) ; le
+  sous-total d'une section sur la ligne de son titre (règle du gabarit depuis la 1.155.0 ; À VÉRIFIER avec Skander).
+- **ENTSOCLE-9 (en partie, issue 14)** — les visites citent les boutons tels qu'ils sont écrits (« Enregistrer le
+  devis », le bouton du bandeau de l'exemple selon qu'une vraie entreprise existe ou non, le cadre des justificatifs).
+- Tests : `tests/web/coquille-1387.test.ts` (deux tests de plus), `tests/web/liste-devis.test.ts`.

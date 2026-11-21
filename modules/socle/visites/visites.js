@@ -153,7 +153,7 @@
   const ZONES = [
     // Cette phrase ne se lit que PENDANT une visite, et le bandeau retire alors son bouton « Visite
     // guidée » (on y est déjà) : elle ne cite que ce qui est à l'écran (10.14.1).
-    { sel: '.demo-banner', titre: "Tu es dans l'exemple", texte: "Une entreprise inventée, pleine de données : essaie tout, rien de ce que tu fais ici ne compte, et tes vraies données sont à l'abri. « Quitter l'exemple » te les rend quand tu veux." },
+    { sel: '.demo-banner', titre: "Tu es dans l'exemple", texte: "Une entreprise inventée, pleine de données : essaie tout, rien de ce que tu fais ici ne compte, et tes vraies données sont à l'abri. Le bouton du bandeau (« Quitter l'exemple », ou « Créer ma vraie entreprise » si tu n'en as pas encore) te ramène chez toi quand tu veux." },
     // L'invitation « Première fois sur cette page ? » (10.14.1, S-03) s'accroche à « Guide-moi » : une
     // visite la referme en partant, mais l'instrument de couverture la voit.
     { sel: '#guide-appel', titre: "La visite de cette page", texte: "Proposée les trois premières fois que tu ouvres une page. Tu la retrouves ensuite dans « Guide-moi », avec tout ce qu'on peut faire ici." },
@@ -729,7 +729,7 @@
   // Les états vides : le premier geste d'une page qui n'a encore rien (le second passage de
   // `e2e:couverture`, sur une entreprise vierge, en a trouvé seize sans explication).
   b('#vide-new', "Ouvre la première pièce de cette liste, vierge : tu choisis le client, tu ajoutes tes lignes, le total se calcule.");
-  b('#vide-demo', "Charge l'entreprise d'exemple de cinq ans pour voir cette page remplie. Tes données sont mises de côté, et « Quitter l'exemple » te les rend.");
+  b('#vide-demo', "Charge l'entreprise d'exemple de cinq ans pour voir cette page remplie. Tes données sont mises de côté, et le bouton du bandeau te les rend.");
   b('#vide-client', "Ouvre la fiche de ton premier client : son nom, son matricule, son adresse. Ils se reporteront tout seuls sur chaque pièce.");
   // L'import depuis un tableur (10.14.0).
   b('#vide-import', "Colle ta liste de clients depuis un tableur : ils entrent tous d'un coup, et tu vois ce qui entre avant de valider.");
@@ -1251,13 +1251,13 @@
         { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit ce que tu tapes, ligne par ligne. Rien à calculer. Dessous, la <b>marge estimée</b> retire le coût de revient de chaque ligne (celui de ton catalogue) : c\'est pour toi, elle ne s\'imprime pas.' },
         // 10.14.1 — les deux panneaux sous les lignes, que la visite laissait seuls (vu au guide).
         { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true,
-          texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : « + Joindre un fichier… » les range avec ce devis. Le fichier est <b>copié</b> à côté de tes données, et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
+          texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : glisse-les dans le cadre (ou clique dedans) : ils se rangent avec ce devis. Le fichier est <b>copié</b> à côté de tes données, et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
           texte: 'Un texte libre <b>imprimé</b> sur le devis : délai d\'intervention, matériel non compris, conditions particulières. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue, pour les insérer en un clic.' },
         { cible: ['#view .preview', '#ed-grand', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu', texte: 'À droite, le document <b>tel que ton client le recevra</b>, mis à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles il fera une fois imprimé, et « Aperçu », en haut (ou un clic sur l\'image), l\'ouvre en grand pour le relire avant de l\'envoyer.' },
         { cible: '#save', cote: 'dessous', faire: 'clic',
           titre: 'Enregistrer', texte: 'Le devis reçoit son numéro. Tu pourras encore le modifier tant qu\'il n\'est pas accepté.',
-          action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
+          action: 'Clique sur <b>« Enregistrer le devis »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
       ]
     });
 

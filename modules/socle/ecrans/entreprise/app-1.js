@@ -5366,12 +5366,20 @@
     function filtres(l) {
       const choix = (id, label, v, opts) => `<label class="sel"><select id="${id}" aria-label="${label}">${opts.map(([k, n]) => `<option value="${h(k)}"${v === k ? ' selected' : ''}>${h(n)}</option>`).join('')}</select>${lfIc('bas', 14)}</label>`;
       const compte = st => lfFiltrer(mine, s, { st }).length;
+      // (1.387.79, issue 15 V-18) Sur la vue « Avoirs », les statuts sont ceux d'un avoir (brouillon, émis) : « Payée en
+      // partie » ou « En retard » n'y rendaient rien, et aucun ne disait « Avoir émis ». Le statut déjà choisi reste dans la liste.
+      const statutsDuType = () => {
+        if (s.kind !== 'avoir') return Object.entries(LF_FILTRES);
+        const l = [['', LF_FILTRES['']], ['brouillon', 'Brouillon'], ['émis', 'Avoir émis']];
+        if (s.st && !l.some(([k]) => k === s.st)) l.push([s.st, LF_FILTRES[s.st] || s.st]);
+        return l;
+      };
       const filtre = !!(s.q || s.st || s.kind || s.year);
-      const puces = [s.year ? ['year', `Année ${s.year}${s.yearAuto ? ' · choisie d\'office' : ''}`] : null, s.st ? ['st', LF_FILTRES[s.st] || s.st] : null,
+      const puces = [s.year ? ['year', `Année ${s.year}${s.yearAuto ? ' · choisie d\'office' : ''}`] : null, s.st ? ['st', (s.kind === 'avoir' && s.st === 'émis' ? 'Avoir émis' : LF_FILTRES[s.st]) || s.st] : null,
         s.kind ? ['kind', s.kind === 'avoir' ? 'Avoirs' : 'Factures'] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
       return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Chercher une pièce' : 'Numéro, client, objet, montant, pièce jointe…'}" autocomplete="off" aria-label="Chercher une pièce"><kbd>/</kbd></label>
         <div class="segment petit" role="group" aria-label="Type">${[['', 'Tout'], ['facture', 'Factures'], ['avoir', 'Avoirs']].map(([k, n]) => `<button type="button" data-kind="${k}" aria-pressed="${s.kind === k}">${n}</button>`).join('')}</div>
-        ${choix('st', 'Statut', s.st, Object.entries(LF_FILTRES).map(([k, n]) => [k, k ? `${n} · ${compte(k)}` : n]))}
+        ${choix('st', 'Statut', s.st, statutsDuType().map(([k, n]) => [k, k ? `${n} · ${compte(k)}` : n]))}
         ${years.length > 1 ? choix('yr', 'Année', s.year, [['', 'Toutes les années'], ...years.map(y => [y, y])]) : ''}
         ${info('list.filters').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
         <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(mine.length, 'pièce')}` : `<b>${mine.length}</b> ${mine.length > 1 ? 'pièces' : 'pièce'}`}</span></div>
@@ -5714,13 +5722,15 @@
   // La case « Valable jusqu'au » : le temps qui reste, l'expiration, ou la réponse du client et sa date.
   function ldValidite(d, st) {
     const rep = d.reponse && (d.reponse.statut === 'accepté' || d.reponse.statut === 'refusé') ? d.reponse : null;
-    if (st === 'refusé') return `<span class="mu">${rep && rep.le ? `refusé le ${lfJm(rep.le)}` : 'refusé'}</span>`;
-    if (['à facturer', 'en facturation', 'facturé'].includes(st)) return `<span class="mu">${rep && rep.le ? `accepté le ${lfJm(rep.le)}` : 'accepté'}</span>`;
+    // (1.387.79, issue 15 V-18) La colonne dit une DATE : celle de la réponse quand le client a répondu (le statut, à côté,
+    // dit déjà « accepté » ou « refusé »), l'année quand elle n'est pas celle-ci (« 14/12 » à côté de « 14/11/2026 »), et le
+    // temps qui reste ou qui a passé en une ligne (« expiré depuis 20 jours » tombait sur trois).
+    if (['refusé', 'à facturer', 'en facturation', 'facturé'].includes(st)) return `<span class="mu">${rep && rep.le ? `réponse le ${lfJmA(rep.le)}` : '—'}</span>`;
     if (!d.dueDate) return '<span class="mu">—</span>';
-    if (st === 'brouillon') return `<span class="mu">${lfJm(d.dueDate)}</span><small>pas encore envoyé</small>`;
+    if (st === 'brouillon') return `<span class="mu">${lfJmA(d.dueDate)}</span><small class="ld-reste">pas encore envoyé</small>`;
     const j = C.daysBetween(C.today(), d.dueDate);
-    if (st === 'expiré') return `${lfJm(d.dueDate)}<small class="ambre">expiré depuis ${pl(-j, 'jour')}</small>`;
-    return `${lfJm(d.dueDate)}<small class="${j <= 7 ? 'ambre' : ''}">${j === 0 ? 'expire aujourd\'hui' : `encore ${pl(j, 'jour')}`}</small>`;
+    if (st === 'expiré') return `${lfJmA(d.dueDate)}<small class="ambre ld-reste">expiré il y a ${pl(-j, 'jour')}</small>`;
+    return `${lfJmA(d.dueDate)}<small class="ld-reste${j <= 7 ? ' ambre' : ''}">${j === 0 ? 'expire aujourd\'hui' : `encore ${pl(j, 'jour')}`}</small>`;
   }
   // Ce qu'un devis a donné : ses factures (l'acompte, le solde, la totale), dites par leur numéro.
   function ldSuite(d, st) {
@@ -6757,7 +6767,7 @@
         <p class="ed-phrase">Son lien montre déjà cette version ; le message lui dit qu'elle remplace la précédente. Il garde son numéro.</p>${sauver}
         <div class="ed-deux"><button class="btn" id="accepter">Il a accepté…</button><button class="btn" id="refuser">Il a refusé</button></div></div>`;
       if (devisFacturable && st !== 'accepté') return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="accepter">${lfIc('coche', 17, 2.4)}Le client a accepté…</button>
-        <p class="ed-phrase">Il a répondu au téléphone ? Note-le : « Accepter et facturer » fait la facture dans la foulée.</p>${sauver}
+        <p class="ed-phrase">Il a répondu au téléphone ? Note-le ici : la fenêtre propose aussi de faire la facture dans la foulée.</p>${sauver}
         <div class="ed-deux"><div class="more"><button class="btn" id="bill-btn">Facturer ▾</button><div class="more-list" id="bill-list" hidden>${ligneMenu('<button id="convert">Facturer ce devis</button>', 'ed.convert')}${autresChemins}</div></div><button class="btn" id="refuser">Le client a refusé</button></div></div>`;
       if (devisFacturable) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="convert">${lfIc('carte', 17)}Facturer ce devis</button> ${info('ed.convert')}
         <p class="ed-phrase">Accepté. La facture arrive en brouillon, avec les lignes du devis ; tu l'émets quand tu veux.</p>${sauver}
@@ -10036,9 +10046,9 @@
         const n = doc.lines.filter(l => !ligneVide(l)).length;
         const montant = t => C.money(C.computeTotals({ ...t, type: doc.type, currency: cur }, company()).totalHT, null, C.decimalsFor(cur));
         ouvrirBulle(e.currentTarget, `<div class="pop-t">Partir d'un modèle</div>
-            <label class="pop-q">${lfIc('loupe', 15)}<input type="search" id="pop-tpl-q" placeholder="Rechercher un modèle…" autocomplete="off"></label>
+            ${tpls.length ? `<label class="pop-q">${lfIc('loupe', 15)}<input type="search" id="pop-tpl-q" placeholder="Rechercher un modèle…" autocomplete="off"></label>` : ''}
             <div class="pop-liste" id="pop-tpl-l"></div>
-            ${n ? `<div class="pop-choix-mode"><span>${isQ ? 'Ton devis' : 'Ta facture'} a déjà ${pl(n, 'ligne')} :</span><button type="button" class="btn btn-sm on" data-mode="suite">Ajouter à la suite</button><button type="button" class="btn btn-sm" data-mode="remplacer">Remplacer les lignes</button></div>` : ''}
+            ${n && tpls.length ? `<div class="pop-choix-mode"><span>${isQ ? 'Ton devis' : 'Ta facture'} a déjà ${pl(n, 'ligne')} :</span><button type="button" class="btn btn-sm on" data-mode="suite">Ajouter à la suite</button><button type="button" class="btn btn-sm" data-mode="remplacer">Remplacer les lignes</button></div>` : ''}
             ${$('#as-template') ? `<button type="button" class="pop-plus" id="pop-tpl-enr">${lfIc('etoile', 14)}Enregistrer ${isQ ? 'ce devis' : 'cette facture'} comme modèle</button>` : ''}`,
           (pop, fermer) => {
             let mode = 'suite';
@@ -10057,8 +10067,9 @@
               });
             };
             dessiner('');
-            $('#pop-tpl-q', pop).oninput = ev => dessiner(ev.target.value.trim());
-            $('#pop-tpl-q', pop).focus();
+            // (1.387.79, issue 15 V-18) Sans modèle, ni recherche ni « Ajouter à la suite / Remplacer les lignes » : il n'y a rien à choisir.
+            const qTpl = $('#pop-tpl-q', pop);
+            if (qTpl) { qTpl.oninput = ev => dessiner(ev.target.value.trim()); qTpl.focus(); }
             const enr = $('#pop-tpl-enr', pop); if (enr) enr.onclick = () => { fermer(); $('#as-template').click(); };
           }, { label: 'Modèles' });
       };
@@ -10070,7 +10081,21 @@
         (pop, fermer) => {
           const dessiner = q => {
             const l = (data.snippets || []).filter(x => !q || sansAccents(`${x.name} ${x.text || ''}`).includes(sansAccents(q)));
-            $('#pop-txt-l', pop).innerHTML = l.length ? l.map(x => `<button type="button" class="pop-o col" data-sn="${h(x.id)}"><b>${h(x.name)}</b><small>${h((x.text || '').slice(0, 110))}</small></button>`).join('') : '<p class="pop-vide">Aucun texte prêt : ils se créent dans Paramètres → Textes.</p>';
+            $('#pop-txt-l', pop).innerHTML = l.length ? l.map(x => `<button type="button" class="pop-o col" data-sn="${h(x.id)}"><b>${h(x.name)}</b><small>${h((x.text || '').slice(0, 110))}</small></button>`).join('') : `<p class="pop-vide">Aucun texte prêt pour l'instant : une phrase que tu réutilises (conditions, garantie, mentions) s'écrit une fois, puis s'ajoute d'un clic.</p><button type="button" class="pop-plus" id="pop-txt-neuf">${lfIc('ajout', 14)}Écrire un texte prêt…</button>`;
+            // (1.387.79, issue 15 V-18) La liste vide renvoyait à « Paramètres → Textes », qui n'existe pas (les textes vivent au
+            // Catalogue) : le texte s'écrit ici, et s'ajoute aux notes une fois enregistré.
+            const neuf = $('#pop-txt-neuf', pop);
+            if (neuf) neuf.onclick = () => {
+              fermer();
+              const avant = (data.snippets || []).length;
+              snippetForm(null, () => {
+                const sn = data.snippets.length > avant ? data.snippets[data.snippets.length - 1] : null;
+                if (!sn || !$('#notes')) return;
+                doc.notes = (doc.notes ? doc.notes.replace(/\s+$/, '') + '\n' : '') + sn.text;
+                $('#notes').value = doc.notes; touch(); schedulePreview();
+                toast(`« ${sn.name} » est ajouté aux notes ; « Texte prêt » le proposera aux prochaines pièces.`);
+              });
+            };
             $$('[data-sn]', pop).forEach(x => x.onclick = () => {
               const sn = data.snippets.find(y => y.id === x.dataset.sn); if (!sn) return;
               fermer();
@@ -10913,7 +10938,7 @@
           return a + (C.retenueSubie(essai, data, company()).parts.__essai || 0);
         }, 0);
         const moisRs = C.MONTHS_FR[Number(d0.slice(5, 7)) - 1];
-        $('#ee-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Le client garde ${C.money(rs, cur)} de retenue à la source</b> : une retenue subie ${/^[aeiou]/i.test(moisRs) ? 'd\'' : 'de '}${moisRs} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.</span></div>` : '';
+        $('#ee-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Le client garde ${C.money(rs, cur)} de retenue à la source</b><span>${/* (1.387.79, issue 15 V-18) Le titre et sa phrase vivent sur deux rangées de la grille : « : une retenue subie… » commençait la seconde. */''}C'est une retenue subie ${/^[aeiou]/i.test(moisRs) ? 'd\'' : 'de '}${moisRs} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.</span></span></div>` : '';
         const nb = parts.filter(([, m]) => m > 0.0005).length, tc = totalC();
         $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${montant > 0 && nb ? ` sur ${pl(nb, 'facture')}${montant > tc + 0.0005 ? '' : montant < tc - 0.0005 ? ` · reste dû ${C.money(C.round3(tc - montant), cur)}` : ' · toutes soldées'}` : ''}`;
         majAvertValide($('#ee-valide', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date, { sujet: 'Ce paiement', fem: false, neuve: true, geste: 'En l\'enregistrant' });
@@ -12591,7 +12616,7 @@
             return `<div class="cmp${c.r.perte ? ' perte' : ''}">${nom}<span>${c.l.cout ? C.money(c.l.cout, dev) : '—'}</span><span>${C.money(c.l.prix || 0, dev)}</span>
               ${ttc ? `<span><input class="in num" data-ttc="${c.i}" value="${h(nombre(ttcVise[c.i]))}" inputmode="decimal" aria-label="Prix TTC visé de la ligne ${c.i + 1}"><small>${nouveau == null ? '' : 'HT ' + C.money(nouveau, dev)}</small></span>` : `<span><b>${nouveau == null ? '—' : C.money(nouveau, dev)}</b>${c.r.perte ? '<small class="neg">à perte</small>' : ''}</span>`}
               <span class="${ecart == null ? '' : ecart < 0 ? 'neg' : 'ok'}">${ecart == null ? '' : (ecart < 0 ? '−' : '+') + C.money(Math.abs(ecart), dev)}</span></div>`;
-          }).join('')}`;
+          }).join('')}${/* (1.387.79, issue 15 V-18) « sans coût » partout ne disait pas où le saisir. */''}${!ttc && calc.length && calc.every(c => c.sans) ? `<p class="small muted mt">Aucune ligne n'a de coût : il se saisit sur la fiche de l'article (Catalogue, « Coût de revient HT »), et la ligne le reprend quand tu choisis l'article. « Prix TTC visé », lui, se passe du coût.</p>` : ''}`;
         $$('[data-ttc]', res).forEach(x => {
           x.oninput = () => { ttcVise[Number(x.dataset.ttc)] = x.value; const pos = x.selectionStart; calculer(); const y = $(`[data-ttc="${x.dataset.ttc}"]`, res); if (y) { y.focus(); try { y.setSelectionRange(pos, pos); } catch (e) { /* champ sans curseur */ } } };
         });
@@ -13693,11 +13718,19 @@
   // La mise en page d'un aperçu, dans le même ordre que la fenêtre PDF de main.js : on resserre s'il
   // le faut, PUIS on découpe en vraies pages. Le resserrement final se lit sur le document une fois
   // `paginate` passé — c'est lui qui tranche, il peut retirer un resserrement qui ne gagnait rien.
+  // (1.387.79) La mise en page se fait au zoom du PDF (1), jamais à celui de l'aperçu : à 50 % ou à 125 %, le texte ne
+  // se coupe pas aux mêmes endroits, et la même facture se disait « 2 pages » dans la vignette et « 1 page (resserrée) »
+  // dans le grand aperçu. Le zoom est remis tel qu'il était une fois les pages découpées.
   function mettreEnPage(docu) {
-    C.fitToPage(docu);
-    const pages = C.paginate(docu);
-    const p1 = docu.querySelector('.page');
-    return { pages, compact: !!(p1 && p1.classList.contains('compact')) };
+    const racine = docu && docu.documentElement;
+    const zoomAvant = racine ? racine.style.zoom : '';
+    if (racine) racine.style.zoom = '1';
+    try {
+      C.fitToPage(docu);
+      const pages = C.paginate(docu);
+      const p1 = docu.querySelector('.page');
+      return { pages, compact: !!(p1 && p1.classList.contains('compact')) };
+    } finally { if (racine) racine.style.zoom = zoomAvant; }
   }
   // 10.12.0 — un document de plus d'une page fait naître la barre de défilement verticale de
   // l'aperçu. La page, calculée pour TOUTE la largeur du cadre, dépassait alors de la largeur de
@@ -20667,7 +20700,7 @@
       + chiffreA(`Montant ${annee}`, montantU(htAnnee, company().currency), 'HT, hors brouillons et annulées')}</div>`;
     $('#view').innerHTML = `
       <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Autres pièces</span></div><h1>Autres pièces</h1><p class="sous">${h(tab[2])} ${info('autres.' + type)}</p></div>
-        <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">+ ${h(NEW_LABELS[type])}</button></div></div>
+        <div class="actions">${aFacturer.length ? '<button class="btn btn-primary" id="facturer-bons">Facturer des bons…</button>' : ''}<button class="btn ${vide || aFacturer.length ? '' : 'btn-primary'}" id="new">${lfIc('croix', 15, 2.4)} ${h(NEW_LABELS[type])}</button></div></div>
       <div class="lf mg ca ap">${resume}
       <div class="mg-barre"><div class="pa-seg" id="a-tabs" role="tablist" aria-label="Les autres pièces">${AUTRES_TABS.map(([t, label]) =>
         `<button type="button" role="tab" data-tab="${t}" aria-selected="${t === type}" class="${t === type ? 'active' : ''}">${h(label)}${data.documents.some(d => d.type === t) ? ` <span class="tab-n">${data.documents.filter(d => d.type === t).length}</span>` : ''}</button>`).join('')}</div></div>

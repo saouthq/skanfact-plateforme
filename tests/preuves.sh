@@ -22771,7 +22771,7 @@ prouver 'devis 1.260 c : « Relancer » part pour plusieurs devis à la fois' mo
   'aRelancer.length === 1' 'aRelancer.length > 0' \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
 prouver 'devis 1.260 d : la date de l'\''acceptation ne se dit pas' modules/socle/ecrans/entreprise/app-1.js \
-  "rep && rep.le ? \`accepté le \${lfJm(rep.le)}\` : 'accepté'" "'accepté'" \
+  "rep && rep.le ? \`réponse le \${lfJmA(rep.le)}\` : '—'" "'—'" \
   'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l'\''étape suivante, on filtre, on choisit, au clavier'
 # Les marges dans la nouvelle DA et le retour vers la fiche (1.261.0, Skander 03/11/2026).
 prouver 'marges 1.261 a : le chiffre d'\''affaires quitte le pied du tableau' modules/socle/ecrans/entreprise/app-1.js \
@@ -31003,6 +31003,12 @@ prouver $'entreprise-nom-au-survol' web/public/plateforme/barre.js \
   $'if (btn) { const t =' \
   $'if (false) { const t =' \
   $'l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)'
+prouver $'apercu-pages-au-zoom-du-pdf' modules/socle/ecrans/entreprise/app-1.js $'if (racine) racine.style.zoom = \'1\';' $'void 0;' $'la vignette et le grand aperçu disent le même nombre de pages, quel que soit le zoom (issue 15, V-16)'
+prouver $'modele-sans-modele-sans-choix' modules/socle/ecrans/entreprise/app-1.js $'${n && tpls.length ? `' $'${n ? `' $'le devis sans modèle ni texte prêt propose le geste sur place, « sans coût » dit où le saisir, la vue Avoirs a ses statuts (issue 15, V-18)'
+prouver $'texte-pret-s-ecrit-sur-place' modules/socle/ecrans/entreprise/app-1.js $'if (neuf) neuf.onclick = () => {' $'if (false) neuf.onclick = () => {' $'le devis sans modèle ni texte prêt propose le geste sur place, « sans coût » dit où le saisir, la vue Avoirs a ses statuts (issue 15, V-18)'
+prouver $'sans-cout-dit-ou-le-saisir' modules/socle/ecrans/entreprise/app-1.js $'${!ttc && calc.length && calc.every(c => c.sans) ?' $'${false ?' $'le devis sans modèle ni texte prêt propose le geste sur place, « sans coût » dit où le saisir, la vue Avoirs a ses statuts (issue 15, V-18)'
+prouver $'vue-avoirs-statuts-d-avoir' modules/socle/ecrans/entreprise/app-1.js $'if (s.kind !== \'avoir\') return Object.entries(LF_FILTRES);' $'return Object.entries(LF_FILTRES);' $'le devis sans modèle ni texte prêt propose le geste sur place, « sans coût » dit où le saisir, la vue Avoirs a ses statuts (issue 15, V-18)'
+prouver $'devis-expire-il-y-a' modules/socle/ecrans/entreprise/app-1.js $'expiré il y a ${pl(-j' $'expiré depuis ${pl(-j' $'chaque statut se dit, « Facturé par » nomme les factures, le bouton rapide est l\'étape suivante, on filtre, on choisit, au clavier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

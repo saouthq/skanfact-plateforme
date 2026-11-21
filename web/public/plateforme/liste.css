@@ -114,6 +114,8 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .lf .trouve, .lf .att-trouve { color: var(--sb-sarcelle-texte) !important; display: inline-flex !important; gap: 4px; align-items: center; font-size: 12px; }
 .lf td.ech, .lf td.st { white-space: nowrap; }
 .lf td.ech small { white-space: normal; max-width: 112px; }
+/* (1.387.79, issue 15 V-18) Le temps qui reste d'un devis se lit d'une ligne : « expiré depuis 20 jours » tombait sur trois. */
+.lf td.ech small.ld-reste { white-space: nowrap; max-width: none; }
 .lf td.cl { min-width: 190px; }
 .lf td.cl small { overflow-wrap: anywhere; }
 .lf td.tt { width: 96px; }
@@ -139,6 +141,8 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 .lf table.lf-table tfoot td.m { font-size: 14px; }
 .lf .pied-t { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .lf .pied-t span { color: var(--sb-gris-2); font-size: 12.5px; }
+/* (1.387.79, issue 15 V-18) « Total de la sélection » se lit d'un bloc : sous deux colonnes étroites, il tombait sur deux lignes. */
+.lf .pied-t > b { white-space: nowrap; }
 .lf .pager { border-top: 1px solid var(--sb-trait); padding: 10px 14px; margin: 0; }
 .lf .vide-f { display: grid; justify-items: center; gap: 8px; padding: 46px 20px; text-align: center; color: var(--sb-gris); }
 .lf .vide-f b { color: var(--sb-encre); font-size: 16px; }
