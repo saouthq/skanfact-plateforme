@@ -2372,6 +2372,10 @@
     .slice(0, 2).map(m => m[0]).join('') || 'SF').toUpperCase();
   const marqueD = (d, cl = '') => { const c = couleurDe(d.id); return `<span class="marque-s ${cl}" style="background:linear-gradient(145deg, ${c[0]}, ${c[1]})" aria-hidden="true">${esc(initialesDe(d.name))}</span>`; };
   const typeD = d => `<span class="type-d ${d.manual ? 'tenu' : 'relie'}" title="${d.manual ? 'Le cabinet tient ce dossier : le client n\'est pas sur SkanFact' : 'Le client est sur SkanFact : ses pièces arrivent seules'}">${d.manual ? 'Tenu' : 'Relié'}</span>`;
+  // (1.387.99, issue 6, CAB-14) « Relié » porte SA date (celle du lien : le jour où le mandat a été accepté), à côté de « mission
+  // depuis » (le début de mission de la fiche) : deux dates, deux mots. La fiche disait « relié » sans date pendant que Messages
+  // appelait la date du lien « tient ta comptabilité depuis ». Le même texte que le classeur.
+  const lienRelie = d => d.manual ? '<span class="cd-li tenu">tenu au cabinet</span>' : `<span class="cd-li relie">${CD_IC.lien}relié${d.relieDepuis ? ` depuis ${esc(d.relieDepuis.slice(5, 7))}/${esc(d.relieDepuis.slice(0, 4))}` : ''}</span>`;
 
   // Le rôle au cabinet (supervision : associé ; validation : collaborateur ; saisie : assistant de saisie).
   const monRole = () => (((S && S.collaborateurs) || []).find(c => c.id === S.moi) || {}).role || 'supervision';
@@ -5307,7 +5311,7 @@
       sansRien.length && !(d.relances || []).length ? 'jamais relancé' : '',
       tenuEnCours ? `${cap(moisLong(mp))} déposé · ${moisLong(mc)} se saisit au cabinet` : '',
     ].filter(Boolean).map((t, i) => (i ? t.charAt(0).toLowerCase() + t.slice(1) : cap(t))).join(' · ') || (nouveau ? `Arrivé au cabinet · son premier mois : ${esc(moisLong(d.from || mc))}` : `Tout est à jour · prochaine déclaration le ${jjmm(limiteDe(prochaine))} (À VÉRIFIER)`);
-    const lien = d.manual ? '<span class="cd-li tenu">tenu au cabinet</span>' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;
+    const lien = lienRelie(d);
     const ecrire = d.manual ? `<button type="button" class="btn" id="fd-ecrire-hors">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}…</button>` : `<a class="btn" href="#/messages/${encodeURIComponent(d.id)}">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}${em.nonLus ? `<span class="cd-nl-t">${em.nonLus}</span>` : ''}</a>`;
     const tete = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)} ${info('fd.page')}</h1>
         <p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</span>${lien}${d.from ? `<small>mission depuis ${esc(moisLong(d.from))} ${d.from.slice(0, 4)}</small>` : ''}${eq.suit ? `<span class="fd-eqs">${persCd(eq.suit, 20)} suivi par ${esc(prenomDe(eq.suit))}${eq.val ? ` · validé par ${esc(prenomDe(eq.val))}` : ''}</span>` : ''}</p>

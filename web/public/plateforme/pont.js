@@ -928,7 +928,7 @@
     const nom = `<strong>${esc(m.cabinet.nom)}</strong>`;
     poser(`${m.statut === 'propose'
       ? `<p>Tu as confié ton dossier à ${nom} : il ne le voit qu'une fois qu'il a accepté.</p>`
-      : `<p>${nom} tient tes livres depuis le ${esc(jour(m.debut))} : ${esc(lesPerimetres(m.perimetre))}.</p>
+      : `<p>${nom} est relié à ton dossier depuis le ${esc(jour(m.debut))} : ${esc(lesPerimetres(m.perimetre))}.</p>
          <p class="small muted">Il lit tes écritures à jour et valide tes mois ; il ne touche jamais à tes factures, à ta caisse ni à ton équipe.</p>`}
       <p class="small" role="alert"></p>
       <div class="inline mt"><button type="button" class="btn btn-danger" id="mandat-arreter">${m.statut === 'propose' ? 'Retirer ma proposition' : 'Arrêter le mandat…'}</button></div>`);

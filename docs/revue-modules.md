@@ -6056,3 +6056,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   elle se réduit à sa question et à ses deux boutons.
 - Tests : Entrée sur « Nouveau client » ouvre la fenêtre et l'invitation disparaît ; au téléphone, l'invitation ne
   dépasse pas 130 px. Deux preuves.
+
+## 1.387.99 — « Relié depuis » et « mission depuis » : deux dates, deux mots (issue 6, CAB-14)
+
+- **CAB-14** : la date d'un mandat est le jour où le client a accepté le lien, pas le début de la mission. Messages
+  l'annonçait pourtant « tient ta comptabilité depuis le… » (côté client) et « Ton client depuis le… » (côté cabinet), et
+  les Paramètres du client « tient tes livres depuis le… », pendant que la fiche du dossier disait « relié » sans date à
+  côté de « mission depuis août 2026 ». Partout maintenant : « relié (à ton dossier) depuis le… » pour le lien, « mission
+  depuis » pour le début de mission. La fiche porte la date du lien, comme le classeur.
+- Tests : la fiche lit « relié depuis MM/AAAA … mission depuis août 2026 » ; Messages et les Paramètres du client lisent la
+  nouvelle phrase. Une preuve.

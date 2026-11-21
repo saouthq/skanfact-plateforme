@@ -146,7 +146,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 1 pièce et 1 réponse /);
     await aFaire.getByRole('button', { name: 'Répondre', exact: true }).click();
     await a.p.locator('.msg-page h1').waitFor({ timeout: 15_000 });
-    expect(net(await a.p.locator('.msg-tete').innerText())).toMatch(/Mon comptable Cabinet Ben Youssef tient ta comptabilité depuis le \d\d\/\d\d\/\d{4} Chercher$/);
+    expect(net(await a.p.locator('.msg-tete').innerText())).toMatch(/Mon comptable Cabinet Ben Youssef · relié à ton dossier depuis le \d\d\/\d\d\/\d{4} Chercher$/);
     const attente = a.p.locator('[data-msg-attente]');
     await expect.poll(async () => net(await attente.innerText())).toBe('En attente de toi 1 question sans réponse et 1 pièce demandée de ton cabinet. Répondre, en commençant par la plus ancienne');
     // Ouvrir le fil le marque lu, pièce demandée comprise (elle ne compte pas parmi les non-lus) : le cabinet voit « Lue ».

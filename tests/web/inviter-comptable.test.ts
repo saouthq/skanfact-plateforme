@@ -159,7 +159,7 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await e.reload();
     await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await e.getByRole('tab', { name: 'Envois', exact: true }).click();
-    await expect.poll(() => e.locator('#cab-pair').innerText(), { timeout: 15_000 }).toContain('Cabinet Jlassi Conseil tient tes livres depuis le');
+    await expect.poll(() => e.locator('#cab-pair').innerText(), { timeout: 15_000 }).toContain('Cabinet Jlassi Conseil est relié à ton dossier depuis le');
     expect((await api('GET', `/entreprises/${ent}/mandat/invitation`, client)).corps.invitation).toBeNull();
     // Le lien, rouvert, ne vaut plus : l'entrée le dit.
     const d = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();

@@ -31138,6 +31138,10 @@ prouver $'cab16-invitation-couvre-la-liste-au-telephone' web/public/plateforme/b
   $'  .guide-appel .ga-txt, .guide-appel .ga-note { display: none; }' \
   $'  .guide-appel .ga-txt-preuve { display: none; }' \
   $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
+prouver $'cab14-relie-sans-date-sur-la-fiche' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const lien = lienRelie(d);' \
+  $'    const lien = d.manual ? \'<span class="cd-li tenu">tenu au cabinet</span>\' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;' \
+  $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

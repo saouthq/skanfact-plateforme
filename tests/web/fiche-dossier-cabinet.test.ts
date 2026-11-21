@@ -92,6 +92,8 @@ describe('la fiche du dossier au Cabinet, à la souris', () => {
     // phrase se lit telle qu'elle finit (rouge GitHub de 37ca3e7).
     await expect.poll(() => p.locator('.fd-rv-rien').innerText(), { timeout: 10_000 }).toMatch(/^Rien à réviser\s: aucune écriture depuis le 15\/07\. Elle commence dès que Hédi enregistre ses pièces\.$/);
     expect(await p.locator('#page-fd .fd-sous').innerText()).toMatch(/^SARL · menuiserie bois · Ben Arous/);
+    // (issue 6, CAB-14) Deux dates, deux mots : « relié depuis » (le lien) et « mission depuis » (le début de mission).
+    expect(await p.locator('#page-fd .fd-sous').innerText()).toMatch(/relié depuis \d\d\/\d{4}[\s\S]*mission depuis août 2026/);
     // L'en-tête prend la couleur du dossier (celle de sa pastille), pas un vert fixe (Skander, 29/10/2026).
     const couleurs = await p.evaluate(() => {
       const tete = document.querySelector('#page-fd .fd-tete'), pastille = document.querySelector('#page-fd .fd-tete .marque-s, #page-fd .fd-tete .av');

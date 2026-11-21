@@ -532,8 +532,8 @@
       const f = lu.fil;
       const nomAutre = entreprise ? (f && f.cabinetNom) || 'Ton cabinet' : o.nom || 'Ce client';
       const sous = entreprise
-        ? (f && f.actif ? `${esc(nomAutre)} tient ta comptabilité depuis le ${esc(dateCourte(f.depuis))}` : f ? `${esc(nomAutre)} ne tient plus ton dossier : ce fil se relit, il ne s'écrit plus.` : '')
-        : (f && f.depuis ? `Ton client depuis le ${esc(dateCourte(f.depuis))}` : '');
+        ? (f && f.actif ? `${esc(nomAutre)} · relié à ton dossier depuis le ${esc(dateCourte(f.depuis))}` : f ? `${esc(nomAutre)} ne tient plus ton dossier : ce fil se relit, il ne s'écrit plus.` : '')
+        : (f && f.depuis ? `Relié depuis le ${esc(dateCourte(f.depuis))}` : '');
       // (1.115.0) Dans la boîte du cabinet (`integre`), la conversation se range à droite de la liste : un en-tête court,
       // ce qui attend le client en bandeau, et le fil à pleine hauteur (revue du 22/10/2026 : il fallait un aperçu, puis
       // « Ouvrir la conversation », sur une autre page).
