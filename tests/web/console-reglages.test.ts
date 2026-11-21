@@ -702,6 +702,30 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 120_000);
 
+  it('un écran qui tombe n\'emporte que lui : la barre reste, l\'écran dit quoi faire, un autre écran s\'ouvre', async () => {
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, jD);
+    const p = await cx.newPage();
+    const tombees: string[] = [];
+    p.on('pageerror', (e) => tombees.push(e.message));
+    // Une périodicité que l'écran ne connaît pas fait lever le texte du catalogue pendant le rendu des prix à venir.
+    await p.route('**/v1/console/reglages', async (r) => {
+      const rep = await r.fetch();
+      const j = await rep.json() as { grille: { aVenir: unknown[] }[] };
+      if (j.grille[0]) j.grille[0].aVenir = [{ periodicite: 'trimestriel', ht: '1000', aPartirDu: '2099-01-01' }];
+      await r.fulfill({ response: rep, json: j });
+    });
+    await p.goto(`${serveur.adresse}/console/#/reglages`);
+    await expect.poll(async () => net(await p.locator('.c-page .c-ferme h1').innerText().catch(() => '')), { timeout: 20_000 }).toBe('Cet écran n\'a pas pu s\'afficher');
+    expect(await p.locator('.c-cote').isVisible()).toBe(true);
+    expect(await p.getByRole('button', { name: 'Recharger', exact: true }).count()).toBe(1);
+    await p.locator('.c-cote a[href="#/journal"]').click();
+    await expect.poll(() => p.locator('.c-page .c-ferme').count()).toBe(0);
+    await expect.poll(() => p.locator('.c-page h1').count()).toBeGreaterThan(0);
+    expect(tombees).toEqual([]);
+    await cx.close();
+  }, 60_000);
+
   it('le support lit les réglages, sans aucun geste', async () => {
     const p = await console_(jS);
     expect(net(await p.locator('.c-alerte-info').first().innerText())).toMatch(/^Réservé à la direction\./);

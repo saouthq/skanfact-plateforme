@@ -230,7 +230,7 @@ export function Fil({ etape, cabinet = false }: { etape: 1 | 2 | 3; cabinet?: bo
 export function PageEtapes({ etape, cabinet = false, droite, etroite = false, children }: { etape?: 1 | 2 | 3 | undefined; cabinet?: boolean; droite?: ReactNode; etroite?: boolean; children: ReactNode }) {
   return (
     <div className="ent ent-etapes">
-      <header className="ent-barre"><Marque />{etape ? <Fil etape={etape} cabinet={cabinet} /> : null}{droite ?? <span />}</header>
+      <header className="ent-barre"><Marque />{etape ? <Fil etape={etape} cabinet={cabinet} /> : null}<span className="ent-droite"><LienAide />{droite}</span></header>
       <main className={`ent-scene${etroite ? ' etroite' : ''}`}>{children}</main>
     </div>
   );

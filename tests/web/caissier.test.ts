@@ -90,8 +90,15 @@ describe('le caissier à l\'écran', () => {
 
     // Il ouvre la caisse et vend une huile.
     await expect.poll(async () => net(await p.locator('#cs-fermee').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La caisse est fermée\./);
+    // (1.387.82, issue 7, COLLAB-1) Il ne lit pas les mouvements : le fond proposé est le compté du dernier Z, pas son solde.
+    expect(await p.locator('#cs-fond').inputValue()).toBe('2,797');
+    expect(net(await p.locator('#cs-fond-z').innerText())).toContain('Compté au dernier Z');
     await p.locator('#cs-fond').fill('30');
+    await expect.poll(async () => net(await p.locator('#cs-fond-ecart').innerText())).toContain('27,203 DT de plus qu\'au dernier Z');
+    expect(await p.locator('#cs-fond-ecart').innerText()).not.toContain('Trésorerie, a');
     await p.locator('#cs-ouvrir').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(toast, { timeout: 10_000 }).toBe('Caisse ouverte, fond de caisse 30,000 DT');
     await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami/);
     await p.locator('#cs-articles .cs-art', { hasText: 'Huile d\'olive' }).click();
     await p.locator('#cs-encaisser').click();

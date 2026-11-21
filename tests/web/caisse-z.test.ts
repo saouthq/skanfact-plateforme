@@ -69,9 +69,9 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
     await expect.poll(() => p.locator('#cs-fond').count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
-    // Le fond proposé est ce que le tiroir contient déjà : le solde du compte de caisse (30 DT au départ), pas 0 (vu sur
-    // le serveur d'essai le 05/10/2026) ; Sami le garde et ouvre.
-    await expect.poll(() => p.locator('#cs-fond').inputValue()).toBe('30,000');
+    // Le fond proposé est ce que le tiroir contient déjà, pas 0 (vu sur le serveur d'essai le 05/10/2026). Sami ne lit pas
+    // les mouvements : il part du dernier compté du Z (1.387.82, issue 7, COLLAB-1) ; il le garde et ouvre.
+    await expect.poll(() => p.locator('#cs-fond').inputValue()).toBe('20,000');
     await p.locator('#cs-ouvrir').click();
     await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Sami/);
     await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
@@ -79,11 +79,11 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await p.locator('#cs-valider').click();
     await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ticket TIC-\d{4}-001 encaissé/);
 
-    // Le soir : 30 + 1,284 attendus ; il tape le total compté, 31,284. Le Z dit qu'il l'a fermée.
+    // Le soir : 20 + 1,284 attendus ; il tape le total compté, 21,284. Le Z dit qu'il l'a fermée.
     await p.locator('#cs-menu-bouton').click();
     await p.locator('#cs-fermer').click();
     await p.locator('#cs-tape summary').click();
-    await p.locator('#cs-compte').fill('31.284');
+    await p.locator('#cs-compte').fill('21.284');
     await p.locator('#cs-z').click();
     await expect.poll(async () => net(await p.locator('#modal-root #cs-z-qui').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/, fermée par Sami le \d{2}\/\d{2} \d{2}:\d{2} ; 1 ticket/);
     // Il s'imprime : la bande lit les chiffres figés. (La bande s'imprime par une fenêtre du navigateur : on la lit.)
@@ -94,7 +94,7 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     const bande = net((await p.evaluate(() => (window as unknown as { __imprime?: string }).__imprime ?? '')).replace(/<[^>]+>/g, ' '));
     expect(bande).toMatch(/Ouverte le \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} par Sami Fermée le \d{2}\/\d{2}\/\d{4} \d{2}:\d{2} par Sami Poste : /);
     expect(bande).toContain('Ventes TTC 1,284 DT');
-    expect(bande).toContain('Fond de caisse 30,000 DT Le tiroir devait contenir 31,284 DT Espèces comptées 31,284 DT Écart 0,000 DT');
+    expect(bande).toContain('Fond de caisse 20,000 DT Le tiroir devait contenir 21,284 DT Espèces comptées 21,284 DT Écart 0,000 DT');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'z-1-ferme.png') });
     await p.locator('#modal-root #cs-z-ok').click();
 
@@ -108,7 +108,7 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     expect(await p.locator('#cs-z-plus').count()).toBe(0);
     // Un Z passé se rouvre (et se réimprimerait) : celui du jour.
     await p.locator('#cs-z-liste tbody tr').first().click();
-    await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 5_000 }).toContain('Le tiroir devait contenir 31,284 DT');
+    await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 5_000 }).toContain('Le tiroir devait contenir 21,284 DT');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'z-2-relu.png') });
     await cx.close();
     expect(erreurs).toEqual([]);

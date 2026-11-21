@@ -1110,11 +1110,20 @@
       // même fonction que la Trésorerie et le bilan du jour. Se recompte et se corrige si le tiroir dit autre chose.
       const idCaisse = C.comptesDeCaisse(data).especes;
       const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;
-      const fondPropose = dansLeTiroir > 0 ? dansLeTiroir.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
+      // (1.387.82, issue 7, COLLAB-1) Le caissier ne lit que ses tickets, pas les mouvements : son solde n'est pas le tiroir
+      // (9,866 DT pour 59,000 comptés au Z). Il part du dernier compté du Z (GET /caisse le rend à qui voit la caisse) ;
+      // sans Z, du solde qu'il lit (le fond de départ du compte). Il n'écrit rien dans la Trésorerie.
+      const dd = bridge.droitsDossier ? bridge.droitsDossier() : null;
+      const livresVus = !dd || !(dd.cachees || []).includes('movements');
+      const zDernier = caisseEtat.dernierZ;
+      const zCompte = zDernier && zDernier.compte != null && isFinite(Number(zDernier.compte)) ? C.round3(Number(zDernier.compte)) : null;
+      const repere = livresVus || zCompte == null ? dansLeTiroir : zCompte;
+      const fondPropose = repere > 0 ? repere.toFixed(caisseEtat.decimales ?? 3).replace('.', ',') : '';
       $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-fermee"><h2>La caisse est fermée.</h2>
         <p>Ouvre-la sur cet appareil avec le fond de caisse (les espèces déjà dans le tiroir) : elle encaisse ensuite ici, et seulement ici, jusqu'à sa fermeture. ${info('cs.session')}</p>
         ${licence.locked && bridge.dessinerAbonnement ? `<p class="ct-abo" id="cs-abo"><b>${h(licence.label)} :</b> la caisse ne s'ouvre plus tant que l'abonnement n'est pas réglé. ${h(licence.detail)} Les tickets déjà faits se lisent toujours.</p>` : ''}
         <label class="field">Fond de caisse (${h(caisseEtat.devise === 'TND' ? 'DT' : caisseEtat.devise)})<input type="text" inputmode="decimal" class="num" id="cs-fond" placeholder="0" value="${h(fondPropose)}"></label>
+        ${zCompte != null ? `<p class="muted" id="cs-fond-z">Compté au dernier Z (${h(heureCaisse(zDernier.fermeeLe))}) : ${h(argentCaisse(zCompte))}.</p>` : ''}
         <div class="ct-fond-ecart" id="cs-fond-ecart" aria-live="polite"></div>
         <button type="button" class="ct-principal" id="cs-ouvrir">Ouvrir la caisse</button></div></div>`;
       // (1.313.0) Un fond qui n'est pas ce que la Trésorerie garde pour la caisse : la différence est de l'argent qui entre
@@ -1124,10 +1133,14 @@
       // où il est allé (versé à une banque, un manque), et l'ouverture le note dans la Trésorerie.
       const autres = (data.accounts || []).filter(a => a.id !== idCaisse && a.kind !== 'caisse');
       const fondTape = () => { const v = Number(String($('#cs-fond').value || '0').replace(/\s/g, '').replace(',', '.')); return isFinite(v) ? C.round3(v) : NaN; };
-      const ecartFond = () => { const v = fondTape(); return isFinite(v) && idCaisse ? C.round3(v - dansLeTiroir) : 0; };
+      const ecartFond = () => { const v = fondTape(); return isFinite(v) && idCaisse && (livresVus || zCompte != null) ? C.round3(v - repere) : 0; };
       const dessinerEcart = () => {
         const d = ecartFond(), boite = $('#cs-fond-ecart');
         if (Math.abs(d) < 0.0005) { boite.innerHTML = ''; return; }
+        if (!livresVus) {
+          boite.innerHTML = `<p>C'est ${argentCaisse(Math.abs(d))} de ${d > 0 ? 'plus' : 'moins'} qu'au dernier Z. Ton rôle n'écrit pas dans la Trésorerie : si de l'argent est entré ou sorti du tiroir sans être noté, dis-le à ${h(company().managerName || 'la direction')}.</p>`;
+          return;
+        }
         const choix = d > 0
           ? [['apport', 'apportés par le gérant'], ...autres.map(a => [`compte:${a.id}`, `retirés de « ${a.name} »`])]
           : [...autres.map(a => [`compte:${a.id}`, `versés à « ${a.name} »`]), ['retrait', 'pris par le gérant'], ['manque', 'un manque : sortis sans être notés']];
@@ -1139,6 +1152,7 @@
       $('#cs-fond').addEventListener('input', dessinerEcart);
       // Le mouvement de l'ouverture, du jour, dans le compte de la caisse : un virement avec une banque, un apport, un manque.
       const noterEcartDuFond = d => {
+        if (!livresVus || !peutEcrireDossier('movements')) return null;
         const o = $('#cs-fond-origine') ? $('#cs-fond-origine').value : (d > 0 ? 'apport' : 'manque');
         const vers = o.startsWith('compte:') ? o.slice(7) : '';
         // (1.357.6) `ouverture` : le fond déjà compté à l'ouverture, que le Z ne recompte pas (serveur/caisse/sortie.ts).
@@ -1156,6 +1170,7 @@
         if (licenceBlock('Ouvrir la caisse', 'caisse')) return;
         const b = $('#cs-ouvrir'); b.disabled = true;
         const d = ecartFond();
+        if (!livresVus && Math.abs(d) >= 0.0005 && !await confirmDialog(`Au dernier Z (${heureCaisse(zDernier.fermeeLe)}), le tiroir comptait ${argentCaisse(zCompte)}. Tu ouvres avec ${argentCaisse(fondTape())} : ${argentCaisse(Math.abs(d))} de ${d > 0 ? 'plus' : 'moins'}. C'est bien ce que contient le tiroir ?`, `Ouvrir avec ${argentCaisse(fondTape())}`, false, { titre: d > 0 ? 'Plus d’argent qu’au dernier Z' : 'Moins d’argent qu’au dernier Z' })) { b.disabled = false; $('#cs-fond').focus(); return; }
         try {
           const r = await bridge.ouvrirCaisse($('#cs-fond').value.trim() || '0');
           const m = Math.abs(d) >= 0.0005 ? noterEcartDuFond(d) : null;

@@ -9,7 +9,7 @@ import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineCabinet, VitrineComptable, VitrineCompte, VitrineDossier, VitrineInvitation } from '../composants/Entree.tsx';
+import { Dessin, LienAide, PageDouble, VitrineCabinet, VitrineComptable, VitrineCompte, VitrineDossier, VitrineInvitation } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
@@ -90,7 +90,7 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
     <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> : dossier ? <VitrineDossier ou={dossier.ou} cabinet={dossier.cabinet} /> : seul && profil === 'cabinet' ? <VitrineCabinet /> : <VitrineCompte code={options.courriel} />}
       haut={<>
         <span className="etape">{titre(invitation || comptable || dossier ? 'ecran.invitation.etape' : 'ecran.inscription.etape')}</span>
-        <span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span>
+        <span className="ent-droite"><span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span><LienAide /></span>
       </>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1 id="ins-titre">{titre(seul && profil === 'cabinet' ? 'ecran.inscription.titre_cabinet' : seul && profil === 'entreprise' ? 'ecran.inscription.titre_entreprise' : 'ecran.inscription.titre')}</h1>

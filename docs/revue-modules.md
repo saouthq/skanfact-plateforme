@@ -5814,3 +5814,26 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   toutes les autres pages, et le bandeau de l'exemple disparaissait sur une page dessinée après coup : le routeur le
   repose une fois la page dessinée.
 - Tests : `tests/web/compte.test.ts`, `tests/web/exemple.test.ts`.
+
+## 1.387.82 — L'aide sur toute l'entrée, la session fermée qui ne perd rien, la console qui ne blanchit plus, le fond du caissier (issues 4, 5 et 7)
+
+- **ENTREE-3 (bloquant) — « Besoin d'aide ? »** n'était que sur la connexion et l'écran du code. Il vit maintenant dans
+  l'en-tête commun des écrans de l'entrée (la porte, le code à poser, le mot de passe oublié, le nouveau mot de passe,
+  l'appareil inconnu, l'invitation) et à la main sur « Créer ton compte » et « Vérifie ton e-mail » ; une fois et une
+  seule par écran, l'adresse de SkanFact à lire et à copier.
+- **ENTREE-2 (bloquant) — la session fermée pendant la saisie.** « Enregistrer » qui recevait « session terminée »
+  perdait ce qu'on venait d'enregistrer : la fenêtre était fermée, le dossier jamais parti. Sur « mon ordinateur », ce
+  qui n'était pas encore parti est gardé, chiffré, avec la copie du poste, et part à la reconnexion ; le bandeau dit
+  « Ce que tu enregistrais quand ta session s'est fermée est arrivé sur le serveur ». Sur l'ordinateur d'un autre, rien
+  n'est gardé (docs/hors-ligne.md, H2) et l'entrée le dit. **À DÉCIDER (Skander)** : garder aussi, sur l'ordinateur
+  d'un autre, la saisie d'une fenêtre encore ouverte (c'est une décision de confidentialité, pas un correctif).
+- **CONSOLE-1 (bloquant) — un écran de la console qui tombe** (un texte qui manque, une réponse inattendue) blanchissait
+  toute la console. Il n'emporte plus que lui : la barre reste, l'écran dit « Cet écran n'a pas pu s'afficher », propose
+  de recharger, et choisir un autre écran le remet d'aplomb.
+- **COLLAB-1 (bloquant) — le fond de caisse proposé au caissier** venait d'un solde qu'il ne peut pas lire en entier (ses
+  tickets seulement) : 9,866 DT proposés pour 59,000 comptés au Z, puis un mouvement « noté dans la Trésorerie » qui ne
+  partait jamais. Le caissier part du dernier compté du Z, l'écran le rappelle, un écart se confirme avant d'ouvrir, et
+  rien n'est écrit dans la Trésorerie à sa place. Le propriétaire garde le solde du livre. **À DÉCIDER (Skander)** :
+  prévenir la patronne d'un écart de fond saisi par un caissier (une alerte de plus).
+- Tests : `tests/web/rendu.test.ts`, `tests/web/entree.test.ts`, `tests/web/hors-ligne-envoi.test.ts`,
+  `tests/web/console-reglages.test.ts`, `tests/web/caissier.test.ts`, `tests/web/caisse-z.test.ts`.

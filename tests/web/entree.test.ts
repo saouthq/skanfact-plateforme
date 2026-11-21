@@ -51,6 +51,14 @@ describe('l\'entrée refaite, à la souris', () => {
   const champ = (p: Page, cle: string) => p.locator('label.field').filter({ hasText: titre(cle) }).locator('input');
   const bouton = (p: Page, cle: string) => p.getByRole('button', { name: titre(cle), exact: true });
   const ecran = (p: Page, cle: string, v: Record<string, string> = {}) => p.getByRole('heading', { level: 1, name: titre(cle, v) }).waitFor({ timeout: 10_000 });
+  // (1.387.82, issue 4, ENTREE-3) « Besoin d'aide ? » est sur l'écran, une fois, et montre l'adresse de SkanFact.
+  const aideUneFois = async (p: Page) => {
+    const aide = p.getByRole('button', { name: titre('ecran.connexion.aide'), exact: true });
+    expect(await aide.count()).toBe(1);
+    await aide.click();
+    expect(await p.locator('.ent-aide-carte .ent-aide-adresse').innerText()).toBe('contact@skanfact.tn');
+    await aide.click();
+  };
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => (await (await fetch(`${serveur.adresse}/v1${chemin}`, {
     method: methode, headers: { ...(corps === undefined ? {} : { 'content-type': 'application/json' }), ...(jeton ? { authorization: `Bearer ${jeton}` } : {}) },
     ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
@@ -93,6 +101,7 @@ describe('l\'entrée refaite, à la souris', () => {
     await champ(p, 'ecran.connexion.email').fill(email);
     await bouton(p, 'ecran.connexion.oublie').click();
     await ecran(p, 'ecran.oubli.titre');
+    await aideUneFois(p);
     // L'adresse tapée à la connexion est déjà là.
     expect(await champ(p, 'ecran.connexion.email').inputValue()).toBe(email);
     const avant = partis.length;
@@ -106,6 +115,7 @@ describe('l\'entrée refaite, à la souris', () => {
     // Le lien de l'e-mail : le jeton quitte l'adresse aussitôt.
     await p.goto(lien);
     await ecran(p, 'ecran.nouveau.titre');
+    await aideUneFois(p);
     expect(new URL(p.url()).search).toBe('');
     await champ(p, 'ecran.connexion.mot_de_passe').fill('court');
     expect(await p.locator('.ent-aide[aria-live]').innerText()).toBe(phrase('ecran.inscription.encore', { n: LONGUEUR_MINIMALE - 5 }));
@@ -167,6 +177,7 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(await p.locator('.ent-renvoi button').isDisabled()).toBe(true);
     await expect.poll(() => champ(p, 'ecran.code.sms_champ').evaluate((i) => i === document.activeElement)).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'entree-code-sms.png') });
+    await aideUneFois(p);
     const bon = codeSms();
     await champ(p, 'ecran.code.sms_champ').fill(bon === '000000' ? '111111' : '000000');
     await bouton(p, 'ecran.code.bouton').click();
@@ -553,6 +564,11 @@ describe('l\'entrée refaite, à la souris', () => {
     await ecran(p, 'ecran.connexion.titre');
     await expect.poll(() => p.locator('#session-finie').innerText()).toBe(phrase('ecran.connexion.session_finie'));
     await p.screenshot({ path: path.join(PHOTOS, 'entree-session-finie.png') });
+    // (1.387.82, issue 4, ENTREE-2) Sur l'ordinateur d'un autre, rien n'a pu être gardé : l'entrée le dit.
+    await p.evaluate(() => sessionStorage.setItem('skanfact.sortie', 'perdu'));
+    await p.reload();
+    await ecran(p, 'ecran.connexion.titre');
+    await expect.poll(async () => (await p.locator('#session-finie').innerText()).replace(/[\s\u202f\u00a0]+/g, ' ')).toBe(`${phrase('ecran.connexion.session_finie')} ${phrase('ecran.connexion.session_perdu')}`.replace(/[\s\u202f\u00a0]+/g, ' '));
     await p.context().close();
   });
 });

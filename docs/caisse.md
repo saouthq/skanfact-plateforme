@@ -52,6 +52,9 @@ les autres membres ne lisent pas les appareils d'une personne.
 du soir aurait annoncé 50 DT de trop). Le champ du fond de caisse propose ce que le tiroir contient déjà : le solde du
 compte de caisse ce jour-là, par la même fonction que la Trésorerie et le bilan du jour (fond de départ, jours
 précédents, dépôts en banque compris). La caissière recompte et corrige si le tiroir dit autre chose.
+Un rôle qui ne lit pas les mouvements (le caissier, qui ne reçoit que ses tickets) part du dernier compté du Z, que
+« Compté au dernier Z » rappelle sous le champ ; il n'écrit rien dans la Trésorerie, et un écart avec le Z se confirme
+avant d'ouvrir (1.387.82, issue 7, COLLAB-1).
 
 **S2. Caisse fermée, rien ne s'encaisse** : le refus dit pourquoi et porte le geste qui débloque. À l'écran, un bandeau
 en haut de la page Caisse dit l'état (fermée : le fond et « Ouvrir la caisse » ; ouverte ici : qui, depuis quand, le

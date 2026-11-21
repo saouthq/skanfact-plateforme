@@ -527,12 +527,12 @@
     annoncerAttente();
     return { horsLigne: true };
   }
-  /** @param {number} conflits */
-  async function finirAttente(conflits) {
+  /** @param {number} conflits @param {boolean} [sortie] */
+  async function finirAttente(conflits, sortie = false) {
     const n = attenteN;
     attenteGardee = false; attenteN = 0;
     await poste.effacerAttente(ent);
-    poste.envoye(n, conflits);
+    poste.envoye(n, conflits, sortie);
   }
   // ── La caisse sans réseau (brique 120 ; docs/caisse.md, H1 à H4) ────────────────────────────────────────────
   // Le poste qui tient la caisse sait, depuis son dernier contact, la forme de la série, le prochain numéro et la fin de
@@ -653,7 +653,7 @@
   // Les parties du pointage, que la fusion rassemble case par case (16 § 10.1, urgence 2).
   const PARTIES_POINTAGE = new Set(['timesheets', 'joursValides', 'pointageVersions', 'badgeImports', 'pointageOuverts']);
   /** @param {Record<string, unknown>} data */
-  async function rejouer(data) {
+  async function rejouer(data, sortie = false) {
     const c = await poste.lireCopie(ent);
     if (c) {
       vu = new Map();
@@ -675,7 +675,7 @@
         for (const [k, v] of vu) { const [col = '', cle = ''] = k.split('\u0000'); if (PARTIES_POINTAGE.has(col === '_racine' ? cle : col)) base.set(k, v.revision); }
         r = await envoyer(m.data);
       }
-      if (r === true) await finirAttente(conflits);
+      if (r === true) await finirAttente(conflits, sortie);
     } else await poste.effacerAttente(ent);
     return await relire();
   }
@@ -687,7 +687,7 @@
   // rien ne s'efface : la prochaine connexion réessaiera.
   /** @type {Promise<void> | null} */ let finEnCours = null;
   /** @param {any} lu */
-  const finDeSession = (lu) => (finEnCours = finEnCours || (async () => { try { sessionStorage.setItem('skanfact.sortie', '1'); if (location.pathname.startsWith('/v10/')) sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage */ }
+  const finDeSession = (lu) => (finEnCours = finEnCours || (async () => { try { sessionStorage.setItem('skanfact.sortie', '1'); if (location.pathname.startsWith('/v10/')) sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage */ } try { const w = /** @type {any} */ (window); if (vu.size && w.__data && changementsDe(w.__data).length) { if (poste.garde()) { await poste.ecrireCopie(ent, contenuDeLaCopie()); await poste.ecrireAttente(ent, { data: w.__data, sortie: true }); } else sessionStorage.setItem('skanfact.sortie', 'perdu'); } } catch { /* rien de gardé : la sortie continue (1.387.82, issue 4, ENTREE-2) */ }
     if (lu && lu.effacer) {
       if ((await remettre()) === null) {
         poste.sansCopie('Cet appareil a été retiré de ton compte. Ce qu\'il avait enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
@@ -1356,7 +1356,7 @@
       try {
         // Les tickets encaissés sans réseau partent d'abord, dans l'ordre ; ceux qui attendent encore se montrent.
         if (fileTickets.length) await remettreTickets();
-        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data) : await relire());
+        const data = avecTicketsEnAttente(attente ? await rejouer(attente.contenu.data, !!attente.contenu.sortie) : await relire());
         await regarderLEssai(data);
         if (fileTickets.length) annoncerAttente();
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).

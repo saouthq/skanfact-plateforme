@@ -323,4 +323,37 @@ describe('enregistrer sans réseau, à la souris', () => {
     await expect.poll(() => clients(nouveau, ent), { timeout: 20_000 }).toEqual(['Boulangerie du Lac', 'Épicerie du Retour']);
     await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 }).toMatch(/^Le réseau est revenu : ton changement fait hors ligne est enregistré\./);
   }, 180_000);
+
+  // (1.387.82, issue 4, ENTREE-2) En ligne, la session se ferme au serveur ; « Enregistrer » reçoit le refus : ce qui
+  // n'était pas encore parti est gardé, chiffré, et part à la reconnexion.
+  it('la session fermée pendant la saisie : « Enregistrer » ne perd rien, ce qui était enregistré part à la reconnexion', async () => {
+    const jeton = await personne('patient');
+    const moi = { email, secret };
+    const ent = await entreprise(jeton);
+    const c = await monOrdinateur(jeton);
+    let p = await c.newPage();
+    await pret(p, ent);
+    // La session prend fin au serveur pendant que la fenêtre est ouverte.
+    await p.locator('#new').click();
+    const f = p.locator('#modal-root .modal').last();
+    await f.locator('input[name=name]').fill('Client saisi avant la fin');
+    expect((await api('POST', '/deconnexion', jeton)).statut).toBe(200);
+    await f.locator('#ok').click();
+    await p.waitForURL((u) => !u.pathname.startsWith('/v10/'), { timeout: 20_000 });
+    await p.locator('#session-finie').waitFor({ timeout: 15_000 });
+    await borne('fermer la page', p.close());
+    // Rouverte : l'entrée demande de se reconnecter ; la même personne, et ce qui attendait part.
+    p = await c.newPage();
+    await p.goto(`${adresse}/`);
+    const titre = (cle: string) => { const x = rendre(t(cle), 'fr'); return x.charAt(0).toUpperCase() + x.slice(1); };
+    await p.locator('label.field').filter({ hasText: titre('ecran.connexion.email') }).locator('input').fill(moi.email);
+    await p.locator('label.field').filter({ hasText: titre('ecran.connexion.mot_de_passe') }).locator('input').fill('Un-bon-mot-de-passe');
+    await p.getByRole('button', { name: titre('ecran.connexion.bouton'), exact: true }).click();
+    await p.locator('label.field').filter({ hasText: titre('ecran.code.champ') }).locator('input').fill(codeTotp(depuisBase32(moi.secret), Date.now()));
+    await p.getByRole('button', { name: titre('ecran.code.bouton'), exact: true }).click();
+    await p.waitForURL(/\/v10\/\?e=/, { timeout: 20_000 });
+    const nouveau = String(await p.evaluate(() => localStorage.getItem('skanfact.jeton')));
+    await expect.poll(() => clients(nouveau, ent), { timeout: 20_000 }).toEqual(['Boulangerie du Lac', 'Client saisi avant la fin']);
+    await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 }).toMatch(/^Ce que tu enregistrais quand ta session s'est fermée est arrivé sur le serveur\./);
+  }, 180_000);
 });

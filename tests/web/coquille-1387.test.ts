@@ -161,8 +161,8 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     // (1.387.77, ENTSOCLE-12) Une page de « Tout le reste » allume sa famille dans la barre.
     const ailleurs = await p2.evaluate(() => { const a = document.querySelector('#nav .nav-fam .volet a.pl-l[data-route]') as HTMLElement | null; return a ? { route: String(a.dataset.route), famille: String((a.closest('.nav-fam') as HTMLElement).dataset.famille) } : null; });
     expect(ailleurs).not.toBeNull();
-    await p2.evaluate((r) => (window as unknown as { __naviguer: (h: string) => void }).__naviguer(`#/${r}`), ailleurs!.route);
-    await expect.poll(() => p2.evaluate((f) => [...document.querySelectorAll('#nav .nav-volet.ici')].map((b) => (b as HTMLElement).dataset.famille).join('|') === f, ailleurs!.famille), { timeout: 10_000 }).toBe(true);
+    await p2.evaluate((r) => (window as unknown as { __naviguer: (h: string) => void }).__naviguer(`#/${r}`), ailleurs?.route ?? '');
+    await expect.poll(() => p2.evaluate((f) => [...document.querySelectorAll('#nav .nav-volet.ici')].map((b) => (b as HTMLElement).dataset.famille).join('|') === f, ailleurs?.famille ?? ''), { timeout: 10_000 }).toBe(true);
     // (1.387.77, ENTSOCLE-13) Recharger garde l'onglet des Paramètres où l'on était.
     await p2.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
     await p2.locator('#set-tabs [data-tab="app"]').click();
@@ -230,7 +230,7 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     // Un commerce dont la caisse est « à venir » garde quatre gestes dans « Créer », sans deux fois la même touche.
     const creer = await p.evaluate(() => {
       const w = window as unknown as { __data: { company: { activity: string } }; __creer: () => { actions: { page: string; touche: string }[] } };
-      const av = window as unknown as { __aVenir?: string[] };
+      const av = window as unknown as { __aVenir?: string[] | undefined };
       const avant = av.__aVenir;
       av.__aVenir = ['caisse'];
       w.__data.company.activity = 'commerce';

@@ -94,6 +94,7 @@ declarerTextes({
   'ecran.connexion.oublie': 'mot de passe oublié ?',
   'ecran.connexion.aide': 'besoin d\'aide ?',
   'ecran.connexion.session_finie': 'ta session a été fermée : trop longtemps sans activité, ou ton mot de passe a changé sur un autre appareil. Reconnecte-toi pour reprendre où tu en étais',
+  'ecran.connexion.session_perdu': 'ce que tu enregistrais n\'a pas pu être gardé : sur l\'ordinateur d\'un autre, rien ne reste sur le poste. Refais-le une fois reconnecté',
   'ecran.aide.titre': 'écris-nous',
   'ecran.aide.texte': 'dis-nous ce qui te bloque : on te répond sous un jour ouvré',
   'ecran.aide.copier': 'copier l\'adresse',

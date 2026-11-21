@@ -7350,7 +7350,7 @@ prouver "la caisse qui s'ouvre à 0 alors que le tiroir a son fond" modules/socl
   "$CZF"
 prouver "le fond proposé qui ne lit pas le compte de caisse" modules/socle/ecrans/entreprise/app-2.js \
   "const dansLeTiroir = idCaisse ? C.accountBalance(data, company(), idCaisse, C.today()).balance : 0;" "const dansLeTiroir = 0;" \
-  "$CZF"
+  "compter le tiroir au clavier tout de suite ; 9 millimes d'écart ne sont pas un manque ; les tickets dans la DA"
 
 # Les nouveautés de la v10 (l'application de bureau) jamais montrées sur la plateforme (vu sur le vrai serveur le
 # 05/10/2026 : « Nouveau dans SkanFact 10.15.0 » chez qui avait retenu « vdev »).
@@ -31015,6 +31015,14 @@ prouver $'apercu-menu-compte-les-vues' web/public/plateforme/assistant.js $'o.qu
 prouver $'code-etapes-empilees' web/public/plateforme/compte.js $'<ol class="cpt-etapes-code">' $'<ol class="cpt-etapes">' $'le Cabinet : avec un relais d\'e-mails, le comptable peut revenir à l\'e-mail ; changer de téléphone demande le code actuel, et le nouveau ne vaut qu\'à son premier code'
 prouver $'code-classes-sans-collision' web/public/plateforme/compte.css $'.cpt-etapes-code { margin: 0;' $'.cpt-etapes { margin: 0;' $'les feuilles de « Ton compte » et de « Mon comptable » ne partagent que les classes nommées (issue 4, ENTREE-1)'
 prouver $'bandeau-demo-repose' modules/socle/ecrans/entreprise/app-1.js $'Promise.resolve(dessine).then(() => { if (!$(\'#view > .demo-banner\') && routeOf(location.hash) === name) bandeauDemo(name); }, () => {});' $'void 0;' $'Skander, sur un compte neuf : l\'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu\'au brouillon'
+prouver $'aide-sur-toute-l-entree' web/src/composants/Entree.tsx $'<span className="ent-droite"><LienAide />{droite}</span>' $'{droite ?? <span />}' $'les écrans de l\'entrée, sur un téléphone et un ordinateur, en français et en langue factice : rien ne déborde, rien n\'est coupé, tout se touche du doigt, tout vient du catalogue'
+prouver $'console-filet-d-ecran' web/console/src/Console.tsx $'<Filet cle={location.hash}><Page route={route} role={ctx.moi.role} /></Filet>' $'<Page route={route} role={ctx.moi.role} />' $'un écran qui tombe n\'emporte que lui : la barre reste, l\'écran dit quoi faire, un autre écran s\'ouvre'
+prouver $'parametres-a-son-chemin' modules/socle/ecrans/entreprise/app-2.js $'<div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Paramètres</span></div>' $'' $'Skander, sur un compte neuf : l\'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu\'au brouillon'
+prouver $'session-finie-garde-l-enregistre' web/public/plateforme/pont.js $' try { const w = /** @type {any} */ (window); if (vu.size && w.__data && changementsDe(w.__data).length) { if (poste.garde()) { await poste.ecrireCopie(ent, contenuDeLaCopie()); await poste.ecrireAttente(ent, { data: w.__data, sortie: true }); } else sessionStorage.setItem(\'skanfact.sortie\', \'perdu\'); } } catch { /* rien de gardé : la sortie continue (1.387.82, issue 4, ENTREE-2) */ }' $'' $'la session fermée pendant la saisie : « Enregistrer » ne perd rien, ce qui était enregistré part à la reconnexion'
+prouver $'session-finie-le-dit-au-retour' web/public/plateforme/pont.js $'poste.envoye(n, conflits, sortie);' $'poste.envoye(n, conflits);' $'la session fermée pendant la saisie : « Enregistrer » ne perd rien, ce qui était enregistré part à la reconnexion'
+prouver $'session-finie-dit-le-perdu' web/src/ecrans/Connexion.tsx $'{sortie === \'perdu\' ? <> {phrase(\'ecran.connexion.session_perdu\')}</> : null}' $'' $'« Besoin d\'aide ? » montre l\'adresse de SkanFact sans quitter la page ; une session fermée dit pourquoi on est dehors'
+prouver $'caissier-part-du-dernier-z' modules/socle/ecrans/entreprise/app-2.js $'const repere = livresVus || zCompte == null ? dansLeTiroir : zCompte;' $'const repere = dansLeTiroir;' $'Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse'
+prouver $'caissier-n-ecrit-pas-la-tresorerie' modules/socle/ecrans/entreprise/app-2.js $'if (!livresVus || !peutEcrireDossier(\'movements\')) return null;' $'void 0;' $'Sami ouvre la caisse, vend, voit son ticket et pas ceux de Nadia, et ferme la caisse'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

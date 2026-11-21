@@ -2,7 +2,7 @@
 // (la barre de gauche, la recherche, la page). La barre ne montre que les écrans qui existent, et seulement ceux que le
 // rôle ouvre : jamais un lien qui mène à un refus. Les écrans vivent dans l'adresse (#/clients, #/clients/<id>…) :
 // « Précédent » revient en arrière, une adresse se recopie.
-import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { Component, useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { dire, phrase, titre, typo } from './langue.ts';
 import { appeler, session } from './api.ts';
 import { ContexteConsole, panneDe, useApi, type Ctx, type Moi, type Role } from './contexte.ts';
@@ -234,6 +234,22 @@ function Ferme({ icone, titre: t, children }: { icone: NomIcone; titre: string; 
     </section>
   );
 }
+// Un écran qui tombe (un texte qui manque, une réponse inattendue) n'emporte que lui : la barre reste, l'écran dit quoi
+// faire, et changer d'écran le remet d'aplomb (1.387.82, issue 5, CONSOLE-1). React journalise déjà l'erreur captée.
+class Filet extends Component<{ cle: string; children: ReactNode }, { panne: boolean }> {
+  override state = { panne: false };
+  static getDerivedStateFromError() { return { panne: true }; }
+  override componentDidUpdate(avant: { cle: string }) { if (avant.cle !== this.props.cle && this.state.panne) this.setState({ panne: false }); }
+  override render() {
+    if (!this.state.panne) return this.props.children;
+    return (
+      <Ferme icone="alerte" titre={titre('console.ecran.panne_ecran_titre')}>
+        <p>{phrase('console.ecran.panne_ecran')}</p>
+        <p><Bouton onClick={() => { location.reload(); }}>{titre('console.ecran.recharger')}</Bouton></p>
+      </Ferme>
+    );
+  }
+}
 function Page({ route, role }: { route: Route; role: Role }) {
   // Au téléphone, une barre d'onglets tient sur UNE rangée qui défile : l'onglet ouvert s'y amène, sinon on arriverait
   // sur « Versions » sans voir qu'on y est (issue 5, CONSOLE-20).
@@ -343,7 +359,7 @@ export function Console() {
               <span className="c-trace"><Icone nom="cadenas" taille={16} />{phrase('console.ecran.trace')}</span>
             </div>
           ) : null}
-          <main className="c-page"><Page route={route} role={ctx.moi.role} /></main>
+          <main className="c-page"><Filet cle={location.hash}><Page route={route} role={ctx.moi.role} /></Filet></main>
         </div>
       </div>
       <Toast />

@@ -10,7 +10,7 @@ import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineCompte } from '../composants/Entree.tsx';
+import { Dessin, LienAide, PageDouble, VitrineCompte } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
@@ -110,7 +110,7 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
     <PageDouble vitrine={<VitrineCompte code />}
       haut={<>
         <span className="etape">{titre('ecran.inscription.etape')}</span>
-        {corriger ? <span /> : <span>{titre('ecran.courriel.pas_ton_adresse')} <button type="button" className="ent-lien" onClick={() => { setCorriger(true); setNouvelle(adresse); }}>{titre('ecran.courriel.corriger')}</button></span>}
+        <span className="ent-droite">{corriger ? null : <span>{titre('ecran.courriel.pas_ton_adresse')} <button type="button" className="ent-lien" onClick={() => { setCorriger(true); setNouvelle(adresse); }}>{titre('ecran.courriel.corriger')}</button></span>}<LienAide /></span>
       </>}
       bas={<span className="sur"><Dessin id="cadenas" />{phrase('ecran.courriel.chiffree')}</span>}>
       {corriger ? (

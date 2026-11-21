@@ -293,12 +293,12 @@
     recharger();
   }
   // Ce qui attendait est parti : on le dit (et, si une pièce avait changé ailleurs, ce qui en a été fait).
-  /** @param {number} n @param {number} [conflits] */
-  function envoye(n, conflits = 0) {
+  /** @param {number} n @param {number} [conflits] @param {boolean} [sortie] */
+  function envoye(n, conflits = 0, sortie = false) {
     attend = false; enAttente = 0;
     const pieces = conflits > 1 ? `${conflits} pièces avaient changé ailleurs` : 'Une pièce avait changé ailleurs';
     const faits = n > 1 ? `tes ${n} changements faits hors ligne sont enregistrés` : n === 1 ? 'ton changement fait hors ligne est enregistré' : 'tes changements faits hors ligne sont enregistrés';
-    poser(`<span>Le réseau est revenu : ${faits}.${conflits
+    poser(`<span>${sortie ? (n > 1 ? `Tes ${n} changements enregistrés quand ta session s'est fermée sont arrivés sur le serveur.` : 'Ce que tu enregistrais quand ta session s\'est fermée est arrivé sur le serveur.') : `Le réseau est revenu : ${faits}.`}${conflits
       ? ` ${pieces} : la version du serveur est gardée, la tienne est mise de côté, rien n'est perdu.` : ''}</span>${copieLue ? '<button type="button" id="poste-recharger">Recharger</button>' : ''}`, true);
     recharger();
   }

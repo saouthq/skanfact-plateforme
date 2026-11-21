@@ -277,7 +277,7 @@ describe('ton compte, à la souris', () => {
     }));
     const ordi = await etapes();
     expect(ordi.length).toBeGreaterThanOrEqual(3);
-    ordi.forEach((e, i) => { expect(e.avant).toContain('counter'); if (i) expect(e.haut).toBeGreaterThanOrEqual(ordi[i - 1].bas - 1); });
+    ordi.forEach((e, i) => { expect(e.avant).toContain('counter'); if (i) expect(e.haut).toBeGreaterThanOrEqual((ordi[i - 1]?.bas ?? 0) - 1); });
     await p.setViewportSize({ width: 390, height: 844 });
     await expect.poll(async () => Math.min(...(await etapes()).map((e) => e.large)), { timeout: 5_000 }).toBeGreaterThan(250);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);

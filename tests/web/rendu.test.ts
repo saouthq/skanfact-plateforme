@@ -131,6 +131,9 @@ describe('l\'instrument de rendu des écrans', () => {
             continue;
           }
           faux.push(...(await page.evaluate(problemes, [largeur < 760, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+          // (1.387.82, issue 4, ENTREE-3) « Besoin d'aide ? » sur chaque écran de l'entrée, une fois et une seule.
+          const aides = await page.getByRole('button', { name: titre('ecran.connexion.aide', langue), exact: true }).count();
+          if (aides !== 1) faux.push(`${nom} : « Besoin d'aide ? » ${aides ? 'en double' : 'absent'}`);
           if (langue === 'factice') faux.push(...(await page.evaluate(horsCatalogue)).map((x) => `${nom} : hors catalogue : ${x}`));
           await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });
           vus++;
