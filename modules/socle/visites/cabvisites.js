@@ -436,6 +436,8 @@
   b('#dc-ecriture', 'Passe l\'écriture de TVA du mois en brouillard, au dernier jour du mois. Si une pièce est arrivée après elle, il pose le complément — ce qui lui manque, jamais une seconde écriture entière.');
   b('#dc-deposee', 'Note que la déclaration est déposée — un pense-bête : le Cabinet ne dépose rien. Il s\'éteint si les chiffres ont changé depuis la préparation : recalcule d\'abord.');
   b('#dc-payee', 'Note que la TVA est payée. Le règlement, lui, vient du relevé bancaire.');
+  b('#dc-accuse-joindre', 'Range l\'accusé du portail dans le classeur, au mois de la déclaration.');
+  b('#dc-accuse-voir', 'Ouvre l\'accusé rangé.');
   b('#dc-pieces', 'Ouvre les pièces qui font ce chiffre.');
   b('#dc-csv', 'Enregistre les cases de la déclaration dans un fichier.');
   b('#dc-mois', 'Le mois déclaré.', { nom: 'Mois' });

@@ -9531,6 +9531,24 @@
     </div>`;
   }
 
+  // (1.388.5, issue 9, CABDECLARER-11) L'accusé de dépôt du mois se joint DEPUIS la Déclaration : il ne se rangeait que dans
+  // le classeur, à trois écrans du bouton « Déposée ». Même rubrique, même période, même titre que le classeur ; la ligne dit
+  // s'il y est et l'ouvre (le geste de l'accusé CNSS de la Paie, repris ici : paie.js se charge à la demande).
+  const titreAccuseDecl = per => `L'accusé de dépôt ${deMois(per)}`;
+  function accuseDeDeclaration(dossier, per) {
+    return (((clState.docs.get(dossier.id) || {}).documents) || [])
+      .find(x => !x.remplacePar && x.rubrique === 'accuse' && x.periode === per && !/^L'accusé CNSS du /.test(String(x.titre || ''))) || null;
+  }
+  function ligneAccuseDeclaration(dossier, per) {
+    if (!api.classeur) return '';
+    const e = clState.docs.get(dossier.id);
+    if (!e || (!e.lu && !e.lecture)) void chargerDocsCl(dossier).then(() => { if ($('#dc-accuse')) drawLivres($('#view'), dossier); });
+    if (!e || !e.lu) return '<p class="small muted mt" id="dc-accuse">L\'accusé de dépôt : lecture du classeur…</p>';
+    const a = accuseDeDeclaration(dossier, per);
+    return a
+      ? `<div class="ctrl-geste mt" id="dc-accuse"><span class="small"><b>Déposée</b> · l'accusé est dans le classeur (rangé le ${esc(fmtJour(jourTunisCl(a.deposeLe)))}).</span><button type="button" class="btn btn-sm" id="dc-accuse-voir">Ouvrir l'accusé</button></div>`
+      : `<div class="ctrl-geste mt" id="dc-accuse"><span class="small muted">Déposée sur le portail ? Joins son accusé : il prouve le dépôt, et il se range dans le classeur, au mois.</span>${e.lectureSeule ? '' : '<button type="button" class="btn btn-sm" id="dc-accuse-joindre">Joindre l\'accusé…</button>'}</div>`;
+  }
   function vueDeclaration(dossier) {
     const s = livresState;
     const d = s.decl;
@@ -9643,6 +9661,7 @@
           title="${!posee ? 'Prépare la déclaration d\'abord.' : !(posee.deposee && posee.deposee.le) && !(posee.payee && posee.payee.le) ? 'On ne paie pas ce qu\'on n\'a pas déposé.' : ''}">${
           payee ? fait(true) + 'Payée le ' + esc(fmtJour(posee.payee.le)) + ' — annuler' : 'Marquer payée'}</button>
       </div>
+      ${deposee ? ligneAccuseDeclaration(dossier, d.periode) : ''}
       ${versesTva.length ? `<p class="small mt" id="dc-client-tva">${esc(prenomCl(dossier.contact) || 'Le client')} a versé la TVA du mois le ${esc(fmtJour(dernierVerse))} : ${esc(money(montantVerse))}${aDecaisserDecl !== null && Number.isFinite(aDecaisserDecl) && Math.abs(montantVerse - aDecaisserDecl) > 0.0005 ? ` pour ${esc(money(aDecaisserDecl))} à décaisser` : ''} — ${versesTva.some(e => e.statut === 'brouillard') ? 'son versement attend au brouillard de la banque' : 'son versement est validé'}. « Marquer payée » le note à cette date.</p>` : ''}
       ${payeeClient ? `<p class="small mt" id="dc-client-paye">${esc(prenomCl(dossier.contact) || 'Le client')} a payé la part paie le ${esc(fmtJour(payeeClient.date))} : ${esc(money(KC.round3((payeeClient.lignes || []).reduce((t, l) => t + (Number(l.debit) || 0), 0))))} — ${payeeClient.statut === 'brouillard' ? 'son paiement attend au brouillard de la banque' : 'son paiement est validé'}. « Marquer payée » le note à cette date.</p>` : ''}
       <p class="small muted mt">Ces chiffres se <b>recopient</b> sur le portail : SkanFact ne dépose rien et ne se connecte à aucune
@@ -9846,6 +9865,15 @@
     // Les deux pense-bêtes. Ce qui se pointe par erreur se dé-pointe (7.12.0) — et ici le bouton
     // lui-même porte l'annulation, parce qu'au moment où l'on comprend son erreur, la ligne a déjà
     // quitté l'écran d'où on l'a cliquée.
+    // (1.388.5, CABDECLARER-11) Joindre l'accusé depuis la Déclaration ; l'ouvrir en grand quand il est rangé.
+    const accJ = $('#dc-accuse-joindre', el);
+    if (accJ) accJ.onclick = () => fenDeposerCl(dossier, s.decl.periode, { rubrique: 'accuse', periode: s.decl.periode, titre: titreAccuseDecl(s.decl.periode), apres: async () => drawLivres(root, dossier) });
+    const accV = $('#dc-accuse-voir', el);
+    if (accV) accV.onclick = () => {
+      const a = accuseDeDeclaration(dossier, s.decl.periode); if (!a) return;
+      if (clState.id !== dossier.id) Object.assign(clState, { id: dossier.id, annee: s.annee, mois: '', rub: '', filtre: 'rub', sel: '', q: '', plus: false, decl: '', vue: '', menu: '', hist: false, ouvrir: false });
+      enGrandCl(dossier, [{ k: `ds:${a.id}`, sorte: 'doc', doc: a, classee: true, rub: 'declaration', mois: a.periode, titre: a.titre }], 0, {});
+    };
     [['deposee', '#dc-deposee'], ['payee', '#dc-payee']].forEach(([quoi, sel]) => {
       const b = $(sel, el);
       if (!b) return;

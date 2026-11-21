@@ -215,6 +215,16 @@ describe('la déclaration du mois, à la souris', () => {
     await expect.poll(() => p.locator('#dc-preparer').isDisabled()).toBe(true);
     expect(await p.locator('#dc-preparer').innerText()).not.toMatch(/recalculer/);
     expect(await p.locator('#dc-etat').innerText()).toBe('déposé');
+    // (CABDECLARER-11) L'accusé se joint depuis la Déclaration ; la ligne dit ensuite qu'il est au classeur, et l'ouvre.
+    await expect.poll(() => p.locator('#dc-accuse').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/Joins son accusé/);
+    await p.locator('#dc-accuse-joindre').click();
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText()).toBe('Joindre l\'accusé de dépôt');
+    await p.locator('#dp-f').setInputFiles({ name: 'accuse-mars.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') });
+    await p.locator('#modal-root .modal').last().locator('#ok').click();
+    await expect.poll(() => p.locator('#dc-accuse').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/l'accusé est dans le classeur/);
+    const docsCl = (await api('GET', `/cabinets/${cabinet}/classeur/${cafe}/documents`, associe)).corps.documents as { rubrique: string; periode: string }[];
+    expect(docsCl.filter((x) => x.rubrique === 'accuse' && x.periode === '2026-03')).toHaveLength(1);
+    expect(await p.locator('#dc-accuse-voir').count()).toBe(1);
     await p.locator('#dc-payee').click();
     await p.locator('#modal-root #ok').click();
     await expect.poll(toast).toBe('Notée payée.');

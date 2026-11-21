@@ -31184,6 +31184,10 @@ prouver $'cabdeclarer9-journal-exporte-tout' modules/socle/ecrans/cabinet/app-2.
   $'      : (s.onglet === \'lettrage\' ? KC.journalDepuisLignes(lignes) : journalGarde(lignes).lj).pieces' \
   $'      : KC.journalDepuisLignes(lignes).pieces' \
   $'(1.378.3) une ligne ouvre son écriture, un compte de la balance son grand livre ; le grand livre et le FEC exportés portent le compte choisi, le solde et les tiers'
+prouver $'cabdeclarer11-accuse-seulement-au-classeur' modules/socle/ecrans/cabinet/app-1.js \
+  $'      ${deposee ? ligneAccuseDeclaration(dossier, d.periode) : \'\'}' \
+  $'      ${\'\'}' \
+  $'préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer ; la forme copiée se retient'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

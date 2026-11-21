@@ -6134,3 +6134,12 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   (le journal choisi, la recherche qui garde des pièces entières, le numéro lu sur la période entière).
 - Tests : le grand livre du 401 en PDF porte ses deux pièces et son solde, pas le 606 ; le livre-journal du seul journal
   d'achats n'exporte que des lignes AC ; le lettrage s'exporte par son menu. Deux preuves.
+
+## 1.388.5 — L'accusé de dépôt se joint depuis la Déclaration (issue 9, CABDECLARER-11)
+
+- **CABDECLARER-11** : une fois la déclaration notée déposée, son accusé (le PDF du portail) ne se rangeait que depuis le
+  classeur, à trois écrans de là. Sous les étapes du mois, une ligne le propose : « Déposée sur le portail ? Joins son
+  accusé » — même rubrique, même mois, même titre que le classeur. Rangé, la ligne le dit (avec sa date) et l'ouvre ; un
+  second clic n'en range donc pas un double. Les deux boutons restent gris : le vert reste l'étape suivante.
+- Test : après « Marquer déposée », joindre un PDF le range au classeur, rubrique accusé, au mois ; la ligne propose
+  ensuite « Ouvrir l'accusé ». Une preuve.
