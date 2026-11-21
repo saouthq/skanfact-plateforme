@@ -28182,7 +28182,7 @@ prouver 'hotel 1.356.5 i : « Créer l'\''article » chez qui vend des prestatio
 # (1.356.6) Bout en bout 9 : l'avoir partiel sur une facture qui porte sa retenue.
 PS13566='l'\''avoir suit la retenue de sa facture, à l'\''écran et au serveur'
 prouver 'avoir 1.356.6 a : l'\''avoir partiel tombe sous le seuil à l'\''écran, sans sa part de retenue' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '        if (jugee && Number(C.computeTotals(jugee, company()).withholding) > 0) doc.seuilRetenue = 0;
+  '        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
         else if (sr > 0) doc.seuilRetenue = sr;' '        if (sr > 0) doc.seuilRetenue = sr;' \
   "$PS13566"
 prouver 'avoir 1.356.6 b : le serveur juge le seuil sur l'\''avoir, pas sur sa facture' 'serveur/ventes/pieces.ts' \
@@ -31067,6 +31067,25 @@ prouver $'entachats1-glisse-au-doigt' modules/socle/ecrans/entreprise/app-1.js \
   $'${matchMedia(\'(max-width: 760px), (pointer: coarse)\').matches ? \'Touche ici pour le choisir\' : \'Clique ici pour le choisir, ou glisse-le\'}' \
   $'Clique ici pour le choisir, ou glisse-le' \
   $'« Photo d\'une pièce » de Créer ouvre le choix du fichier, sans IA, au téléphone comme à l\'ordinateur (issue 13, ENTACHATS-1)'
+# (1.387.88, issue 15, V-1) La migration 0222 : le seuil que le serveur avait appliqué, posé sur les pièces d'avant.
+prouver $'V-1 0222 a : la pièce d\'avant la 1.379.6 garde sa retenue d\'écran' base/migrations/0222_seuil_retenue_pieces_anciennes.sql \
+  $'   and v.taux_retenue > 0 and v.retenue = 0
+' \
+  $'   and v.taux_retenue > 0 and v.retenue = 0 and false
+' \
+  $'(1.387.88, migration 0222) une facture d\'avant la 1.379.6, sous le seuil, reçoit le seuil que le serveur a appliqué ; rien d\'autre ne bouge'
+prouver $'V-1 0222 b : la migration rejouée remonte la révision' base/migrations/0222_seuil_retenue_pieces_anciennes.sql \
+  $'   and coalesce(d.contenu ->> \'seuilRetenue\', \'\') = \'\'
+' \
+  $'   and true
+' \
+  $'(1.387.88, migration 0222) une facture d\'avant la 1.379.6, sous le seuil, reçoit le seuil que le serveur a appliqué ; rien d\'autre ne bouge'
+prouver $'V-1 0222 c : une pièce à retenue scellée reçoit un seuil' base/migrations/0222_seuil_retenue_pieces_anciennes.sql \
+  $'   and v.taux_retenue > 0 and v.retenue = 0
+' \
+  $'   and v.taux_retenue > 0
+' \
+  $'(1.387.88, migration 0222) une facture d\'avant la 1.379.6, sous le seuil, reçoit le seuil que le serveur a appliqué ; rien d\'autre ne bouge'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

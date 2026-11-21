@@ -6497,10 +6497,11 @@
       if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
         const sr = Number(bridge.seuilRetenue()) || 0;
         const corrigee = isAv && doc.creditOf ? docById(doc.creditOf) : null;
-        // (1.379.6, issue 15 V-1) Une facture émise sans son seuil (née d'un contrat ou d'un lot) se juge avec le seuil du
-        // jour, comme le serveur l'a jugée : sinon l'écran lui prêtait une retenue, et son avoir était refusé à l'émission.
-        const jugee = corrigee && (corrigee.seuilRetenue == null || corrigee.seuilRetenue === '') && sr > 0 ? { ...corrigee, seuilRetenue: sr } : corrigee;
-        if (jugee && Number(C.computeTotals(jugee, company()).withholding) > 0) doc.seuilRetenue = 0;
+        // (1.387.88, issue 15 V-1) Toute facture émise sous le seuil porte le seuil que le serveur a appliqué : depuis la
+        // 1.379.6 à l'émission, et par la migration 0222 pour les plus anciennes. L'avoir suit donc la retenue de SA facture,
+        // telle qu'elle est. Juger avec le seuil du jour se trompait sur une facture datée d'avant la règle (sa retenue est
+        // scellée) : son avoir partait sans retenue, et le serveur le refusait.
+        if (corrigee && Number(C.computeTotals(corrigee, company()).withholding) > 0) doc.seuilRetenue = 0;
         else if (sr > 0) doc.seuilRetenue = sr;
       }
       if (!figee && fabrique && bridge.tauxFodec) { const tf = Number(bridge.tauxFodec()) || 0; if (tf > 0) doc.fodecRate = tf; else delete doc.fodecRate; }

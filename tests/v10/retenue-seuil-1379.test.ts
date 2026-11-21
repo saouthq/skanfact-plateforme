@@ -2,6 +2,7 @@
 // l'écran ne l'y a pas posé : sans lui, l'écran prêtait à la facture une retenue que le serveur n'avait pas scellée, et
 // l'avoir de cette facture était refusé (« 210,987 à l'écran, 214,200 au serveur »). Et le refus d'écart parle en français.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
@@ -87,5 +88,42 @@ describe('le seuil de retenue scellé sur la pièce', () => {
     const r2 = await appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: sans, client: client.contenu, revision: 1, rang: 0, netAPayer: '1073.190' });
     expect(r2.statut).toBe(200);
     expect((r2.corps.contenu as Record<string, unknown>).seuilRetenue).toBeUndefined();
+  });
+  it('(1.387.88, migration 0222) une facture d\'avant la 1.379.6, sous le seuil, reçoit le seuil que le serveur a appliqué ; rien d\'autre ne bouge', async () => {
+    const email = `retenue-0222-${Date.now()}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Caisse', type: 'navigateur' } })).corps.jeton);
+    const ent = String((await appeler('POST', '/entreprises-essai', jeton)).corps.id);
+    entreprises.push(ent);
+    await appeler('POST', '/moi/code', jeton, { methode: 'application' });
+    const envoyer = (changements: unknown[]) => appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements });
+    const objets = (await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[];
+    const client = objets.find((o) => o.collection === 'clients' && String(o.contenu.name).startsWith('Menuiserie'));
+    if (!client) throw new Error('client d\'exemple absent');
+    const proprio = String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0].id);
+    await admin.query(`insert into socle.regle_entreprise (entreprise, code, valeur, debut, motif, cree_par) values ($1, 'retenue.seuil', '5000000', '2000-01-01', 'Seuil de l''essai', $2)`, [ent, proprio]);
+    const doc = { ...facture('fs1', client.cle), withholdingRate: { '~n': '1.5' } };
+    await envoyer([{ collection: 'documents', cle: 'fs1', rang: 0, revision: null, contenu: doc }]);
+    const r = await appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: doc, client: client.contenu, revision: 1, rang: 0, netAPayer: '1073.190' });
+    if (r.statut !== 200) throw new Error(JSON.stringify(r.corps));
+    // Au-dessus du seuil : 10 000 HT + 19 % = 11 900 hors timbre, retenue 1,5 % = 178,500 scellée ; net 11 722,500.
+    const haut = { ...facture('fs3', client.cle), withholdingRate: { '~n': '1.5' }, lines: [{ label: 'Salle à manger complète', description: '', qty: 1, unit: '', unitPrice: { '~n': '10000' }, vatRate: 19 }] };
+    await envoyer([{ collection: 'documents', cle: 'fs3', rang: 1, revision: null, contenu: haut }]);
+    const r3 = await appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: haut, client: client.contenu, revision: 1, rang: 1, netAPayer: '11722.500' });
+    if (r3.statut !== 200) throw new Error(JSON.stringify(r3.corps));
+    expect(String((await admin.query('select retenue from ventes.piece where entreprise = $1 and ref_v10 = $2', [ent, 'fs3'])).rows[0].retenue)).toBe('178500');
+    // Une pièce d'avant la 1.379.6 : scellée sans retenue, mais sans le seuil sur la pièce du dossier.
+    await admin.query("update socle.dossier_v10 set contenu = contenu - 'seuilRetenue' where entreprise = $1 and collection = 'documents' and cle = 'fs1'", [ent]);
+    const etat = async () => Object.fromEntries((await admin.query("select cle, revision, contenu ->> 'seuilRetenue' as seuil from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle in ('fs1', 'fs3')", [ent])).rows.map((x: { cle: string; revision: string; seuil: string | null }) => [x.cle, { revision: Number(x.revision), seuil: x.seuil }]));
+    const avant = await etat();
+    expect(avant.fs1?.seuil).toBeNull();
+    const migration = fs.readFileSync(path.join(import.meta.dirname, '../../base/migrations/0222_seuil_retenue_pieces_anciennes.sql'), 'utf8');
+    await admin.query(migration);
+    const apres = await etat();
+    expect(apres.fs1).toEqual({ revision: (avant.fs1?.revision ?? 0) + 1, seuil: '5000' });
+    expect(apres.fs3).toEqual(avant.fs3);
+    // Rejouée : rien ne bouge plus.
+    await admin.query(migration);
+    expect(await etat()).toEqual(apres);
   });
 });

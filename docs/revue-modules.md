@@ -4742,7 +4742,7 @@ Reste de l'issue 5 : CONSOLE-2, 3, 5, 7, 8, 10 à 20 (notés dans le carnet de l
 - Le serveur garde maintenant sur la pièce le seuil qu'il vient d'appliquer ; l'écran juge une facture d'avant avec le seuil
   du jour, comme le serveur.
 - Le refus d'écart écrit ses montants comme l'écran : « 210,987 DT ».
-- À VÉRIFIER : une facture d'avant, sous le seuil et sans seuil gardé, affiche encore sa retenue à l'écran (son avoir, lui, passe).
+- Une facture d'avant, sous le seuil et sans seuil gardé, affichait encore sa retenue à l'écran : corrigé en 1.387.88 (migration 0222).
 - **V-2** : un avoir dont le client est choisi ne propose plus que les factures de ce client ; changer de facture reprend
   les lignes et l'objet de la nouvelle tant que rien n'a été retouché. À VÉRIFIER : pas encore rejoué à la souris avec deux clients.
 - **V-9** : une facture qui imprime « paiement par virement » sans RIB le dit avant d'émettre, même pour un métier qui
@@ -5930,3 +5930,26 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   - **À VÉRIFIER sur un vrai iPhone** : le choix du fichier s'ouvre 0,4 s après le toucher, sous la limite de Safari.
 - Test : `tests/web/complements.test.ts` (au téléphone puis à l'ordinateur, IA éteinte). Preuves : trois
   `entachats1-*`.
+
+## 1.387.88 — Les factures d'avant la 1.379.6 disent le net que le serveur a scellé (issue 15)
+
+- **V-1 (bloquant, ce qui restait)** : une facture émise avant la 1.379.6 sous le seuil de retenue, avec un taux de
+  retenue, était scellée sans retenue au serveur (c'est la pièce légale, chaînée, et celle que lit le Cabinet), mais
+  l'écran lui recalculait une retenue : net, reste dû, relevé et lettrage de l'entreprise ne disaient pas le chiffre
+  scellé (par exemple 950,441 à l'écran pour 964,900 scellés). Cela touchait surtout les factures d'exemple, des
+  contrats et de la boutique.
+  - Migration `0222_seuil_retenue_pieces_anciennes.sql` : pose sur ces pièces le seuil que le serveur avait appliqué (la
+    règle à la date de la pièce). Jamais une pièce dont la retenue scellée est > 0, jamais une pièce qui porte déjà son
+    seuil, jamais une pièce sans règle à sa date ; rejouable ; la révision monte pour que les onglets ouverts relisent.
+  - L'écran ne juge plus la facture corrigée par un avoir avec le seuil du jour : il la prend telle qu'elle est. L'ancien
+    calcul se trompait sur une facture datée d'avant la règle (sa retenue est scellée) : son avoir partait sans
+    retenue et le serveur le refusait.
+  - Effet visible : une de ces factures déjà réglée au net « avec retenue » apparaît partielle, avec un reste égal à la
+    retenue imprimée. Ce reste existait déjà au serveur et au 411 du Cabinet ; c'est l'écran qui ne le montrait pas.
+  - **À DÉCIDER par Skander avec le comptable** : ce reste est-il dû par le client, ou le client a-t-il vraiment
+    retenu ce montant (avec une attestation), à passer alors en retenue subie ? Rien n'est bloqué en attendant : le
+    gérant peut faire l'un ou l'autre.
+  - **À VÉRIFIER** (inchangé) : sur l'avoir d'une facture dont la retenue a été scellée, rembourse-t-on le brut ou le
+    net de retenue ?
+- Test : `tests/v10/retenue-seuil-1379.test.ts` (une pièce d'avant simulée, une pièce à retenue scellée intacte, la
+  migration rejouée). Preuves : `V-1 0222 a/b/c` ; l'ancre de `avoir 1.356.6 a` suit le code.
