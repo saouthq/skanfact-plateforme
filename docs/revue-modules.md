@@ -6122,3 +6122,15 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   dit), d'où une ligne ouvre son écriture. « ← » ramène à la Révision.
 - Test : depuis avril, « Voir son grand livre » ouvre le 532, en avril, avec les agios d'avril ; le retour rend la Révision.
   Une preuve.
+
+## 1.388.4 — Les livres et la liasse s'exportent aussi en PDF ; le livre-journal exporte ce que l'écran garde (issue 9, CABDECLARER-9)
+
+- **CABDECLARER-9** : le grand livre, la balance, le livre-journal et le lettrage ne s'exportaient qu'en CSV, la liasse
+  aussi — alors qu'un comptable les remet imprimés au client ou au banquier. Le menu « Exporter » propose « Exporter en
+  PDF » : la même page que l'écran (le compte choisi, la période, ses soldes), en A4 paysage ; la liasse a son bouton
+  « Exporter la liasse en PDF ». Une seule fabrique de page pour les deux.
+- Trouvé à côté : « Exporter le livre-journal » rendait TOUT le journal de la période alors que l'écran filtrait sur un
+  journal ou une recherche — le menu promet « ce que tu vois ». L'écran et l'export lisent désormais la même fonction
+  (le journal choisi, la recherche qui garde des pièces entières, le numéro lu sur la période entière).
+- Tests : le grand livre du 401 en PDF porte ses deux pièces et son solde, pas le 606 ; le livre-journal du seul journal
+  d'achats n'exporte que des lignes AC ; le lettrage s'exporte par son menu. Deux preuves.

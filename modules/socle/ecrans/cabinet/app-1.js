@@ -9077,27 +9077,33 @@
       court: 'Justificatif', hint: `${j.nom} — joint par le client, dans son paquet ${K.de(moisLabelCourt(j.month))}`, run: () => ouvrirJustifClient(j) }));
   }
 
-  function vueJournal(lignes) {
+  // (1.388.4, issue 9, CABDECLARER-9) Ce que le livre-journal GARDE — le journal choisi, la recherche qui garde des PIÈCES
+  // entières (10.12.0) — et le numéro de chaque pièce lu sur la PÉRIODE entière (un numéro qui change quand on cherche n'est
+  // plus un numéro). L'écran et son export lisent cette MÊME fonction : l'export rendait tout le journal sous un filtre.
+  function journalGarde(lignes) {
     const s = livresState;
-    const journaux = [...new Set(lignes.map(l => l.journal).filter(Boolean))].sort();
-    const q = s.q.trim().toLowerCase();
-    // La recherche garde des PIÈCES, jamais des lignes (10.12.0, vu au test humain) : une pièce dont
-    // une seule ligne correspond sortait coupée, un débit sans son crédit — et l'écran annonçait
-    // « 24 pièces déséquilibrées » en rouge sur un livre parfaitement juste. C'est la raison même de
-    // la pagination par pièce (9.4.5), qu'un filtre ne doit pas défaire.
+    const q = String(s.q || '').trim().toLowerCase();
+    // La recherche garde des PIÈCES, jamais des lignes (10.12.0, vu au test humain) : une pièce dont une seule ligne
+    // correspond sortait coupée, un débit sans son crédit — et l'écran annonçait « 24 pièces déséquilibrées » en rouge sur
+    // un livre parfaitement juste. C'est la raison même de la pagination par pièce (9.4.5), qu'un filtre ne doit pas défaire.
     const duJournal = lignes.filter(l => !s.journal || l.journal === s.journal);
     const trouvees = q
       ? new Set(duJournal.filter(l => `${l.piece} ${l.tiers} ${l.label} ${l.account}`.toLowerCase().includes(q)).map(KC.cleDePiece))
       : null;
     const gardees = trouvees ? duJournal.filter(l => trouvees.has(KC.cleDePiece(l))) : duJournal;
-    // Le numéro d'une pièce se lit sur la PÉRIODE ENTIÈRE, jamais sur ce que le filtre garde : un
-    // numéro qui change quand on cherche la pièce n'est plus un numéro (INVENTAIRE-2025 passait
-    // « n° 1 » dans une recherche). Le livre et les paquets récents portent le leur ; seul un vieux
-    // paquet se recompte, et il se recompte sur tout ce qu'on lit.
+    // Le numéro d'une pièce se lit sur la PÉRIODE ENTIÈRE, jamais sur ce que le filtre garde (INVENTAIRE-2025 passait
+    // « n° 1 » dans une recherche). Le livre et les paquets récents portent le leur ; seul un vieux paquet se recompte, et
+    // il se recompte sur tout ce qu'on lit.
     const tout = KC.journalDepuisLignes(lignes);
     const numeroDe = new Map(tout.pieces.map(p => [p.key, p.numero]));
     const lj = KC.journalDepuisLignes(gardees);
     lj.pieces.forEach(p => { if (numeroDe.has(p.key)) p.numero = numeroDe.get(p.key); });
+    return { gardees, lj, tout };
+  }
+  function vueJournal(lignes) {
+    const s = livresState;
+    const journaux = [...new Set(lignes.map(l => l.journal).filter(Boolean))].sort();
+    const { gardees, lj, tout } = journalGarde(lignes);
     const cz = KC.centralisateurDepuisLignes(gardees);
     // On pagine les PIÈCES, jamais les lignes : une pièce coupée en deux montrerait un débit sans
     // son crédit, et le lecteur conclurait à un déséquilibre qui n'existe pas. Le pied, lui, porte
@@ -10414,6 +10420,7 @@
       ${vides ? `<label class="check inline small"><input type="checkbox" id="li-masquer" ${s.liasseVides ? '' : 'checked'}> Masquer les rubriques vides (${vides})</label>` : ''}
       <button class="btn btn-sm" id="li-modele">Ajuster le modèle de rubriques…</button>
       <button class="btn btn-sm" id="li-csv">Exporter la liasse en CSV</button>
+      <button class="btn btn-sm" id="li-pdf">Exporter la liasse en PDF</button>
     </div>
     ${/* U-13 — la réserve vaut pour tout l'écran : elle se dit UNE fois, sur une ligne, sans l'orange
           d'un geste à faire. Un encadré orange permanent apprend à ignorer l'orange — y compris le
@@ -10538,6 +10545,16 @@
     }; });
     const mod = $('#li-modele', el);
     if (mod) mod.onclick = () => modeleLiasseForm(relire);
+    // (1.388.4, issue 9, CABDECLARER-9) La liasse en PDF, à remettre au client : la même fabrique que les livres.
+    const pdfLi = $('#li-pdf', el);
+    if (pdfLi) pdfLi.onclick = async () => {
+      const cols = [['id', 'Code'], ['label', 'Rubrique'], ['montant', 'Montant'], ['sens', 'Sens']];
+      const tableaux = s.liasse.liasse.etats.map(e => ({ titre: e.label, cols, montants: ['montant'],
+        rows: e.lignes.map(x => ({ id: x.id, label: x.label, montant: x.montant === null ? '—' : x.montant, sens: (x.deduit || x.charge) ? 'en moins' : '' })) }));
+      const html = pageLivresPdf(`Liasse ${s.annee}`, `${dossier.name}${dossier.matricule ? ` · ${dossier.matricule}` : ''} · À VÉRIFIER avec ton client et l'administration`, tableaux);
+      try { const f = await api.exportPdf(html, `liasse-${s.annee}-${dossier.matricule || dossier.name}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
+      catch (e) { toast(plainError(e), 'error'); }
+    };
     const csv = $('#li-csv', el);
     if (csv) csv.onclick = async () => {
       // `K.toCsvLine` échappe comme le reste du Cabinet : un libellé de rubrique qui commence par

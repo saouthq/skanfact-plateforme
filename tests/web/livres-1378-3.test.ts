@@ -148,9 +148,27 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     expect(rangs[2]).toMatch(/^401;Fournisseurs d'exploitation;01\/03\/2026;AC;\d+;FA-0901;Minoterie du Cap Bon;Farine de mars;0,000;406,980;406,980;C;$/);
     expect(rangs[3]).toMatch(/;LV-77;Levures du Sahel;Levures;0,000;120,000;526,980;C;$/);
     await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 5_000 }).toBe(`Fichier enregistré dans tes téléchargements : ${csv.nom}`);
+    // ── (CABDECLARER-9) Le même écran en PDF : le compte choisi et ses soldes, rien d'autre ─────────────
+    let pdfHtml = '';
+    await p.route('**/v1/pdf', async (r) => { pdfHtml = String((r.request().postDataJSON() as { html: string }).html); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ pdf: 'JVBERg==', nom: 'grand-livre-401.pdf' }) }); });
+    await p.locator('.filters [data-rowmenu="EXP"]').click();
+    await p.getByRole('menuitem', { name: 'Exporter en PDF' }).click({ timeout: 5_000 });
+    await expect.poll(() => pdfHtml.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect(pdfHtml).toContain('FA-0901');
+    expect(pdfHtml).toContain('526,980');
+    expect(pdfHtml).not.toMatch(/<td[^>]*>606<\/td>/);
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 5_000 }).toMatch(/^PDF enregistré : /);
+    await p.unroute('**/v1/pdf');
 
     // ── Le FEC : le tiers d'un collectif nu a ses deux colonnes ───────────────────────────────────
     await ouvrir('journal');
+    // (CABDECLARER-9) Le livre-journal exporte ce que l'écran garde : un journal choisi, ses seules pièces.
+    await p.locator('#lv-journal').selectOption('AC');
+    const lj = await telecharge('Exporter le livre-journal');
+    const rangsLj = lj.texte.replace(/^\ufeff/, '').trim().split('\r\n').slice(1).map((x) => x.split(';'));
+    expect(rangsLj.length).toBeGreaterThan(0);
+    expect([...new Set(rangsLj.map((x) => x[2]))]).toEqual(['AC']);
+    await p.locator('#lv-journal').selectOption('');
     const fec = await telecharge('Fichier FEC');
     const lignesFec = fec.texte.trim().split('\r\n').map((x) => x.split('\t'));
     const col = (n: string) => (lignesFec[0] ?? []).indexOf(n);

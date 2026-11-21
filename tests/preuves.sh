@@ -31176,6 +31176,14 @@ prouver $'cabdeclarer6-revision-sans-grand-livre' modules/socle/ecrans/cabinet/a
   $'              s.compte = id; s.page = 1;' \
   $'              s.page = 1;' \
   $'(1.348.0) chaque compte dans son cycle, la table d\'avant suivie, le sens du compte, « Signer » d\'un clic, l\'exercice qui court dit avant d\'arrêter, le curseur dans la question neuve'
+prouver $'cabdeclarer9-pas-de-pdf-des-livres' modules/socle/ecrans/cabinet/app-2.js \
+  $'          { icon: \'pdf\', label: \'Exporter en PDF\', cle: \'export-pdf\',' \
+  $'          null && { icon: \'pdf\', label: \'Exporter en PDF\', cle: \'export-pdf\',' \
+  $'(1.378.3) une ligne ouvre son écriture, un compte de la balance son grand livre ; le grand livre et le FEC exportés portent le compte choisi, le solde et les tiers'
+prouver $'cabdeclarer9-journal-exporte-tout' modules/socle/ecrans/cabinet/app-2.js \
+  $'      : (s.onglet === \'lettrage\' ? KC.journalDepuisLignes(lignes) : journalGarde(lignes).lj).pieces' \
+  $'      : KC.journalDepuisLignes(lignes).pieces' \
+  $'(1.378.3) une ligne ouvre son écriture, un compte de la balance son grand livre ; le grand livre et le FEC exportés portent le compte choisi, le solde et les tiers'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

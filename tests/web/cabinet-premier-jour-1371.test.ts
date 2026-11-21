@@ -166,9 +166,11 @@ describe('le premier jour d\'un client tenu au cabinet (1.371.0)', () => {
     // Le lettrage : son export porte le 411, pas le capital.
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}${base}/lettrage`);
     await p.reload();
-    const exp = p.getByRole('button', { name: 'Exporter le lettrage', exact: true });
+    // (1.388.4) Deux exports (CSV et PDF) : un menu « Exporter », dont on choisit l'entrée.
+    const exp = p.locator('.filters [data-rowmenu="EXP"]');
     await exp.waitFor({ timeout: 30_000 });
-    const [fichier] = await Promise.all([p.waitForEvent('download'), exp.click()]);
+    await exp.click();
+    const [fichier] = await Promise.all([p.waitForEvent('download'), p.getByRole('menuitem', { name: 'Exporter le lettrage' }).click()]);
     expect(fichier.suggestedFilename()).toMatch(/^lettrage-411-/);
     const csv = fs.readFileSync(await fichier.path(), 'utf8');
     expect(csv).toContain(';411;');

@@ -5300,6 +5300,7 @@
         const barre = $('.filters[data-export]', el);
         return [
           { icon: 'extraire', label: barre ? barre.dataset.export : 'Exporter en CSV', cle: 'export-csv', hint: 'Ce que tu vois, dans un fichier CSV que tout tableur ouvre', run: () => exporterLivre(lignes) },
+          { icon: 'pdf', label: 'Exporter en PDF', cle: 'export-pdf', hint: 'Ce que tu vois, en PDF : à imprimer, ou à remettre au client ou au banquier', run: () => exporterLivre(lignes, 'pdf') },
           s.livre && barre && barre.hasAttribute('data-fec') ? { icon: 'extraire', label: 'Fichier FEC…', cle: 'export-fec', hint: 'Les écritures validées de l\'exercice, au format que Sage, EBP ou Cegid importent', run: () => exporterFec() } : null
         ];
       }
@@ -5368,7 +5369,15 @@
     } catch (e) { toast(plainError(e), 'error'); }
   }
 
-  async function exporterLivre(lignes) {
+  // (1.388.4, issue 9, CABDECLARER-9) La page d'un PDF des livres : les colonnes et les lignes de l'export, à imprimer ou à
+  // remettre au client ou au banquier. UNE fabrique pour les livres et la liasse : deux feuilles de style divergeraient.
+  function pageLivresPdf(titre, sousTitre, tableaux) {
+    const cellule = (v, k, montants) => (v === '' || v == null ? '' : montants.includes(k) && Number.isFinite(Number(v)) ? money(Number(v)) : k === 'date' ? fmtJour(v) : String(v));
+    const table = ({ titre: tt, cols, rows, montants }) => `${tt ? `<h2>${esc(tt)}</h2>` : ''}<table><thead><tr>${cols.map(([k, l]) => `<th${montants.includes(k) ? ' class="r"' : ''}>${esc(l)}</th>`).join('')}</tr></thead><tbody>${
+      rows.map(r => `<tr>${cols.map(([k]) => `<td${montants.includes(k) ? ' class="r"' : ''}>${esc(cellule(r[k], k, montants))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titre)}</title><style>@page{size:A4 landscape;margin:12mm}body{font:10px/1.35 Helvetica,Arial,sans-serif;color:#17202a;margin:0}h1{font-size:15px;margin:0 0 2px}h2{font-size:12px;margin:14px 0 4px}p{margin:0 0 10px;color:#5b6672}table{border-collapse:collapse;width:100%}thead{display:table-header-group}tr{page-break-inside:avoid}th,td{border-bottom:1px solid #dde2e7;padding:3px 5px;text-align:left;vertical-align:top}th{font-size:8.5px;color:#5b6672;text-transform:uppercase;letter-spacing:.03em}.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}</style></head><body><h1>${esc(titre)}</h1><p>${esc(sousTitre)}</p>${tableaux.map(table).join('')}</body></html>`;
+  }
+  async function exporterLivre(lignes, format) {
     const s = livresState;
     // (1.378.3, issue 9 CABDECLARER-9) Le grand livre exporte CE QUE L'ÉCRAN MONTRE : le compte choisi (ou tous), rangé par
     // compte, l'ouverture en tête, le solde après chaque ligne et son sens. Son fichier était le journal entier, dans
@@ -5393,7 +5402,8 @@
         : KC.balanceDepuisLignes(lignes, (s.periode || {}).ouverture || null, nomDeCompte())).rows
       // (1.371.0) Le lettrage exporte le compte qu'il montre (411 par défaut), pas tout le grand livre : son fichier était
       // celui du grand livre, capital et TVA compris, sous le nom « lettrage ».
-      : KC.journalDepuisLignes(lignes).pieces.flatMap(p => p.lignes.map(e => ({ ...e, numero: p.numero })))
+      // (1.388.4, CABDECLARER-9) Le livre-journal exporte ce que l'écran GARDE (le journal choisi, la recherche) : la même fonction.
+      : (s.onglet === 'lettrage' ? KC.journalDepuisLignes(lignes) : journalGarde(lignes).lj).pieces.flatMap(p => p.lignes.map(e => ({ ...e, numero: p.numero })))
         .filter(e => s.onglet !== 'lettrage' || String(e.account || '').startsWith(s.compte || '411'));
     // `K.toCsvLine` échappe comme le reste du Cabinet : un libellé de facture contient un
     // point-virgule un jour sur dix, et un montant s'écrit à la virgule décimale.
@@ -5406,6 +5416,15 @@
       .join('\r\n') + '\r\n';
     const nom = s.onglet === 'balance' ? 'balance' : GL ? `grand-livre${s.compte ? `-${s.compte}` : ''}`
       : s.onglet === 'lettrage' ? `lettrage-${s.compte || '411'}` : 'livre-journal';
+    if (format === 'pdf') {
+      const per = s.mode === 'mois' ? K.monthLabel(s.mois) : s.mode === 'intervalle' && s.du && s.au ? `de ${K.monthLabel(s.du)} à ${K.monthLabel(s.au)}` : `l'exercice ${s.annee}`;
+      const quoi = GL && s.compte ? ` · compte ${s.compte}` : s.onglet === 'lettrage' ? ` · compte ${s.compte || '411'}` : s.onglet === 'balance' && s.aux ? ' auxiliaire' : '';
+      const dos = s.data.dossier;
+      const html = pageLivresPdf(`${ONGLETS_COMPTA[s.onglet] || 'Livre'}${quoi}`, `${dos.name}${dos.matricule ? ` · ${dos.matricule}` : ''} · ${per}`, [{ cols, rows, montants: MONTANTS }]);
+      try { const f = await api.exportPdf(html, `${nom}-${dos.matricule || dos.name}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
+      catch (e) { toast(plainError(e), 'error'); }
+      return;
+    }
     try {
       // Le même chemin d'export que le reste de l'application : `cab:exportCsv` pose le BOM et la
       // fenêtre d'enregistrement. En écrire un second aurait fini par diverger sur l'un des deux.
