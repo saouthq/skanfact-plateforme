@@ -5750,3 +5750,18 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   ne marque plus la pièce modifiée : on quitte sans question.
 - **ENTSOCLE-22, suite.** « (et 2 autres valeurs) » ; « SkanFact est écrit par une seule personne » retiré de l'Aide.
 - Test : `tests/web/coquille-1387.test.ts`.
+
+## 1.387.78 — La coquille, fin : le conflit, l'accueil, « Créer », les raccourcis (issue 14)
+
+- **ENTSOCLE-6 — deux onglets sur le même brouillon.** Le bandeau nomme ce que l'AUTRE a changé (lu contre la version
+  de départ) ; il disait « a changé l'objet » quand c'était moi qui l'avais tapé. Tant que la version n'est pas
+  choisie, ni « Brouillon enregistré » ni « ✓ enregistré » : le message dit de choisir dans le bandeau.
+- **ENTSOCLE-21 — un seul vert sur l'accueil.** « À faire » ne prend le vert que pour une ligne qui presse, jamais
+  pour « Quand tu peux », ni quand « Tes premiers pas » portent déjà l'étape suivante. Le nom de l'entreprise, coupé
+  dans l'en-tête, se lit en entier au survol.
+- **ENTSOCLE-20 — « Créer » garde ses quatre gestes.** Une entrée dont la page n'existe pas ici laissait le menu à
+  moitié vide : la place revient aux gestes suivants du métier, sans deux fois la même touche.
+- **ENTSOCLE-19 — les raccourcis d'une pièce figée** (émise, ou d'un mois clôturé) ne promettent plus « Ajouter un
+  article » ni « Émettre ».
+- **ENTSOCLE-22** — « -3 » dans la numérotation est refusé sur la ligne (vérifié par un test).
+- Test : `tests/web/coquille-1387.test.ts` (deux tests de plus).

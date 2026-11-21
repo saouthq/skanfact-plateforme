@@ -134,6 +134,10 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     // achats filtrés sur « En retard » pour les achats — et plus la liste entière. Et les cases de la numérotation se nomment.
     expect(String(await p.locator('#pf input[data-num="facture"]').getAttribute('aria-label'))).toContain('Dernière facture émise');
     expect(String(await p.locator('#pf input[data-num="devis"]').getAttribute('aria-label'))).toContain('Dernier devis émis');
+    // (ENTSOCLE-22) « -3 » ne devient pas 3 en silence : la ligne le refuse, et le dit.
+    await p.evaluate(() => { const el = document.querySelector('#pf input[data-num="devis"]') as HTMLInputElement; el.value = '-3'; el.dispatchEvent(new Event('input', { bubbles: true })); });
+    await expect.poll(() => p.evaluate(() => (document.querySelector('#num-motif') as HTMLElement).textContent || ''), { timeout: 10_000 }).toContain('nombre entier');
+    await p.evaluate(() => { const el = document.querySelector('#pf input[data-num="devis"]') as HTMLInputElement; el.value = ''; el.dispatchEvent(new Event('input', { bubbles: true })); });
     const p2 = await cx.newPage();
     await p2.goto(`${serveur.adresse}/v10/?e=${ent}#/`);
     await p2.waitForFunction(() => typeof (window as unknown as { __versRetard?: unknown }).__versRetard === 'function', undefined, { timeout: 30_000 });
@@ -166,6 +170,97 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await p2.reload();
     await p2.locator('#set-tabs').waitFor({ timeout: 30_000 });
     await expect.poll(() => p2.locator('#set-tabs [data-tab="app"]').getAttribute('class'), { timeout: 10_000 }).toContain('active');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 150_000);
+
+  it('deux onglets sur le même brouillon : le bandeau nomme ce que l\'autre a changé, et rien ne dit « enregistré » avant le choix (ENTSOCLE-6)', async () => {
+    const amira = await personne('amira');
+    const ent = String((await api('POST', '/entreprises-essai', amira)).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, amira);
+    const client = { id: 'c1', name: 'Mohamed Trabelsi', city: 'Tunis', email: '', paymentTermsDays: 30, withholdingRate: 0 };
+    const facture = { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: '2026-11-11', dueDate: '2026-12-11', clientId: 'c1', createdAt: 6, subject: 'Entretien',
+      lines: [{ label: 'Entretien', description: '', qty: n('1'), unit: '', unitPrice: n('100.000'), vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: true, stampFee: 1,
+      notes: '', currency: 'DT', regimeTva: 'reel', payments: [] };
+    const pose = await api('POST', `/entreprises/${ent}/dossier-v10`, amira, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: client },
+      { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: facture },
+    ] });
+    expect(pose.statut, JSON.stringify(pose.corps)).toBe(200);
+    const cx = await contexte(amira);
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
+    const a = await cx.newPage();
+    const b = await cx.newPage();
+    for (const p of [a, b]) { await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`); await p.locator('#save').waitFor({ timeout: 30_000 }); await plusTard(p); }
+    // B change la quantité et enregistre ; A, resté sur l'ancienne version, change l'objet et enregistre.
+    const qte = b.locator('#lines tr[data-i="0"] input[data-k="qty"], [data-i="0"] [data-k="qty"]').first();
+    await qte.fill('2'); await qte.press('Tab');
+    await b.locator('#save').click();
+    await expect.poll(async () => net(await b.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toContain('enregistré');
+    const objet = a.locator('[name="subject"]').first();
+    await objet.fill('Entretien urgent'); await objet.press('Tab');
+    await a.locator('#save').click();
+    const bandeau = a.locator('#ed-conflit');
+    await bandeau.waitFor({ timeout: 15_000 });
+    const texte = net(await bandeau.innerText());
+    expect(texte).toContain('a changé la quantité');
+    expect(texte).not.toMatch(/a changé l'objet/);
+    expect(texte).toMatch(/\(et (1 autre valeur|\d+ autres valeurs)\)/);
+    await expect.poll(async () => net(await a.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toContain('choisis la version à garder');
+    expect(await a.locator('#ed-enreg').isVisible()).toBe(false);
+    await cx.close();
+  }, 150_000);
+
+  it('l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)', async () => {
+    const sami = await personne('sami');
+    const ent = String((await api('POST', '/entreprises', sami, { raisonSociale: 'Quincaillerie du Port de Sfax et de sa Région SARL' })).corps.id);
+    const cx = await contexte(sami);
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await p.locator('#view .premiers-pas').first().waitFor({ timeout: 30_000 });
+    await plusTard(p);
+    // Un seul vert : celui des premiers pas ; « À faire » ne le reprend pas pour une ligne « Quand tu peux ».
+    await expect.poll(() => p.locator('#view .btn-primary').filter({ visible: true }).count(), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    expect(await p.locator('#view [data-todo].btn-primary').count()).toBe(0);
+    // Le nom long de l'entreprise se lit en entier au survol de l'en-tête.
+    await expect.poll(async () => String(await p.locator('#brand-btn').getAttribute('title')), { timeout: 10_000 }).toContain('Quincaillerie du Port de Sfax et de sa Région SARL');
+    // Un commerce dont la caisse est « à venir » garde quatre gestes dans « Créer », sans deux fois la même touche.
+    const creer = await p.evaluate(() => {
+      const w = window as unknown as { __data: { company: { activity: string } }; __creer: () => { actions: { page: string; touche: string }[] } };
+      const av = window as unknown as { __aVenir?: string[] };
+      const avant = av.__aVenir;
+      av.__aVenir = ['caisse'];
+      w.__data.company.activity = 'commerce';
+      const r = w.__creer().actions;
+      w.__data.company.activity = '';
+      av.__aVenir = avant;
+      return r;
+    });
+    expect(creer.map((a) => a.page)).not.toContain('caisse');
+    expect(creer.length).toBe(4);
+    expect(new Set(creer.map((a) => a.touche)).size).toBe(creer.length);
+    // Une pièce figée (ici un brouillon d'un mois clôturé) ne se modifie plus : ses raccourcis ne promettent ni « Ajouter un
+    // article » ni « Émettre ».
+    const pose = await api('POST', `/entreprises/${ent}/dossier-v10`, sami, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Garage Ben Ali', city: 'Sfax', email: '', paymentTermsDays: 30, withholdingRate: 0 } },
+      { collection: 'documents', cle: 'f9', rang: 0, revision: null, contenu: { id: 'f9', type: 'facture', number: '', status: 'brouillon', date: '2026-10-11', dueDate: '2026-11-11', clientId: 'c1', createdAt: 6,
+        subject: 'Clés', lines: [{ label: 'Clés', description: '', qty: n('1'), unit: '', unitPrice: n('10.000'), vatRate: 19 }], discountRate: 0, withholdingRate: 0, applyStamp: true, stampFee: 1,
+        notes: '', currency: 'DT', regimeTva: 'reel', payments: [] } },
+    ] });
+    expect(pose.statut, JSON.stringify(pose.corps)).toBe(200);
+    await p.reload();
+    await p.locator('#view .premiers-pas').first().waitFor({ timeout: 30_000 });
+    await p.evaluate(() => { (window as unknown as { __data: { closedUntil: string } }).__data.closedUntil = '2026-10-31'; location.hash = '#/doc/f9'; });
+    await p.waitForFunction(() => typeof (window as unknown as { __raccourcisPiece?: unknown }).__raccourcisPiece === 'function' && location.hash === '#/doc/f9', undefined, { timeout: 30_000 });
+    await p.locator('#clos-banner, #view .bandeau').first().waitFor({ timeout: 15_000 }).catch(() => undefined);
+    await p.evaluate(() => (window as unknown as { __raccourcisPiece: () => void }).__raccourcisPiece());
+    const rac = net(await p.locator('#modal-root .modal').last().innerText());
+    expect(rac).toContain('Aperçu en grand');
+    expect(rac).not.toContain('Ajouter un article');
+    expect(rac).not.toContain('Émettre');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 150_000);

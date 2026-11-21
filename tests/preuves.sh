@@ -30959,6 +30959,50 @@ prouver $'reussites-comptable-relie' modules/socle/moteur/core-2.js \
   $'titre: o.enLigne ? \'Ton comptable relié\' : \'Premier paquet au comptable\'' \
   $'titre: \'Premier paquet au comptable\'' \
   $'en ligne, la ligne du comptable s’appelle « Ton comptable relié » et se coche quand un cabinet est relié, pas à un paquet'
+prouver $'barre-famille-de-la-page' modules/socle/ecrans/entreprise/app-1.js \
+  $'b.classList.toggle(\'ici\', !auQuotidien' \
+  $'b.classList.toggle(\'ici\', false && !auQuotidien' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'recharger-garde-l-onglet' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (typeof x.onglet === \'string\') settingsTab = x.onglet;' \
+  $'if (false) settingsTab = x.onglet;' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'chercher-client-pas-modifier' modules/socle/ecrans/entreprise/app-1.js \
+  $'qi.oninput = e => { if (e && e.stopPropagation) e.stopPropagation(); pqSel = 0;' \
+  $'qi.oninput = e => { pqSel = 0;' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'conflit-nomme-ce-que-l-autre-a-change' modules/socle/ecrans/entreprise/app-1.js \
+  $'return out.filter(x => x.sien).concat(out.filter(x => !x.sien));' \
+  $'return out;' \
+  $'deux onglets sur le même brouillon : le bandeau nomme ce que l\'autre a changé, et rien ne dit « enregistré » avant le choix (ENTSOCLE-6)'
+prouver $'conflit-pas-enregistre' modules/socle/ecrans/entreprise/app-1.js \
+  $'|| (conflitPiece && conflitPiece.id === doc.id) ? \' hidden\'' \
+  $'? \' hidden\'' \
+  $'deux onglets sur le même brouillon : le bandeau nomme ce que l\'autre a changé, et rien ne dit « enregistré » avant le choix (ENTSOCLE-6)'
+prouver $'conflit-toast-choisir' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (conflitPiece) toast(\'Ce brouillon a aussi changé ailleurs' \
+  $'if (false) toast(\'Ce brouillon a aussi changé ailleurs' \
+  $'deux onglets sur le même brouillon : le bandeau nomme ce que l\'autre a changé, et rien ne dit « enregistré » avant le choix (ENTSOCLE-6)'
+prouver $'conflit-autres-valeurs' modules/socle/ecrans/entreprise/app-1.js \
+  $'pl(e.length - 1, \'autre valeur\', \'autres valeurs\')' \
+  $'pl(e.length - 1, \'autre valeur\')' \
+  $'deux onglets sur le même brouillon : le bandeau nomme ce que l\'autre a changé, et rien ne dit « enregistré » avant le choix (ENTSOCLE-6)'
+prouver $'raccourcis-piece-figee' modules/socle/ecrans/entreprise/app-1.js \
+  $'const r = figee ? [[\'Ctrl P\'' \
+  $'const r = false ? [[\'Ctrl P\'' \
+  $'l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)'
+prouver $'accueil-un-seul-vert' modules/socle/ecrans/entreprise/app-1.js \
+  $'const premierPrincipal = !sansVert && !abonnementPrincipal() && !!ranges.length && niveau(ranges[0]) !== \'\';' \
+  $'const premierPrincipal = !abonnementPrincipal();' \
+  $'l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)'
+prouver $'creer-garde-quatre-gestes' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (actions.length >= 4) break;' \
+  $'break;' \
+  $'l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)'
+prouver $'entreprise-nom-au-survol' web/public/plateforme/barre.js \
+  $'if (btn) { const t =' \
+  $'if (false) { const t =' \
+  $'l\'accueil d\'une entreprise neuve n\'a qu\'un vert, « Créer » garde quatre gestes, une pièce figée ne promet plus « Émettre » (ENTSOCLE-19, 20, 21)'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -249,6 +249,9 @@
       const texte = (nom.textContent || '').trim();
       const voulu = texte && texte !== '—' ? initiales(texte) : 'SF';
       if (pastille.textContent !== voulu) pastille.textContent = voulu;
+      // (1.387.78, issue 14 ENTSOCLE-21) Un nom long se coupe (« Quincaillerie Socle … ») : le survol le donne en entier.
+      const btn = /** @type {HTMLElement | null} */ (nom.closest('button'));
+      if (btn) { const t = texte && texte !== '—' ? `${texte} · changer d'entreprise` : 'Changer d\'entreprise'; if (btn.title !== t) btn.title = t; }
       poserRail();
     };
     poser();

@@ -361,12 +361,17 @@
       const m = C.mergeData(data, r.disk, r.ancetre);
       const touchee = mienne && mienne.status === 'brouillon' && m.conflicts.find(x => x.kind === 'documents' && x.id === ouvert);
       const autre = touchee ? ((r.disk && r.disk.documents) || []).find(d => d.id === ouvert) : null;
-      if (autre) conflitPiece = { id: ouvert, mienne, autre: JSON.parse(JSON.stringify(autre)), qui: (r.disk && r.disk.syncDeviceName) || '' };
+      // (1.387.78, issue 14 ENTSOCLE-6) La version de départ (`base`, lue dans l'ancêtre) dit ce que l'AUTRE a changé : sans
+      // elle, le bandeau nommait l'objet que j'avais tapé comme si l'autre poste l'avait changé.
+      const base = ((r.ancetre && r.ancetre.documents) || []).find(d => d.id === ouvert);
+      if (autre) conflitPiece = { id: ouvert, mienne, autre: JSON.parse(JSON.stringify(autre)), base: base ? JSON.parse(JSON.stringify(base)) : null, qui: (r.disk && r.disk.syncDeviceName) || '' };
       data = m.data;
       const w = await bridge.saveData(data, true);
       if (w && w.conflict) { toast('Enregistrement impossible : le dossier partagé bouge en permanence. Attends que l\'autre poste ait fini.', true); return; }
       try { window.__data = data; window.__lastMerge = m; } catch (_) {}
       render();
+      // (1.387.78) Tant que la version n'est pas choisie, rien ne dit « enregistré » : le toast du clic est remplacé.
+      if (conflitPiece) toast('Ce brouillon a aussi changé ailleurs : choisis la version à garder, dans le bandeau.');
       // La pièce ouverte dit elle-même ce qui a changé ; la fenêtre ne s'ouvre que pour le reste.
       if (!(conflitPiece && m.counts.conflicts === 1 && !m.counts.duplicates)) reportMerge(m, r.disk);
     } finally { merging = false; }
@@ -3264,6 +3269,15 @@
     for (const e of Socle.entrees('creer')) A[e.cle] = [e.vue, e.libelle, e.sous, e.lettre, e.faire];
     const cles = role === 'commercial' ? ['devis', 'facture', 'client'] : role === 'caissier' ? ['vente'] : role === 'lecture' ? [] : METIERS[met].creer;
     const actions = cles.map(k => A[k]).filter(a => a && vues.has(a[0]));
+    // (1.387.78, issue 14 ENTSOCLE-20) Une entrée dont la page est fermée (la caisse « Prochainement ») laissait « Créer » à
+    // moitié vide : la place revient aux gestes suivants du métier, sans doublon de touche.
+    if (role !== 'commercial' && role !== 'caissier' && role !== 'lecture') {
+      for (const k of ['facture', 'devis', 'client', 'article', 'depense', 'photo']) {
+        if (actions.length >= 4) break;
+        const x = A[k];
+        if (x && vues.has(x[0]) && !actions.includes(x) && !actions.some(y => y[3] === x[3])) actions.push(x);
+      }
+    }
     return {
       role,
       bloque: aboBloque(true) ? { texte: `${licence.label}. ${licence.detail || ''}`.trim(), bouton: abonnementVisible() ? 'Régler ma facture' : '', aller: () => allerAbonnement() } : null,
@@ -4289,8 +4303,8 @@
       ${bandeauHorsLigne}
       ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
-      ${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel() : pas}
-      ${!duGrain ? (urgentDabord ? pas : todoPanel()) : `
+      ${duGrain && metierCommence() && !commercial ? '' : urgentDabord ? todoPanel(pasEnCours) : pas}
+      ${!duGrain ? (urgentDabord ? pas : todoPanel(pasEnCours)) : `
       <div class="stats a-ch${commercial ? ' a-ch2' : ''}${horsLigne ? ' a-gris' : ''}">
         ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
@@ -4300,7 +4314,7 @@
       </div>
       ${metierCommence() && !commercial ? pas : ''}
       <div class="a-deux"><div class="a-g">
-        ${todoPanel()}
+        ${todoPanel(metierCommence() && !commercial && pasEnCours)}
         ${commercial ? '' : `<div class="panel a-graph"><div class="a-bloc-t"><h2>Facturé et encaissé, 12 mois ${info('dash.chart')}</h2><span class="small muted">${year} : ${nb(sumHT(ofYear))} ${h(cur)} HT · ${nb(sumTTC(ofYear))} TTC, avoirs déduits</span></div>
           ${duGraphique ? `<div class="legend"><span><i class="cl-fac"></i>Facturé HT, avoirs déduits</span><span><i class="cl-enc"></i>Encaissé</span><span class="unite">en ${h(cur === 'TND' || cur === 'DT' ? 'dinars' : cur)}</span></div><div class="a-g-zone">${barChart(series, true)}<div class="bulle-g" id="a-bulle" hidden></div></div>`
           : '<p class="small muted">Ce graphique se remplira tout seul : une barre verte par mois facturé, une barre bleue par mois encaissé. L\'écart entre les deux, c\'est ce qu\'on te doit.</p>'}
@@ -6460,16 +6474,18 @@
     const NOMS_CHAMP = { date: 'la date', dueDate: 'l\'échéance', subject: 'l\'objet', clientId: 'le client', discountRate: 'la remise de la pièce', withholdingRate: 'la retenue', notes: 'les notes', qty: 'la quantité', unitPrice: 'le prix', discount: 'la remise', vatRate: 'la TVA', label: 'la désignation' };
     const ecartsConflit = () => {
       if (!conflitPiece) return [];
-      const a = conflitPiece.mienne, b = conflitPiece.autre, out = [];
+      const a = conflitPiece.mienne, b = conflitPiece.autre, o = conflitPiece.base, out = [];
+      // Ce que l'autre a changé (par rapport à la version de départ quand on la connaît) passe en tête.
+      const changeLui = (x, y) => !o || JSON.stringify(x ?? '') !== JSON.stringify(y ?? '');
       const dire = (k, v) => k === 'clientId' ? nomClientPiece({ clientId: v }) : k === 'unitPrice' ? C.money(Number(v) || 0, cur) : ['discount', 'discountRate', 'withholdingRate', 'vatRate'].includes(k) ? `${pct(Number(v) || 0)} %` : k === 'date' || k === 'dueDate' ? (v ? C.fmtDate(v) : '—') : String(v ?? '—');
-      ['date', 'dueDate', 'subject', 'clientId', 'discountRate', 'withholdingRate', 'notes'].forEach(k => { if (JSON.stringify(a[k] ?? '') !== JSON.stringify(b[k] ?? '')) out.push({ quoi: NOMS_CHAMP[k], toi: dire(k, a[k]), lui: dire(k, b[k]) }); });
-      const la = a.lines || [], lb = b.lines || [];
+      ['date', 'dueDate', 'subject', 'clientId', 'discountRate', 'withholdingRate', 'notes'].forEach(k => { if (JSON.stringify(a[k] ?? '') !== JSON.stringify(b[k] ?? '')) out.push({ quoi: NOMS_CHAMP[k], toi: dire(k, a[k]), lui: dire(k, b[k]), sien: changeLui(o && o[k], b[k]) }); });
+      const la = a.lines || [], lb = b.lines || [], lo = (o && o.lines) || [];
       for (let i = 0; i < Math.max(la.length, lb.length); i++) {
         const x = la[i], y = lb[i];
         if (!x || !y) { out.push({ quoi: 'les lignes', toi: pl(la.length, 'ligne'), lui: pl(lb.length, 'ligne') }); break; }
-        ['label', 'qty', 'unitPrice', 'discount', 'vatRate'].forEach(k => { if (JSON.stringify(x[k] ?? '') !== JSON.stringify(y[k] ?? '')) out.push({ quoi: `${NOMS_CHAMP[k]} de « ${x.label || 'ligne ' + (i + 1)} »`, toi: dire(k, x[k]), lui: dire(k, y[k]) }); });
+        ['label', 'qty', 'unitPrice', 'discount', 'vatRate'].forEach(k => { if (JSON.stringify(x[k] ?? '') !== JSON.stringify(y[k] ?? '')) out.push({ quoi: `${NOMS_CHAMP[k]} de « ${x.label || 'ligne ' + (i + 1)} »`, toi: dire(k, x[k]), lui: dire(k, y[k]), sien: changeLui(lo[i] && lo[i][k], y[k]) }); });
       }
-      return out;
+      return out.filter(x => x.sien).concat(out.filter(x => !x.sien));
     };
     const bandeauConflit = () => {
       const e = ecartsConflit(), qui = conflitPiece.qui || 'L\'autre poste', sien = conflitPiece.qui ? `celle de ${conflitPiece.qui}` : 'la sienne';
@@ -6559,7 +6575,7 @@
     const teteCharte = () => `<div class="page-head ed-tete">
         ${retourListe(backTo, isQ ? 'devis' : isExtra ? 'autres pièces' : 'factures')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="${h(backTo)}" class="ed-retour">${isQ ? 'Devis' : isExtra ? 'Proforma, bons et contrats' : 'Factures'}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(doc.number || title)}</span></div>
-          <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee ? ' hidden' : ''}><span id="ed-enreg-i" style="display:contents">${lfIc('coche', 14, 2.6)}</span><span id="ed-enreg-t">enregistré</span></span>${isNew && !figee && bridge.brouillon && bridge.brouillon(doc.type).garde() ? `<span class="ed-enreg ac-garde" id="ed-garde"${reprisDoc ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee || (conflitPiece && conflitPiece.id === doc.id) ? ' hidden' : ''}><span id="ed-enreg-i" style="display:contents">${lfIc('coche', 14, 2.6)}</span><span id="ed-enreg-t">enregistré</span></span>${isNew && !figee && bridge.brouillon && bridge.brouillon(doc.type).garde() ? `<span class="ed-enreg ac-garde" id="ed-garde"${reprisDoc ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${doc.recurringId && !charte ? `<div class="small muted">Générée par un contrat récurrent — <a href="#/contrat/${h(doc.recurringId)}">voir le contrat</a></div>` : ''}
         </div>
         <div class="actions">
@@ -7206,6 +7222,7 @@
     let gardeTimer = null, gardeLe = 0;
     const majEnreg = () => {
       const el = $('#ed-enreg'), t = $('#ed-enreg-t'); if (!el || !t) return;
+      if (conflitPiece && conflitPiece.id === doc.id) { el.hidden = true; return; }
       const hl = navigator.onLine === false;
       el.classList.toggle('ko', hl);
       // (maquette « Hors ligne ») Sans réseau, le nuage barré : une coche dirait « enregistré » à tort.
@@ -9521,8 +9538,10 @@
     }
     // Les raccourcis de la pièce (maquette « Raccourcis »).
     function ouvrirRaccourcis() {
-      const r = [['Ctrl L', 'Ajouter un article'], ['↵ en fin de ligne', 'Nouvelle ligne'], ['Ctrl D', 'Dupliquer la ligne'], ['Alt ↑ / Alt ↓', 'Monter, descendre la ligne'],
-        ['Ctrl ↵', isQ ? 'Enregistrer' : 'Émettre (la fenêtre s\'ouvre)'], ['Ctrl P', 'Aperçu en grand'], ['Ctrl Z', 'Annuler la dernière modification'], ['Ctrl Maj Z', 'La rétablir'], ['Échap', 'Fermer ce qui est ouvert']];
+      // (1.387.78, issue 14 ENTSOCLE-19) Une pièce figée (émise, ou d'un mois clôturé) ne se modifie plus : ses raccourcis
+      // ne promettent ni « Ajouter un article » ni « Émettre ».
+      const r = figee ? [['Ctrl P', 'Aperçu en grand'], ['Échap', 'Fermer ce qui est ouvert']] : [['Ctrl L', 'Ajouter un article'], ['↵ en fin de ligne', 'Nouvelle ligne'], ['Ctrl D', 'Dupliquer la ligne'], ['Alt ↑ / Alt ↓', 'Monter, descendre la ligne'],
+        ['Ctrl ↵', isQ ? 'Enregistrer' : (isInv || isAv) ? 'Émettre (la fenêtre s\'ouvre)' : 'Enregistrer'], ['Ctrl P', 'Aperçu en grand'], ['Ctrl Z', 'Annuler la dernière modification'], ['Ctrl Maj Z', 'La rétablir'], ['Échap', 'Fermer ce qui est ouvert']];
       modal(`<h2>Raccourcis ${isInv ? 'de la facture' : isAv ? 'de l\'avoir' : 'de la pièce'}</h2>
         <dl class="ed-raccourcis">${r.map(([k, v]) => `<div><dt>${k.split(' / ').map(x => x.split(' ').map(t => /^(Ctrl|Alt|Maj|Échap|↵|↑|↓|[A-Z])$/.test(t) ? `<kbd>${h(t)}</kbd>` : h(t)).join(' ')).join(' / ')}</dt><dd>${h(v)}</dd></div>`).join('')}</dl>
         <p class="small muted">Aucun raccourci ne part pendant que tu tapes dans un champ, sauf ↵ et Tab. Dans une case, Ctrl Z annule la frappe ; ailleurs, la dernière modification de la pièce.</p>
@@ -15162,7 +15181,7 @@
   }
   // (1.356.8) « Voir les 1 autres » sous « À faire » quand une seule ligne restait cachée : le compte et sa phrase vont ensemble.
   const voirAutres = n => (n === 1 ? 'Voir l\'autre' : `Voir les ${n} autres`);
-  function todoPanel() {
+  function todoPanel(sansVert) {
     const items = chosesAFaire();
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
     // attente » sur une entreprise qui n'a jamais rien facturé, c'est féliciter quelqu'un pour un
@@ -15181,7 +15200,9 @@
     const NIVEAUX = [['danger', 'Ça coûte maintenant', 'alerte'], ['warn', 'Un geste t\'attend', 'attire'], ['', 'Quand tu peux', '']];
     const niveau = x => x.level === 'danger' ? 'danger' : x.level === 'warn' ? 'warn' : '';
     const ranges = NIVEAUX.flatMap(([n]) => items.filter(x => niveau(x) === n));
-    const premierPrincipal = !abonnementPrincipal();
+    // (1.387.78, issue 14 ENTSOCLE-21) Le vert ne va qu'à une ligne qui presse (« Ça coûte maintenant », « Un geste t'attend ») :
+    // « Voir le calendrier », pour une ligne « Quand tu peux », était vert à côté de l'étape suivante des premiers pas.
+    const premierPrincipal = !sansVert && !abonnementPrincipal() && !!ranges.length && niveau(ranges[0]) !== '';
     let rang = 0;
     const groupes = NIVEAUX.map(([n, titre, ton]) => {
       const l = ranges.filter(x => niveau(x) === n);
