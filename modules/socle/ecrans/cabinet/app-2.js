@@ -6576,6 +6576,14 @@
       return { e, cle: e.avenir ? `avenir@${e.id}@${e.date}` : K.cleEcheance(e), lignes, fait, afaire: lignes.length - fait, groupe, pointee, t: titresEcheance(e) };
     }).filter(x => x.e.avenir || x.lignes.length);
   }
+  // (issue 12, CABPORTEFEUILLE-17) Un raccourci vise la DÉCLARATION et la LIGNE du client, pas la page : depuis la fiche
+  // d'un dossier, « Voir dans Échéances » posait le comptable en haut de la page, sur l'échéance choisie par défaut.
+  function versEcheanceDe(d, mois) {
+    let x = null;
+    try { x = itemsEcheances(K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })).find(y => /^tva-/.test(y.e.id) && (y.e.mois || []).includes(mois) && y.lignes.some(l => l.d.id === d.id)) || null; } catch { x = null; }
+    if (x) Object.assign(echState, { sel: x.cle, filtre: 'tout', menu: '', ouverte: true, q: '', viseD: d.id, viseScroll: true });
+    vers('#/echeances');
+  }
   function drawEcheances(view) {
     const st = echState;
     const liste = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() });
@@ -6656,7 +6664,7 @@
         : `<button type="button" class="btn btn-sm${i === premier && !(hors && sansReseau.includes(quoi)) ? ' btn-primary' : ''}${actif === 'fantome' ? ' btn-ghost' : ''}" data-ec-geste="${quoi}" data-ec-d="${esc(l.d.id)}"${hors && sansReseau.includes(quoi) ? ' disabled title="Attend le retour du réseau"' : ''}>${esc(texte)}</button>`;
       const suivi = suiviPar(l.d);
       const ouvert = st.menu === l.d.id;
-      return `<div class="ec-r" data-d="${esc(l.d.id)}"><span class="ec-rd">${marqueD(l.d)}<span><b>${esc(l.d.name)}</b><small>${typeD(l.d)}${x.t.physiques ? '<span>personne physique</span>' : ''}${suivi ? `<span>suivi par ${esc(suivi)}</span>` : ''}</small></span></span>
+      return `<div class="ec-r${st.viseD === l.d.id ? ' vise' : ''}" data-d="${esc(l.d.id)}"><span class="ec-rd">${marqueD(l.d)}<span><b>${esc(l.d.name)}</b><small>${typeD(l.d)}${x.t.physiques ? '<span>personne physique</span>' : ''}${suivi ? `<span>suivi par ${esc(suivi)}</span>` : ''}</small></span></span>
         <span class="ec-re"><span class="ec-st ${ton2}">${lib}</span>${l.sous ? `<small>${esc(l.sous)}</small>` : ''}</span>
         <span class="ec-rm">${l.montant != null ? `<b>${enDinars(l.montant)} DT</b><small>${l.st === 'payee' ? 'payé' : l.st === 'deposee' && l.d.paieDecl === 'client' ? 'à payer par le client' : EC_FAIT(l.st) || l.st === 'preparee' ? 'à payer' : 'provisoire'}</small>` : '<span class="muted">—</span>'}</span>
         <span class="ec-rg">${btn}${lecture ? '' : `<span class="pc-menu-w"><button type="button" class="btn btn-sm btn-icone btn-ghost" data-ec-menu="${esc(l.d.id)}" aria-haspopup="menu" aria-expanded="${ouvert}" aria-label="Les autres gestes — ${esc(l.d.name)}">${EC_IC.trois}</button>${ouvert ? menuLigneEch(l, x) : ''}</span>`}</span></div>`;
@@ -6719,7 +6727,7 @@
       ${bandeauHors}<div class="ec-grille">${colonne}${detail}</div></div>`;
 
     const redessiner = () => drawEcheances(view);
-    $$('[data-ech]', view).forEach(b => { b.onclick = () => { st.sel = b.dataset.ech; st.filtre = 'tout'; st.menu = ''; st.ouverte = true; redessiner(); if (matchMedia('(max-width: 760px)').matches) for (const el of [view, $('main'), document.scrollingElement]) if (el) el.scrollTop = 0; }; });
+    $$('[data-ech]', view).forEach(b => { b.onclick = () => { st.viseD = ''; st.sel = b.dataset.ech; st.filtre = 'tout'; st.menu = ''; st.ouverte = true; redessiner(); if (matchMedia('(max-width: 760px)').matches) for (const el of [view, $('main'), document.scrollingElement]) if (el) el.scrollTop = 0; }; });
     const dep = $('#ec-deposees', view); if (dep) dep.onclick = () => { st.deposees = true; redessiner(); };
     const pt = $('#ec-plus-tard', view); if (pt) pt.onclick = () => { st.plusTard = true; redessiner(); };
     $('#ec-retour', view).onclick = () => { st.ouverte = false; redessiner(); };
@@ -6802,6 +6810,7 @@
     if (bp) bp.onclick = basculerPointage;
     st.basculerPointage = basculerPointage;
     brancherAideDebutDeMission(view);
+    if (st.viseScroll) { st.viseScroll = false; const r = $('.ec-r.vise', view); if (r) r.scrollIntoView({ block: 'center' }); }
   }
   const suiviPar = d => {
     const droits = d.droits || {};

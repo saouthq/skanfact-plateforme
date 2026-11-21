@@ -388,6 +388,35 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('(issue 12, CABPORTEFEUILLE-19) une date de validité qui n\'existe pas se refuse : la case se montre, la fenêtre reste', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, boulangerie);
+    await p.locator('.cl-arbre [data-cl-vue="permanent"]').click();
+    await p.locator('#cl-ranger-perm').click();
+    await p.locator('#dp-e').waitFor();
+    await p.setInputFiles('#dp-f', { name: 'statuts.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF\n') });
+    await p.locator('#dp-titre').fill('Statuts');
+    // Une date qui n'existe pas, tapée comme on l'écrit : le geste ne part pas sans elle, la case se montre.
+    await p.locator('#dp-e').click();
+    await p.keyboard.type('31/02/2026');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/Cette date n.existe pas/);
+    expect(await p.locator('#dp-e').getAttribute('aria-invalid')).toBe('true');
+    // Entrée, depuis la case, passe par la même règle.
+    await p.locator('#dp-e').press('Enter');
+    await p.waitForTimeout(400);
+    expect(await p.locator('#dp-t').count()).toBe(1);
+    expect(await p.locator('#modal-root #ok').isDisabled()).toBe(false);
+    // Corrigée, elle part avec la pièce.
+    await p.locator('#dp-e').fill('30/06/2027');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#dp-t').count()).toBe(0);
+    const docs = (await api('GET', `/cabinets/${cab.id}/classeur/${boulangerie}/documents`, associe)).corps.documents as { titre: string; echeance: string | null }[];
+    expect(docs.find((x) => x.titre === 'Statuts')?.echeance).toBe('2027-06-30');
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('saisir une pièce depuis le classeur : la saisie s\'ouvre préparée, et la pièce enregistrée se joint à son écriture', async () => {
     const { associe, cab, boulangerie } = await unCabinet();
     const { p, erreurs } = await contexte(associe);

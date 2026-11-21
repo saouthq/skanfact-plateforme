@@ -69,6 +69,8 @@
 .ec-th span:nth-child(3) { text-align: right; }
 .ec-r { border-top: 1px solid var(--sb-trait); }
 .ec-r:hover { background: var(--sb-survol); }
+/* (CABPORTEFEUILLE-17) La ligne du client qu'on est venu voir depuis sa fiche. */
+.ec-r.vise { background: var(--sb-survol); box-shadow: inset 3px 0 0 #0F9D8F; }
 .ec-r.doux { color: var(--sb-gris); }
 .ec-rd { display: flex; gap: 10px; align-items: center; min-width: 0; }
 .ec-rd .marque-s { flex: none; }

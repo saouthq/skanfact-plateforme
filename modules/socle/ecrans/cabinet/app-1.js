@@ -193,6 +193,26 @@
     toastTimer = setTimeout(() => { t.className = ''; t.textContent = ''; }, 6000);
   }
 
+  // (issue 12, CABPORTEFEUILLE-19) Un geste fini propose la suite sans y emmener : on reste dans la file qu'on traite. Même
+  // bandeau que toastUndo (il reçoit les clics, 6 secondes, la barre de temps), un bouton nommé au lieu d'« Annuler ».
+  function toastGeste(msg, libelle, aller) {
+    const t = $('#toast');
+    t.textContent = '';
+    const txt = document.createElement('span');
+    txt.innerHTML = guillemetsDunBloc(esc(msg));
+    txt.className = 'toast-txt';
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'toast-undo'; b.textContent = libelle;
+    b.onclick = () => { clearTimeout(toastTimer); t.className = ''; t.textContent = ''; aller(); };
+    const temps = document.createElement('span');
+    temps.className = 'temps'; temps.style.setProperty('--toast-duree', '6000ms');
+    t.insertAdjacentHTML('afterbegin', TOAST_IC.ok);
+    t.append(txt, b, temps);
+    t.className = 'show avec-bouton';
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = ''; t.textContent = ''; }, 6000);
+  }
+
   // Un « ✓ enregistré » posé À CÔTÉ du bouton, plutôt qu'un message passager au bas de l'écran qui
   // recouvrait justement ce bouton-là.
   function flash(el, text) {
@@ -513,6 +533,17 @@
       const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
       if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }
     });
+    // (issue 12, CABPORTEFEUILLE-19) Une date tapée qui n'existe pas (« 31/02/2026 ») vaut '' pour le code (dates.js) : le
+    // geste principal partait sans elle, en silence — la pièce sans échéance, l'abonnement sans fin. Il ne part plus, et la
+    // case se montre. Une règle pour toutes les fenêtres, posée ici, pas une par fenêtre (la souris comme Entrée passent par
+    // le clic du bouton).
+    layer.addEventListener('click', e => {
+      if (!(e.target instanceof Element) || !e.target.closest('.modal-actions .btn-primary')) return;
+      const f = [...layer.querySelectorAll('input[data-jour-mois]')].find(x => x.dateIllisible && !x.disabled && x.offsetParent !== null);
+      if (!f) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      refus(f, 'Cette date n\'existe pas : écris-la jour/mois/année (05/10/2026), ou vide la case.');
+    }, true);
     if (onMount) onMount(layer, close);
     // (1.387.90, issue 6 CAB-8) Onze fenêtres reliaient encore leurs `data-close` à `close` après le montage : le clic passait
     // par `dismiss` (posé plus haut), qui ouvrait « Abandonner cette saisie ? », puis par `close`, qui fermait la fenêtre
@@ -2275,6 +2306,8 @@
     // La sélection posée par une échéance ne survit pas à la sortie des Relances : la retrouver en
     // revenant plus tard, sans savoir d'où elle vient, serait exactement le piège du filtre qui
     // cache ce qu'on est venu chercher (7.18.0).
+    // La ligne visée depuis une fiche ne survit pas à la sortie des Échéances, pour la même raison.
+    if (route !== 'echeances') echState.viseD = '';
     if (route !== 'relances') {
       if (relState.seulement) { relState.seulement = null; relState.depuis = ''; }
       relState.coches.clear();
@@ -3522,7 +3555,7 @@
       const eq = equipeDe(d);
       const a = [{ titre: `${d.name}${eq.suit ? ` · suivi par ${prenomDe(eq.suit)}` : ''}` },
         { icon: 'ouvrir', label: 'Ouvrir sa comptabilité', hint: 'le livre, mois par mois', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`; } },
-        { icon: 'horloge', label: 'Ses échéances', hint: x && x.retard.length ? (x.retard.length > 2 ? `${pl(x.retard.length, 'mois', 'mois')} en retard, depuis ${moisLong(x.retard[0])}` : `${x.retard.map(moisLong).join(' et ')} en retard`) : 'ses déclarations, par date', run: () => { location.hash = '#/echeances'; } }];
+        { icon: 'horloge', label: 'Ses échéances', hint: x && x.retard.length ? (x.retard.length > 2 ? `${pl(x.retard.length, 'mois', 'mois')} en retard, depuis ${moisLong(x.retard[0])}` : `${x.retard.map(moisLong).join(' et ')} en retard`) : 'ses déclarations, par date', run: () => { if (x && x.retard.length) versEcheanceDe(d, x.retard[0]); else location.hash = '#/echeances'; } }];
       if (!d.manual) {
         a.push({ titre: 'Écrire' });
         if (manque.length) a.push({ icon: 'email', label: 'Relancer', hint: `${manque.length > 2 ? `${pl(manque.length, 'mois', 'mois')} sans pièces, depuis ${moisLong(manque[0])}` : `${manque.map(moisLong).join(' et ')} sans pièces`} · ${derniereRelanceCd(d)}`, run: () => fenEcrire(d, { mois: manque }) });
@@ -5253,7 +5286,7 @@
       const [cl, mot] = etatMoisFd(d, m, L, tard, mc), br = ((L && L.parMois[m]) || {}).br || brouillardsConnus(d.id, m);
       if (cl === 'manque') continue;
       else if (cl === 'rev') attend.push(['alerte', 'rouge', `${cap(moisLong(m))} · en retard depuis le ${jjmm(limiteDe(m))}`, `${pl(br, 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(m)}`, versSaisie, eq.suit && eq.suit.id !== S.moi && !dir ? `${prenomDe(eq.suit)} révise` : '']]);
-      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · ${mot === 'sans activité' ? mot : 'prêt'}, en retard depuis le ${jjmm(limiteDe(m))}`, mot === 'sans activité' ? 'Clôturé par le client sans une écriture : sa déclaration se dépose quand même, à zéro (À VÉRIFIER), sur e-jibaya, puis se marque déposée dans Échéances.' : 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
+      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · ${mot === 'sans activité' ? mot : 'prêt'}, en retard depuis le ${jjmm(limiteDe(m))}`, mot === 'sans activité' ? 'Clôturé par le client sans une écriture : sa déclaration se dépose quand même, à zéro (À VÉRIFIER), sur e-jibaya, puis se marque déposée dans Échéances.' : 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', `echeance:${m}`]]);
     }
     if (!tard.includes(mp) && (!d.from || d.from <= mp)) {
       const [cl, mot] = etatMoisFd(d, mp, L, tard, mc), lim = limiteDe(mp);
@@ -5262,7 +5295,7 @@
       else if (cl === 'pc') attend.push(['saisie', 'ambre', `${cap(moisLong(mp))} · ${quand}, à saisir`, 'Un dossier tenu au cabinet : ses pièces se saisissent ici.', ['Saisir ' + moisLong(mp), versSaisie]]);
       else if (cl === 'pret' && mot === 'sans activité') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · sans activité, ${quand}`, 'Clôturé par le client sans une écriture : la déclaration se prépare quand même, à zéro (À VÉRIFIER), puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declaration`]]);
       else if (cl === 'pret' && (mot === 'révisé' || mot === 'validé')) attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · ${mot}, ${quand}`, 'La déclaration se prépare d\'après ses livres, puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declaration`]]);
-      else if (cl === 'pret') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · prête, ${quand}`, 'Elle se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
+      else if (cl === 'pret') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · prête, ${quand}`, 'Elle se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', `echeance:${mp}`]]);
     }
     // Un dossier tenu dont le mois passé est déposé : le mois en cours se saisit au cabinet.
     const tenuEnCours = d.manual && etatMoisFd(d, mp, L, tard, mc)[0] === 'fait' && (!d.from || d.from <= mc);
@@ -5446,12 +5479,14 @@
         const g = attend[Number(b.dataset.fdGeste)];
         const vers = g && g[4] && g[4][1];
         if (vers === 'relancer') fenRelancer(d, itemsEcheances());
+        else if (vers && vers.startsWith('echeance:')) versEcheanceDe(d, vers.slice(9));
         else if (vers) location.hash = vers;
       };
     });
     $$('[data-fd-mois]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); ficheFd.mois = ficheFd.mois === b.dataset.fdMois ? '' : b.dataset.fdMois; redessiner(); }; });
     const fx = $('#fd-pop-x', view); if (fx) fx.onclick = () => { ficheFd.mois = ''; redessiner(); };
     $$('[data-fd-vers]', view).forEach(b => { b.onclick = () => { ficheFd.mois = ''; location.hash = b.dataset.fdVers; }; });
+    $$('[data-fd-ech]', view).forEach(b => { b.onclick = () => { ficheFd.mois = ''; versEcheanceDe(d, b.dataset.fdEch); }; });
     const nt = $('#fd-note', view); if (nt) nt.onclick = () => fenNoteFd(d);
     const hn = $('#fd-hon', view); if (hn) hn.onclick = () => dossierForm(d, { focus: '#f-fees' });
     const nr = $('#note-rel', view); if (nr) nr.onclick = () => fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
@@ -5521,7 +5556,7 @@
     return `<div class="fd-pop" role="dialog" aria-label="${esc(cap(moisLong(m)))} ${m.slice(0, 4)}"><div class="fd-pop-t"><span><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</b><small>${esc(lib)}${t ? ` · en retard depuis le ${jjmm(limiteDe(m))}` : ''}</small></span><button type="button" class="tb-mc-x" id="fd-pop-x" aria-label="Fermer">${CD_IC.croix}</button></div>
       <ol class="fd-frise">${frise}</ol>
       ${t ? '<p class="fd-pop-n">Passé la date limite, des pénalités de retard sont possibles (À VÉRIFIER : rien n\'est calculé ici).</p>' : ''}
-      <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button>${d.archived ? '' : '<button type="button" class="btn btn-sm" data-fd-vers="#/echeances">Voir dans Échéances</button>'}${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
+      <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button>${d.archived ? '' : `<button type="button" class="btn btn-sm" data-fd-ech="${esc(m)}">Voir dans Échéances</button>`}${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
   }
   // La note de l'équipe : la note interne de la fiche (le client ne la voit jamais).
   function fenNoteFd(d) {
@@ -6319,13 +6354,16 @@
             n++;
           }
           close();
-          toast(opts.remplacePiece ? `${nomFichierCl(opts.remplacePiece)} est remplacée : la nouvelle pièce est à saisir.` : rubrique === 'piece' ? `${pl(n, 'pièce déposée', 'pièces déposées')} dans ${moisLong($('#dp-m', layer).value)} : à saisir.` : `Rangé dans le classeur : ${$('#dp-titre', layer).value.trim()}.`);
+          const dit = opts.remplacePiece ? `${nomFichierCl(opts.remplacePiece)} est remplacée : la nouvelle pièce est à saisir.` : rubrique === 'piece' ? `${pl(n, 'pièce déposée', 'pièces déposées')} dans ${moisLong($('#dp-m', layer).value)} : à saisir.` : `Rangé dans le classeur : ${$('#dp-titre', layer).value.trim()}.`;
+          // (issue 12, CABPORTEFEUILLE-19) Déposées depuis les Pièces reçues : elles rejoignent la file qu'on traite, et le
+          // classeur se propose sans y emmener (chaque dépôt arrachait le comptable à sa file).
+          if (opts.depuisPieces && !opts.remplacePiece) toastGeste(dit, 'Voir dans le classeur', () => navigate(`#/dossier/${encodeURIComponent(d.id)}/classeur`));
+          else toast(dit);
           // Le classeur s'ouvre là où ce qui vient d'être rangé se trouve : le mois choisi, les courriers, le permanent.
           if (!opts.remplacePiece) Object.assign(clState, rubrique === 'piece' ? { mois: $('#dp-m', layer).value, vue: '', decl: '', filtre: 'rub', rub: '', ouvrir: false, sel: '', q: '' }
             : rubrique === 'courrier' ? { vue: 'courriers', sel: '', q: '' } : rubrique === 'permanent' ? { vue: 'permanent', sel: '', q: '' } : {});
-          await apresGesteCl(d, { docs: true, pieces: !!(opts.remplacePiece && opts.remplacePiece.p) });
-          // (1.174.5) Déposées depuis les Pièces reçues : elles se rangent dans le classeur du dossier, qui s'ouvre sur leur mois.
-          if (opts.depuisPieces) navigate(`#/dossier/${encodeURIComponent(d.id)}/classeur`);
+          // (issue 12, CABPORTEFEUILLE-19) La liste des pièces reçues se relit à chaque dépôt : la pièce déposée y est.
+          await apresGesteCl(d, { docs: true, pieces: true });
           // (1.243.0) Déposé depuis un autre écran (l'accusé CNSS de la Paie) : cet écran se redessine.
           if (opts.apres) await opts.apres();
         } catch (x) { $('#ok', layer).disabled = false; toast(`${n ? `${pl(n, 'pièce rangée')} ; ` : ''}${plainError(x)}`, 'error'); }
@@ -6369,12 +6407,16 @@
 
   // Exporter : tout le dossier, l'exercice, un mois ou le dossier permanent ; les pièces rangées comme ici, le FEC, un
   // index, les déclarations et leurs accusés. Le fichier ZIP s'écrit sur ce poste (plateforme/zip.js) et se télécharge.
+  // (CABPORTEFEUILLE-18) « 3 pièces dont 0 avec fichier » se lisait de travers : aucune, toutes, ou le compte.
+  const piecesEtFichiers = (t, n) => n === 0 ? `${pl(t, 'pièce')}, aucune avec fichier` : n === t ? `${pl(t, 'pièce')}, ${t > 1 ? 'toutes avec fichier' : 'avec son fichier'}` : `${pl(t, 'pièce')} dont ${n} avec fichier`;
   function fenExporterCl(d, ctx) {
     const { annee, mois, items, livre, docs } = ctx;
     let quoi = ctx.quoi || 'annee';
     const prends = { pieces: true, fec: true, index: true, decl: true };
     const QUOI = [['tout', 'Tout le dossier'], ['annee', `L'exercice ${annee}`], ['mois', `${cap(moisLong(mois))} ${mois.slice(0, 4)}`], ['permanent', 'Le dossier permanent']];
     const choisis = () => quoi === 'permanent' ? [] : items.filter(x => (x.p || x.doc) && x.etat[1] !== 'en double' && (quoi !== 'mois' || x.mois === mois));
+    // (issue 12, CABPORTEFEUILLE-18) L'index liste toutes les pièces attendues, avec ou sans fichier : c'est celle qui manque qu'on cherche.
+    const indexees = () => quoi === 'permanent' ? [] : items.filter(x => x.etat[1] !== 'en double' && (quoi !== 'mois' || x.mois === mois));
     modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.bas}</span><span><h2 id="ex-t">Exporter le classeur ${esc(deFr(d.name))}</h2><small>Pour un contrôle fiscal, la banque, un autre cabinet ou tes archives</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       <span class="field">Quoi</span><div class="tb-rel-q" role="group" aria-label="Quoi" id="ex-q">${QUOI.map(([k, n]) => `<button type="button" aria-pressed="${k === quoi}" data-q="${k}">${esc(n)}</button>`).join('')}</div>
       <div class="cd-cbs" id="ex-c">${[['pieces', 'Les pièces, rangées comme ici', `${annee} › ${mois.slice(5, 7)} ${cap(moisLong(mois))} › Achats › la pièce`], ['fec', 'Le fichier des écritures (FEC)', 'le format qu\'un vérificateur demande (À VÉRIFIER pour la Tunisie)'], ['index', 'Un index', 'chaque pièce, sa rubrique, son écriture, son état ; en PDF, en HTML si le PDF ne se fait pas'], ['decl', 'Les déclarations et leurs accusés', 'le formulaire, l\'accusé, le paiement']].map(([k, b, s]) => `<label class="cd-cb on"><input type="checkbox" data-c="${k}" checked><span><b>${esc(b)}</b><small>${esc(s)}</small></span></label>`).join('')}</div>
@@ -6388,7 +6430,7 @@
       const res = () => {
         const n = choisis().length, e = ((livre && livre.ecritures) || []).filter(x => x.statut !== 'brouillard' && (quoi !== 'mois' || String(x.date).slice(0, 7) === mois)).length;
         $('#ex-res', layer).textContent = `${(QUOI.find(([k]) => k === quoi) || ['', ''])[1].replace(/^L'/, 'l\'')} · ${quoi === 'permanent' ? pl(docs.filter(x => x.rubrique === 'permanent' && !x.remplacePar).length, 'pièce')
-          : quoi === 'tout' ? 'chaque exercice, ses fichiers et ses écritures' : `${pl(n, 'fichier')}, ${prends.fec ? `${pl(e, 'écriture')} dans le FEC` : 'sans le FEC'}`}`;
+          : quoi === 'tout' ? 'chaque exercice, ses fichiers et ses écritures' : `${prends.index ? piecesEtFichiers(indexees().length, n) : pl(n, 'fichier')}, ${prends.fec ? `${pl(e, 'écriture')} dans le FEC` : 'sans le FEC'}`}`;
       };
       $$('#ex-q button', layer).forEach(b => { b.onclick = () => { quoi = b.dataset.q; $$('#ex-q button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); res(); }; });
       $$('#ex-c input', layer).forEach(c => { c.onchange = () => { prends[c.dataset.c] = c.checked; c.closest('.cd-cb').classList.toggle('on', c.checked); res(); }; });
@@ -6404,7 +6446,7 @@
       $('#ok', layer).onclick = async () => {
         $('#ok', layer).disabled = true; $('#ok', layer).textContent = 'Préparation…';
         try {
-          const r = await preparerExportCl(d, { quoi, prends, annee, mois, items: choisis(), livre, docs });
+          const r = await preparerExportCl(d, { quoi, prends, annee, mois, items: choisis(), indexees: indexees(), livre, docs });
           close();
           fenExporteCl(d, r);
         } catch (x) { $('#ok', layer).disabled = false; $('#ok', layer).textContent = 'Préparer l\'export'; toast(plainError(x), 'error'); }
@@ -6423,17 +6465,18 @@
       fichiers.push({ ...f, chemin: c });
     };
     // (1.174.1) « Tout le dossier » prend chaque exercice : ses pièces et son FEC, pas seulement l'année ouverte.
-    const exercices = [[o.annee, o.items, o.livre]];
+    const exercices = [[o.annee, o.items, o.livre, o.indexees || o.items]];
     if (o.quoi === 'tout') {
       const autres = ((clState.exercices && clState.exercices.id === d.id && clState.exercices.liste) || []).map(x => String(x.annee)).filter(a => a !== String(o.annee));
       for (const a of autres) {
         await chargerClasseur(d, a);
         const lv = clState.livres.get(`${d.id}:${a}`);
         if (clState.refus.has(`${d.id}:${a}`)) throw new Error(`L'exercice ${a} ne se lit pas : ${clState.refus.get(`${d.id}:${a}`)}`);
-        exercices.push([a, lv ? modeleCl(d, a, lv).filter(x => (x.p || x.doc) && x.etat[1] !== 'en double') : [], lv]);
+        { const tous = lv ? modeleCl(d, a, lv).filter(x => x.etat[1] !== 'en double') : []; exercices.push([a, tous.filter(x => x.p || x.doc), lv, tous]); }
       }
     }
     const tousLesItems = exercices.flatMap(([, its]) => its);
+    const aIndexer = exercices.flatMap(([, , , ix]) => ix || []), nFichiersIx = aIndexer.filter(x => x.p || x.doc).length;
     const racine = o.quoi === 'tout' ? 'dossier' : o.quoi === 'mois' ? `${o.mois}` : o.quoi === 'permanent' ? 'permanent' : `exercice-${o.annee}`;
     let pieces = 0;
     if (o.prends.pieces) {
@@ -6490,8 +6533,8 @@
       if (r && r.ok) { ajouter({ chemin: r.nom || `FEC-${an}.txt`, octets: r.texte }); fec += r.pieces || 0; } else if (r) fecRefus += (r.refus || []).length || 1;
     }
     if (o.prends.index) {
-      const lignes = tousLesItems.map(x => `<tr><td>${esc(x.mois)}</td><td>${esc((CL_RUBS.find(([r]) => r === x.rub) || ['', ''])[1])}</td><td>${esc(nomFichierCl(x))}</td><td>${esc(x.num || '')}</td><td>${esc(x.etat[1])}</td></tr>`).join('');
-      const html = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Index du classeur</title><style>body{font:12px Helvetica,Arial,sans-serif;color:#23272e;margin:28px}h1{font-size:16px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid #d9dde3}th{font-size:11px;color:#5b616b;text-transform:uppercase}</style><h1>Index du classeur · ${esc(d.name)}</h1><p>${esc(racine)} · ${esc(pl(tousLesItems.length, 'pièce'))} · fait le ${esc(jjmmaaCl(K.today()))}</p><table><thead><tr><th>Mois</th><th>Rubrique</th><th>Pièce</th><th>Écriture</th><th>État</th></tr></thead><tbody>${lignes}</tbody></table></html>`;
+      const lignes = aIndexer.map(x => `<tr><td>${esc(x.mois)}</td><td>${esc((CL_RUBS.find(([r]) => r === x.rub) || ['', ''])[1])}</td><td>${esc(x.titre || nomFichierCl(x))}</td><td>${x.p || x.doc ? esc(nomFichierCl(x)) : '<i>sans fichier</i>'}</td><td>${esc(x.num || '')}</td><td>${esc(x.etat[1])}</td></tr>`).join('');
+      const html = `<!doctype html><html lang="fr"><meta charset="utf-8"><title>Index du classeur</title><style>body{font:12px Helvetica,Arial,sans-serif;color:#23272e;margin:28px}h1{font-size:16px}table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:5px 6px;border-bottom:1px solid #d9dde3}th{font-size:11px;color:#5b616b;text-transform:uppercase}</style><h1>Index du classeur · ${esc(d.name)}</h1><p>${esc(racine)} · ${esc(piecesEtFichiers(aIndexer.length, nFichiersIx))} · fait le ${esc(jjmmaaCl(K.today()))}</p><table><thead><tr><th>Mois</th><th>Rubrique</th><th>Pièce</th><th>Fichier</th><th>Écriture</th><th>État</th></tr></thead><tbody>${lignes}</tbody></table></html>`;
       const pdf = await api.classeur.pdf(html, `index-${racine}.pdf`).catch(() => null);
       ajouter(pdf ? { chemin: 'index.pdf', octets: pdf } : { chemin: 'index.html', octets: html }); indexFait = pdf ? 'pdf' : 'html';
     }

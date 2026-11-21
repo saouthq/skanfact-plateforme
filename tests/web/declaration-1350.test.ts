@@ -184,6 +184,8 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     await p.locator('#ex-q [data-q="annee"]').click();
     // (1.387.82, CABDECLARER-4) La fenêtre compte ce que le FEC portera ; décocher le FEC le dit.
     await expect.poll(async () => (await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/\d+ écritures? dans le FEC$/);
+    // (CABPORTEFEUILLE-18) Avec l'index, le compte dit les pièces attendues, dont celles qui ont un fichier.
+    expect((await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/ · 3 pièces, aucune avec fichier, 3 écritures dans le FEC$/);
     await p.locator('#ex-c label:has(input[data-c="fec"])').click();
     await expect.poll(async () => (await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/sans le FEC$/);
     await p.locator('#ex-c label:has(input[data-c="fec"])').click();
@@ -194,7 +196,7 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     // Le compte rendu dit l'index qui est VRAIMENT dans le ZIP, en PDF ou en HTML.
     const rendu = (await p.locator('#modal-root .cl-exp small').first().innerText()).replace(/\s+/g, ' ');
     if (zip.includes('index.pdf')) expect(rendu).toContain('l\'index en PDF');
-    else { expect(zip).toContain('index.html'); expect(rendu).toContain('l\'index en HTML'); }
+    else { expect(zip).toContain('index.html'); expect(rendu).toContain('l\'index en HTML'); expect(zip).toMatch(/3 pièces, aucune avec fichier/); expect(zip).toContain('<i>sans fichier</i>'); }
     expect(rendu).toMatch(/le fichier des écritures \(\d+ écritures?\)/);
     const csv = zip.slice(zip.indexOf('Période;État;Déposée le;Payée le;'));
     const lignes = csv.split('\n').map((l) => l.replace(/\r$/, ''));

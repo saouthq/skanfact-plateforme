@@ -41,7 +41,8 @@
   // Le nom que la norme donne au fichier : l'identifiant de l'entreprise, « FEC », la date de
   // clôture. En France, le SIREN ; ici le matricule fiscal compacté (À VÉRIFIER : aucune règle
   // tunisienne ne le fixe).
-  const fecNom = (identifiant, fin) => `${String(identifiant || '').toUpperCase().replace(/[^0-9A-Z]/g, '') || 'SKANFACT'}FEC${fecDate(fin) || '00000000'}.txt`;
+  // (issue 12, CABPORTEFEUILLE-18) Les accents se retirent avant les lettres : « Pâtisserie » donnait « PTISSERIE ».
+  const fecNom = (identifiant, fin) => `${String(identifiant || '').normalize('NFD').replace(/\p{M}/gu, '').toUpperCase().replace(/[^0-9A-Z]/g, '') || 'SKANFACT'}FEC${fecDate(fin) || '00000000'}.txt`;
 
   // (1.378.3, issue 9 CABDECLARER-10) Le compte auxiliaire d'une ligne de tiers. Un sous-compte
   // (411001) est son propre auxiliaire. Sur un collectif nu (411), le tiers n'a pas de numéro : le

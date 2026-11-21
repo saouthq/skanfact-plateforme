@@ -534,6 +534,15 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#dp-t').innerText().catch(() => '')).toBe('Déposer des pièces dans le classeur');
     expect(await p.locator('#modal-root').innerText()).toMatch(/Boulangerie El Amal · ce que le client t'a donné/);
+    // (issue 12, CABPORTEFEUILLE-19) La pièce déposée rejoint la file qu'on regarde ; le comptable y reste, et le classeur
+    // se propose sans y emmener.
+    await p.setInputFiles('#dp-f', { name: 'remise-papier.png', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') });
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/1 pièce déposée dans \S+ : à saisir/);
+    expect(await p.evaluate(() => location.hash)).toMatch(/^#\/pieces/);
+    await expect.poll(() => lignes.count()).toBe(5);
+    await p.locator('#toast').getByRole('button', { name: 'Voir dans le classeur' }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${boulangerie.ent}/classeur`);
     expect(erreurs).toEqual([]);
   }, 60_000);
 

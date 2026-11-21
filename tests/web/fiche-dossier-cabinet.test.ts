@@ -109,6 +109,15 @@ describe('la fiche du dossier au Cabinet, à la souris', () => {
     expect(await aout.innerText()).toMatch(/en retard depuis le 28\/09/);
     await aout.click();
     await expect.poll(() => p.locator('.fd-page').innerText()).toMatch(/Août 2026/);
+    // (issue 12, CABPORTEFEUILLE-17) « Voir dans Échéances » mène à la déclaration du mois, la ligne du client marquée et
+    // à l'écran — pas en haut de la page, sur l'échéance choisie par défaut.
+    await p.locator('[data-fd-ech="2026-08"]').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/echeances');
+    await expect.poll(() => p.locator('#page-ech .ec-det h2').first().innerText().catch(() => '')).toMatch(/^Déclaration d.août 2026/);
+    const visee = p.locator(`#page-ech .ec-r.vise[data-d="${menuiserie}"]`);
+    await expect.poll(() => visee.count()).toBe(1);
+    expect(await visee.evaluate((el) => { const r = el.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })).toBe(true);
+    await ouvrir(p, cab.id, menuiserie, '.fd-afs');
 
     // Le menu ⋯ du dossier.
     await p.locator('#fd-menu').click();

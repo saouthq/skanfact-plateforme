@@ -31446,6 +31446,48 @@ prouver $'cabportefeuille16-la-cnss-se-pointe-d-un-coup' modules/socle/ecrans/ca
   $'${true ? \'<p class="pc-note">Si tu les as' \
   $'(issue 12, CABPORTEFEUILLE-16) Échéances : la plus proche en tête, l\'IS de l\'exercice en cours à venir, et chaque phrase dit ce qu\'elle pointe'
 
+# 1.388.20 — le portefeuille du Cabinet, fin (CABPORTEFEUILLE-17 à 19).
+prouver $'cabportefeuille17-la-ligne-du-client-marquee' modules/socle/ecrans/cabinet/app-2.js \
+  $'<div class="ec-r${st.viseD === l.d.id ? \' vise\' : \'\'}" data-d=' \
+  $'<div class="ec-r" data-d=' \
+  $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
+prouver $'cabportefeuille17-la-declaration-du-mois' modules/socle/ecrans/cabinet/app-2.js \
+  $'    if (x) Object.assign(echState, { sel: x.cle, filtre: \'tout\', menu: \'\', ouverte: true, q: \'\', viseD: d.id, viseScroll: true });' \
+  $'    if (false) Object.assign(echState, { sel: x.cle, filtre: \'tout\', menu: \'\', ouverte: true, q: \'\', viseD: d.id, viseScroll: true });' \
+  $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
+prouver $'cabportefeuille17-le-bouton-du-mois-y-mene' modules/socle/ecrans/cabinet/app-1.js \
+  $'ficheFd.mois = \'\'; versEcheanceDe(d, b.dataset.fdEch);' \
+  $'ficheFd.mois = \'\'; location.hash = \'#/echeances\';' \
+  $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
+prouver $'cabportefeuille18-le-nom-fec-garde-ses-lettres' modules/socle/moteur/compta-2.js \
+  $'String(identifiant || \'\').normalize(\'NFD\').replace(/\\p{M}/gu, \'\').toUpperCase()' \
+  $'String(identifiant || \'\').toUpperCase()' \
+  $'(issue 12, CABPORTEFEUILLE-18) le nom du fichier FEC garde les lettres accentuées d\'un nom sans matricule'
+prouver $'cabportefeuille18-l-index-compte-les-pieces-sans-fichier' modules/socle/ecrans/cabinet/app-1.js \
+  $'    const indexees = () => quoi === \'permanent\' ? [] : items.filter(x => x.etat[1] !== \'en double\' && (quoi !== \'mois\' || x.mois === mois));' \
+  $'    const indexees = () => quoi === \'permanent\' ? [] : items.filter(x => (x.p || x.doc) && x.etat[1] !== \'en double\' && (quoi !== \'mois\' || x.mois === mois));' \
+  $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
+prouver $'cabportefeuille18-aucune-avec-fichier' modules/socle/ecrans/cabinet/app-1.js \
+  $'const piecesEtFichiers = (t, n) => n === 0 ?' \
+  $'const piecesEtFichiers = (t, n) => false ?' \
+  $'(1.350.0) marquer déposé le mois proposé ne fait pas sauter l\'écran au suivant : il reste à le marquer payé'
+prouver $'cabportefeuille19-la-piece-deposee-rejoint-la-file' modules/socle/ecrans/cabinet/app-1.js \
+  $'          await apresGesteCl(d, { docs: true, pieces: true });' \
+  $'          await apresGesteCl(d, { docs: true, pieces: !!(opts.remplacePiece && opts.remplacePiece.p) });' \
+  $'les pièces reçues, avant de classer : l\'achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l\'achat qu\'un indice relie à la pièce se propose'
+prouver $'cabportefeuille19-le-classeur-se-propose' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (opts.depuisPieces && !opts.remplacePiece) toastGeste(dit,' \
+  $'if (false) toastGeste(dit,' \
+  $'les pièces reçues, avant de classer : l\'achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l\'achat qu\'un indice relie à la pièce se propose'
+prouver $'cabportefeuille19-une-date-qui-n-existe-pas-se-refuse' modules/socle/ecrans/cabinet/app-1.js \
+  $'      const f = [...layer.querySelectorAll(\'input[data-jour-mois]\')].find(x => x.dateIllisible && !x.disabled && x.offsetParent !== null);' \
+  $'      const f = [...layer.querySelectorAll(\'input[data-jour-mois]\')].find(x => false);' \
+  $'(issue 12, CABPORTEFEUILLE-19) une date de validité qui n\'existe pas se refuse : la case se montre, la fenêtre reste'
+prouver $'cabportefeuille19-la-case-dit-qu-elle-ne-se-lit-pas' web/public/plateforme/dates.js \
+  $'return Boolean(t) && !versIso(t); } });' \
+  $'return false; } });' \
+  $'(issue 12, CABPORTEFEUILLE-19) une date de validité qui n\'existe pas se refuse : la case se montre, la fenêtre reste'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

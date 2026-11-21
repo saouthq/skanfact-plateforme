@@ -20,6 +20,7 @@ const KC = ecranDeLaPlateforme('compta.js') as {
   lignesDuLivre: (livre: Livre, o?: Record<string, unknown>) => LigneLue[];
   fecAuxDeTiers: () => (l: LigneLue) => { num: string; lib: string } | null;
   fichierFec: (lignes: LigneLue[], o: Record<string, unknown>) => { ok: boolean; texte: string };
+  fecNom: (identifiant: string, fin: string) => string;
 };
 
 const ecr = (id: string, numero: number, date: string, journal: string, piece: string, lignes: Ligne[]): Ecr =>
@@ -67,5 +68,9 @@ describe('le FEC porte le tiers et la date du lettrage', () => {
       '411|Clients|411HOTELDARJERB|Hôtel Dar Jerba||',
       '706|||||',
     ]);
+  });
+  it('(issue 12, CABPORTEFEUILLE-18) le nom du fichier FEC garde les lettres accentuées d\'un nom sans matricule', () => {
+    expect(KC.fecNom('Pâtisserie El Amal', '2026-12-31')).toBe('PATISSERIEELAMALFEC20261231.txt');
+    expect(KC.fecNom('1234567A/M/000', '2026-12-31')).toBe('1234567AM000FEC20261231.txt');
   });
 });

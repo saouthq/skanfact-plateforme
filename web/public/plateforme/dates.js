@@ -46,6 +46,8 @@
       set(v) { natif.set.call(this, versJour(String(v ?? '')) || String(v ?? '')); },
     });
     natif.set.call(el, versJour(iso));
+    // (CABPORTEFEUILLE-19) Ce qui est tapé mais ne se lit pas : la fenêtre refuse d'enregistrer plutôt que de perdre la date.
+    Object.defineProperty(el, 'dateIllisible', { configurable: true, get() { const t = natif.get.call(this).trim(); return Boolean(t) && !versIso(t); } });
     // En quittant la saisie : le jour lu se réécrit JJ/MM/AAAA ; illisible, le champ le dit (avant le code de l'écran,
     // qui lit la valeur juste après).
     el.addEventListener('change', () => {

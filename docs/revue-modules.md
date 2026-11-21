@@ -6406,3 +6406,30 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   salarié.
 - Tests : `cabinet-exemple-1370`, `cabinet-nom-dossier`, `dossiers-cabinet`, `tableau-de-bord`, `barre-cabinet`,
   `echeances-cabinet` (un nouveau parcours à heure fixe, le 3 novembre) ; dix-neuf preuves.
+
+## 1.388.20 — Le portefeuille du Cabinet, fin : les Échéances d'un client, l'export, le dépôt depuis les Pièces reçues (issue 12, CABPORTEFEUILLE-17 à 19)
+
+- **« Voir dans Échéances » mène à la déclaration du client** (CABPORTEFEUILLE-17). Depuis la fiche d'un dossier (le
+  mois ouvert, les lignes « prêt, en retard » et « Ses échéances » de la barre), le geste ouvre la déclaration de CE mois
+  et marque la ligne du client, amenée au milieu de l'écran. Avant, il posait le comptable en haut de la page Échéances,
+  sur l'échéance choisie par défaut, et il fallait chercher le client dans la liste. La marque s'efface dès qu'on choisit
+  une autre déclaration ou qu'on quitte la page.
+- **Le fichier FEC garde les lettres accentuées** (CABPORTEFEUILLE-18) : sans matricule, « Pâtisserie El Amal » donnait
+  « PTISSERIEELAMALFEC… » ; il donne « PATISSERIEELAMALFEC… ».
+- **L'index de l'export liste toutes les pièces attendues** (CABPORTEFEUILLE-18), avec ou sans fichier : une colonne
+  « Fichier » dit le nom du fichier ou « sans fichier ». C'est la pièce qui manque qu'on cherche dans un index ; il ne
+  listait que celles qui avaient un fichier. Le compte rendu de la fenêtre le dit : « 3 pièces, aucune avec fichier, 3
+  écritures dans le FEC » (« toutes avec fichier », « dont 2 avec fichier »).
+- **Déposer depuis les Pièces reçues laisse le comptable dans sa file** (CABPORTEFEUILLE-19) : la pièce déposée apparaît
+  aussitôt dans la liste qu'il regarde, et le bandeau propose « Voir dans le classeur » au lieu d'y emmener d'office, à
+  chaque dépôt.
+- **Une date tapée qui n'existe pas ne part plus en silence** (CABPORTEFEUILLE-19). Les dates du Cabinet sont des champs
+  JJ/MM/AAAA (`dates.js`) ; « 31/02/2026 » y vaut une date vide pour le code. La pièce partait sans échéance,
+  l'abonnement sans fin. Dans TOUTES les fenêtres du Cabinet, le geste principal (le clic comme Entrée) ne part plus tant
+  qu'une date tapée ne se lit pas : la case se montre, « Cette date n'existe pas : écris-la jour/mois/année
+  (05/10/2026), ou vide la case. » La règle vit une fois, dans la fenêtre commune, pas une par fenêtre. À FAIRE : la même
+  règle pour les fenêtres de l'app entreprise (qui ont leur propre composant de fenêtre).
+- À DÉCIDER (Skander) : choisir, fichier par fichier, si une pièce déposée est un achat, une vente ou un relevé, plutôt
+  que de laisser SkanFact le deviner sur son nom (le serveur ne garde pas cette rubrique aujourd'hui).
+- Tests : `fiche-dossier-cabinet`, `fec-tiers-1378`, `declaration-1350`, `barre-cabinet`, `classeur-cabinet` (un nouveau
+  parcours, la date impossible puis la date juste) ; dix preuves.
