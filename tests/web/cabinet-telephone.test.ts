@@ -124,6 +124,15 @@ describe('le Cabinet au téléphone', () => {
             if (rangs !== 1) faux.push(`${nom} : les vues sur ${rangs} rangées`);
           }
         }
+        // (CABDECLARER-26) Au téléphone, la frise choisit le mois : la bande « Période » ne la double plus, l'état du livre reste ;
+        // la carte d'un compte de la balance se titre par son intitulé, pas par son numéro.
+        if (pg2.nom === 'balance' && doigt) {
+          if (!await page.locator('#c-compta .cp-an').count()) faux.push(`${nom} : pas de frise des mois (le test ne verrait rien)`);
+          if (await page.locator('#lv-mode').isVisible()) faux.push(`${nom} : la bande « Période » reste sous la frise`);
+          if (!await page.locator('#c-livre-etat').isVisible()) faux.push(`${nom} : l'état du livre a disparu avec la bande`);
+          const titre = (await page.locator('#c-livres table.list[data-cartes="oui"] tbody tr').first().locator('td[data-tel="titre"]').innerText().catch(() => '')).trim();
+          if (!titre || /^\d+$/.test(titre)) faux.push(`${nom} : la carte d'un compte se titre « ${titre} », pas par son intitulé`);
+        }
         const avis = await page.locator('#bandeau-ordinateur').count();
         if (avis !== (pg2.ordinateur && doigt ? 1 : 0)) faux.push(`${nom} : ${avis ? 'dit « pensé pour un ordinateur » sans l\'être' : 'ne dit pas qu\'il est pensé pour un ordinateur'}`);
         await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });

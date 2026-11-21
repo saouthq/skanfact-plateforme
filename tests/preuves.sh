@@ -31216,6 +31216,14 @@ prouver $'cabdeclarer25-question-qui-remplace' modules/socle/ecrans/cabinet/app-
   $'            if (!(await confirmDialog(remplace ? \'Remplacer la balance de la fenêtre ?\' : \'Reprendre les soldes de cette balance ?\',' \
   $'            if (!(await confirmDialog(false ? \'Remplacer la balance de la fenêtre ?\' : \'Reprendre les soldes de cette balance ?\',' \
   $'un client tenu commence son livre avec la balance d\'un CSV ; un client sur SkanFact reprend ses soldes depuis Excel, refusés tant qu\'ils ne tombent pas juste'
+prouver $'cabdeclarer26-bande-periode-au-telephone' web/public/plateforme/comptabilite.css \
+  $'.c-barre > :is(.f-lab, #lv-mode, #lv-mois, .grow) { display: none; }' \
+  $'.c-barre > :is(.f-lab, #lv-mois, .grow) { display: none; }' \
+  $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
+prouver $'cabdeclarer26-carte-titree-par-l-intitule' modules/socle/ecrans/cabinet/app-1.js \
+  $'<td class="nw"${s.aux || !r.label ? \'\' : \' data-tel-nomme="non"\'}>' \
+  $'<td class="nw">' \
+  $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

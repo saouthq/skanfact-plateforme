@@ -9341,7 +9341,7 @@
         <th class="nw">${s.aux ? 'Tiers' : 'Compte'}</th><th>${s.aux ? 'Comptes' : 'Intitulé'}</th>${colOuv}
         <th class="${thN}">Mouvements débit</th><th class="${thN}">Mouvements crédit</th>
         <th class="${thN}">Solde débiteur</th><th class="${thN}">Solde créditeur</th></tr></thead>
-      <tbody>${paginate(b.rows, s).map(r => `<tr${s.aux ? '' : ` data-gl-compte="${esc(r.account)}" title="Ouvrir le grand livre du ${esc(r.account)} sur la même période"`}><td class="nw">${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
+      <tbody>${paginate(b.rows, s).map(r => `<tr${s.aux ? '' : ` data-gl-compte="${esc(r.account)}" title="Ouvrir le grand livre du ${esc(r.account)} sur la même période"`}><td class="nw"${s.aux || !r.label ? '' : ' data-tel-nomme="non"'}>${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
         avecOuv ? `<td class="r nw">${r.ouvertureD ? esc(money(r.ouvertureD)) : ''}</td><td class="r nw">${r.ouvertureC ? esc(money(r.ouvertureC)) : ''}</td>` : ''}
         <td class="r nw">${esc(money(r.debit))}</td><td class="r nw">${esc(money(r.credit))}</td>
         <td class="r nw">${r.soldeD ? esc(money(r.soldeD)) : ''}</td><td class="r nw">${r.soldeC ? esc(money(r.soldeC)) : ''}</td></tr>`).join('')}</tbody>

@@ -85,6 +85,9 @@
   .cp-an { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .cp-an-t, .cp-ex { grid-column: 1 / -1; }
   .cp-modele .cp-corps { padding: 12px; }
+  /* (CABDECLARER-26) Au téléphone, la frise des mois choisit déjà le mois ou l'année : la bande « Période » qui la double
+     se retire ; l'état du livre (« Comptabilité », sa bulle et ses gestes) reste. « Du… au… », choisi au bureau, garde sa bande. */
+  #c-compta.cp-modele:has(.cp-an):not(:has(#lv-du:not([hidden]))) .c-barre > :is(.f-lab, #lv-mode, #lv-mois, .grow) { display: none; }
   /* Au doigt, 44 points (rouge GitHub de 37ca3e7 : l'exercice faisait 34×16, « Toute l'année » 15 de haut). */
   .cp-per { height: 44px; }
   .cp-per select { min-height: 44px; min-width: 44px; }

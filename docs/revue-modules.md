@@ -6195,3 +6195,16 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   appel existant ne change.
 - Test : un second CSV déséquilibré par-dessus la balance du premier — la question, les deux libellés, le curseur sur
   « Garder », Entrée, et la balance de la fenêtre intacte. Deux preuves.
+
+## 1.388.10 — Au téléphone, la frise suffit ; la carte d'un compte porte son intitulé (issue 9, CABDECLARER-26 et -27)
+
+- Au téléphone, la comptabilité d'un dossier posait la bande « Période » (l'exercice, un mois) sous la frise des mois, qui
+  choisit déjà le mois ou l'année : la bande se retire, l'état du livre (« Comptabilité », sa bulle et ses gestes) reste.
+  Une période « Du… au… », choisie sur un ordinateur, garde sa bande.
+- Au téléphone, la balance en cartes titrait chaque carte par le numéro du compte (« 401 ») : elle se titre par son
+  intitulé, le numéro passe dessous avec son étiquette. En auxiliaire, le tiers reste le titre.
+- CABDECLARER-27 (la navigation de la comptabilité deux fois à l'écran, dans la barre de gauche et en haut de la page) est
+  déjà réglé par la 1.388.1 : la barre de gauche n'a plus qu'une entrée « Comptabilité », les groupes et les écrans ne vivent
+  qu'en haut de la page.
+- Test : la balance au téléphone — la frise est là, la bande « Période » non, l'état du livre oui, et la carte se titre par
+  un intitulé. Deux preuves.
