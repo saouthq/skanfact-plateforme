@@ -505,6 +505,11 @@
       if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }
     });
     if (onMount) onMount(layer, close);
+    // (1.387.90, issue 6 CAB-8) Onze fenêtres reliaient encore leurs `data-close` à `close` après le montage : le clic passait
+    // par `dismiss` (posé plus haut), qui ouvrait « Abandonner cette saisie ? », puis par `close`, qui fermait la fenêtre
+    // dessous — la question s'ouvrait au-dessus de rien, et ce qu'on avait tapé dans « Demander à Sarra » était perdu.
+    // « Annuler » vaut Échap partout : on retire le raccourci, `dismiss` ferme tout seul quand rien n'a été tapé.
+    $$('[data-close]', layer).forEach(b => { if (b.onclick === close) b.onclick = null; });
     // 10.14.1 — les montants préremplis s'écrivent comme l'écran AVANT l'instantané de la saisie :
     // complétés plus tard, au premier passage du curseur, « 1250.5 » devenu « 1 250,500 » passerait
     // pour une frappe, et fermer une fenêtre intacte demanderait « Abandonner cette saisie ? ».

@@ -5963,3 +5963,14 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   brouillon est une ligne « Quand tu peux », qui n'a plus de vert. Le devis est maintenant accepté et pas facturé
   (« Un geste t'attend ») : sans la grâce, sa ligne serait le vert de l'accueil, et la preuve tombe de nouveau.
 - Sept preuves ré-ancrées sur le code du jour (les ancres avaient bougé avec les lots précédents) ; elles tombent toutes.
+
+## 1.387.90 — « Annuler » ne jette plus ce qu'on a tapé (issue 6, CAB-8)
+
+- **CAB-8** : dans « Demander à Sarra » (et dix autres fenêtres du Cabinet : déposer des pièces, joindre un PDF, le
+  classeur, l'export…), la croix et « Annuler » étaient reliés deux fois : à la garde de saisie posée par `modal()`, qui
+  ouvrait « Abandonner cette saisie ? », puis à `close`, qui fermait la fenêtre aussitôt dessous. La question s'ouvrait
+  au-dessus de rien, et ce qu'on venait de taper était perdu. `modal()` retire ce raccourci après le montage : « Annuler »
+  vaut Échap partout, il ferme tout seul quand rien n'a été tapé et demande sinon. Aucune des onze fenêtres n'avait de
+  rappel de fermeture : rien d'autre ne change.
+- Test : taper la pièce dans « Demander à », puis la croix et « Annuler » : chaque fois la question, « Annuler » garde la
+  fenêtre et le texte. Preuve : retirer la ligne fait tomber le test.

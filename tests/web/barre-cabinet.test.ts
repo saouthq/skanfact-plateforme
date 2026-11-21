@@ -316,6 +316,18 @@ describe('la barre du Cabinet, à la souris', () => {
     await demande.locator('#dm-piece').fill('le relevé bancaire d\'octobre');
     // Nommée, la pièce compose le message (tant qu'on ne l'a pas réécrit).
     expect(await demande.locator('#dm-texte').inputValue()).toMatch(/il me manque le relevé bancaire d'octobre pour ton dossier\. Peux-tu me l'envoyer ici\s\? Une photo suffit\.$/);
+    // (1.387.90, issue 6 CAB-8) La croix et « Annuler » posent la question avant de jeter ce qu'on a tapé : la fenêtre
+    // fermait dessous pendant que « Abandonner cette saisie ? » s'ouvrait au-dessus de rien. « Annuler » la garde, texte compris.
+    const question = p.locator('#modal-root .modal').filter({ hasText: 'Abandonner cette saisie ?' });
+    for (const geste of [demande.getByRole('button', { name: 'Fermer', exact: true }), demande.getByRole('button', { name: 'Annuler', exact: true })]) {
+      await geste.click();
+      await expect.poll(() => question.count(), { timeout: 5_000 }).toBe(1);
+      expect(await demande.count()).toBe(1);
+      await question.locator('#no').click();
+      await expect.poll(() => question.count()).toBe(0);
+      expect(await demande.count()).toBe(1);
+      expect(await demande.locator('#dm-piece').inputValue()).toBe('le relevé bancaire d\'octobre');
+    }
     await demande.getByRole('button', { name: 'Écrire plutôt dans la conversation' }).click();
     await expect.poll(() => p.url(), { timeout: 20_000 }).toContain(`#/messages/${cafe.ent}/demande`);
     await expect.poll(() => p.locator('[data-msg-demande-txt]').first().inputValue(), { timeout: 15_000 }).toBe('le relevé bancaire d\'octobre');

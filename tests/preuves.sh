@@ -31086,6 +31086,10 @@ prouver $'V-1 0222 c : une pièce à retenue scellée reçoit un seuil' base/mig
   $'   and v.taux_retenue > 0
 ' \
   $'(1.387.88, migration 0222) une facture d\'avant la 1.379.6, sous le seuil, reçoit le seuil que le serveur a appliqué ; rien d\'autre ne bouge'
+prouver $'cab8-annuler-jette-la-saisie' modules/socle/ecrans/cabinet/app-1.js \
+  $'    $$(\'[data-close]\', layer).forEach(b => { if (b.onclick === close) b.onclick = null; });' \
+  $'' \
+  $'au bureau : la tête et son menu, « Mon cabinet » et ses chiffres, la page d\'arrivée, le dossier ouvert et ses écrans, le changement de dossier, Créer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
