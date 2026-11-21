@@ -4,7 +4,7 @@
 //     reçue, à classer » et son menu « Classer sa pièce » ;
 //   - « Relancer le suivant… » saute le client déjà relancé aujourd'hui ;
 //   - « Ajouter un client… » demande avant de créer un client déjà au portefeuille (casse et accents mis à part) ;
-//   - « Archiver le dossier… » amène la case « Dossier archivé » à l'écran.
+//   - « Archiver le dossier… » pose sa question, puis laisse « Annuler » ; un archivé se lit et s'exporte.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -112,11 +112,41 @@ describe('le portefeuille du Cabinet et le pont (1.340.0)', () => {
     await ligneDe(cafe.ent).locator('[data-cd-menu]').click();
     await expect.poll(async () => net(await p.locator('.cd-menu [data-cd-geste="pieces"] .rm-l').innerText().catch(() => '')), { timeout: 10_000 }).toBe('Classer sa pièce');
 
-    // « Archiver le dossier… » : la case est à l'écran, le curseur dedans.
+    // (CABPORTEFEUILLE-7) « Archiver le dossier… » est un geste à part : une question qui dit ce qu'il fait, puis « Annuler ».
     await p.locator('.cd-menu [data-cd-geste="archiver"]').click();
-    await expect.poll(() => p.evaluate(() => document.activeElement && document.activeElement.id), { timeout: 5_000 }).toBe('f-arch');
-    expect(await p.locator('#f-arch').evaluate((c) => { const r = c.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })).toBe(true);
-    await p.locator('#modal-root #no').click();
+    await expect.poll(async () => net(await p.locator('#modal-root h2').last().innerText().catch(() => '')), { timeout: 10_000 }).toBe('Archiver Café Dar Zitouna ?');
+    expect(await p.locator('#modal-root #f-name').count()).toBe(0);
+    expect(net(await p.locator('#modal-root .modal').last().innerText())).toContain('Il se lit et s\'exporte toujours');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Archiver le dossier' }).click();
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().catch(() => ''), { timeout: 10_000 }).toBe('Dossier archivé : Café Dar Zitouna');
+    await expect.poll(() => ligneDe(cafe.ent).count(), { timeout: 10_000 }).toBe(0);
+    await p.locator('#toast .toast-undo').click();
+    await expect.poll(() => ligneDe(cafe.ent).count(), { timeout: 10_000 }).toBe(1);
+    // On le réarchive pour de bon, par le même geste.
+    await ligneDe(cafe.ent).locator('[data-cd-menu]').click();
+    await p.locator('.cd-menu [data-cd-geste="archiver"]').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Archiver le dossier' }).click();
+    await expect.poll(() => ligneDe(cafe.ent).count(), { timeout: 10_000 }).toBe(0);
+
+    // (CABPORTEFEUILLE-8) Ouvert en lecture, un archivé reste celui qu'on regarde, ne réclame plus rien, et s'exporte en entier.
+    await p.locator('[data-cd-vue="archives"]').click();
+    await ligneDe(cafe.ent).getByRole('button', { name: 'Ouvrir en lecture' }).click();
+    await p.locator('#page-fd').waitFor({ timeout: 15_000 });
+    await expect.poll(async () => net(await p.locator('#b-dossier').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/Café Dar Zitouna[\s\S]*archivé · en lecture/);
+    expect(await p.locator('#page-fd .fd-m.pc, #page-fd .fd-m.manque').count()).toBe(0);
+    expect(await p.locator('#page-fd .fd-leg-r').count()).toBe(0);
+    await p.locator('#fd-export').click();
+    await expect.poll(() => p.url(), { timeout: 10_000 }).toMatch(new RegExp(`#/dossier/${cafe.ent}/classeur`));
+    await expect.poll(async () => net(await p.locator('#modal-root #ex-t').innerText().catch(() => '')), { timeout: 15_000 }).toContain('Exporter le classeur de Café Dar Zitouna');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(0);
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}`; }, cafe.ent);
+    await p.locator('#page-fd [data-cd-geste="archiver"]').click();
+    await expect.poll(async () => net(await p.locator('#modal-root h2').last().innerText().catch(() => '')), { timeout: 10_000 }).toBe('Désarchiver Café Dar Zitouna ?');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Désarchiver le dossier' }).click();
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().catch(() => ''), { timeout: 10_000 }).toBe('Dossier désarchivé : Café Dar Zitouna');
+    await p.evaluate(() => { location.hash = '#/dossiers'; });
+    await p.locator('#page-tb tr[data-id]').first().waitFor({ timeout: 20_000 });
 
     // « Ajouter un client… » : « garage TRIKI » est déjà au portefeuille ; « Ouvrir son dossier » y mène, rien n'est créé.
     await p.locator('#new-d').click();

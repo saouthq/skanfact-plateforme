@@ -195,6 +195,16 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await p.locator('#tb-grille').waitFor({ timeout: 15_000 });
     await p.locator('#tb-grille tbody tr[data-tb-id]').filter({ hasText: 'Menuiserie Ben Ali' }).locator('td.cl').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${menuiserie.ent}/comptabilite`);
+    // (CABPORTEFEUILLE-6) Une déclaration en retard est la ligne la plus urgente de « À faire », et elle mène à SON échéance :
+    // la TVA de la librairie, tenue depuis l'avant-dernier mois, est en retard.
+    await p.evaluate(() => { location.hash = '#/production'; });
+    await p.locator('#tb-afaire').waitFor({ timeout: 15_000 });
+    const enRetard = p.locator('#tb-afaire .afaire-ligne').filter({ hasText: /en retard de \d+ jours?/ }).first();
+    await expect.poll(() => enRetard.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/en retard de \d+ jours?[\s\S]*Voir l.échéance/);
+    const titreRetard = await enRetard.locator('.afaire-txt b').innerText();
+    await enRetard.getByRole('button', { name: /Voir l.échéance/ }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/echeances');
+    await expect.poll(() => p.locator('#page-ech .ec-dt h2').innerText().catch(() => '')).toBe(titreRetard);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
@@ -245,7 +255,7 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     expect((await fiche.locator('.tb-mc-et li b').allInnerTexts())).toEqual(['Pièces reçues', 'Saisie', 'Révision', 'Déclaration']);
     expect(await fiche.locator('.tb-mc-et li').nth(3).innerText()).toMatch(/déposée/);
     await expect.poll(() => fiche.locator('.tb-mc-f').innerText()).toMatch(/Compte d'attente\s*1 250,000 DT/);
-    expect(await fiche.locator('.tb-mc-f').innerText()).toMatch(/Au brouillard\s*2 écritures/);
+    expect(await fiche.locator('.tb-mc-f').innerText()).toMatch(/Au brouillard ce mois\s*2 écritures/);
     expect(await fiche.locator('.tb-mc-a .btn-primary').innerText()).toBe('Voir les 2 au brouillard');
     await p.keyboard.press('Escape');
     await expect.poll(() => fiche.count()).toBe(0);
@@ -295,6 +305,18 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     // La ligne d'un exercice ouvre sa clôture.
     await men.locator('td.cl').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${menuiserie.ent}/comptabilite/exercice/${an}`);
+    // (CABPORTEFEUILLE-5) La bulle d'un mois compte le brouillard DU MOIS : un brouillard du mois en cours ne s'ajoute pas
+    // aux deux du mois fini (le total du dossier, 3, se lisait dans la même bulle que « Voir les 2 au brouillard »).
+    const moisEnCours = new Date().toISOString().slice(0, 7);
+    expect((await api('POST', `/entreprises/${garage.ent}/compta/ecritures`, associe, { date: `${moisEnCours}-01`, journal: 'OD', piece: 'OD-3', libelle: 'Frais du mois en cours',
+      lignes: [{ compte: '627', debit: '10,000' }, { compte: '401', credit: '10,000' }] })).statut).toBe(201);
+    await p.evaluate(() => { location.hash = '#/production'; });
+    await p.reload();
+    await p.locator('#page-bord #tb-grille').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator(`#tb-grille tr[data-tb-id="${garage.ent}"] [data-tb-case="${moisFini}"]`).click();
+    await expect.poll(() => p.locator('#tb-fiche .tb-mc-f').innerText().catch(() => '')).toMatch(/Au brouillard ce mois\s*2 écritures/);
+    expect(await p.locator('#tb-fiche .tb-mc-a .btn-primary').innerText()).toBe('Voir les 2 au brouillard');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);

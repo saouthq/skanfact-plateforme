@@ -59,6 +59,10 @@
 .fd-m.cours { border-style: dashed; }
 .fd-m.avenir { background: transparent; color: var(--sb-gris-2); }
 .fd-m.avenir b { color: var(--sb-gris-2); font-weight: 500; }
+/* (CABPORTEFEUILLE-8) Un mois d'un dossier archivé : rien n'est plus réclamé. */
+.fd-m.arch { background: var(--sb-papier-2); border-style: dashed; }
+.fd-m.arch b { color: var(--sb-gris-2); font-weight: 500; }
+.fd-leg i.arch { background: var(--sb-papier-2); border-style: dashed; }
 .fd-m.ici { box-shadow: 0 0 0 2px var(--sb-rouge-texte); }
 .fd-leg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; color: var(--sb-gris); align-items: center; }
 .fd-leg span { display: inline-flex; gap: 6px; align-items: center; }

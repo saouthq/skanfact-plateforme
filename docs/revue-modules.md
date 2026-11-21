@@ -6335,3 +6335,34 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Au passage : deux erreurs de vérification restées dans des versions non encore envoyées — une assertion non nulle dans
   `livres-1378-3` (1.388.7, refusée par le lint) et une initiale lue sans garde dans `messagerie.js` (1.388.2, refusée par
   les types). Toutes deux corrigées avant l'envoi.
+
+## 1.388.18 — Le portefeuille du Cabinet : la bulle d'un mois, ce qui presse, archiver (issue 12, CABPORTEFEUILLE-5, 6, 7, 8)
+
+- **La bulle d'un mois du Tableau de bord compte le brouillard DE CE MOIS** (CABPORTEFEUILLE-5) : elle écrivait « Au
+  brouillard 3 écritures » (le total du dossier sur l'année) au-dessus de « Voir les 2 au brouillard ». Elle dit
+  maintenant « Au brouillard ce mois · 2 écritures », le même chiffre que son bouton. Le second volet (le vocabulaire
+  « brouillard » face à un client) reste À DÉCIDER par Skander.
+- **Une déclaration en retard est la ligne la plus urgente de « À faire »** (CABPORTEFEUILLE-6). La pastille rouge des
+  Échéances la connaissait, « À faire » non : deux écrans, deux chiffres. Les deux lisent maintenant la même liste
+  (`declarationsEnRetard`). Chaque retard mène à SON échéance ; au-delà de trois, une seule ligne les résume. La personne
+  choisie en haut de la page vaut pour ces lignes aussi (elles portent leurs dossiers). Une pièce que le cabinet a
+  déposée lui-même (WhatsApp, papier) se dit « déposée au cabinet », plus « envoyée par le client ».
+- **Archiver est un geste à part, avec sa question et son « Annuler »** (CABPORTEFEUILLE-7). Il fallait ouvrir la
+  fenêtre de MODIFICATION de la fiche et cocher une case : un client quittait les listes, le Tableau de bord, les
+  Relances et les Échéances sans un mot. Le menu de la ligne, la fiche et la barre de sélection (plusieurs dossiers d'un
+  coup) posent la même question — ce que le geste fait, ce qui reste lisible, ce qu'il change pour un dossier tenu au
+  cabinet — puis laissent huit secondes pour revenir. Dans la vue « Archivés », la sélection propose « Désarchiver ».
+  La case a quitté la fenêtre de modification.
+- **Un dossier archivé ouvert en lecture se comporte en archivé** (CABPORTEFEUILLE-8). La barre le nomme (« archivé ·
+  en lecture »), sa comptabilité s'ouvre sur les livres à consulter, ses mois ne disent plus « rien reçu » ni « date
+  limite » (une case grisée « archivé », sa légende), et « Voir dans Échéances » disparaît de la bulle d'un mois.
+  « Exporter le dossier » ouvre l'export de son classeur (pièces, FEC, déclarations), au lieu d'une ligne de CSV du
+  portefeuille. Désarchiver le dernier archivé ramène à la liste habituelle, pas à une vue « Archivés » vide.
+- **Trouvé en le jouant : un dossier sans livre ne pouvait jamais exporter son classeur.** Le bouton attendait que le
+  livre soit lu, et « pas de livre » ressemblait à « pas encore lu » : il restait éteint pour toujours sur un dossier
+  qui n'a que des pièces. Il s'allume dès que la lecture est faite, livre ou pas.
+- À DÉCIDER / À VÉRIFIER : le serveur n'interdit pas d'écrire dans la comptabilité d'un dossier archivé ; seul l'écran
+  la montre en lecture. Fermer l'écriture côté serveur est une décision (un cabinet peut vouloir corriger un dossier
+  parti) : à poser à Skander.
+- Tests : `tableau-de-bord`, `barre-cabinet`, `portefeuille-1340` ; neuf preuves (la preuve « 1.340.0 i » sur la case de
+  la fiche est remplacée par celle de la question).

@@ -6118,7 +6118,6 @@
     modal(
       `<h2>Fiche du dossier</h2>
        ${dossierFields(dossier)}
-       <label class="inline small mt"><input type="checkbox" id="f-arch" ${dossier.archived ? 'checked' : ''}> ${lbl('Dossier archivé (client parti : on ne le réclame plus)', 'd.archived')}</label>
        ${!dossier.manual
          ? `<p class="muted small mt">Ce client est sur SkanFact : son nom et son matricule sont ceux qu'il y a donnés, lui seul les change.</p>`
          : ''}
@@ -6155,7 +6154,7 @@
           const mois = K.moisTape($('#f-from', layer).value);
           if (!mois.ok) return refus($('#f-from', layer), mois.motif);
           try {
-            const patch = { ...f, archived: $('#f-arch', layer).checked };
+            const patch = { ...f };
             // Le nom et le matricule partent avec la fiche : ceux d'un dossier tenu se corrigent (brique 57).
             const r = await api.saveDossier(dossier.id, patch);
             S = r.state;

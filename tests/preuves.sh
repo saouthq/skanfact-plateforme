@@ -27275,9 +27275,6 @@ prouver 'portefeuille 1.340.0 g : la vue tait ceux qui ont envoyé' modules/socl
 prouver 'portefeuille 1.340.0 h : un client déjà au portefeuille se crée sans question' modules/socle/ecrans/cabinet/app-2.js \
   'const meme = dossierDejaLa(f);' 'const meme = null;' \
   "$PF1340"
-prouver 'portefeuille 1.340.0 i : « Archiver le dossier… » ouvre la fiche en haut' modules/socle/ecrans/cabinet/app-1.js \
-  'dossierForm(D, g === '\''archiver'\'' ? { focus: '\''#f-arch'\'' } : undefined);' 'dossierForm(D);' \
-  "$PF1340"
 
 # 1.341.0 : l'export des écritures du Cabinet (le dernier mois fini ; les clients sans écriture, par ce qui les attend).
 EX1341='(1.341.0) l'\''export s'\''ouvre sur le dernier mois fini ; les clients sans écriture se disent par ce qui les attend'
@@ -31333,6 +31330,44 @@ prouver $'cabsaisie21-la-lettre-joue-l-entree' web/public/v10/rowmenu.js \
   $'if (e.key.length === 1 && /^[a-z]$/i.test(e.key)' \
   $'if (false && /^[a-z]$/i.test(e.key)' \
   $'l\'écran vide, puis un relevé s\'importe et se rapproche d\'office ; la proposée se rapproche à la touche Entrée et se défait ; l\'écriture manquante s\'écrit depuis la ligne ; l\'équation du relevé au millime, l\'état ; tout se défait et se repose ; au téléphone, des cartes'
+# 1.388.18 — le portefeuille du Cabinet (CABPORTEFEUILLE-5, 6, 7, 8) ; la preuve « 1.340.0 i » (la case de la fiche) est remplacée par celle de la question.
+prouver $'cabportefeuille5-le-brouillard-du-mois' modules/socle/ecrans/cabinet/app-1.js \
+  $'>${c.brouillards ? pl(c.brouillards, \'écriture\') : \'aucune\'}</b></span></div>' \
+  $'>${r.rv.brouillards ? pl(r.rv.brouillards, \'écriture\') : \'aucune\'}</b></span></div>' \
+  $'Révision, Bilans et la fiche d\'un mois : tout est lu dans les livres'
+prouver $'cabportefeuille6-la-declaration-en-retard-en-tete' modules/socle/ecrans/cabinet/app-1.js \
+  $'    urgent.splice(urgent.filter(x => x.cle === \'cle-secours\' || x.cle === \'licence\').length, 0, ...lignesRetard);' \
+  $'    void lignesRetard;' \
+  $'une page : À faire, la campagne du mois, la grille, la charge ; une personne vaut pour toute la page'
+prouver $'cabportefeuille6-la-piece-deposee-au-cabinet' modules/socle/ecrans/cabinet/app-1.js \
+  $'à classer`, sous: deQui,' \
+  $'à classer`, sous: \'envoyée par le client\',' \
+  $'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s\'y classe comme le reste, sans paraître deux fois dans le classeur'
+prouver $'cabportefeuille7-archiver-pose-sa-question' modules/socle/ecrans/cabinet/app-1.js \
+  $'        if (g === \'archiver\') fenArchiver([D], !D.archived);' \
+  $'        if (g === \'archiver\') dossierForm(D);' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+prouver $'cabportefeuille8-l-archive-ouvert-se-nomme' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (arch) return arch;' \
+  $'    if (false) return arch;' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+prouver $'cabportefeuille8-l-archive-ne-reclame-rien' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (!d.archived || [\'fait\', \'avenir\', \'hors\'].includes(e[0])) return e;' \
+  $'if (true) return e;' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+prouver $'cabportefeuille8-exporter-le-dossier-ouvre-l-export' modules/socle/ecrans/cabinet/app-1.js \
+  $'if (ex) ex.onclick = () => { exporterClA = d.id;' \
+  $'if (ex) ex.onclick = () => { exporterClA = \'\';' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+prouver $'cabportefeuille8-un-dossier-sans-livre-s-exporte' modules/socle/ecrans/cabinet/app-1.js \
+  $'id="cl-exporter"${livre !== undefined && !hors' \
+  $'id="cl-exporter"${livre && !hors' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+prouver $'cabportefeuille8-le-dernier-desarchive-rend-la-liste' modules/socle/ecrans/cabinet/app-1.js \
+  $'    if (!archiver && dosState.vue === \'archives\' && !(S.dossiers || []).some(d => d.archived)) dosState.vue = \'\';' \
+  $'    if (false) dosState.vue = \'\';' \
+  $'(1.340.0) « Pièces manquantes » ne réclame que ce qui manque ; « Relancer » saute le relancé du jour ; un doublon se demande ; l\'archivage se montre'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

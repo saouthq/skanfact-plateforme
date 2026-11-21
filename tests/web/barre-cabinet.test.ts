@@ -596,6 +596,12 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator(`[data-cl-m="${new Date().getFullYear()}-09"]`).first().click();
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/^Septembre \d{4}\s+1 pièce\b/);
     expect(await p.locator('#page-cl li[data-cl-k]').filter({ hasText: 'WhatsApp' }).count()).toBe(1);
+    // (CABPORTEFEUILLE-6) « À faire » dit d'où vient la pièce : déposée au cabinet, pas « envoyée par le client ».
+    await ouvrir(p, cab.id, '#/production');
+    await p.locator('#tb-afaire').waitFor({ timeout: 20_000 });
+    if (await p.locator('#tb-avoir[aria-expanded="false"]').count()) await p.locator('#tb-avoir').click();
+    const lignePc = p.locator('#tb-afaire .afaire-ligne').filter({ hasText: 'Menuiserie du Sahel' }).filter({ hasText: /pièce reçue/ });
+    await expect.poll(() => lignePc.innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/1 pièce reçue à classer[\s\S]*Menuiserie du Sahel · déposée au cabinet/);
     await ouvrir(p, cab.id, '#/pieces');
     await expect.poll(() => lignes.count()).toBe(3);
     const la = lignes.filter({ hasText: 'WhatsApp-bois.png' });

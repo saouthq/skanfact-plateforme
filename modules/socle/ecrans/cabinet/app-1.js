@@ -2420,6 +2420,10 @@
   }
   // Le dossier ouvert : le dernier où l'on a travaillé, sinon celui qui attend le plus.
   function dossierOuvert() {
+    // (CABPORTEFEUILLE-8) Un dossier archivé ouvert en lecture reste celui qu'on regarde : la barre le nomme.
+    const ici = /^#\/dossier\/([^/]+)/.exec(location.hash);
+    const arch = ici && S ? (S.dossiers || []).find(d => d.archived && d.id === decodeURIComponent(ici[1])) : null;
+    if (arch) return arch;
     const tous = dossiersActifs();
     const id = prefs.get('dossierOuvert', '');
     const premier = K.dossierList(S, null, { sort: 'urgence' })[0];
@@ -2467,6 +2471,15 @@
         else dest.push({ cle: `j-${d.id}`, dossier: d, quoi: 'Pièces manquantes signalées', sous: nomDe(d.id), ton, geste: 'Voir', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
       }
     }
+    // (CABPORTEFEUILLE-6) Une déclaration dont la date est passée et qu'un dossier n'a pas faite est la ligne la plus urgente
+    // du cabinet. C'est la MÊME liste que la pastille des Échéances : un seul calcul, un seul chiffre.
+    let enRetard = []; try { enRetard = declarationsEnRetard().slice().sort((a, b) => (a.e.date < b.e.date ? -1 : 1)); } catch { enRetard = []; }
+    const lignesRetard = enRetard.length > 3
+      ? [{ cle: 'ech-retard', dossier: null, dossiers: [...new Set(enRetard.flatMap(x => x.lignes.filter(l => !EC_FAIT(l.st)).map(l => l.d)))], quoi: `${enRetard.length} déclarations en retard`, sous: `${enRetard.slice(0, 3).map(nomCourtEch).join(', ')}…`, ton: 'alerte', geste: 'Voir les échéances', faire: () => { echState.sel = ''; vers('#/echeances'); } }]
+      : enRetard.map(x => ({ cle: `ech-${x.cle}`, dossier: null, dossiers: x.lignes.filter(l => !EC_FAIT(l.st)).map(l => l.d), quoi: x.t.titre,
+        sous: `${quandEch(x.e, false)} · ${x.afaire === x.lignes.length ? `${pl(x.afaire, 'dossier')} à faire` : `${x.afaire} sur ${pl(x.lignes.length, 'dossier')} à faire`}`,
+        ton: 'alerte', geste: 'Voir l\'échéance', faire: () => { echState.sel = x.cle; echState.filtre = 'tout'; echState.ouverte = true; vers('#/echeances'); } }));
+    urgent.splice(urgent.filter(x => x.cle === 'cle-secours' || x.cle === 'licence').length, 0, ...lignesRetard);
     // Tes premiers pas (10.14.0), tant que le cabinet démarre : l'étape suivante, guidée.
     const pas = lignePremiersPas();
     if (pas) avoir.push({ cle: 'premiers-pas', dossier: null, quoi: pas.label, sous: pas.detail, ton: 'attire', geste: 'Me guider pas à pas', faire: () => lancerPasSuivant() });
@@ -2483,10 +2496,13 @@
       if (m && m.etat === 'a_traiter') avoir.push({ cle: `msg-${d.id}`, dossier: d, quoi: m.nonLus ? pl(m.nonLus, 'message du client', 'messages du client') : 'Le client t\'a répondu',
         sous: 'dans sa conversation', ton: 'attire', geste: 'Répondre', faire: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
       const n = comptesBarre.piecesParDossier.get(d.id) || 0;
-      if (n && !urgent.some(x => x.cle === `m-${d.id}`)) avoir.push({ cle: `pr-${d.id}`, dossier: d, quoi: `${pl(n, 'pièce reçue', 'pièces reçues')} à classer`, sous: 'envoyées par le client', ton: 'attire',
+      // (CABPORTEFEUILLE-6) Une pièce que le cabinet a déposée lui-même (WhatsApp, papier) ne se dit pas « envoyée par le client ».
+      const nDep = n ? (piecesLues.pieces || []).filter(p => p.entreprise === d.id && p.depot).length : 0;
+      const deQui = nDep && nDep < n ? `${n - nDep} du client, ${pl(nDep, 'déposée', 'déposées')} au cabinet` : nDep ? (n > 1 ? 'déposées au cabinet' : 'déposée au cabinet') : (n > 1 ? 'envoyées par le client' : 'envoyée par le client');
+      if (n && !urgent.some(x => x.cle === `m-${d.id}`)) avoir.push({ cle: `pr-${d.id}`, dossier: d, quoi: `${pl(n, 'pièce reçue', 'pièces reçues')} à classer`, sous: deQui, ton: 'attire',
         geste: 'Classer', faire: () => { location.hash = `#/pieces/${encodeURIComponent(d.id)}`; } });
     }
-    return { urgent, avoir };
+    return { urgent, avoir, retard: enRetard };
   }
   // (Maquettes de « Mon cabinet », 28/10/2026) La pastille des Échéances compte les déclarations EN RETARD de mes
   // dossiers : la date est passée et un dossier ne l'a pas déposée. (1.175.1) La même fonction que la page
@@ -2556,7 +2572,7 @@
   // clôturer »). Elle n'en garde qu'une entrée, « Comptabilité », qui rouvre l'écran qu'on y avait laissé et dit ce qui attend.
   function comptaDansBarre(D, base, ouvert) {
     const memeDossier = livresState.dossierId === D.id && !!livresState.livre;
-    const cible = ouvert || (memeDossier && livresState.onglet && ONGLETS_COMPTA[livresState.onglet] ? livresState.onglet : 'saisie');
+    const cible = ouvert || (memeDossier && livresState.onglet && ONGLETS_COMPTA[livresState.onglet] ? livresState.onglet : D.archived ? 'journal' : 'saisie');
     const k = memeDossier ? Object.keys(ONGLETS_COMPTA).reduce((t, o) => t + ((pastilleCompta(o) || {}).n || 0), 0) : 0;
     const meta = k ? `${K.nbFr(k)} à traiter` : '';
     return `<a href="${base}/comptabilite/${cible}" data-route="d-compta" class="lien${ouvert ? ' active' : ''}"${ouvert ? ' aria-current="page"' : ''} data-tip="${esc('Comptabilité' + (ouvert ? ` · ${ONGLETS_COMPTA[ouvert] || ''}` : '') + (meta ? ` · ${meta}` : ''))}"><span class="ic">${icB('livres')}</span>Comptabilité${meta ? `<span class="nav-count compte attire">${esc(meta)}</span>` : ''}<span class="point"></span></a>`;
@@ -2568,7 +2584,7 @@
     const [route, arg, sous] = hash.split('/');
     const D = dossierOuvert();
     const pri = prioritesDuJour();
-    const retard = declarationsEnRetard();
+    const retard = pri.retard;
     const nRel = lignesRelances().length;
     const compte = (id, n, ton, titre) => `<span class="nav-count compte${ton ? ' ' + ton : ''}" id="${id}"${n ? '' : ' hidden'}${titre ? ` title="${esc(titre)}"` : ''}>${n || ''}</span>`;
     const epingles = epinglesCab();
@@ -2609,7 +2625,7 @@
     if (!D) {
       html += `<div class="nav nav-dossier vide-d" id="nav-dossier"><div class="dossier" style="cursor:default"><span class="marque-s vide" aria-hidden="true">${icB('dossiers', 15, 2)}</span><span class="lib"><small>Dossier ouvert</small><b>Pas encore de dossier</b><small>Il s'ouvre ici dès le premier</small></span></div></div>`;
     } else {
-      const e = etatDuDossier(D);
+      const e = D.archived ? { texte: 'archivé · en lecture', clos: false } : etatDuDossier(D);
       const c = couleurDe(D.id);
       const base = `#/dossier/${encodeURIComponent(D.id)}`;
       const dansCeDossier = route === 'dossier' && decodeURIComponent(arg || '') === D.id;
@@ -2626,7 +2642,7 @@
         + ligneVolet('pieces', 'Pièces du dossier', 'Ce que le client a envoyé, à classer', { href: `#/pieces/${encodeURIComponent(D.id)}` })
         + (D.manual ? '' : ligneVolet('messages', 'Messages', 'La conversation avec le client', { href: `#/messages/${encodeURIComponent(D.id)}` }))
         // (1.388.1, CAB-9) « Déclarer et clôturer » à qui valide CE dossier : la règle de la page et du serveur.
-        + GROUPES_COMPTA.filter(x => x.id !== 'cloturer' || peutValiderCl(D)).map(x => `<p class="pl-groupe">${esc(x.label)}</p>`
+        + GROUPES_COMPTA.filter(x => (x.id !== 'cloturer' || peutValiderCl(D)) && (!D.archived || x.id === 'consulter')).map(x => `<p class="pl-groupe">${esc(x.label)}</p>`
           + `<div class="pl-grille">${x.onglets.map(o => `<a class="pl-c" href="${base}/comptabilite/${o}" title="${esc(DIT_VOLET[o])}"><span class="tuile-ic">${icB(IC_VOLET[o] || IC_VOLET[x.id], 16)}</span>${esc(ONGLETS_COMPTA[o])}</a>`).join('')}</div>`).join('')
         + '</div></div></div>';
       html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
@@ -3111,7 +3127,7 @@
       et(decF, 'Déclaration', decF ? 'déposée' : `due le ${esc(jjmmTb(due))}${tard ? ` · en retard de ${pl(Math.max(1, joursEntre(due, K.today())), 'jour')}` : ' (À VÉRIFIER)'}`, (revF || c.etape === 'declare') && !decF, tard && !decF),
     ].join('');
     const r = revueDe(x, f.mois);
-    const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? 'soldé' : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard<b${r.rv.brouillards ? ' class="attire"' : ''}>${r.rv.brouillards ? pl(r.rv.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
+    const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? 'soldé' : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard ce mois<b${c.brouillards ? ' class="attire"' : ''}>${c.brouillards ? pl(c.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
     const an = f.mois.slice(0, 4);
     const prim = c.aClasser && !saisiF ? ['pieces', `Classer ${c.aClasser > 1 ? `les ${c.aClasser} pièces` : 'la pièce'}`]
       : c.brouillards && !revF ? ['saisie', `Voir les ${c.brouillards} au brouillard`] : c.etape === 'declare' ? ['declaration', 'Préparer la déclaration'] : ['journal', `Ouvrir ${moisLong(f.mois)}`];
@@ -3336,7 +3352,7 @@
   }
   // Ce qui est à faire maintenant : les Priorités d'hier, le plus pressé d'abord ; « À voir » se déplie.
   function aFaireTb(pri) {
-    const garde = x => !tbState.qui || !x.dossier || (equipeDe(x.dossier).suit || {}).id === tbState.qui;
+    const garde = x => !tbState.qui || (x.dossiers ? x.dossiers.some(d => (equipeDe(d).suit || {}).id === tbState.qui) : !x.dossier || (equipeDe(x.dossier).suit || {}).id === tbState.qui);
     const u = pri.urgent.map((x, i) => [x, i]).filter(([x]) => garde(x)), v = pri.avoir.map((x, i) => [x, i]).filter(([x]) => garde(x));
     if (!u.length && !v.length) {
       const prochaine = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }).find(e => !e.passee);
@@ -4665,7 +4681,7 @@
         : st.vue === 'archives' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.archive}<span>Un dossier archivé quitte les listes, le Tableau de bord et les Échéances ; il se lit et s'exporte toujours. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></p>` : '';
     const choisis = l.filter(x => st.choix.has(x.d.id));
     const barreChoix = choisis.length && !tel ? `<div class="barre-choix cd-bc" role="region" aria-label="Les dossiers choisis"><span><b>${pl(choisis.length, 'dossier choisi', 'dossiers choisis')}</b> <span class="mu">· ${esc(choisis.slice(0, 3).map(x => x.d.name).join(', '))}${choisis.length > 3 ? '…' : ''}</span></span>
-      <span class="bc-g">${dir ? `<span class="cd-cf-w"><button type="button" class="btn cd-cf-b" id="cd-confier" aria-expanded="${st.confier === '*'}"${hors ? ' disabled' : ''}>${CD_IC.confier}Confier à…</button>${st.confier === '*' ? popConfier(choisis.map(x => x.d)) : ''}</span>` : ''}<button type="button" class="btn" id="cd-ecrire">${CD_IC.msg}Écrire</button><button type="button" class="btn" id="cd-exporter-choix">${CD_IC.exporter}Exporter</button></span><button type="button" class="btn-lien" id="cd-aucun">Tout désélectionner</button></div>` : '';
+      <span class="bc-g">${dir ? `<span class="cd-cf-w"><button type="button" class="btn cd-cf-b" id="cd-confier" aria-expanded="${st.confier === '*'}"${hors ? ' disabled' : ''}>${CD_IC.confier}Confier à…</button>${st.confier === '*' ? popConfier(choisis.map(x => x.d)) : ''}</span>` : ''}<button type="button" class="btn" id="cd-ecrire">${CD_IC.msg}Écrire</button><button type="button" class="btn" id="cd-exporter-choix">${CD_IC.exporter}Exporter</button>${dir ? `<button type="button" class="btn" id="cd-archiver-choix"${hors ? ' disabled title="Revient avec le réseau"' : ''}>${CD_IC.archive}${st.vue === 'archives' ? 'Désarchiver' : 'Archiver'}</button>` : ''}</span><button type="button" class="btn-lien" id="cd-aucun">Tout désélectionner</button></div>` : '';
     const liste = `<div class="lf cd-lf${choisis.length ? ' avec-choix' : ''}">${tuiles}<div class="ms-f cd-vues" role="tablist" aria-label="Les vues">${vues}</div>${filtres}${tetev}${corps}${l.length > 1 && !tel ? '<p class="raccourcis cd-kb"><kbd>/</kbd> chercher · <kbd>↑</kbd><kbd>↓</kbd> d\'un client à l\'autre · <kbd>Entrée</kbd> ouvrir le dossier · <kbd>X</kbd> choisir</p>' : ''}${barreChoix}</div>`;
     view.innerHTML = `<div class="cab-page cd-page${tel ? ' cd-tel' : ''}" id="page-tb">${ctxCabinet({ sansPortee: true })}${tete}${bandeauHors}${bandeauProp}${liste}</div>`;
 
@@ -4700,8 +4716,9 @@
     $$('[data-cd-choix]', view).forEach(c => { c.onclick = e => e.stopPropagation(); c.onchange = () => { if (c.checked) st.choix.add(c.dataset.cdChoix); else st.choix.delete(c.dataset.cdChoix); redessiner(); }; });
     const tout = $('#cd-tout', view); if (tout) tout.onchange = () => { if (tout.checked) vis.forEach(x => st.choix.add(x.d.id)); else st.choix.clear(); redessiner(); };
     const aucun = $('#cd-aucun', view); if (aucun) aucun.onclick = () => { st.choix.clear(); st.confier = ''; redessiner(); };
-    $$('[data-cd-export]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); exporter(lignesCsv(tous.filter(d => d.id === b.dataset.cdExport))); }; });
+    $$('[data-cd-export]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); exporterClA = b.dataset.cdExport; location.hash = `#/dossier/${encodeURIComponent(b.dataset.cdExport)}/classeur`; }; });
     const exC = $('#cd-exporter-choix', view); if (exC) exC.onclick = () => exporter(lignesCsv(choisis.map(x => x.d)));
+    const arC = $('#cd-archiver-choix', view); if (arC) arC.onclick = () => fenArchiver(choisis.map(x => x.d), st.vue !== 'archives');
     // (1.387.93, issue 12 CABPORTEFEUILLE-22) Des dossiers tenus n'ont pas de conversation : « Écrire » répondait par une coche
     // verte qui disait non. Il ouvre « Écrire à… » (WhatsApp, e-mail, copie) pour chacun, l'un après l'autre (« Passer »
     // mène au suivant), comme depuis sa ligne.
@@ -4739,7 +4756,8 @@
         if (g === 'pieces') location.hash = '#/pieces/' + encodeURIComponent(id);
         if (g === 'noter') fenNoterRelance(D, [...(retard.get(D.name) || []), ...(moisDuDossier(D, retard).manque ? [moisPrecedent(K.today().slice(0, 7))] : [])]);
         // (1.340.0) « Archiver le dossier… » ouvrait la fiche en haut, la case « Dossier archivé » douze champs plus bas.
-        if (g === 'modifier' || g === 'archiver') dossierForm(D, g === 'archiver' ? { focus: '#f-arch' } : undefined);
+        if (g === 'modifier') dossierForm(D);
+        if (g === 'archiver') fenArchiver([D], !D.archived);
         if (g === 'inviter') location.hash = '#/dossier/' + encodeURIComponent(id) + '/fiche';
       };
     });
@@ -4777,6 +4795,28 @@
     return `<div class="row-menu cd-menu" role="menu">${it('ouvrir', 'Ouvrir le dossier', 'sa comptabilité, ses mois, ses pièces')}${it('ecrire', `Écrire à ${esc(d.contact || d.name)}${d.manual ? '…' : ''}`, d.manual ? 'WhatsApp ou e-mail : il n\'a pas de compte SkanFact' : 'dans votre conversation')}${x.pc ? it('pieces', `Classer ${x.pc > 1 ? `ses ${x.pc} pièces` : 'sa pièce'}`, 'dans « Pièces reçues »', 'attire') : ''}${x.reclame ? it('relancer', 'Relancer…', x.pc ? 'il a envoyé des pièces : classe-les d\'abord' : `${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}`, x.pc ? '' : 'attire') : ''}${it('noter', 'Noter une relance faite…', 'un appel, une visite, un message hors SkanFact')}<div class="sep"></div>${dir ? it('confier', 'Confier à…', x.eq.suit ? `suivi par ${esc(prenomDe(x.eq.suit))}${x.eq.val ? `, validé par ${esc(prenomDe(x.eq.val))}` : ''}` : 'personne ne le suit encore') : ''}${dir ? it('modifier', 'Modifier la fiche', 'nom, matricule, contact, honoraires') : ''}${dir && d.manual ? it('inviter', 'Inviter sur SkanFact…', 'depuis sa fiche : ses pièces arriveront seules') : ''}${dir ? `<div class="sep"></div>${it('archiver', d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes')}` : '<p class="cd-menu-n">Confier, inviter et archiver : la direction.</p>'}</div>`;
   }
   // « Confier à… » : chacun avec sa charge, pour choisir sans ouvrir le tableau de bord.
+  // (CABPORTEFEUILLE-7) Archiver est un geste à part : une question qui dit ce qu'il fait, puis un « Annuler ». Un seul chemin
+  // pour un dossier ou une sélection. La case de la fenêtre de modification posait l'état d'un client sans un mot.
+  async function fenArchiver(ds, archiver) {
+    const l = (ds || []).filter(d => d && !!d.archived !== archiver); if (!l.length) return;
+    const un = l.length === 1, nom = un ? l[0].name : pl(l.length, 'dossier'), tenus = l.filter(d => d.manual).length, sujet = un ? 'Il' : 'Ils', nt = un ? '' : 'nt';
+    const noms = un ? '' : `<p class="small"><b>${esc(l.slice(0, 5).map(d => d.name).join(', '))}${l.length > 5 ? '…' : ''}</b></p>`;
+    const abo = !tenus ? '' : `<p class="small muted">${tenus === l.length ? (un ? 'Tenu au cabinet, il' : 'Tenus au cabinet, ils') : `${pl(tenus, 'dossier tenu', 'dossiers tenus')} au cabinet`} ${archiver ? `ne compte${tenus > 1 ? 'nt' : ''} plus` : `compte${tenus > 1 ? 'nt' : ''} de nouveau`} dans l'abonnement du cabinet, à sa prochaine facture annuelle.</p>`;
+    const corps = `${noms}<p>${archiver ? `${sujet} quitte${nt} les listes, le Tableau de bord, les Relances et les Échéances : rien ne ${un ? 'lui' : 'leur'} est plus réclamé. ${sujet} se li${un ? 't' : 'sent'} et s'exporte${nt} toujours, depuis la vue « Archivés ». ${info('d.archived')}` : `${sujet} revien${un ? 't' : 'nent'} dans les listes, le Tableau de bord, les Relances et les Échéances, avec ${un ? 'ses' : 'leurs'} mois et ${un ? 'ses' : 'leurs'} écritures.`}</p>${abo}`;
+    const verbe = archiver ? 'Archiver' : 'Désarchiver';
+    if (!await confirmDialog(`${verbe} ${nom} ?`, corps, un ? `${verbe} le dossier` : `${verbe} les ${l.length} dossiers`)) return;
+    const poser = async (liste, valeur) => { for (const d of liste) S = (await api.saveDossier(d.id, { archived: valeur })).state; };
+    try { await poser(l, archiver); } catch (e) { toast(plainError(e), 'error'); render(); return; }
+    dosState.choix.clear(); dosState.menu = '';
+    // Le dernier archivé revient au portefeuille : la vue « Archivés », vide, ne reste pas celle qu'on retrouve en rentrant dans la liste.
+    if (!archiver && dosState.vue === 'archives' && !(S.dossiers || []).some(d => d.archived)) dosState.vue = '';
+    render();
+    toastUndo(`${un ? 'Dossier' : 'Dossiers'} ${archiver ? 'archivé' : 'désarchivé'}${un ? '' : 's'} : ${nom}`, async () => {
+      try { await poser(l, !archiver); render(); toast(`${un ? 'Dossier' : 'Dossiers'} ${archiver ? 'remis dans le portefeuille' : 'archivé' + (un ? '' : 's')} : ${nom}`); }
+      catch (e) { toast(plainError(e), 'error'); render(); }
+    });
+  }
+
   function popConfier(ds) {
     const actifs = (S.dossiers || []).filter(d => !d.archived);
     const charge = c => actifs.filter(d => equipeDe(d).suit && equipeDe(d).suit.id === c.id).length;
@@ -5153,7 +5193,8 @@
 
     // L'année : douze mois.
     const mois = MOIS_CD.map((_, i) => `${annee}-${String(i + 1).padStart(2, '0')}`);
-    const etats = mois.map(m => etatMoisFd(d, m, L, tard, mc));
+    // (CABPORTEFEUILLE-8) Un dossier archivé ne réclame plus rien : ses mois ne disent ni « rien reçu » ni « à saisir ».
+    const etats = mois.map(m => { const e = etatMoisFd(d, m, L, tard, mc); if (!d.archived || ['fait', 'avenir', 'hors'].includes(e[0])) return e; return ['arch', 'archivé', false]; });
 
     // Ce qui attend, dans l'ordre où ça se fait. Le premier geste qu'on peut faire est le seul vert de la page.
     const attend = [];
@@ -5276,12 +5317,12 @@
       const sous = dc && dc.deposee && dc.total ? `${esc(dtCd(dc.total))} DT ${dc.payee ? 'payés' : 'déclarés'}` : v.br ? `${pl(v.br, 'au brouillard', 'au brouillard')}` : v.ecr ? pl(v.ecr, 'écriture')
         : d.archived ? '' : t ? `en retard depuis le ${jjmm(limiteDe(m))}` : m === mp && cl !== 'fait' && limiteDe(m) === aujourdhui ? 'dépôt aujourd\'hui' : cl === 'cours' && !d.manual ? 'rien reçu' : '';
       const barre = v.ca > 0 ? `<i class="fd-m-ca" style="--w:${Math.round((v.ca / caMax) * 100)}" title="Chiffre d'affaires HT ${deMois(m)} : ${esc(dtCd(v.ca))} DT"></i>` : '';
-      return `<button type="button" class="fd-m ${cl}${t ? ' tard' : ''}${ficheFd.mois === m ? ' ici' : ''}" data-fd-mois="${m}"${['avenir', 'hors'].includes(cl) ? ' disabled' : ''} aria-label="${MOIS_LONGS[i]} : ${lib}${t ? ', en retard' : ''}"><span class="fd-m-n">${MOIS_CD[i]}</span><b>${t ? 'en retard' : lib}</b><small>${sous}</small>${barre}</button>`;
+      return `<button type="button" class="fd-m ${cl}${t ? ' tard' : ''}${ficheFd.mois === m ? ' ici' : ''}" data-fd-mois="${m}"${['avenir', 'hors'].includes(cl) || (cl === 'arch' && !v.ecr && !v.br) ? ' disabled' : ''} aria-label="${MOIS_LONGS[i]} : ${lib}${t ? ', en retard' : ''}"><span class="fd-m-n">${MOIS_CD[i]}</span><b>${t ? 'en retard' : lib}</b><small>${sous}</small>${barre}</button>`;
     }).join('');
-    const legs = [['fait', 'déposé'], ['rev', 'à réviser'], ['pc', 'à saisir'], ['pret', 'prêt'], ['manque', 'rien reçu'], ['cours', 'en cours'], ['hors', 'avant la mission']].filter(([c]) => etats.some(e => e[0] === c)).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('');
-    const pop = ficheFd.mois ? popMoisFd(d, ficheFd.mois, etatMoisFd(d, ficheFd.mois, L, tard, mc), L, eq, dir, hors) : '';
+    const legs = [['fait', 'déposé'], ['rev', 'à réviser'], ['pc', 'à saisir'], ['pret', 'prêt'], ['manque', 'rien reçu'], ['cours', 'en cours'], ['hors', 'avant la mission']].concat(d.archived ? [['arch', 'archivé : rien n\'est plus réclamé']] : []).filter(([c]) => etats.some(e => e[0] === c)).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('');
+    const pop = ficheFd.mois ? popMoisFd(d, ficheFd.mois, d.archived ? etats[mois.indexOf(ficheFd.mois)] : etatMoisFd(d, ficheFd.mois, L, tard, mc), L, eq, dir, hors) : '';
     const anneeP = `<section class="panel fd-p" aria-labelledby="fd-an"><div class="fd-ph"><h2 id="fd-an">L'année ${annee} ${info('fd.mois')}</h2><span class="fd-ph-n">${d.manual ? 'lue dans le livre que tu tiens' : 'lue dans ses livres sur SkanFact · la barre : le chiffre d\'affaires du mois'}</span></div>
-      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}<span class="fd-leg-r" title="Le jour de l'usage. Si le tien diffère, change-le dans Réglages › Échéances : tous tes écrans suivent.">Date limite : le 28 du mois suivant (À VÉRIFIER pour ton cabinet)</span></div>${pop}</section>`;
+      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}${d.archived ? '' : '<span class="fd-leg-r" title="Le jour de l\'usage. Si le tien diffère, change-le dans Réglages › Échéances : tous tes écrans suivent.">Date limite : le 28 du mois suivant (À VÉRIFIER pour ton cabinet)</span>'}</div>${pop}</section>`;
 
     // (1.216.0) Ce que montrait l'ancien « Suivi » : l'invitation du client tenu, les relances, qui travaille sur le dossier.
     const relancesT = (d.relances || []).filter(r => r && r.at).slice().reverse();
@@ -5385,11 +5426,13 @@
     }
     const fi = $('#fd-inviter', view); if (fi) fi.onclick = versInviter;
     $$('[data-fd-aller]', view).forEach(a => { a.onclick = e => { e.preventDefault(); const z = $('#' + a.dataset.fdAller); if (z) z.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
-    const ex = $('#fd-export', view); if (ex) ex.onclick = async () => { try { const r = await api.exportCsv(toCsv(CSV_COLS, K.dossierList(S, null, { withArchived: true }).filter(r2 => r2.id === d.id)), 'dossier-' + d.name); if (r) toast('Tableau enregistré.'); } catch (x2) { toast(plainError(x2), 'error'); } };
+    // (CABPORTEFEUILLE-8) Le seul geste utile sur un archivé : l'export de son classeur (pièces, FEC, déclarations), pas sa ligne de portefeuille.
+    const ex = $('#fd-export', view); if (ex) ex.onclick = () => { exporterClA = d.id; location.hash = `#/dossier/${encodeURIComponent(d.id)}/classeur`; };
     $$('[data-fd-m]', view).forEach(b => {
       b.onclick = async () => {
         const g = b.dataset.fdM; ficheFd.menu = false; redessiner();
-        if (g === 'modifier' || g === 'archiver') dossierForm(d, g === 'archiver' ? { focus: '#f-arch' } : undefined);
+        if (g === 'modifier') dossierForm(d);
+        if (g === 'archiver') fenArchiver([d], !d.archived);
         if (g === 'confier') { dosState.confier = d.id; redessiner(); }
         if (g === 'noter') fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
         if (g === 'appeler') { try { await api.tel({ number: d.phone }); } catch (x2) { toast(plainError(x2), 'error'); } }
@@ -5403,7 +5446,7 @@
         const g = b.dataset.cdGeste;
         if (g === 'confier') { dosState.confier = dosState.confier === d.id ? '' : d.id; redessiner(); return; }
         if (g === 'noter') fenNoterRelance(d, [...tard]);
-        if (g === 'archiver') dossierForm(d, { focus: '#f-arch' });
+        if (g === 'archiver') fenArchiver([d], !d.archived);
       };
     });
     $$('[data-cd-a]', view).forEach(b => { b.onclick = () => confierA(b.dataset.cdA, [d]); });
@@ -5432,14 +5475,14 @@
       et('Saisie', recu ? pl(v.ecr, 'écriture') : '—', recu ? 'fait' : ''),
       et('Révision', v.br ? `${pl(v.br, 'écriture')} au brouillard` : recu ? 'faite' : '—', v.br ? 'ici' : recu ? 'fait' : ''),
       et('Déclaration', dc ? (dc.montant ? `${esc(dtCd(montantDe(dc.montant)))} DT` : 'préparée') : 'à préparer', dc ? 'fait' : ''),
-      et('Dépôt', dc && dc.deposee ? 'déposée' : `au plus tard le ${jjmm(limiteDe(m))}`, dc && dc.deposee ? 'fait' : t ? 'tard' : ''),
+      et('Dépôt', d.archived ? '—' : dc && dc.deposee ? 'déposée' : `au plus tard le ${jjmm(limiteDe(m))}`, dc && dc.deposee ? 'fait' : t ? 'tard' : ''),
       et('Paiement', dc && dc.payee ? 'payée' : '—', dc && dc.payee ? 'fait' : ''),
     ].join('');
     const rev = v.br && !(eq.suit && eq.suit.id !== S.moi && !dir);
     return `<div class="fd-pop" role="dialog" aria-label="${esc(cap(moisLong(m)))} ${m.slice(0, 4)}"><div class="fd-pop-t"><span><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</b><small>${esc(lib)}${t ? ` · en retard depuis le ${jjmm(limiteDe(m))}` : ''}</small></span><button type="button" class="tb-mc-x" id="fd-pop-x" aria-label="Fermer">${CD_IC.croix}</button></div>
       <ol class="fd-frise">${frise}</ol>
       ${t ? '<p class="fd-pop-n">Passé la date limite, des pénalités de retard sont possibles (À VÉRIFIER : rien n\'est calculé ici).</p>' : ''}
-      <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button><button type="button" class="btn btn-sm" data-fd-vers="#/echeances">Voir dans Échéances</button>${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
+      <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button>${d.archived ? '' : '<button type="button" class="btn btn-sm" data-fd-vers="#/echeances">Voir dans Échéances</button>'}${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
   }
   // La note de l'équipe : la note interne de la fiche (le client ne la voit jamais).
   function fenNoteFd(d) {
@@ -5501,6 +5544,7 @@
   };
   const clState = { id: '', annee: '', mois: '', rub: '', filtre: 'rub', sel: '', q: '', plus: false, decl: '', vue: '', vg: 'liste', menu: '', hist: false, ouvrir: false,
     livres: new Map(), lecture: new Map(), refus: new Map(), luA: new Map(), classees: null, lectureClassees: null, just: new Map(), exercices: null, docs: new Map(), presence: null, lus: new Map(), lit: null };
+  let exporterClA = '';            // (CABPORTEFEUILLE-8) le dossier archivé dont on veut l'export en arrivant sur le classeur
   const CL_RUBS = [['ventes', 'Ventes'], ['achats', 'Achats'], ['banque', 'Banque'], ['paie', 'Paie'], ['retenues', 'Retenues à la source'], ['declaration', 'Déclarations'], ['cabinet', 'Le travail du cabinet'], ['manque', 'Ce qui manque']];
   const CL_IC_RUB = { ventes: 'vente', achats: 'pdf', banque: 'banque', paie: 'paie', retenues: 'decl', cabinet: 'classeur', declaration: 'decl', manque: 'manque' };
   const CL_CATS = [['juridique', 'Juridique'], ['fiscal', 'Fiscal et social'], ['contrats', 'Contrats'], ['banque', 'Comptable et banque'], ['cabinet', 'Le cabinet']];
@@ -6512,7 +6556,7 @@
     const bandLs = ls && !hors ? `<div class="bandeau rouge a-band fd-band" id="cl-ls"><span class="txt"><b>${esc(String(ls.motif || ''))}</b><span>Tout le classeur se lit, se cherche et s'exporte : rien n'est jamais pris en otage. Ranger de nouvelles pièces revient quand l'abonnement est réglé.</span></span><span class="lock-go"><a class="btn" href="#/reglages">Régler l'abonnement</a></span></div>` : '';
     const tete = (sousTxt, actions = true) => `<div class="page-head cl-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>Tout le dossier ${info('cl.page')}</h1>
         <p class="fd-sous"><span><b>${esc(d.name)}</b></span>${lien}</p>${sousTxt ? `<p class="cl-sous">${sousTxt}</p>` : ''}</div></div>
-      <div class="actions"><button type="button" class="btn${tel ? ' btn-sm' : ''}" id="cl-deposer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${CL_IC.deposer} ${tel ? 'Déposer' : 'Déposer des pièces'}</button>${actions && !tel && !enSaisie ? `<button type="button" class="btn" id="cl-exporter"${livre && !hors ? '' : ` disabled title="${hors ? 'Attend le retour du réseau' : 'Le classeur se lit d\'abord'}"`}>${CL_IC.bas} Exporter</button>` : ''}</div></div>`;
+      <div class="actions"><button type="button" class="btn${tel ? ' btn-sm' : ''}" id="cl-deposer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${CL_IC.deposer} ${tel ? 'Déposer' : 'Déposer des pièces'}</button>${actions && !tel && !enSaisie ? `<button type="button" class="btn" id="cl-exporter"${livre !== undefined && !hors ? '' : ` disabled title="${hors ? 'Attend le retour du réseau' : refus ? esc(refus) : 'Le classeur se lit d\'abord'}"`}>${CL_IC.bas} Exporter</button>` : ''}</div></div>`;
     const page = corps => { view.innerHTML = `<div class="cab-page cd-page fd-page cl-page" id="page-cl" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`; };
     // Le mois ouvert ; ailleurs (le permanent, les courriers, les déclarations), le mois à déposer.
     const brancherTete = deja => { const b = $('#cl-deposer', view); if (b) b.onclick = () => fenDeposerCl(d, !clState.vue && clState.mois ? clState.mois : mp, { deja }); };
@@ -7138,6 +7182,9 @@
     const ctxExport = extra => ({ annee, mois: pm.m, items: tousItems.filter(x => !String(x.k).startsWith('ds:')), livre, docs, ...extra });
     if (ex) ex.onclick = () => fenExporterCl(d, ctxExport({}));
     const em = $('#cl-exp-mois', view); if (em) em.onclick = () => fenExporterCl(d, ctxExport({ quoi: 'mois' }));
+    // (CABPORTEFEUILLE-8) « Exporter le dossier » d'un archivé mène ici : l'export s'ouvre, sur tout le dossier.
+    // Le bouton est éteint tant que le livre se lit : on attend le dessin où il s'allume, sans rien perdre de la demande.
+    if (exporterClA === d.id && ex && !ex.disabled) { exporterClA = ''; fenExporterCl(d, ctxExport({ quoi: 'tout' })); } else if (exporterClA === d.id && !ex) exporterClA = '';
     const rp = $('#cl-ranger-perm', view); if (rp) rp.onclick = () => fenDeposerCl(d, mp, { rubrique: 'permanent', categorie: 'juridique' });
     const rc = $('#cl-ranger-cour', view); if (rc) rc.onclick = () => fenDeposerCl(d, mp, { rubrique: 'courrier' });
     $$('[data-cl-accuse]', view).forEach(b => { b.onclick = () => fenDeposerCl(d, mp, { rubrique: 'accuse', periode: b.dataset.clAccuse, titre: `L'accusé de dépôt ${deMois(b.dataset.clAccuse)}` }); });
