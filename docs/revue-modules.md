@@ -6452,3 +6452,28 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   éclaire la recherche et la période au-dessus de la grille (elle éclairait le compte « N mois en retard » de l'onglet),
   nomme les puces juste dessous, et ne parle du choix d'une personne que pour une équipe de plusieurs.
 - Tests : `messages-cabinet`, `reglages-cabinet-1333`, `cabinet-production`, `cabinet` ; six preuves.
+
+## 1.388.22 — L'Aide du portefeuille, « Ton compte » à la demande, la frise de la CNSS (issue 12, CABPORTEFEUILLE-25)
+
+- **L'Aide du Cabinet parle du portefeuille, des pièces reçues et de l'abonnement** (CABPORTEFEUILLE-25). Trois articles
+  manquaient : « Ajouter, archiver, retirer un dossier » (un client à la fois ou une liste collée depuis un tableur,
+  inviter un client que tu tiens, archiver un client parti, retirer un dossier créé par erreur), « Les pièces reçues et
+  déposées » (ce qui arrive seul, ce que tu déposes, le geste de chaque pièce) et « Ton abonnement : ce que coûte un
+  dossier » (ce qui se paie, la facture, ce qui reste ouvert sans paiement). En ligne, l'article de la licence du bureau
+  est retiré : l'Aide n'avait rien sur ce qui se paie. L'article de l'abonnement n'écrit aucun chiffre : le prix, les
+  dossiers offerts et le plafond vivent dans la base et se lisent dans le panneau « Mon abonnement ». « Démarrer » nomme
+  le bouton tel qu'il est écrit (« Ajouter un client… », sur la page Tous les dossiers ; il citait « Nouveau client… »).
+  Les bulles de la page Tous les dossiers (cd.*), des Pièces reçues (pc.*) et de l'abonnement (abo.*) mènent à leur
+  article, et « Guide-moi » aussi, sur ces deux pages. La recherche les trouve en premier : « comment archiver un
+  dossier », « combien coûte un dossier », « coller une liste de clients », « déposer une pièce ».
+- **La première ouverture de l'entreprise repasse sous 1 300 Ko** (L14, `docs/leger.md`) : GitHub aurait mesuré 1 304 Ko.
+  `compte.js` (« Ton compte », « Tes appareils ») se charge à la première ouverture des Paramètres ; sans réseau, le
+  panneau dit pourquoi il est vide. Mesuré : 1 294 Ko.
+- **Le contrôle des frontières tient de nouveau** (deux refus venus des versions de la semaine, invisibles tant que rien
+  ne partait sur GitHub) : la frise du socle ne nomme plus la paie pour cercler le trimestre de la CNSS (1.388.12) — la
+  paie pose les trois mois qu'elle dessine (`paieTriMois`), le socle les lit ; et `pont-cabinet.js` revient à sa taille
+  (un commentaire de la 1.387.92 tenait sur trois lignes). `pont.js` reste à 3 129 lignes malgré L14.
+- Tests : `aide-recherche` (les quatre questions, les bulles et les pages), `leger`, `compte`, `equipe-entreprise`,
+  `cabinet-paie-parcours`, `support`, `services-connectes` ; neuf preuves.
+- Cinq preuves anciennes reciblées sur le code du jour (leur ligne avait bougé avec les versions de la semaine) : le
+  matricule de la fiche, le rapport d'une balance, le mois d'un modèle, la période validée d'un bien, la frise de la paie.

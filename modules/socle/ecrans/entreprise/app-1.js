@@ -819,6 +819,15 @@
         if (script && feuille && window.SkanMessagerie) return window.SkanMessagerie;
         throw new Error('La messagerie ne s\'est pas chargée : vérifie la connexion, puis réessaie.');
       });
+  // (1.388.22, L14 ; docs/leger.md) « Ton compte » et « Tes appareils » (compte.js, 45 Ko) ne servent qu'aux Paramètres :
+  // ils partent quand l'onglet se dessine, plus avec la première ouverture. Leur feuille (compte.css) reste dans la page :
+  // « Mon comptable » et deux fenêtres du pont portent ses cartes. Sans réseau, le refus se dit et le prochain geste réessaie.
+  // Le pont l'appelle avec le panneau à remplir (`el`) ; equipe.js aussi en dépend (les bulles de SkanCompte.aides).
+  window.SkanChargerCompte = (el) => (window.SkanCompte ? Promise.resolve(true) : chargerScript('../plateforme/compte.js')).then(ok => {
+    if (ok && window.SkanCompte) return window.SkanCompte;
+    if (el) el.innerHTML = '<p class="small cpt-alerte" role="alert">« Ton compte » ne s\'est pas chargé : vérifie la connexion, puis réessaie.</p>';
+    return null;
+  });
   // Le texte de l'aide : déjà là quand guide.js est entier (le développement), sinon chargé.
   const textesPrets = () => !G.textesPrets || G.textesPrets();
   const chargerTextes = () => (textesPrets() ? Promise.resolve(true) : chargerScript('guide-textes.js').then(ok => ok && textesPrets()));

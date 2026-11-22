@@ -2030,9 +2030,9 @@
   }
   // ── Ton compte (lot onboarding, 0076 ; compte.js, partagé avec le Cabinet) et tes appareils (brique 74) ──────
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void }} v10 */
-  function dessinerCompte(el, v10) { return /** @type {any} */ (window).SkanCompte.dessiner(el, { appel: appelCompte, modal: v10.modal, toast: v10.toast }); }
+  async function dessinerCompte(el, v10) { const c = await /** @type {any} */ (window).SkanChargerCompte(el); return c && c.dessiner(el, { appel: appelCompte, modal: v10.modal, toast: v10.toast }); }
   /** @param {HTMLElement} el */
-  function dessinerAppareils(el) { return /** @type {any} */ (window).SkanCompte.appareils(el, { appel: appelCompte }); }
+  async function dessinerAppareils(el) { const c = await /** @type {any} */ (window).SkanChargerCompte(el); return c && c.appareils(el, { appel: appelCompte }); }
   // ── L'abonnement (0082 ; abonnement.js, docs/abonnement.md) : son état, que la v10 relit avec sa licence (au
   // chargement, chaque heure, au retour au premier plan) ; sans réponse du serveur, le dernier connu. Rien ne se ferme sur
   // ce qu'on ne sait pas : avant toute réponse, la v10 ne voit qu'une licence « libre ».
@@ -2085,8 +2085,8 @@
   // ── L'équipe (lot équipe, 0079 ; equipe.js) : qui y travaille, les invitations qui attendent, et les gestes de qui la
   // gère. Les appels portent sur CETTE entreprise ; la base refuse à qui n'est ni propriétaire ni administrateur.
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void, confirmDialog: any, nom?: string }} v10 */
-  function dessinerEquipe(el, v10) {
-    return /** @type {any} */ (window).SkanEquipe.dessiner(el, { appel, modal: v10.modal, toast: v10.toast, confirmDialog: v10.confirmDialog, nom: v10.nom || '' });
+  async function dessinerEquipe(el, v10) {
+    return (await /** @type {any} */ (window).SkanChargerCompte(el)) && /** @type {any} */ (window).SkanEquipe.dessiner(el, { appel, modal: v10.modal, toast: v10.toast, confirmDialog: v10.confirmDialog, nom: v10.nom || '' });
   }
   // ── Toutes les données de l'entreprise (« Télécharger toutes mes données », 0080 ; docs/export-complet.md) : le
   // fichier complet, que le serveur fabrique au nom de la personne (le propriétaire, un administrateur). Il demande le

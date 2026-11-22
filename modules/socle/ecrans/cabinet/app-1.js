@@ -8692,9 +8692,9 @@
     // (1.350.0) Sur la Déclaration, la frise cercle le mois DÉCLARÉ à l'écran, comme elle cercle le mois du relevé sur la
     // Banque : l'écran s'ouvrait sur août pendant que la frise disait « Toute l'année ».
     const deLaDecl = s.onglet === 'declaration' ? (moisDeLaDeclaration()) : '';
-    // (CABPAIE-5) Sur « CNSS du trimestre », la frise cercle les trois mois du trimestre déclaré — celui de `trimestreCnss`,
-    // la fonction de l'écran, du fichier et de l'état imprimé — et un clic choisit le trimestre du mois cliqué.
-    const triPaie = s.onglet === 'paie' && s.paieVue === 'cnss' ? ((KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(s.livre, s)) || [])[2] || []) : null;
+    // (CABPAIE-5) Sur « CNSS du trimestre », la frise cercle les trois mois du trimestre déclaré — celui que l'écran de la
+    // paie vient de dessiner (`paieTriMois`, posé par la paie : le socle ne la nomme pas) — et un clic choisit le trimestre du mois cliqué.
+    const triPaie = s.onglet === 'paie' && s.paieVue === 'cnss' ? (s.paieTriMois || []) : null;
     const laPaie = s.onglet === 'paie' && s.paieMois ? `${an}-${String(s.paieMois).padStart(2, '0')}` : '';
     const cases = moisDeLaFrise(dossier).map(({ m, nom, ton, dit }) => {
       // (1.387.22, CABPAIE-5) Sur la Paie, la frise cercle le mois de PAIE regardé, et un clic le change (ci-dessous).

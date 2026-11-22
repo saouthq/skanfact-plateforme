@@ -66,12 +66,24 @@ describe('la recherche de l\'Aide, une pour les deux applications', () => {
   });
 
   it('sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module', () => {
-    const G = charger('v10/cabinet/cabguide.js', 'CabGuide') as { ARTICLES: Art[] };
+    const G = charger('v10/cabinet/cabguide.js', 'CabGuide') as { ARTICLES: Art[]; articleDe: (k: string) => string | null; articleDeLaPage: (k: string) => string | null };
     expect(G.ARTICLES.length).toBeGreaterThan(5);
     const trouve = (q: string) => R.filtre(G.ARTICLES, q, (a) => ({ titre: a.t, sous: a.s || '', corps: a.d || '' }));
     // La question qui ne trouvait rien : chaque mot était exigé, « comment » et « une » compris.
     expect(trouve('comment valider une écriture').length).toBeGreaterThan(0);
     expect(trouve('xylophone tablette')).toEqual([]);
+    // (issue 12 CABPORTEFEUILLE-25) Le portefeuille, l'abonnement et les pièces ont leur article, trouvé en premier.
+    expect(trouve('comment archiver un dossier')[0]?.id).toBe('portefeuille');
+    expect(trouve('combien coûte un dossier')[0]?.id).toBe('abonnement');
+    expect(trouve('coller une liste de clients')[0]?.id).toBe('portefeuille');
+    expect(trouve('déposer une pièce')[0]?.id).toBe('pieces');
+    expect(G.ARTICLES.some((a) => /Nouveau client…/.test(a.d))).toBe(false);
+    // Leurs bulles et leurs pages y mènent (« Guide-moi », le lien d'une bulle).
+    expect(G.articleDe('cd.page')).toBe('portefeuille');
+    expect(G.articleDe('pc.page')).toBe('pieces');
+    expect(G.articleDe('abo.cab')).toBe('abonnement');
+    expect(G.articleDeLaPage('dossiers')).toBe('portefeuille');
+    expect(G.articleDeLaPage('pieces')).toBe('pieces');
     // Aucun des deux écrans ne garde sa propre recherche : ils appellent AideRecherche.
     const code = (f: string) => lireEcran(f).split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
     for (const f of ['v10/app.js', 'v10/cabinet/app.js']) {

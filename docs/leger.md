@@ -241,6 +241,21 @@ GitHub a mesuré S1 à **1 301 Ko** sur la 1.379.5 (1 303 Ko avec la 1.379.6). O
   (`compte.js`, le QR paraît dès que le dessin est là ; la clé à taper est toujours affichée).
 - Le Cabinet et l'espace client le chargent encore avec leur page.
 
+## L14 : « Ton compte » à la première ouverture des Paramètres (22/11/2026, 1.388.22)
+
+S1 mesurait **1 304 Ko** après la 1.388.21 (les articles d'aide du Cabinet ne comptent pas ici : c'est la page de
+l'entreprise qui avait grossi au fil des lots). Le levier pris :
+
+- **`plateforme/compte.js`** (45 Ko, 10 Ko en brotli) ne part plus avec la page de l'entreprise. Il ne sert qu'aux
+  Paramètres (« Ton compte », « Tes appareils ») et aux bulles de « L'équipe » (`equipe.js` lit `SkanCompte.aides`).
+  `app-1.js` le charge par `SkanChargerCompte(el)`, le même contrat que la messagerie (L8) : une fois, au premier dessin
+  de l'onglet ; sans réseau, le panneau le DIT (« « Ton compte » ne s'est pas chargé : vérifie la connexion, puis
+  réessaie. ») et le prochain dessin réessaie. Le pont (`pont.js`) l'attend avant de dessiner les trois panneaux.
+- **Ce qui reste dans la page, et pourquoi** : `compte.css` (« Mon comptable » et deux fenêtres du pont portent ses
+  cartes `cpt-*`), et `equipe.js` (la barre latérale lit `SkanEquipe.ROLES` pour écrire le rôle de la personne, dès
+  l'ouverture).
+- Mesuré : **1 294 Ko** (S1), 1 297 Ko avec la copie gardée. Le Cabinet charge encore `compte.js` avec sa page.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

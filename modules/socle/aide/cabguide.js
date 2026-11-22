@@ -356,7 +356,19 @@
         <li><b>Chaque mois :</b> il n'y a rien à recevoir. Ton client enregistre ses pièces dans SkanFact ; leurs écritures sont dans ses livres, que tu lis ici <b>à jour, en direct</b>. Tu valides ce qui est au brouillard, et tu saisis ce qui te revient.</li>
         <li><b>Le jour de relance</b> (le 10 par défaut) : la page Dossiers met en tête ceux dont un mois passé n'a <b>aucune écriture</b>. « Relancer » prépare le message, et la relance est notée dans sa fiche.</li>
       </ol>
-      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Nouveau client… » crée leur dossier, et tu tiens leurs livres toi-même. Rien ne leur est réclamé.</p>` },
+      <p class="small">Tes clients qui n'utilisent pas encore SkanFact ont leur place ici aussi : « Ajouter un client… », sur la page Tous les dossiers, crée leur dossier, et tu tiens leurs livres toi-même. Rien ne leur est réclamé.</p>` },
+    {
+      // (issue 12 CABPORTEFEUILLE-25) L'Aide ne disait rien du portefeuille : ajouter, coller une liste, inviter, archiver, retirer.
+      id: 'portefeuille', t: 'Ajouter, archiver, retirer un dossier',
+      s: 'Un client à la fois, ou une liste de clients collée depuis un tableur ; et ce que devient un client parti', couleur: 'th-vendre', geste: { label: 'Voir tous les dossiers', hash: '#/dossiers' },
+      icon: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/>', d: `
+      <p class="small"><b>Ajouter un client que tu tiens.</b> Sur la page <b>Tous les dossiers</b>, « Ajouter un client… » crée son dossier : son nom, son matricule, sa TVA, le début de ta mission. Tes clients sont dans un tableur ? La même fenêtre propose « Coller une liste de clients… » : une ligne par client, tu relis ce qui entre avant de l'ajouter, et un client déjà dans ton portefeuille est ignoré et nommé. Au-delà des dossiers que ton abonnement offre, la fenêtre te dit ce que le dossier coûtera, avant de le créer.</p>
+      <p class="small"><b>Un client sur SkanFact ne se crée pas ici.</b> Il te confie lui-même son dossier avec le code de ton cabinet (Réglages → Mon cabinet), et tu acceptes sa demande. Un client que tu tiens peut te rejoindre : « Inviter sur SkanFact… », dans le menu de sa ligne ou sur sa fiche. Son dossier reste le même ; s'il s'abonne, il ne compte plus dans ton abonnement à la facture suivante.</p>
+      <h3>Archiver un client parti</h3>
+      <p class="small">Le menu ⋯ de sa ligne, puis « Archiver le dossier… ». Il quitte les listes et on ne lui réclame plus rien, mais il reste lisible et s'exporte toujours ; un dossier archivé ne compte pas dans ton abonnement. Tes archivés : le menu ⋯ de la page, « Les dossiers archivés » ; « Désarchiver le dossier… » en ramène un.</p>
+      <h3>Retirer un dossier créé par erreur</h3>
+      <p class="small">Le menu ⋯ de sa ligne, « Modifier la fiche », puis « Retirer du portefeuille… » : tu tapes RETIRER pour confirmer. Un dossier que tu tiens ne se retire que s'il n'a aucune écriture ; s'il en a, archive-le. Un client sur SkanFact garde ses livres chez lui : pour que ton cabinet le reprenne, il devra te confier son dossier à nouveau.</p>
+      <p class="small">Ajouter, inviter, confier, archiver et retirer : des gestes de la direction du cabinet.</p>` },
     {
       id: 'saisir', t: 'Saisir au kilomètre',
       s: 'Le brouillard, la validation, et ce qui ne se modifie plus', couleur: 'th-declarer', geste: { label: 'Voir mes dossiers', hash: '#/' },
@@ -393,6 +405,15 @@
       <p class="small">Un client sur SkanFact qui t'a confié son dossier n'a <b>rien à t'envoyer</b> : ses factures, ses achats, ses règlements et sa paie deviennent des écritures dans <b>ses livres</b>, au fil de ses pièces. Ce sont ces livres que tu lis ici — les mêmes que les siens, au millime.</p>
       <p class="small">Une écriture née d'une pièce arrive <b>au brouillard</b> : c'est toi qui la valides, puisque le mandat de comptabilité te le confie. Elle <b>suit sa pièce</b> : tu ne la modifies pas, et quand ton client change sa pièce, SkanFact réécrit lui-même son écriture — et contre-passe celle que tu avais déjà validée. Ce que tu saisis toi-même (opérations diverses, régularisations) se corrige, se valide, se contre-passe.</p>
       <p class="small">Ce que ton client te confie se lit dans son mandat : la comptabilité, les déclarations, la saisie des achats, la paie. Tu ne lis que ce qu'il te confie, et <b>tu n'écris jamais une pièce à sa place</b> : ni une facture, ni un encaissement.</p>` },
+    {
+      // (issue 12 CABPORTEFEUILLE-25) La page « Pièces reçues » n'avait pas d'article.
+      id: 'pieces', t: 'Les pièces reçues et déposées',
+      s: 'Ce qui arrive de tes clients, ce que tu déposes toi-même, et le geste de chaque pièce', couleur: 'th-encaisser', geste: { label: 'Ouvrir les pièces reçues', hash: '#/pieces' },
+      icon: '<path d="M4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/><path d="M4 13h4l1.5 3h5L16 13h4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>', d: `
+      <p class="small">La page <b>Pièces reçues</b> réunit, pour tous tes clients, les pièces qui attendent d'être rangées : par dossier, ce qui presse en tête. Deux onglets, <b>À classer</b> et <b>Classées</b> ; à côté, tu ne gardes qu'un client.</p>
+      <p class="small"><b>Ce qui arrive seul</b> : les photos et les PDF qu'un client sur SkanFact joint à votre conversation. <b>Ce que tu déposes</b> : un client que tu tiens au cabinet ne dépose rien lui-même. Ce qu'il t'apporte (par WhatsApp, par e-mail, sur papier, sur une clé), tu le déposes avec « Déposer des pièces » : il se range dans le classeur de son dossier, à saisir.</p>
+      <h3>Le geste de chaque pièce</h3>
+      <p class="small">Une pièce s'ouvre à droite, avec ce que le client en a dit, et son bouton vert dit ce qu'elle doit devenir : « Saisir l'achat » ou « Saisir la dépense » (elle entre dans les achats du client, avec sa photo), « C'est juste : classer » pour une pièce qu'il a déjà rangée, « Rapprocher dans la Banque » pour un relevé, « Ranger dans le dossier » pour un document. Ce qui ne se saisit pas : « Classer sans saisir », avec sa raison. Dans <b>Classées</b>, chaque pièce dit ce qui en a été fait, par qui et quand, et se remet à classer d'un geste.</p>` },
     {
       id: 'travail', t: 'Échéances et relances',
       s: 'Les deux pages qui lisent les livres de tes clients', couleur: 'th-declarer', geste: { label: 'Voir les échéances', hash: '#/echeances' },
@@ -692,6 +713,19 @@
       <p class="small">Un client dont la licence SkanFact a été <b>payée</b> ne compte pas pendant douze mois après sa fin : tu ne paies pas parce que ton client a oublié de renouveler. Un paquet trop ancien pour dire si son client a une licence ne compte pas non plus : le doute profite au cabinet.</p>
       <p class="small">La clé de licence porte l'<b>empreinte de ton cabinet</b> : une clé émise pour un autre cabinet, ou celle d'un de tes clients, est refusée en nommant les deux empreintes.</p>` },
     {
+      // (issue 12 CABPORTEFEUILLE-25) En ligne, l'article de la licence (le bureau) est caché, et rien ne disait ce qui se paie.
+      // Aucun chiffre ici : le prix, les dossiers offerts et le plafond vivent dans la base et se lisent dans le panneau.
+      id: 'abonnement', t: 'Ton abonnement : ce que coûte un dossier',
+      s: 'Ce qui se paie, quand la facture arrive, et ce qui reste toujours ouvert', couleur: 'th-piloter', geste: { label: 'Ouvrir mon abonnement', hash: '#/reglages', panneau: 'pan-licence' },
+      icon: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h4"/>', d: `
+      <p class="small">On compte des <b>dossiers</b>, jamais des postes ni des personnes : toute ton équipe travaille sous le même abonnement. Le dossier d'un client <b>abonné lui-même à SkanFact</b> ne se paie jamais. Les premiers dossiers que tu tiens au cabinet sont offerts ; au-delà, chaque dossier tenu se paie par an, avec un plafond. Le prix du jour, le nombre de dossiers offerts et le plafond se lisent dans <b>Réglages → Mon cabinet → Ton abonnement</b>.</p>
+      <p class="small"><b>Avant de créer un dossier qui se paie</b>, la fenêtre « Ajouter un client… » te dit ce qu'il coûtera.</p>
+      <h3>La facture</h3>
+      <p class="small"><b>Une facture par an</b>, le jour anniversaire de ton premier dossier payant. Un dossier ajouté en cours d'année se paie au prorata de ses jours, sur la facture suivante. Un dossier archivé ne compte pas ; un client que tu tenais et qui s'abonne lui-même ne compte plus à la facture suivante. La facture se lit, s'imprime et se règle en ligne depuis « Tes factures », dans le même panneau.</p>
+      <h3>Sans paiement</h3>
+      <p class="small">Passé l'échéance (le panneau dit le délai), seuls tes dossiers <b>payants</b> passent en lecture seule : tout s'y lit, s'imprime et s'exporte, et tu parles toujours à ton client. Tes dossiers offerts et ceux de tes clients abonnés restent entiers ; un dossier tenu de plus attend le paiement, qui rouvre tout aussitôt.</p>
+      <p class="small">Seul un associé lit et règle l'abonnement : aux autres, le panneau dit qui s'en occupe.</p>` },
+    {
       id: 'equipe', t: 'Travailler à plusieurs',
       s: 'Les collaborateurs, leurs droits, et les dossiers confiés à chacun', couleur: 'th-equipe', geste: { label: 'Ouvrir l\'équipe', hash: '#/reglages', panneau: 'pan-equipe' },
       icon: '<circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A5 5 0 0 1 21 19"/>', d: `
@@ -752,7 +786,10 @@
     [/^bq\./, 'banque'],
     [/^dc\./, 'declaration'],
     [/^(im|iv)\./, 'immobilisations'],
-    [/^pa\./, 'paie']
+    [/^pa\./, 'paie'],
+    [/^cd\./, 'portefeuille'],
+    [/^pc\./, 'pieces'],
+    [/^abo\./, 'abonnement']
   ];
   const articleDe = cle => {
     const x = INFO[cle];
@@ -767,7 +804,7 @@
   // que chaque article cité existe — une table en double diverge, une table qui cite un article disparu
   // propose un lien mort.
   const PAR_PAGE = {
-    dossiers: 'demarrer', relances: 'definitif', echeances: 'travail', ecritures: 'travail',
+    dossiers: 'portefeuille', pieces: 'pieces', relances: 'definitif', echeances: 'travail', ecritures: 'travail',
     production: 'tenue', reglages: 'demarrer', dossier: 'tenue', 'dossier-paquets': 'paquet',
     compta: 'tenue', 'compta-saisie': 'saisir', 'compta-journal': 'saisir', 'compta-grand-livre': 'tenue',
     'compta-recherche': 'saisir', 'compta-balance': 'tenue', 'compta-banque': 'banque', 'compta-lettrage': 'banque',

@@ -30,6 +30,8 @@
   function vuePaie(dossier) {
     const s = livresState;
     const L = s.livre;
+    // (1.388.22) Les mois du trimestre déclaré, que la frise du socle cercle : la paie les pose, le socle les lit (17 § 2).
+    s.paieTriMois = null;
     if (paieHorsMandat(dossier, L)) return paieNonConfiee(dossier);
     // U-12 — le dernier mois qui a des bulletins, sinon le mois courant : jamais décembre en
     // septembre, un mois futur qui avait l'air d'un dossier vide.
@@ -108,6 +110,7 @@
     // par ce qui change depuis le mois d'avant, le bulletin ouvert dans un volet.
     const vue = s.paieVue || 'mois';
     const P = parcoursPaie(dossier, L, s.annee, m, bulletins);
+    s.paieTriMois = vue === 'cnss' ? ((KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(L, s)) || [])[2] || []) : null;
     const tete = paieEnTete(dossier, L, s.annee, m, P, vue);
     // (1.240.0, la maquette « paiesalaries ») La fiche du salarié choisi, à droite de la liste.
     const ficheSal = vue === 'salaries' && s.paieSal ? (L.salaries || []).find(x => x.id === s.paieSal) || null : null;

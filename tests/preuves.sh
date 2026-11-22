@@ -3384,7 +3384,7 @@ prouver "un matricule mal écrit refusé loin de sa case, à la création" modul
   "          if (!matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
   "$NT2"
 prouver "un matricule mal écrit refusé loin de sa case, dans la fiche" modules/socle/ecrans/cabinet/app-2.js \
-  "          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) return refus(" "          if (false) return refus(" \
+  "          if (dossier.manual && !matriculeFiscalLisible(f.matricule)) faute('#f-mat', MATRICULE_FISCAL_FORME);" "          if (false) faute('#f-mat', MATRICULE_FISCAL_FORME);" \
   "$NT2"
 
 # ── Brique 58 : la porte nomme le cabinet sous un mandat de comptabilité (docs/cabinet.md, C48) ──
@@ -15649,9 +15649,8 @@ prouver 'le tiers perdu par le point de contact' 'web/public/plateforme/pont-cab
   '' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
 prouver 'le rapport sauté' modules/socle/ecrans/cabinet/app-1.js \
-  '            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
-' \
-  '' \
+  "            if (r.rapport && !(await confirmDialog(remplace ? 'Remplacer la balance de la fenêtre ?' : r.rapport.titre, r.rapport.html," \
+  "            if (false && !(await confirmDialog(remplace ? 'Remplacer la balance de la fenêtre ?' : r.rapport.titre, r.rapport.html," \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
 prouver 'le tiers perdu par la fenêtre' modules/socle/ecrans/cabinet/app-1.js \
   'out.push({ compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), tiers: v('"'"'t'"'"'), debit:' \
@@ -19278,7 +19277,7 @@ prouver 'le modèle posé sans le nom du client' $MJ \
   ".replace(/\\{client\\}/g, client || '{client}');" ";" \
   "$MW115"
 prouver 'le modèle posé sans le mois' $MJ \
-  "texte.replace(/\\{mois\\}/g, moisPasse())" "texte" \
+  "const m = mois || moisPasse();" "const m = '{mois}';" \
   "$MW115"
 prouver 'un modèle commencé jeté sans le dire' $MJ \
   "      if (!force && rempli() && !insiste) {" "      if (false) {" \
@@ -27430,7 +27429,7 @@ prouver 'immos 1.345.0 h : la famille écrase un compte tapé à la main' module
   'if (cc) cc.oninput = () => { compteTouche = true; majTouche(); };' '' \
   "$IM1345"
 prouver 'immos 1.345.0 i : la période validée refusée seulement au clic' modules/socle/ecrans/cabinet/app-2.js \
-  'if (valide) return { ok: false, motif: valide, motifs: [valide] };' '' \
+  "if (valide) return { ok: false, motif: valide, motifs: [valide], champ: 'date' };" '' \
   "$IM1345"
 prouver 'immos 1.345.0 j : le pont ne pose pas la période validée' web/public/plateforme/pont-cabinet.js \
   $'livre.exercice.valideJusqua = ex && ex.rouvert ? \'\' : valideJusquaConnu.get(ent) || \'\';' $'livre.exercice.valideJusqua = \'\';' \
@@ -30747,7 +30746,7 @@ prouver $'le livre neuf dépose toujours dans la Saisie' modules/socle/ecrans/ca
 prouver $'le taux dégressif n\'a pas son étoile' modules/socle/ecrans/cabinet/app-1.js $'<label class="field obligatoire" id="im-taux-l">' $'<label class="field" id="im-taux-l">' $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 
 prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
-prouver $'frise-paie' modules/socle/ecrans/cabinet/app-1.js $"        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; }" $'' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
+prouver $'frise-paie' modules/socle/ecrans/cabinet/app-1.js $"        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; if (s.paieVue === 'cnss') s.paieTrimestre = Math.ceil(s.paieMois / 3); }" $'' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 prouver $'paie-sans-avis-ordinateur' modules/socle/ecrans/cabinet/app-1.js $'      if (/\\/comptabilite\\/paie(\\/|$)/.test(location.hash)) return;' $'' $'faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde'
 prouver $'virement-dans-le-rouge' modules/socle/ecrans/entreprise/app-2.js $'            if (dep && apres < -0.0005 && !await confirmDialog(' $'            if (false && !await confirmDialog(' $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
 prouver $'salaires-payes-avant-le-mois' modules/personnel/ecrans/entreprise/paie.js $'        if (bizarre && !await confirmDialog(' $'        if (false && !await confirmDialog(' $'début novembre, le bulletin de septembre d\'une nouvelle n\'avait jamais été établi : chaque geste de la paie le dit avant, et la comptable lit septembre réécrit au 1er octobre'
@@ -31513,6 +31512,44 @@ prouver $'cabportefeuille24-resserrer-eclaire-la-periode' modules/socle/visites/
   $'cible: [\'#tb-dossiers .filtres\', \'#tb-dossiers\'], cote: \'dessus\', titre: \'Resserrer\',' \
   $'cible: [\'#tb-retard\', \'#tb-dossiers\'], cote: \'dessous\', titre: \'Resserrer\',' \
   $'les étapes de chaque mois, « à saisir » relu en revenant, la ligne qui ouvre le client, la visite'
+
+# 1.388.22 — L'Aide du portefeuille, « Ton compte » à la demande (L14), la frise de la CNSS (issue 12, CABPORTEFEUILLE-25).
+prouver $'cabportefeuille25-le-portefeuille-a-son-article' modules/socle/aide/cabguide.js \
+  $'id: \'portefeuille\', t: \'Ajouter, archiver, retirer un dossier\',' \
+  $'id: \'portefeuille-x\', t: \'Ajouter, archiver, retirer un dossier\',' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'cabportefeuille25-l-abonnement-a-son-article' modules/socle/aide/cabguide.js \
+  $'id: \'abonnement\', t: \'Ton abonnement : ce que coûte un dossier\',' \
+  $'id: \'abonnement-x\', t: \'Ton abonnement : ce que coûte un dossier\',' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'cabportefeuille25-les-pieces-ont-leur-article' modules/socle/aide/cabguide.js \
+  $'id: \'pieces\', t: \'Les pièces reçues et déposées\',' \
+  $'id: \'pieces-x\', t: \'Les pièces reçues et déposées\',' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'cabportefeuille25-demarrer-nomme-le-bouton' modules/socle/aide/cabguide.js \
+  $'« Ajouter un client… », sur la page Tous les dossiers, crée leur dossier' \
+  $'« Nouveau client… » crée leur dossier' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'cabportefeuille25-les-bulles-du-portefeuille-menent-a-l-article' modules/socle/aide/cabguide.js \
+  $'    [/^cd\\./, \'portefeuille\'],' \
+  $'    [/^cdx\\./, \'portefeuille\'],' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'cabportefeuille25-la-page-des-pieces-a-son-article' modules/socle/aide/cabguide.js \
+  $'dossiers: \'portefeuille\', pieces: \'pieces\', relances:' \
+  $'dossiers: \'portefeuille\', relances:' \
+  $'sur les vrais articles du Cabinet, une question trouve son article ; les deux écrans appellent ce module'
+prouver $'l14-ton-compte-ne-part-plus-a-la-premiere-ouverture' web/public/v10/index.html \
+  $'  <link rel="stylesheet" href="../plateforme/compte.css">' \
+  $'  <script src="../plateforme/compte.js"></script><link rel="stylesheet" href="../plateforme/compte.css">' \
+  $'S1 et S2 : la première ouverture et la suivante, sur une connexion lente'
+prouver $'l14-ton-compte-se-charge-aux-parametres' modules/socle/ecrans/entreprise/app-1.js \
+  $'(window.SkanCompte ? Promise.resolve(true) : chargerScript(\'../plateforme/compte.js\'))' \
+  $'(window.SkanCompte ? Promise.resolve(true) : Promise.resolve(false))' \
+  $'l\'entreprise : l\'adresse change par un code reçu à la nouvelle ; le mot de passe par l\'actuel ; de nouveaux codes de secours, puis le code désactivé, par le code du moment'
+prouver $'frontieres-la-frise-lit-le-trimestre-que-la-paie-pose' modules/personnel/ecrans/cabinet/paie.js \
+  $'    s.paieTriMois = vue === \'cnss\' ? ((KC.TRIMESTRES_PAIE.find(x => x[0] === trimestreCnss(L, s)) || [])[2] || []) : null;' \
+  $'    s.paieTriMois = null;' \
+  $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
