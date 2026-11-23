@@ -6614,3 +6614,20 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - **« 1 attend sa réponse »**, « Par e-mail » (V-15).
 - Tests : `v10/matricule`, `moteur/document-pourcent-1387`, `paiement-groupe-1360`, `factures-1308` et
   `relances-client` (le singulier) ; cinq preuves.
+
+## 1.388.28 — Le socle de l'entreprise (issue 16) : un mot ne déclenche rien, « Rester pour compléter », le retour au même endroit
+
+- **G puis A, F ou D attend 350 ms avant de partir** : une lettre qui suit dans la foulée annule (c'était un mot tapé hors
+  d'un champ, « garage »), et on reste sur la page (ENTSOCLE-3).
+- **Quitter une pièce à laquelle il manque le client (ou la ligne, ou la date d'un achat) ne propose plus
+  « Enregistrer et continuer »** en vert, pour répondre ensuite par un refus : la question dit ce qui manque, et le bouton
+  est « Rester pour compléter » (ENTSOCLE-14).
+- **« Précédent » ramène au même endroit de la liste** qu'on avait quittée, pas en haut (ENTSOCLE-13).
+- **La cloche voit les choses qui demandent un geste** (les lignes « danger » de « À faire », hors retards déjà comptés)
+  (ENTSOCLE-15).
+- Les textes : « ce que ton comptable lit » au lieu du « paquet », la visite « Émettre » qui renvoie d'abord à la première
+  facture, le fichier joint qui « se range avec la pièce », un envoi qui dit qu'il part sans pièce jointe, le bouton éteint
+  d'une visite qui dit « Pas encore », la commande fournisseur qui se télécharge en PDF (ENTSOCLE-4 à 8, 11). Gardés tels
+  quels, décidés : la famille des visites (ENTSOCLE-12), la place du sélecteur d'entreprise (ENTSOCLE-16).
+- Tests : `barre` (G, F puis une lettre : on ne part pas), `reprendre` (la question d'une pièce sans client), `offre`
+  (la phrase) ; trois preuves. Le retour au même endroit et la cloche n'ont pas encore de test dédié : à jouer à la souris dans la vérification finale.

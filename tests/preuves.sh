@@ -31801,6 +31801,20 @@ prouver $'l4-dir3-v14-une-forme-d-email' modules/socle/ecrans/entreprise/app-1.j
   $'const EMAIL_FORME = /^.+$/;' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 
+# 1.388.28 — le socle de l'entreprise (issue 16) : un mot tapé n'emmène nulle part, rester pour compléter, ce que ton comptable lit.
+prouver $'l5-es3-un-mot-n-emmene-nulle-part' web/public/plateforme/barre.js \
+  $'    if (gEnAttente && k.length === 1) { clearTimeout(gEnAttente); gEnAttente = 0; frappe = Date.now(); suite = \'\'; return; }' \
+  $'    if (false) { return; }' \
+  $'repliée et au clavier : [ replie et se garde, la bulle dit le nom, ? les raccourcis, G puis F les factures'
+prouver $'l5-es14-rester-pour-completer' modules/socle/ecrans/entreprise/app-1.js \
+  $'manque ? \'Rester pour compléter\' : \'Enregistrer et continuer\'' \
+  $'\'Enregistrer et continuer\'' \
+  $'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
+prouver $'l5-es8-ce-que-ton-comptable-lit' modules/socle/ecrans/entreprise/app-1.js \
+  $'Tes écritures, ta TVA, tes clôtures et ce que ton comptable lit restent disponibles.' \
+  $'Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.' \
+  $'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s\'ouvre'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

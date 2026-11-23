@@ -1251,7 +1251,7 @@
         { cible: '#totals', cote: 'gauche', titre: 'Les totaux', texte: 'Hors taxe, TVA, total : tout suit ce que tu tapes, ligne par ligne. Rien à calculer. Dessous, la <b>marge estimée</b> retire le coût de revient de chaque ligne (celui de ton catalogue) : c\'est pour toi, elle ne s\'imprime pas.' },
         // 10.14.1 — les deux panneaux sous les lignes, que la visite laissait seuls (vu au guide).
         { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true,
-          texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : glisse-les dans le cadre (ou clique dedans) : ils se rangent avec ce devis. Le fichier est <b>copié</b> à côté de tes données, et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
+          texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : glisse-les dans le cadre (ou clique dedans) : ils se rangent avec ce devis. Le fichier se range avec la pièce (ton original ne bouge pas), et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
           texte: 'Un texte libre <b>imprimé</b> sur le devis : délai d\'intervention, matériel non compris, conditions particulières. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue, pour les insérer en un clic.' },
         { cible: ['#view .preview', '#ed-grand', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu', texte: 'À droite, le document <b>tel que ton client le recevra</b>, mis à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles il fera une fois imprimé, et « Aperçu », en haut (ou un clic sur l\'image), l\'ouvre en grand pour le relire avant de l\'envoyer.' },
@@ -1347,7 +1347,7 @@
       mesure: () => envois(), but: n0 => envois() > n0 && aucuneFenetre(),
       echec: 'Le message n\'est pas préparé — c\'est « Ouvrir dans la messagerie », dans la fenêtre du mail, qui le prépare. Rien n\'est parti, et la pièce n\'a pas changé.',
       bravo: 'Ton message est prêt',
-      conclusion: 'Il t\'attend dans ta messagerie, avec le lien de la pièce : relis-le et clique sur « Envoyer » — SkanFact ne peut pas le faire à ta place. De ce côté, la pièce est notée envoyée ; quand ton client répond à un devis, note sa réponse depuis le menu « Actions » de la liste, ou facture directement.',
+      conclusion: 'Il t\'attend dans ta messagerie (pour une facture ou un avoir émis, avec le lien de la pièce ; sans pièce jointe) : relis-le et clique sur « Envoyer » — SkanFact ne peut pas le faire à ta place. De ce côté, la pièce est notée envoyée ; quand ton client répond à un devis, note sa réponse depuis le menu « Actions » de la liste, ou facture directement.',
       etapes: [
         // 10.14.0 — sur un devis déjà envoyé, l'envoi n'est plus l'étape suivante : il vit dans
         // « Plus ▾ » (la barre tient ainsi sur une rangée). La visite ouvre d'abord le menu.
@@ -1408,7 +1408,7 @@
       mots: ['emettre', 'facture', 'numero', 'valider'],
       suite: ['encaisser', 'envoyer'],
       si: () => !!ctx.premier('factureBrouillon'),
-      manque: { texte: 'Il te faut une facture en brouillon — transforme un devis accepté, ou crée une facture.', visite: 'devis-facture' },
+      manque: { texte: 'Il te faut une facture en brouillon — transforme un devis accepté, ou crée une facture.', visite: 'premiere-facture' },
       // Une facture ÉMISE de plus — pas une fenêtre ouverte : la visite finissait sur le récapitulatif,
       // et félicitait une facture restée en brouillon (10.14.1).
       // (1.379.0, issue 14, ENTSOCLE-1) Le but se lit sur la PIÈCE, pas sur les fenêtres : en ligne, le serveur répond après

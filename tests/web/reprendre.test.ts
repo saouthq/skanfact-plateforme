@@ -170,7 +170,7 @@ describe('quitter une pièce neuve, la reprendre, à la souris', () => {
     await partage.p.locator('.ed-chemin a.ed-retour').click();
     const fenetre = partage.p.locator('#modal-root .modal').last();
     await fenetre.waitFor({ timeout: 5_000 });
-    expect(net(await fenetre.innerText())).toBe('Quitter sans enregistrer ? Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, ce devis commencé est perdu. Annuler Quitter sans enregistrer Enregistrer et continuer');
+    expect(net(await fenetre.innerText())).toBe('Quitter sans enregistrer ? Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, ce devis commencé est perdu. Pour l\'enregistrer, il manque le client : reste pour compléter, ou quitte sans enregistrer. Annuler Quitter sans enregistrer Rester pour compléter');
     await partage.p.screenshot({ path: path.join(PHOTOS, 'reprendre-4-partage.png') });
     await partage.p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
     await expect.poll(() => partage.p.evaluate(() => location.hash)).toBe('#/devis');

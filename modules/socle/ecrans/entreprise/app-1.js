@@ -457,7 +457,7 @@
     modal(`<h2>La comptabilité complète</h2>
       <p>${h(quoi)} fait partie de la comptabilité complète, dans l'offre <strong>Complet</strong> : elle n'est pas dans l'offre ${h(licence.offreLabel || 'Essentiel')}.</p>
       <ul class="small">
-        <li><strong>Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.</strong> Rien de ce que tu envoies à ton comptable ne dépend de cette offre.</li>
+        <li><strong>Tes écritures, ta TVA, tes clôtures et ce que ton comptable lit restent disponibles.</strong> Rien de ce que tu envoies à ton comptable ne dépend de cette offre.</li>
         <li>Ce sont des écrans de comptable : grand livre, balance, états financiers. Ton cabinet, lui, les a toujours.</li>
       </ul>
       <div class="modal-actions"><button class="btn" data-close>Fermer</button><button class="btn btn-primary" id="go-opt">Voir l'abonnement</button></div>`,
@@ -2403,12 +2403,15 @@
     // (1.164.0, maquettes « Quitter : rien ne se garde ici ») Une pièce neuve sur un poste qui ne garde rien : la question
     // dit pourquoi elle se pose, et ce que « quitter » perd.
     const partage = !!(g.posteSansGarde && g.posteSansGarde());
+    // (ENTSOCLE-14) Un enregistrement qui ne passerait pas ne se propose pas en vert : il répondait par un refus rouge.
+    const manque = typeof g.manque === 'function' ? String(g.manque() || '') : '';
     const c = await choiceDialog(partage ? 'Quitter sans enregistrer ?' : 'Modifications non enregistrées',
-      partage ? `Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, ${g.what || 'la pièce'} commencé${/^(cette|la) /.test(g.what || '') ? 'e' : ''} est perdu${/^(cette|la) /.test(g.what || '') ? 'e' : ''}.`
-        : `Tu as modifié ${g.what || 'cette page'} sans enregistrer. Que veut-on faire ?`,
-      'Enregistrer et continuer', 'Quitter sans enregistrer');
+      (partage ? `Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, ${g.what || 'la pièce'} commencé${/^(cette|la) /.test(g.what || '') ? 'e' : ''} est perdu${/^(cette|la) /.test(g.what || '') ? 'e' : ''}.`
+        : `Tu as modifié ${g.what || 'cette page'} sans enregistrer.${manque ? '' : ' Que veut-on faire ?'}`)
+        + (manque ? ` Pour l'enregistrer, ${manque} : reste pour compléter, ou quitte sans enregistrer.` : ''),
+      manque ? 'Rester pour compléter' : 'Enregistrer et continuer', 'Quitter sans enregistrer');
     if (c === null) return false;
-    if (c === 'a') { const ok = await g.save(); if (ok === false) return false; }
+    if (c === 'a') { if (manque) return false; const ok = await g.save(); if (ok === false) return false; }
     // Un aperçu immédiat (le thème) doit se défaire si on renonce : sinon l'application reste
     // habillée d'un réglage qu'on vient de refuser, et plus rien à l'écran ne le dit.
     else if (typeof g.discard === 'function') g.discard();
@@ -2449,6 +2452,9 @@
   // enregistrées » remet la page précédente dans la barre d'adresse pour poser sa question, ce qui
   // fausserait history.back(). Le bouton retour dit où il mène, il ne se contente pas d'une flèche.
   const navStack = [];
+  // (ENTSOCLE-13) Où chaque page était défilée quand on l'a quittée : le retour la rend là.
+  const defilementQuitte = new Map();
+  let defilementARendre = null;
   try { window.__navStack = navStack; } catch (_) {}   // visible depuis les tests
   let goingBack = false;
   const PAGE_LABELS = {
@@ -2541,6 +2547,7 @@
     // Si on y est déjà, aucun hashchange ne se déclenche : sans ce cas, le drapeau resterait armé
     // et la navigation suivante ne s'empilerait pas.
     if (location.hash === target) { render(); return; }
+    defilementARendre = defilementQuitte.has(target) ? { hash: target, ...defilementQuitte.get(target) } : null;
     goingBack = true;
     navigate(target);
   }
@@ -3284,6 +3291,22 @@
   window.__naviguer = (hash) => navigate(hash);
   // (1.387.76) La cloche dit « en retard » : elle ouvre ce qui est en retard, pas la liste entière.
   window.__versRetard = (id) => (id === 'achats' ? vers('#/achats', () => filtreAchats('retard')) : vers('#/relances'))();
+  // (ENTSOCLE-15) La cloche (plateforme/barre.js) porte aussi ce que « À faire » dit urgent : les lignes « danger », par la
+  // MÊME fonction que l'accueil, avec le geste de la ligne. Les retards de factures et d'achats ont déjà leur ligne.
+  // Un résultat gardé deux secondes : la barre redemande la cloche à chaque redessin.
+  let nouvellesGardees = null;
+  window.__nouvelles = () => {
+    if (!data) return [];
+    if (nouvellesGardees && Date.now() - nouvellesGardees.t < 2000) return nouvellesGardees.l;
+    const DEJA = new Set(['retards', 'fournisseurs-retard']);
+    const l = chosesAFaire().filter(x => x.level === 'danger' && !DEJA.has(x.id)).map(x => {
+      const a = actionAFaire(x.id);
+      return { cle: `todo-${x.id}-${x.label}`, ic: 'horloge', ton: 'alerte', html: h(x.label), sous: a && a.label ? a.label : 'À faire',
+        faire: () => { if (a && a.run) a.run(); else navigate('#/dashboard'); } };
+    });
+    nouvellesGardees = { t: Date.now(), l };
+    return l;
+  };
   // « Changer de caissier » (brique 123) depuis la barre : seulement là où il marche, le poste de la caisse.
   window.__caissePoste = () => !!(caisseEtat && caisseEtat.posteDeCaisse);
   window.__changerCaissier = () => changerDeCaissier();
@@ -3855,6 +3878,10 @@
     // Le grand aperçu appartient au document qu'on quitte : le laisser ouvert par-dessus la page
     // suivante montrerait une pièce qui n'est plus celle qu'on regarde.
     const grand = $('#pv-full'); if (grand) grand.remove();
+    if (currentHash && currentHash !== location.hash) {
+      defilementQuitte.set(currentHash, { v: view.scrollTop, d: window.scrollY || document.documentElement.scrollTop || 0 });
+      if (defilementQuitte.size > 60) defilementQuitte.delete(defilementQuitte.keys().next().value);
+    }
     pushHistory(currentHash);        // d'où l'on vient, pour le bouton retour de la page qui s'ouvre
     const pageChange = routeOf(currentHash) !== name || (currentHash || '').split('/')[2] !== parts[1];
     const dessine = pageCachee(name) ? pageInterdite(name) : (routes[name] || (pageDeModule(name) || {}).ouvrir || routes.dashboard)(parts.slice(1));
@@ -3898,6 +3925,13 @@
     // la précédente avait été laissée, titre coupé. Une page neuve commence en haut.
     // Seulement quand la PAGE change : un redessin de la même page ne ramène pas le lecteur en haut.
     if (!keepScroll && location.hash !== currentHash && (window.scrollY || document.documentElement.scrollTop)) window.scrollTo(0, 0);
+    // (ENTSOCLE-13) Au retour seulement, et seulement sur la page empilée ; une page asynchrone, une fois dessinée.
+    const rendu = defilementARendre; defilementARendre = null;
+    if (rendu && rendu.hash === location.hash && !keepScroll) {
+      const poser = () => { view.scrollTop = rendu.v; if (rendu.d) window.scrollTo(0, rendu.d); };
+      poser();
+      if (dessine && typeof dessine.then === 'function') dessine.then(poser, () => {});
+    }
     currentHash = location.hash;
     updateNavCounts();
     closePalette();
@@ -7373,6 +7407,10 @@
       dirty: () => dirty,
       what: isQ ? 'ce devis' : isInv ? laPiece().replace(/^la /, 'cette ') : isAv ? 'cet avoir' : 'ce ' + (C.TITLES[doc.type] || 'document').toLowerCase(),
       save: () => { const ok = persist(); if (ok) untouch(); return ok; },
+      // (ENTSOCLE-14) Ce qui empêcherait l'enregistrement, lu sans rien toucher (validate() montre le champ et lève un refus).
+      manque: () => (!doc.clientId && !(isInv && doc.passage)) ? 'il manque le client'
+        : (isAv && !doc.creditOf) ? 'il manque la facture concernée'
+          : !doc.lines.some(l => l.kind !== 'titre' && l.label && l.label.trim()) ? 'il manque une ligne avec une désignation' : '',
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers copiés pour elle n'appartiennent à
       // personne, on les retire (8.5.1). L'original de l'utilisateur ne bouge jamais.
       discard: () => { if (isNew) (doc.attachments || []).forEach(a => { try { bridge.removeAttachment(doc.id, a.file); } catch (_) {} }); },
@@ -16984,7 +17022,7 @@
       } else if (aEnvoyer) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-envoyer">${lfIc('envoi', 17)}Envoyer au fournisseur…</button>`;
         if (aRecevoir) sec.push(`<button class="btn" id="cf-recevoir">${recevoirTxt}</button>`);
-        phrase = 'Le bon part en PDF joint au courriel du fournisseur ; une commande passée par téléphone se reçoit sans l\'envoyer.';
+        phrase = 'Le bon se télécharge en PDF et le message s\'ouvre dans ta messagerie : joins-y le fichier. Une commande passée par téléphone se reçoit sans l\'envoyer.';
       } else if (aRecevoir) {
         prim = `<button class="btn btn-primary btn-grand" id="cf-recevoir">${lfIc('depot', 17)}${recevoirTxt}</button>`;
         if (aFacturer.length) sec.push('<button class="btn" id="cf-facturer">Saisir la facture du fournisseur</button>');
@@ -18878,6 +18916,7 @@
     const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; majBarre(); reportDirty(); };
     setGuard({ dirty: () => dirty, get what() { return p.kind === 'depense' ? 'cette dépense' : p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte' : 'cette facture d\'achat'; },
       save: async () => { if (!validate() || !await doublonOk()) return false; const ok = persist(); if (ok) { creerFichesProposees(); untouch(); } return ok; },
+      manque: () => (!p.supplierId && p.kind !== 'depense') ? 'il manque le fournisseur' : !p.date ? 'il manque la date' : '',
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers déjà copiés pour elle n'appartiennent
       // à personne, on les retire. L'original de l'utilisateur, lui, ne bouge jamais.
       discard: () => { if (isNew) { oublierBrouillon(); (p.attachments || []).forEach(a => { try { bridge.removeAttachment(p.id, a.file); } catch (_) {} }); } },

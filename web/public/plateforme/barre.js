@@ -871,14 +871,18 @@
     // des lettres), ni avec une touche de commande.
     if (e.ctrlKey || e.metaKey || e.altKey || dansUnChamp(e.target) || fenetreOuverte() || enCaisse() || !$('barre')) { suite = ''; return; }
     const k = e.key;
+    // (ENTSOCLE-3) Une lettre pendant que G A, G F ou G D attend : c'était un mot (« garage », « Gabès »). Rien ne part.
+    if (gEnAttente && k.length === 1) { clearTimeout(gEnAttente); gEnAttente = 0; frappe = Date.now(); suite = ''; return; }
     // Une frappe en cours (un mot tapé hors d'un champ) ne déclenche aucun raccourci : il faut une seconde de silence.
     if (k.length === 1 && Date.now() - frappe < 1000) { frappe = Date.now(); suite = ''; return; }
     if (k.length === 1 && /^[\p{L}\p{N}]$/u.test(k) && !RACCOURCIS_LETTRES.includes(k.toLowerCase()) && suite !== 'g') { frappe = Date.now(); return; }
     if (suite === 'g') {
       suite = '';
-      if (k === 'a' || k === 'A') { e.preventDefault(); aller(`#/${accueil()}`); return; }
-      if (!auCabinet() && (k === 'f' || k === 'F')) { e.preventDefault(); aller('#/factures'); return; }
-      if (auCabinet() && (k === 'd' || k === 'D')) { e.preventDefault(); aller('#/dossiers'); return; }
+      const cibleG = (k === 'a' || k === 'A') ? `#/${accueil()}`
+        : (!auCabinet() && (k === 'f' || k === 'F')) ? '#/factures'
+          : (auCabinet() && (k === 'd' || k === 'D')) ? '#/dossiers' : '';
+      // (ENTSOCLE-3) On n'y va pas tout de suite : une lettre qui arrive dans les 350 ms l'annule (plus haut).
+      if (cibleG) { e.preventDefault(); clearTimeout(gEnAttente); gEnAttente = setTimeout(() => { gEnAttente = 0; aller(cibleG); }, 350); return; }
     }
     if (k === 'g' || k === 'G') { suite = 'g'; setTimeout(() => { suite = ''; }, 1200); return; }
     if (k === '?') {
@@ -897,6 +901,8 @@
   const aboCalme = () => { const b = $('lic-banner'); return (b && b.dataset.court) || 'Rien à régler pour l\'instant'; };
   let frappe = 0;
   let creerAuClavier = 0;
+  // (ENTSOCLE-3) G puis A / F / D attend un instant avant de partir : une lettre qui suit prouve qu'on tapait un mot.
+  /** @type {ReturnType<typeof setTimeout> | 0} */ let gEnAttente = 0;
   const RACCOURCIS_LETTRES = ['g', 'n', 'v'];
   window.addEventListener('hashchange', () => { fermer(); fermerPlus(); fermerTiroir(); lancerVisite(0); requestAnimationFrame(() => { noterRecent(); apresCompte(); }); });
   window.addEventListener('resize', () => { fermer(); if (!telephone()) fermerPlus(); if (!tablette()) fermerTiroir(); lancerVisite(0); hautTel(); poserCloche(); });

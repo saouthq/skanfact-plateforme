@@ -8770,7 +8770,7 @@
       const avant = visitePossibleAvant(v);
       return avant
         ? `<button type="button" class="btn btn-sm" data-visite="${h(avant.id)}" title="${h(m.texte)}">D'abord : ${h(minuscule(avant.titre))}</button>`
-        : `<button type="button" class="btn btn-sm" disabled title="${h(m.texte)}">${libelle(v)}</button>`;
+        : `<button type="button" class="btn btn-sm" disabled title="${h(m.texte)}">Pas encore</button>`;
     };
     const cherche = v => h(C.plier([v.titre, v.resume, (v.mots || []).join(' ')].join(' ')));
     // « Pas encore : il te faut… » — après deux-points, la phrase reprend en minuscule.

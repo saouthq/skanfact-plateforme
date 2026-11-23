@@ -98,7 +98,7 @@ describe('ce que l\'offre ouvre, à la souris', () => {
     await grandLivre.waitFor();
     await grandLivre.click();
     await expect.poll(() => fenetre(p).locator('h2').innerText().catch(() => '')).toBe('La comptabilité complète');
-    expect(net(await fenetre(p).innerText())).toContain('Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.');
+    expect(net(await fenetre(p).innerText())).toContain('Tes écritures, ta TVA, tes clôtures et ce que ton comptable lit restent disponibles.');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-2-compta-essentiel.png') });
     await fenetre(p).getByRole('button', { name: 'Fermer' }).click();
     expect(await p.locator('#c-tabs button.active').getAttribute('data-tab')).not.toBe('grandlivre');

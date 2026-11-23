@@ -305,6 +305,15 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await expect.poll(() => p.locator('.sb-raccourcis').isVisible(), { timeout: 5_000 }).toBe(true);
     await p.keyboard.press('Escape');
     expect(await p.locator('.sb-raccourcis').count()).toBe(0);
+    // (ENTSOCLE-3) G, F puis une lettre dans la foulée : c'était un mot tapé hors d'un champ, on ne part nulle part.
+    const avantMot = await p.evaluate(() => location.hash);
+    expect(avantMot).not.toBe('#/factures');
+    await p.keyboard.press('g');
+    await p.keyboard.press('f');
+    await p.keyboard.press('r');
+    await p.waitForTimeout(700);
+    expect(await p.evaluate(() => location.hash)).toBe(avantMot);
+    await p.waitForTimeout(1200);
     // G puis F : les factures.
     await p.keyboard.press('g');
     await p.keyboard.press('f');
