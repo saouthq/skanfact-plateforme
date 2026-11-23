@@ -698,6 +698,7 @@
     if (i < 0) i = 0;
     if (i >= cur.p.etapes.length) { finir(); return; }
     cur.i = i; cur.t0 = Date.now(); cur.defile = false; cur.couper = false; cur.clic = 0; cur.pret = false; cur.valeur0 = undefined; cur.perdu = false; cur.pointe = -1; cur.sens = sens;
+    (cur.montrees || (cur.montrees = new Set())).add(i);
     // Ce qui ne vaut que pour l'étape qu'on quitte : un essai en cours, un geste, la zone déjà vue,
     // l'état du geste à l'entrée, les boutons nommés.
     cur.essai = null; cur.geste = 0; cur.vu = false; cur.faitAvant = undefined; cur.dejaFait = false; cur.dejaRempli = false; cur.curseur = false; cur.mini = false; cur.couvert = false; cur.nommes = []; cur.pointeN = -1;
@@ -1704,18 +1705,23 @@
     // pas un total qui va changer — « Étape 1 sur 2 », puis « Étape 2 sur 5 », se lisait comme une
     // erreur (vu à la souris, 10.14.1).
     const enAttente = !avecChapitres && enAttenteDe(p.etapes, cur.i);
-    const sur = avecChapitres ? `Chapitre ${k + 1} sur ${chaps.length}` : enAttente ? `Étape ${cur.i + 1}` : n > 1 ? `Étape ${cur.i + 1} sur ${n}` : 'Visite guidée';
+    // (ENTSOCLE-9) Sans chapitres, on compte les étapes MONTRÉES : derrière, celles qu'on a vues ; devant, celles qui
+    // s'appliquent maintenant. « Étape 2 sur 6 » puis « Étape 4 sur 6 » se lisait comme une étape perdue.
+    const vaut = (e, j) => { if (j <= cur.i) return j === cur.i || !!(cur.montrees && cur.montrees.has(j)); try { return !e.si || !!e.si(); } catch (_) { return false; } };
+    const nVu = avecChapitres ? n : p.etapes.filter(vaut).length;
+    const iVu = avecChapitres ? cur.i : p.etapes.slice(0, cur.i).filter(vaut).length;
+    const sur = avecChapitres ? `Chapitre ${k + 1} sur ${chaps.length}` : enAttente ? `Étape ${iVu + 1}` : nVu > 1 ? `Étape ${iVu + 1} sur ${nVu}` : 'Visite guidée';
     const lieu = (avecChapitres && c.titre) || p.titre || '';
     // La barre : un segment par chapitre (celui en cours se remplit étape par étape), sinon un segment
     // par étape, sinon — au-delà de douze étapes, ou quand le compte n'est pas encore connu — une seule jauge.
     let segs;
     if (avecChapitres) segs = chaps.map((_, j) => (j < k ? 100 : j > k ? 0 : Math.round(dansChap / tailleChap * 100)));
     else if (enAttente) segs = [Math.min(30, Math.round((cur.i + 1) / (n + 4) * 100))];
-    else if (n <= 12) segs = Array.from({ length: n }, (_, j) => (j <= cur.i ? 100 : 0));
-    else segs = [Math.round((cur.i + 1) / n * 100)];
-    const courant = avecChapitres ? k : (n <= 12 && !enAttente) ? cur.i : 0;
+    else if (nVu <= 12) segs = Array.from({ length: nVu }, (_, j) => (j <= iVu ? 100 : 0));
+    else segs = [Math.round((iVu + 1) / nVu * 100)];
+    const courant = avecChapitres ? k : (nVu <= 12 && !enAttente) ? iVu : 0;
     // Le segment courant se REMPLIT depuis sa valeur précédente quand on avance : on voit le progrès.
-    const avant = cur.sens > 0 ? (avecChapitres ? (dansChap > 1 ? Math.round((dansChap - 1) / tailleChap * 100) : 0) : (n > 12 && !enAttente) ? Math.round(cur.i / n * 100) : 0) : null;
+    const avant = cur.sens > 0 ? (avecChapitres ? (dansChap > 1 ? Math.round((dansChap - 1) / tailleChap * 100) : 0) : (nVu > 12 && !enAttente) ? Math.round(iVu / nVu * 100) : 0) : null;
     const barre = `<div class="vb-progres${segs.length > 1 ? '' : ' seul'}" aria-hidden="true">${segs.map((v, j) =>
       `<i class="${j < courant ? 'fait' : j === courant ? 'ici' : ''}"><b style="--p:${v}%${j === courant && avant != null ? `;--p0:${avant}%` : ''}"></b></i>`).join('')}</div>`;
     // Le compte du pied dit l'étape DANS le chapitre ; sans chapitre, l'en-tête dit déjà « Étape 2 sur 6 ».
@@ -2315,6 +2321,10 @@
     const c = el.cloneNode(true);
     // Un repère qui n'est pas du texte (le point « pièce non enregistrée » d'un onglet, une icône) ne
     // fait pas partie du NOM : « Comptabilité● » dans la liste des onglets (vu en guidant un débutant).
+    // (ENTSOCLE-9) Ce que la feuille cache à cette largeur ne fait pas partie du nom : « Voir les 11 autres » au bureau,
+    // « … 13 autres » au téléphone, les deux dans le même bouton. Seul ce qui se voit compte.
+    const vus = el.querySelectorAll('*'), copies = c.querySelectorAll('*');
+    vus.forEach((x, i) => { if (getComputedStyle(x).display === 'none' && copies[i]) copies[i].remove(); });
     c.querySelectorAll('button.i, .badge, .pp-compte, [role="img"], [aria-hidden="true"]').forEach(x => x.remove());
     return nettoie(c.textContent || el.value || el.getAttribute('title'));
   }

@@ -6694,3 +6694,13 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
     « Ton compte », une ligne réservée) : décidés selon la recommandation, à livrer dans le lot suivant.
   - ENTSOCLE-9 (la visite qui nomme ce qu'elle montre et compte les étapes) et ENTSOCLE-10 (la phrase de la caisse dans
     l'Aide) : petits, au lot suivant.
+
+## 1.388.32 — La visite nomme ce qui se voit, et compte ce qu'elle montre (ENTSOCLE-9 et 10)
+
+- **Un bouton se nomme par ce qui se voit** : « Voir les 13 autres », pas « Voir les 11 autresVoir les 13 autres » (le
+  texte caché à cette largeur ne fait plus partie du nom).
+- **Le compteur ne saute pas** : une étape qui ne s'applique pas n'est pas comptée, et « Étape 2 sur 6 » n'est plus suivi
+  de « Étape 4 sur 6 ».
+- La phrase de l'Aide de la caisse dit « les écritures que lit ton comptable » (ENTSOCLE-10, la caisse est à venir).
+- Test : `coquille-1387` (nouveau parcours : le nom d'un bouton, puis une visite de trois étapes dont une sautée) ; deux
+  preuves.

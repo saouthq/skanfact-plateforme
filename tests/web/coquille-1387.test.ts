@@ -283,6 +283,42 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await cx.close();
   }, 150_000);
 
+  it('la visite nomme un bouton par ce qui se voit et ne compte que les étapes montrées (ENTSOCLE-9)', async () => {
+    const nour = await personne('nour');
+    const ent = String((await api('POST', '/entreprises', nour, { raisonSociale: 'Atelier Nour' })).corps.id);
+    const cx = await contexte(nour);
+    await cx.addInitScript(() => { if (location.protocol.startsWith('http')) localStorage.setItem('skanfact.visites', JSON.stringify({ proposer: false })); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await p.locator('#view h1').first().waitFor({ timeout: 30_000 });
+    await plusTard(p);
+    // Les visites se chargent au premier geste qui les montre : « Me guider ».
+    await p.evaluate(() => { location.hash = '#/guide'; });
+    await p.waitForFunction(() => typeof (window as unknown as { Visite?: unknown }).Visite !== 'undefined', null, { timeout: 20_000 });
+    await p.evaluate(() => { location.hash = '#/dashboard'; });
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    // Le nom : seul ce qui se voit compte.
+    expect(await p.evaluate(() => {
+      const b = document.createElement('button');
+      b.innerHTML = '<span style="display:none">Voir les 11 autres</span><span>Voir les 13 autres</span>';
+      document.body.append(b);
+      const t = (window as unknown as { Visite: { libelleDe: (e: Element) => string } }).Visite.libelleDe(b);
+      b.remove();
+      return t;
+    })).toBe('Voir les 13 autres');
+    // Le compteur : une étape sautée (`si` faux) ne compte pas, et la suivante n'en paraît pas perdue.
+    await p.evaluate(() => (window as unknown as { Visite: { lancer: (x: unknown) => boolean } }).Visite.lancer({ id: 't', titre: 'Essai', etapes: [
+      { cible: '#view h1', titre: 'A', texte: 'a' }, { si: () => false, cible: '#view h1', titre: 'B', texte: 'b' }, { cible: '#view h1', titre: 'C', texte: 'c' }] }));
+    const sur = p.locator('.vb-sur').first();
+    await expect.poll(() => sur.textContent(), { timeout: 10_000 }).toBe('Étape 1 sur 2');
+    await p.evaluate(() => (window as unknown as { Visite: { suivant: () => void } }).Visite.suivant());
+    await expect.poll(() => sur.textContent(), { timeout: 10_000 }).toBe('Étape 2 sur 2');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('la vignette et le grand aperçu disent le même nombre de pages, quel que soit le zoom (issue 15, V-16)', async () => {
     const lea = await personne('lea');
     const ent = String((await api('POST', '/entreprises', lea, { raisonSociale: 'Atelier Lumière' })).corps.id);

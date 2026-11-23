@@ -31885,6 +31885,16 @@ prouver $'l8-c21-le-theme-par-appareil' modules/socle/ecrans/entreprise/app-1.js
   $'function applyTheme() { const t = company().theme || \'auto\';' \
   $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
 
+# 1.388.32 — la visite nomme ce qui se voit et compte ce qu'elle montre (ENTSOCLE-9).
+prouver $'l9-es9-le-nom-qui-se-voit' web/public/v10/visite.js \
+  $'    vus.forEach((x, i) => { if (getComputedStyle(x).display === \'none\' && copies[i]) copies[i].remove(); });' \
+  $'    void vus; void copies;' \
+  $'la visite nomme un bouton par ce qui se voit et ne compte que les étapes montrées (ENTSOCLE-9)'
+prouver $'l9-es9-les-etapes-montrees' web/public/v10/visite.js \
+  $'    const nVu = avecChapitres ? n : p.etapes.filter(vaut).length;' \
+  $'    const nVu = avecChapitres ? n : p.etapes.length; void vaut;' \
+  $'la visite nomme un bouton par ce qui se voit et ne compte que les étapes montrées (ENTSOCLE-9)'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
