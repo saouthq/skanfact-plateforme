@@ -135,6 +135,7 @@ describe('bout en bout 17 : la TVA déclarée par le cabinet, versée par l\'ent
     await f.waitFor({ timeout: 10_000 });
     expect(await f.locator('[name=kind]').inputValue()).toBe('impot');
     expect(await f.locator('[name=compte]').inputValue()).toBe('4365');
+    expect(await f.locator('#mf-cp').evaluate((d) => (d as HTMLDetailsElement).open)).toBe(true);
     expect(await f.locator('[name=amount]').inputValue()).toMatch(/^96([,.]0+)?$/);
     expect(await f.locator('[name=label]').inputValue()).toBe('TVA d\'octobre 2026');
     expect(await f.locator('[name=reference]').inputValue()).toBe('TVA-2026-10');

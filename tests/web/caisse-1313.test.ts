@@ -193,7 +193,7 @@ describe('la caisse 1.313.0 : la journée d\'une épicerie, vue de partout', () 
     expect(net(await p.locator('[data-stat="ca-mois"] .sub').innerText())).toBe('DT HT · 54,300 TTC');
     expect(net(await p.locator('.a-der').innerText())).toContain(`AVO-${an}-001 Vente au comptoir ·`);
     await aller('#/compta');
-    await expect.poll(vue).toContain(`CA HT — ${mois} ${an}`);
+    await expect.poll(vue).toContain(`Chiffre d'affaires HT — ${mois} ${an}`);
     expect(await vue()).toContain('45,751 DT 4 documents, avoirs déduits');
     expect(await vue()).toContain(`AVO-${an}-001 avoir · TIC-${an}-001 Vente au comptoir`);
     await aller('#/factures');

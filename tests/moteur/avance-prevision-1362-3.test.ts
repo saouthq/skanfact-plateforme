@@ -45,6 +45,19 @@ describe('l\'avance sur salaire dans la prévision', () => {
     d.advances.push({ id: 'av1', employeeId: 'y1', date: '2026-12-10', amount: 300, monthly: 150 });
     expect(salaires(d).map((x: Obj[]) => x[2])).toEqual([0, 150, 150]);
   });
+  it('(GEST-10) un salarié qui entre le 24/12 : décembre porte le net proratisé (6 jours sur 26), janvier le net plein', () => {
+    const d = base();
+    const n1 = { id: 'n1', name: 'Nesrine Gharbi', grossSalary: 1000, contract: 'cdi', hireDate: '2026-12-24' };
+    d.employees.push(n1);
+    const s = C.payrollSettings(d);
+    // Décembre 2026 : du 1er au 23, 23 jours dont 3 dimanches (6, 13, 20) → 20 jours ouvrables hors contrat ; 26 − 20 = 6 ;
+    // brut 1 000 × 6 / 26 = 230,769 (calculé à la main sur le calendrier).
+    const brut = 230.769;
+    const netDec = C.round3(C.computePayslip(n1, { gross: brut, workedDays: 26, bonuses: [], prorata: { jours: 6, sur: 26, brutFiche: 1000, brut }, year: 2026, month: 12 }, s).net);
+    const netPlein = C.round3(C.computePayslip(n1, C.saisieDeLaFiche(n1, s), s).net);
+    expect(salaires(d).filter((x: [string]) => x[0].startsWith('n1@'))).toEqual([['n1@2026-12', -netDec, 0], ['n1@2027-01', -netPlein, 0]]);
+    expect(netDec).toBeLessThan(netPlein / 3);
+  });
   it('la ligne de la prévision dit la retenue', () => {
     const d = base();
     d.advances.push({ id: 'av1', employeeId: 'y1', date: '2026-11-05', amount: 300, monthly: 150 });

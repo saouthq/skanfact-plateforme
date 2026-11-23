@@ -221,13 +221,15 @@ describe('la paie 1.267.0 : la journée de la maquette, le mois qui attend le po
     // Vue d'une autre étape, « Pointer » porte toujours le chiffre de sa liste « À régler ».
     expect(await p.locator('#p-sous [data-sous="pointage"] .pm-nb').innerText()).toBe('1');
     expect(espace(await p.locator('#p-regler').innerText())).toBe('Régler d\'abord 1 chose du pointage');
-    expect(await p.locator('#p-gen').count()).toBe(0);
+    // (GEST-6) Ni l'en-tête ni l'état vide ne proposent d'établir tant qu'un point bloque.
+    expect(await p.locator('#p-gen, #p-gen-vide').count()).toBe(0);
     await p.locator('#p-regler').click();
     await expect.poll(() => p.locator('#p-sous .pa-etape.ouverte').getAttribute('data-sous')).toBe('pointage');
     await p.locator('#pt-jav').click();
     await p.locator('#modal-root #jav-ok').click();
     await p.locator('#p-sous [data-sous="bulletins"]').click();
     await expect.poll(async () => espace(await p.locator('#p-gen').innerText().catch(() => ''))).toBe('Établir les 2 bulletins');
+    expect(await p.locator('#p-gen-vide').count()).toBe(1);
     // (1.268.0) Sans cabinet relié, la paie est toute à toi : aucune étape ne dit « toi » ou « ton comptable », aucun
     // « Envoyer le pointage au cabinet », aucun « Ton cabinet prépare » : le vert établit les bulletins.
     expect(await p.locator('#p-sous .pa-qui').count()).toBe(0);

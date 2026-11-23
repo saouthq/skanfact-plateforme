@@ -146,6 +146,12 @@ describe('bout en bout 18 : un achat payé de la poche du gérant (1.358.0)', ()
     expect(await m.locator('[name=kind]').inputValue()).toBe('avances');
     expect(await m.locator('[name=amount]').inputValue()).toMatch(/^160[,.]650?$/);
     expect(await m.locator('[name=label]').inputValue()).toBe('Remboursement de mes avances');
+    // (GEST-16) Le compte comptable se choisit en dépliant : replié par défaut, il ne pousse pas « Enregistrer ».
+    expect(await m.locator('#mf-cp').evaluate((d) => (d as HTMLDetailsElement).open)).toBe(false);
+    expect(await m.locator('[name=compte]').isVisible()).toBe(false);
+    await m.locator('#mf-cp summary').click();
+    expect(await m.locator('[name=compte]').isVisible()).toBe(true);
+    expect(await m.locator('[name=compte]').inputValue()).toBe('');
     await m.locator('#ok').click();
     await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toBe('Remboursement noté : 160,650 DT rendus le 13/11/2026.');
     await expect.poll(() => p.locator('#tr-s-avances-l').count(), { timeout: 10_000 }).toBe(0);

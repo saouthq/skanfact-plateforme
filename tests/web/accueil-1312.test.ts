@@ -182,7 +182,12 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
     expect(await carte('dois')).toBe('Tu dois 6 832,138 DT · 3 achats, avoir déduit dont 422,250 en retard');
     expect(await carte('ca-mois')).toBe(`Facturé en ${mois} 2 107,400 DT HT · 2 509,806 TTC ${avant} : 2 847,500`);
     expect(await carte('devis')).toBe('Devis en attente 796,110 DT TTC · 1 devis + 1 expiré sans réponse');
-    expect(net(await p.locator('.a-phrase').innerText())).toBe('2 choses coûtent maintenant, 6 gestes t\'attendent.');
+    // Le nombre de gestes dépend du jour (une échéance fiscale entre dans les quinze jours) : la phrase dit celui que
+    // « À faire » range sous « Un geste t'attend ».
+    const phraseA = net(await p.locator('.a-phrase').innerText());
+    const gestesA = /^2 choses coûtent maintenant, (\d+) gestes t'attendent\.$/.exec(phraseA);
+    expect(gestesA, phraseA).not.toBeNull();
+    expect(net(await p.locator('#todo-list > li', { hasText: /geste t.attend/i }).first().innerText())).toMatch(new RegExp(`· ${gestesA?.[1]}$`));
     const afaire = (await p.locator('#todo-list > li').allInnerTexts()).map(net);
     expect(afaire).toContain('2 factures en retard 1 800,916 DT à récupérer · plus ancienne : 170 jours de retard Voir les relances');
     expect(afaire).toContain('1 facture fournisseur en retard 422,250 DT à régler · la plus ancienne : 30 jours de retard Voir les achats');
@@ -244,7 +249,8 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
 
     // E. « Facturé en … » ouvre le journal des ventes du mois : le même chiffre, avoir déduit.
     await p.locator('[data-stat="ca-mois"]').click();
-    await expect.poll(vue).toContain(`CA HT — ${mois} ${an}`);
+    await expect.poll(vue).toContain(`Chiffre d'affaires HT — ${mois} ${an}`);
+    const entetes = await p.locator('#j-wrap thead').innerText(); expect(entetes).toContain('Retenue'); expect(entetes).not.toMatch(/\bRS\b/);
     expect(await vue()).toContain('2 107,400 DT 3 documents, avoirs déduits');
 
     // F. « Devis en attente » : le devis du café ; l'expiré, à côté.

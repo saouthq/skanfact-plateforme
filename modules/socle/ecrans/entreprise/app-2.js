@@ -3439,7 +3439,7 @@
         <label class="field obligatoire" id="mf-vers" ${m.kind === 'virement' ? '' : 'hidden'}>${lbl('Vers le compte', 'tre.moveVers')}<select name="versAccountId"><option value="">— Choisir le compte qui reçoit —</option>${data.accounts.map(a => `<option value="${a.id}" ${m.versAccountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
         <label class="field mf-rep">${lbl('Se répète', 'tre.repete')}<select name="repete">${[['', 'Non, une seule fois'], ['mois', 'Chaque mois'], ['trimestre', 'Chaque trimestre'], ['annee', 'Chaque année']].map(([v, l]) => `<option value="${v}" ${(m.repete || '') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <div class="mf-rep mf-jusqu">${dateFieldHtml(lbl('Jusqu\'au (facultatif)', 'tre.repeteJusqu'), 'repeteJusqu', m.repeteJusqu || '', {})}</div>
-        <label class="field span-2" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}>${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label>
+        <details class="span-2 plus-details" id="mf-cp" ${m.kind === 'virement' ? 'hidden' : ''}${m.compte ? ' open' : ''}><summary>Choisir le compte comptable moi-même <span class="muted small">— sinon la nature du mouvement le décide</span></summary><label class="field mt">${lbl('Contrepartie comptable', 'tre.compte')}<select name="compte">${C.COMPTES_CONTREPARTIE.map(([v, l]) => `<option value="${v}" ${String(m.compte || '') === v ? 'selected' : ''}>${v ? v + ' — ' : ''}${l}</option>`).join('')}${m.compte && !C.COMPTES_CONTREPARTIE.some(([v]) => v === String(m.compte)) ? `<option value="${h(m.compte)}" selected>${h(m.compte)} — ${h(C.accountLabel(data, m.compte))}</option>` : ''}</select></label></details>
       </form>
       ${avertValideHtml('mf-valide')}
       ${avertValideHtml('mf-avant')}
@@ -3710,7 +3710,14 @@
       // disait — la banque n'a pas bougé, donc aucune ligne de la trésorerie ne le portait.
       const avancesG = C.avancesDuGerant(data, company());
       const fiscEst = fisc ? C.cashForecast(data, company(), 45, t0).events.find(e => e.kind === 'fiscal' && (e.id === fisc.filingId || (fisc.socialId && e.id === fisc.socialId))) : null;
+      // (issue 16, GEST-3) Un compte déjà dans le rouge passe en tête de « À surveiller » : un découvert se paie dès aujourd'hui,
+      // une échéance attend sa date. Une caisse négative n'est pas un découvert : il lui manque une entrée d'espèces.
+      const aDecouvert = pos.accounts.filter(a => a.balance < -0.0005);
+      const renfortDe = a => pos.accounts.filter(x => x.id !== a.id && !C.seCompte(x) && x.balance > 0.0005).sort((x, y) => y.balance - x.balance)[0] || null;
       const surveiller = [
+        ...aDecouvert.map(a => C.seCompte(a)
+          ? `<li class="tr-s tr-s-decouvert"><span>${lfIc('alerte', 16)}</span><span class="txt"><b>${h(a.name)} est à ${h(C.money(a.balance, cur))}</b><small>un tiroir ne contient jamais moins que rien : une entrée d'espèces n'est pas notée</small></span><button type="button" class="btn btn-sm" data-decouvert-voir="${h(a.id)}">Voir ses mouvements</button></li>`
+          : `<li class="tr-s tr-s-decouvert"><span>${lfIc('alerte', 16)}</span><span class="txt"><b>${h(a.name)} est à découvert de ${h(C.money(-a.balance, cur))}</b><small>${renfortDe(a) ? `${h(renfortDe(a).name)} porte ${h(C.money(renfortDe(a).balance, cur))} : un virement entre tes comptes le remet à flot` : 'tant qu\'il reste dans le rouge, ta banque peut te compter des agios'}</small></span>${renfortDe(a) ? `<button type="button" class="btn btn-sm" data-decouvert-vir="${h(a.id)}">Virer depuis ${h(renfortDe(a).name)}…</button>` : `<button type="button" class="btn btn-sm" data-decouvert-voir="${h(a.id)}">Voir ses mouvements</button>`}</li>`),
         dusClients.length ? `<li class="tr-s"><span>${lfIc('cloche', 16)}</span><span class="txt"><b>${h(C.money(totDus, cur))} déjà échus chez tes clients</b><small>${pl(dusClients.length, 'facture')} en retard : la prévision les attend aujourd'hui</small></span><button type="button" class="btn btn-sm" id="tr-s-rel">Relancer</button></li>` : '',
         dusFourn.length ? `<li class="tr-s"><span>${lfIc('alerte', 16)}</span><span class="txt"><b>${h(C.money(totDois, cur))} déjà dus à tes fournisseurs</b><small>${pl(dusFourn.length, 'achat')} échu${sPl(dusFourn.length)}, pas encore réglé${sPl(dusFourn.length)}</small></span><button type="button" class="btn btn-sm" id="tr-s-ach">Voir ce que je dois</button></li>` : '',
         // (1.298.0) Une dépense qui revient, passée sans être notée : la prévision la compte aujourd'hui ; un geste la note.
@@ -3801,6 +3808,12 @@
         $$('#tr-effets tr[data-go]').forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
       }
       if ($('#tr-s-rel')) $('#tr-s-rel').onclick = () => navigate('#/relances');
+      $$('#t-body [data-decouvert-voir]').forEach(b => b.onclick = () => { s.account = b.dataset.decouvertVoir; s.tab = 'mouvements'; s.moves.page = 1; render(true); });
+      $$('#t-body [data-decouvert-vir]').forEach(b => b.onclick = () => {
+        const a = pos.accounts.find(x => x.id === b.dataset.decouvertVir), r = a && renfortDe(a);
+        if (!a || !r) return;
+        movementForm(null, () => render(true), { kind: 'virement', accountId: r.id, versAccountId: a.id, amount: C.round3(Math.min(-a.balance, r.balance)), label: `Virement vers ${a.name}`, method: 'virement' });
+      });
       if ($('#tr-s-ach')) $('#tr-s-ach').onclick = () => navigate('#/achats');
       if ($('#tr-s-rep')) $('#tr-s-rep').onclick = () => { s.tab = 'prevision'; render(true); };
       // (1.358.0) Te rembourser : un mouvement « Remboursement de mes avances », prérempli du reste dû ; il part de la banque
@@ -5330,7 +5343,7 @@
         { key: 'ht', label: 'HT', r: true, val: r => r.ht, get: r => montantCompta(r.ht) },
         { key: 'tva', label: 'TVA', r: true, val: r => r.tva, get: r => montantCompta(r.tva) },
         { key: 'ttc', label: 'TTC', r: true, val: r => r.ttc, get: r => montantCompta(r.ttc) },
-        { key: 'rs', label: 'RS', r: true, val: r => r.rs, get: r => r.rs ? montantCompta(r.rs) : '—' },
+        { key: 'rs', label: 'Retenue', r: true, val: r => r.rs, get: r => r.rs ? montantCompta(r.rs) : '—' },
         { key: 'net', label: 'Net', r: true, val: r => r.net, get: r => montantCompta(r.net) },
         { key: 'status', label: 'Statut', asc: true, val: r => r.status || '', get: r => badge(r.status) }
       ];
@@ -5357,7 +5370,7 @@
             <span class="small warn-text">Les totaux ci-dessous ne portent que sur la sélection.</span>` : ''}
         </div>
         <div class="stats">
-          <div class="stat"><div class="lbl">CA HT — ${h(periodLabel())} ${info('dash.caMonth')}</div><div class="val">${C.money(sum.ht, cur)}</div><div class="sub">${pl(sum.count, 'document')}, avoirs déduits</div></div>
+          <div class="stat"><div class="lbl">Chiffre d'affaires HT — ${h(periodLabel())} ${info('dash.caMonth')}</div><div class="val">${C.money(sum.ht, cur)}</div><div class="sub">${pl(sum.count, 'document')}, avoirs déduits</div></div>
           <div class="stat"><div class="lbl">TVA collectée ${info('compta.vat')}</div><div class="val">${C.money(sum.tva, cur)}</div><div class="sub">+ timbres ${C.money(sum.timbre, cur)}</div></div>
           <div class="stat"><div class="lbl">Encaissé sur la période ${info('compta.payments')}</div><div class="val">${C.money(paidTotal, cur)}</div><div class="sub">${pl(pays.length, 'paiement')}</div></div>
           <div class="stat" data-cstat="encaisser" role="button" tabindex="0" title="Voir les factures qui restent à encaisser"><div class="lbl">Reste à encaisser (total) ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture ouverte', 'factures ouvertes')}</div></div>
@@ -5802,7 +5815,7 @@
         { key: 'label', label: 'Libellé', val: e => e.label },
         { key: 'debit', label: 'Débit', r: true, info: 'ecr.quoi', val: e => e.debit },
         { key: 'credit', label: 'Crédit', r: true, info: 'ecr.quoi', val: e => e.credit },
-        { key: 'lettre', label: 'Let.', info: 'bal.lettrage', val: e => e.lettre || '' }
+        { key: 'lettre', label: 'Lettrage', info: 'bal.lettrage', val: e => e.lettre || '' }
       ];
       const sorted = applySort(entries, cols, ecrState.sort);
       const { rows, pg } = paginate(sorted, ecrState);
@@ -6075,7 +6088,7 @@
           : gl.comptes.map(c => `
         <div class="panel gl-compte" data-compte="${h(c.account)}"><h2><span class="mono">${h(c.account)}</span> ${h(c.label)}</h2>
           <div class="scroll-x"><table class="list compact gl-t">
-            <thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th>${c.lignes.some(e => e.role) ? '<th>Let.</th>' : ''}<th class="r">Débit</th><th class="r">Crédit</th><th class="r">Solde ${info('gl.solde')}</th></tr></thead>
+            <thead><tr><th>Date</th><th>Journal</th><th>Pièce</th><th>Libellé</th>${c.lignes.some(e => e.role) ? '<th>Lettrage</th>' : ''}<th class="r">Débit</th><th class="r">Crédit</th><th class="r">Solde ${info('gl.solde')}</th></tr></thead>
             <tbody>
               <tr class="gl-ouv"><td class="nw muted">—</td><td></td><td></td><td class="muted">Solde d'ouverture</td>${c.lignes.some(e => e.role) ? '<td></td>' : ''}<td></td><td></td><td class="r nw">${montantCompta(c.ouverture)}</td></tr>
               ${c.lignes.map(e => `<tr>
@@ -6231,7 +6244,7 @@
         <div class="split">
           <div class="panel"><h2>État de résultat — produits ${info('etats.resultat')}</h2>${tab(e.produits)}</div>
           <div class="panel"><h2>État de résultat — charges</h2>${tab(e.charges)}
-            <p class="mt"><strong>Résultat : ${C.money(e.resultat, cur)}</strong> ${e.resultat >= 0 ? '(bénéfice)' : '(perte)'}</p></div>
+            <p class="mt"><strong>Résultat de l'exercice : ${C.money(e.resultat, cur)}</strong> ${e.resultat >= 0 ? '(bénéfice)' : '(perte)'}</p></div>
         </div>`;
       $('#et-csv').onclick = async () => {
         const f = await bridge.saveText(`etats-financiers-${y}.csv`, C.toCsv(C.etatsCsvRows(e), C.etatsCsvColumns()));

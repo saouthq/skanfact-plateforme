@@ -617,8 +617,20 @@
   const primesDuMois = Compta.primesDuMois;
   // Ce qu'une fiche coûte un mois plein (la liste des salariés, la fiche, l'aide de la fenêtre) : ses primes
   // comprises, sinon le « net estimé » d'un salarié qui touche deux primes chaque mois serait faux.
-  const saisieDeLaFiche = (employee, settings) => {
+  // (issue 16, GEST-10) Avec `mois` ({ data, year, month }) : le mois d'une entrée ou d'une sortie se proratise comme le
+  // bulletin le fera (`payslipInputForSansPointage`, la même règle) — la prévision de trésorerie projetait un mois plein pour
+  // six jours. Les avances n'y sont pas : la prévision les retient à part. Sans `mois`, un mois plein.
+  const saisieDeLaFiche = (employee, settings, mois) => {
     const t = Number((settings || {}).workedDays) || 26;
+    if (mois && mois.data && employee) {
+      const first = `${mois.year}-${String(mois.month).padStart(2, '0')}-01`, last = addDays(first, daysInMonth(mois.year, mois.month) - 1);
+      const entre = employee.hireDate && employee.hireDate > first && employee.hireDate <= last;
+      const sort = employee.endDate && employee.endDate >= first && employee.endDate < last;
+      if (entre || sort) {
+        const i = payslipInputForSansPointage(mois.data, employee, mois.year, mois.month);
+        return { gross: i.gross, workedDays: i.workedDays, bonuses: i.bonuses, prorata: i.prorata, year: mois.year, month: mois.month };
+      }
+    }
     return { bonuses: primesDuMois(employee, t, t) };
   };
   // Les taux livrés AVANT la 1.59.0, encore gardés dans les barèmes de l'entreprise : « Enregistrer les

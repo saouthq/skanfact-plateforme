@@ -6655,3 +6655,21 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   se cherche, et au téléphone « Enregistrer » reste au bas de l'écran (ENTACHATS-15).
 - Tests : `recette-alpha` (19, 17 + X-3, 16, 10), `liste-fournisseurs` (l'assertion « délai non précisé » retournée),
   `depots`, `lots`, `stock-revue`, `premiers-pas` (nouveau parcours commerce) ; dix preuves.
+
+## 1.388.30 — La gestion (issue 16) : le découvert en tête, la paie qui ne s'établit pas sous un blocage, la prévision juste au mois d'une embauche
+
+- **Un compte à découvert passe en tête de « À surveiller »** de la Trésorerie, avec le virement qui le remet à flot depuis
+  le compte qui porte de l'argent (une caisse négative dit qu'une entrée d'espèces manque) (GEST-3).
+- **L'état vide des bulletins ne propose plus « Établir »** tant qu'une chose du pointage bloque : le vert de l'en-tête
+  « Régler d'abord » est le seul geste (GEST-6).
+- **La prévision de trésorerie proratise le mois d'une embauche ou d'un départ** comme le bulletin le fera (six jours sur
+  vingt-six, pas un mois plein) — salaires, IRPP et CNSS projetés (GEST-10).
+- **Le compte comptable d'un mouvement se replie** (« Choisir le compte comptable moi-même ») : la nature du mouvement le
+  décide par défaut, et un compte déjà choisi s'ouvre déplié (GEST-16).
+- **Les libellés en entier** : « Retenue », « Lettrage », « Chiffre d'affaires HT », « Résultat de l'exercice » (GEST-19).
+- **Le pointage d'un mois dont les bulletins sont établis** ne dit plus « vérifie-le avant de les établir » (GEST-20 ;
+  sans test dédié, à jouer à la souris).
+- Tests : `tresorerie-ecran` (nouveau parcours du découvert), `paie-267-gestes`, `moteur/avance-prevision-1362-3`
+  (prorata calculé à la main sur le calendrier), `poche-1358`, `tva-versee-1359`, `accueil-1312` (et une assertion qui
+  dépendait du jour — une échéance fiscale entrée dans les quinze jours — retournée vers la règle : la phrase dit le nombre
+  que « À faire » range), `caisse-1313` ; cinq preuves.

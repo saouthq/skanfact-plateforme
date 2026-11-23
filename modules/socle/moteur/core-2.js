@@ -1060,7 +1060,8 @@
     // cotisations pour les impôts plus bas : un seul calcul pour les trois.
     const sPaie = payrollSettings(data);
     const fiches = {};
-    const ficheDe = e => (e.id in fiches ? fiches[e.id] : (fiches[e.id] = (() => { try { return computePayslip(e, saisieDeLaFiche(e, sPaie), sPaie) || {}; } catch (_) { return {}; } })()));
+    // (issue 16, GEST-10) La fiche d'un MOIS : celui d'une entrée ou d'une sortie se proratise (`saisieDeLaFiche`, 3e argument).
+    const ficheDe = (e, y, m) => { const k = `${e.id}|${y}-${m}`; return k in fiches ? fiches[k] : (fiches[k] = (() => { try { return computePayslip(e, saisieDeLaFiche(e, sPaie, { data, year: y, month: m }), sPaie) || {}; } catch (_) { return {}; } })()); };
     const aBulletin = new Set((data.payslips || []).map(sl => `${sl.employeeId}|${Number(sl.year)}-${Number(sl.month)}`));
     const sansBulletin = (y, m) => {
       const debut = `${y}-${pad2(m)}-01`, fin = addDays(debut, daysInMonth(y, m) - 1);
@@ -1086,7 +1087,7 @@
         if (debut > horizon || fin > horizon) break;
         sansBulletin(y, m).forEach(e => {
           const avance = retenuesDuMois(e, y, m);
-          const net = round3((ficheDe(e).net || 0) - avance);
+          const net = round3((ficheDe(e, y, m).net || 0) - avance);
           if (!(net > 0)) return;
           events.push({ date: fin, amount: -net, kind: 'salaire-prevu', estime: true, avanceRetenue: avance || undefined,
             label: `Salaire ${monthLabel(fin)} — ${e.name || 'Salarié'}${avance > 0 ? ` (avance retenue : ${money(avance, company.currency || 'DT')})` : ''}`, id: `${e.id}@${y}-${pad2(m)}` });
@@ -1112,7 +1113,7 @@
             let sal = 0;
             if (!sociales.has(`dm-${yy}-${pad2(mois)}`)) {
               try { sal = round3((declarationMensuelleSalaires(data, yy, mois) || {}).total || 0); } catch (_) { sal = 0; }
-              sal = round3(sansBulletin(yy, mois).reduce((a, e) => { const c = ficheDe(e); return round3(a + (c.irpp || 0) + (c.css || 0) + (c.tfp || 0) + (c.foprolos || 0)); }, sal));
+              sal = round3(sansBulletin(yy, mois).reduce((a, e) => { const c = ficheDe(e, yy, mois); return round3(a + (c.irpp || 0) + (c.css || 0) + (c.tfp || 0) + (c.foprolos || 0)); }, sal));
             }
             const montant = round3((v.toPay || 0) + (v.withheldOnBuys || 0) + sal);
             if (montant > 0.0005) events.push({ date: d, amount: -montant, kind: 'fiscal', estime: true, label: `${tva.label} — ${MONTHS_FR[mois - 1]} ${yy}`, id: fiscalFilingId('tva', d),
@@ -1130,7 +1131,7 @@
             const [, yy, q] = /cnss-(\d{4})-T(\d)/.exec(soc.id) || [];
             const c = yy ? cnssDeclaration(data, Number(yy), Number(q)) : null;
             // (1.266.7) Les mois du trimestre dont les bulletins ne sont pas encore faits : estimés sur les fiches.
-            const total = c ? round3(c.months.reduce((a, mo) => sansBulletin(Number(yy), mo).reduce((b, e) => { const x = ficheDe(e); return round3(b + (x.cnssEmployee || 0) + (x.cnssEmployer || 0) + (x.accident || 0)); }, a), c.total)) : 0;
+            const total = c ? round3(c.months.reduce((a, mo) => sansBulletin(Number(yy), mo).reduce((b, e) => { const x = ficheDe(e, Number(yy), mo); return round3(b + (x.cnssEmployee || 0) + (x.cnssEmployer || 0) + (x.accident || 0)); }, a), c.total)) : 0;
             if (c && total > 0.0005) events.push({ date: d, amount: -total, kind: 'fiscal', estime: true, label: `${cnss.label} — ${c.label} ${yy}`, id: soc.id });
           }
           d = nextDeadline(cnss, addDays(d, 1));

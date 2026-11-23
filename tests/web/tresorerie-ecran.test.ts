@@ -49,6 +49,42 @@ describe('la trésorerie : cartes, seuil, essai, relevé importé, effets', () =
     await c.fill(fr(iso)); await c.press('Tab');
   };
 
+  it('(GEST-3) un compte à découvert passe en tête de « À surveiller », et le virement proposé le remet à flot', async () => {
+    const email = `treso-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Sarra Mansour', motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).jeton);
+    const ent = String((await api('POST', '/entreprises-essai', jeton)).id);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'accounts', cle: 'a-biat', rang: 20, revision: null, contenu: { id: 'a-biat', name: 'BIAT courant', kind: 'banque', opening: { '~n': '500' }, openingDate: jour(-60), isDefault: true, statementBalance: '' } },
+      { collection: 'accounts', cle: 'a-zit', rang: 21, revision: null, contenu: { id: 'a-zit', name: 'Zitouna', kind: 'banque', opening: { '~n': '-120' }, openingDate: jour(-60), statementBalance: '' } },
+    ] });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    await cx.addInitScript(() => { const x = new URLSearchParams(location.search).get('e'); if (x) sessionStorage.setItem('skanfact.essai_tel_quel', x); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/tresorerie`);
+    await p.locator('#tr-comptes .tr-compte').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await expect.poll(async () => net(await p.locator('.tr-surv li').first().innerText()), { timeout: 10_000 }).toMatch(/^Zitouna est à découvert de 120,000 DT/);
+    expect(await p.locator('.tr-surv li', { hasText: 'BIAT courant est à' }).count()).toBe(0);
+    const vir = p.locator('[data-decouvert-vir]');
+    expect(net(await vir.innerText())).toBe('Virer depuis BIAT courant…');
+    await vir.click();
+    const f = p.locator('#modal-root .modal').filter({ has: p.locator('#mf2') }).last();
+    await f.waitFor({ timeout: 10_000 });
+    expect(await f.locator('[name=kind]').inputValue()).toBe('virement');
+    expect(await f.locator('[name=versAccountId]').inputValue()).toBe('a-zit');
+    expect(await f.locator('[name=amount]').inputValue()).toMatch(/^120([,.]0+)?$/);
+    await f.locator('#ok').click();
+    await expect.poll(() => p.locator('.tr-s-decouvert').count(), { timeout: 15_000 }).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
   it('cartes, bouton principal, filtres gris, loyer projeté, seuil, essai, relevé, traite', async () => {
     const email = `treso-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Sarra Mansour', motDePasse: 'Un-bon-mot-de-passe' });

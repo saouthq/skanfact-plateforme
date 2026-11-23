@@ -31857,6 +31857,28 @@ prouver $'l6-ea13-premier-article' web/public/plateforme/premiers-pas.js \
   $'    if (false) {' \
   $'(1.388.29, ENTACHATS-13) un commerce voit « Ton premier article » et « Ton premier achat » ; un article créé coche le premier'
 
+# 1.388.30 — la gestion (issue 16) : le découvert en tête, la paie bloquée, la prévision proratisée, le compte replié, les libellés entiers.
+prouver $'l7-g3-le-decouvert-en-tete' modules/socle/ecrans/entreprise/app-2.js \
+  $'      const aDecouvert = pos.accounts.filter(a => a.balance < -0.0005);' \
+  $'      const aDecouvert = [];' \
+  $'(GEST-3) un compte à découvert passe en tête de « À surveiller », et le virement proposé le remet à flot'
+prouver $'l7-g6-pas-d-etablir-sous-un-blocage' modules/personnel/ecrans/entreprise/paie.js \
+  $'avant25(y, m) || bloquantsDe(y, m).length ? \'\'' \
+  $'avant25(y, m) ? \'\'' \
+  $'le mois : ce qui change un montant retient les bulletins, « Régler d\'abord » mène au pointage ; « Plus tard » remet un rappel à lundi'
+prouver $'l7-g10-le-mois-d-entree-proratise' modules/socle/moteur/core-2.js \
+  $'const net = round3((ficheDe(e, y, m).net || 0) - avance);' \
+  $'const net = round3((ficheDe(e, 0, 0).net || 0) - avance);' \
+  $'(GEST-10) un salarié qui entre le 24/12 : décembre porte le net proratisé (6 jours sur 26), janvier le net plein'
+prouver $'l7-g16-le-compte-replie' modules/socle/ecrans/entreprise/app-2.js \
+  $'<details class="span-2 plus-details" id="mf-cp" ${m.kind === \'virement\' ? \'hidden\' : \'\'}${m.compte ? \' open\' : \'\'}>' \
+  $'<details class="span-2 plus-details" id="mf-cp" ${m.kind === \'virement\' ? \'hidden\' : \'\'} open>' \
+  $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
+prouver $'l7-g19-chiffre-d-affaires-en-entier' modules/socle/ecrans/entreprise/app-2.js \
+  $'<div class="lbl">Chiffre d\'affaires HT — ${h(periodLabel())}' \
+  $'<div class="lbl">CA HT — ${h(periodLabel())}' \
+  $'la quincaillerie de Sousse ouvre son accueil un lundi matin : chaque carte dit le chiffre de sa page, et le Cabinet le même chiffre d\'affaires'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
