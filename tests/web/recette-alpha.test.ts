@@ -316,8 +316,12 @@ describe('la recette alpha, à la souris', () => {
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toContain('/achat/a1');
     const date1 = p.locator('#view [name=date]').locator('xpath=ancestor::*[contains(@class,"datefield")][1]').locator('.d-txt');
     await date1.waitFor({ timeout: 15_000 });
-    await date1.fill('15/08/2026');
-    await date1.press('Tab');
+    // « Enregistrer les modifications » n'apparaît qu'une fois la date changée (un seul bouton principal) : sur une machine
+    // lente, on retape tant qu'il ne s'est pas montré, comme quelqu'un qui le cherche des yeux.
+    await expect.poll(async () => {
+      if (!await p.locator('#save').isVisible()) { await date1.fill('15/08/2026'); await date1.press('Tab'); }
+      return p.locator('#save').isVisible();
+    }, { timeout: 20_000 }).toBe(true);
     await p.locator('#save').click();
     const fen = p.locator('#modal-root .modal').last();
     await expect.poll(() => fen.locator('h2').innerText().then(net), { timeout: 10_000 }).toBe('Période clôturée');

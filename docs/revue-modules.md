@@ -6728,3 +6728,10 @@ Les tests GitHub de la 1.388.33 ont aussi trouvé neuf tests écrits contre l'é
 un seul bandeau « Lecture seule » par page (COLLAB-15), la phrase du pont « est relié à ton dossier », « tu le tiens » pour
 un cabinet d'une personne, un titre qui porte sa bulle « i », et un commerce dont les premiers pas comptent le premier
 article et le premier achat (le test les pose). Chaque test a été retourné vers la règle, et les dix passent en local.
+
+## 1.388.35 — Un test patient sur une machine lente
+
+Sur GitHub, la recette alpha (ENTACHATS-17) cliquait « Enregistrer les modifications » avant qu'il ne paraisse : le bouton
+ne se montre qu'une fois la date changée (un seul bouton principal), et la machine de GitHub est plus lente que la
+nôtre. Le test attend désormais le bouton, et retape la date tant qu'il ne s'est pas montré. Rien ne change dans
+l'application.
