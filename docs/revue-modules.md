@@ -6744,3 +6744,10 @@ les remises d'un appareil se lisent et se décident par le propriétaire et l'ad
 réglages que SkanFact pose pour l'entreprise d'essai restent ceux de SkanFact. Connecté, un lien de
 comptable qui ne vaut plus le dit, au lieu d'ouvrir un tableau de bord vide. Tests : `mandats`,
 `quarantaine`, `droits-dossier`.
+
+## 1.388.37 — Les réglages de tous les dossiers, par un associé
+
+Dans les Réglages du Cabinet, la fiche du cabinet (adresse, téléphone), les jours de dépôt, le jour de
+relance, les régimes, les guides et la méthode de révision valent pour tous les dossiers : comme le nom,
+seul un associé les change. Un collaborateur enregistre toujours le reste (ses modèles de banque, sa
+grille, son thème) ; un refus nomme ce qui ne lui revient pas. Test : `fiche`.

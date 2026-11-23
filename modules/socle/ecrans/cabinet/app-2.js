@@ -8259,7 +8259,7 @@
           <label class="field narrow">${lbl('CNSS : jour de dépôt', 'ec.jours')}
                 <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-cnssday" min="1" max="31" value="${K.deadlineSettings(S).cnssDay}"><span class="suffixe-ap">du mois qui suit le trimestre</span></span></label>
         </div>
-        <p class="muted small">Les jours de dépôt alimentent la page <a href="#/echeances">Échéances</a>.
+        <p class="muted small">Les jours de dépôt alimentent la page <a href="#/echeances">Échéances</a>. Ils valent pour tous les dossiers : seul un associé les change.
         <strong>À VÉRIFIER</strong> : ils dépendent de la forme juridique, du régime et de la loi de finances.</p>
         <p class="muted small mt">Ce nom apparaît en bas des relances que tu envoies, et tes clients le lisent quand ils te confient leur dossier. Seul un associé du cabinet le change.</p>
         <div class="modal-actions"><span class="saved" id="c-saved" hidden></span><button class="btn" id="c-save" data-enreg>Enregistrer mon cabinet</button></div>

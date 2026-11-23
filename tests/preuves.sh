@@ -31910,6 +31910,12 @@ prouver "la marque de l'exemple posée sur une vraie entreprise" serveur/v10/dos
   "if (!e?.essai) throw new Refus('v10.exemple_reserve');" "void e;" \
   "la marque de l'exemple : un membre ne la pose pas, et personne ne la pose sur une vraie entreprise depuis un poste"
 
+# 1.388.37 — les réglages de tous les dossiers, par un associé.
+prouver $'les reglages de tous les dossiers par n\'importe qui' serveur/cabinet/routes.ts \
+  $'if (changes.length && !(await tx.query(\'select socle.suis_associe($1) ok\', [cabinet])).rows[0]?.ok) {' \
+  $'if (false) {' \
+  $'l\'associé renomme le cabinet ; un collaborateur ne le peut pas ; un nom vide est refusé ; le changement se trace'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

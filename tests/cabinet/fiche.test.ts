@@ -84,6 +84,15 @@ describe('la fiche du cabinet', () => {
     expect((await appeler('POST', '/invitations/accepter', amine.jeton, { jeton: inv.corps.jeton })).statut).toBe(200);
     const refus = await appeler('PUT', `/cabinets/${cabinet}/nom`, amine.jeton, { nom: 'Cabinet Amine' });
     expect([refus.statut, refus.corps.motif]).toEqual([403, 'Seul un associé du cabinet change son nom.']);
+    // Les réglages de tous les dossiers (jours de dépôt, régimes…) sont ceux d'un associé ; le reste (le thème), chacun le pose.
+    const reg = (jeton: string, contenu: Record<string, unknown>, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/reglages`, jeton, { contenu, revision });
+    expect((await reg(amine.jeton, { theme: 'dark' }, null)).statut).toBe(200);
+    const jours = await reg(amine.jeton, { theme: 'dark', deadlines: { tvaDay: 5, cnssDay: 15 } }, 1);
+    expect([jours.statut, jours.corps.motif]).toEqual([403, 'Seul un associé du cabinet change les jours de dépôt (TVA, CNSS) : ce sont des réglages de tous les dossiers ; rien n\'a été enregistré.']);
+    expect((await reg(amine.jeton, { theme: 'light' }, 1)).statut).toBe(200);
+    expect((await reg(associe.jeton, { theme: 'light', deadlines: { tvaDay: 5, cnssDay: 15 } }, 2)).statut).toBe(200);
+    // Ce qu'un associé a posé, le collaborateur le renvoie tel quel avec son propre changement.
+    expect((await reg(amine.jeton, { theme: 'dark', deadlines: { tvaDay: 5, cnssDay: 15 } }, 3)).statut).toBe(200);
     // Une personne hors du cabinet non plus.
     const autre = await personne('autre');
     expect((await appeler('PUT', `/cabinets/${cabinet}/nom`, autre.jeton, { nom: 'Cabinet Volé' })).statut).toBe(403);

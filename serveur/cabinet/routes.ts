@@ -164,6 +164,9 @@ const REGLAGES = z.object({
   }).strict()).max(30),
 }).partial().strict();
 
+// Les réglages de la direction : seul un associé les change (le reste est le travail de chacun).
+const REGLAGES_DE_DIRECTION = ['email', 'phone', 'relanceDay', 'seuilPieces', 'deadlines', 'regimes', 'guides', 'questionnaire', 'cycles', 'liasse', 'tauxRetenue'] as const;
+
 const tracer = (tx: Transaction, entreprise: string, geste: string, objet: string, avant: unknown, apres: unknown) =>
   tx.query('select socle.tracer($1, $2, $3, $4, $5, $6)', [entreprise, geste, 'mandat', objet, avant === null ? null : JSON.stringify(avant), apres === null ? null : JSON.stringify(apres)]);
 
@@ -790,9 +793,16 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const db = requetes(tx);
       const membre = (await tx.query('select 1 from socle.mes_organisations() o where o = $1', [cabinet])).rowCount;
       if (!membre) return introuvable;
-      const deja = await db.selectFrom('cabinet.reglages').select('revision').where('cabinet', '=', cabinet).executeTakeFirst();
+      const deja = await db.selectFrom('cabinet.reglages').select(['revision', 'contenu']).where('cabinet', '=', cabinet).executeTakeFirst();
       const connue = deja ? Number(deja.revision) : null;
       if (connue !== corps.revision) return { statut: 409, corps: { motif: motif('cabinet.reglages_changes'), revision: connue } };
+      // Les réglages qui valent pour tous les dossiers (la fiche du cabinet, les échéances, les régimes, la méthode) sont
+      // ceux de la direction, comme le nom : un autre rôle enregistre le reste (ses banques, sa grille, son thème) tel quel.
+      const avant = (deja?.contenu ?? {}) as Record<string, unknown>;
+      const changes = REGLAGES_DE_DIRECTION.filter((k) => k in corps.contenu && JSON.stringify(corps.contenu[k] ?? null) !== JSON.stringify(avant[k] ?? null));
+      if (changes.length && !(await tx.query('select socle.suis_associe($1) ok', [cabinet])).rows[0]?.ok) {
+        return { statut: 403, corps: { motif: motif('cabinet.reglages_associe', { champs: changes.map((k) => t(`cabinet.reglage.${k}`)).join(', ') }) } };
+      }
       const contenu = JSON.stringify(corps.contenu);
       const ecrites = deja
         ? (await db.updateTable('cabinet.reglages').set({ contenu, revision: BigInt(connue ?? 0) + 1n, modifie_par: qui.utilisateur, modifie_le: new Date() })
