@@ -94,7 +94,7 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await expect.poll(() => panneau.innerText(), { timeout: 20_000 }).toMatch(/Le fond de caisse de 200 DT est-il toujours en place/);
     expect(await panneau.locator('[data-rep]').count()).toBe(2);
     expect(await panneau.innerText()).not.toMatch(/Question réglée au téléphone|pas encore partie/);
-    await expect.poll(() => p.locator('#cab-pair').innerText()).toMatch(/Cabinet Ennour tient tes livres/);
+    await expect.poll(() => p.locator('#cab-pair').innerText()).toMatch(/Cabinet Ennour est relié à ton dossier/);
     expect(await p.locator('#view').innerText()).not.toMatch(/paquet/i);
     await p.screenshot({ path: path.join(PHOTOS, 'questions-client-1-onglet.png') });
 

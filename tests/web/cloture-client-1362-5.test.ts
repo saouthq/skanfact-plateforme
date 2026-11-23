@@ -169,7 +169,8 @@ describe('la clôture du client, de la fenêtre au Cabinet (1.362.5)', () => {
     await v.screenshot({ path: path.join(PHOTOS, 'cloture-1362-5-annee-de-a.png'), fullPage: true });
     // Le tableau de bord ne réclame plus de mois sans écriture à ce client.
     await q.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
-    await q.getByText('Tableau de bord', { exact: true }).first().waitFor({ timeout: 20_000 });
+    // (1.388.x) Le titre porte sa bulle « i » : on l'attend par son rôle de titre, plus par son texte exact.
+    await q.locator('#view h1').filter({ hasText: 'Tableau de bord' }).first().waitFor({ timeout: 20_000 });
     await q.waitForTimeout(800);
     expect(net(await q.locator('#view').innerText())).not.toMatch(/mois sans écriture/);
     expect(erreurs).toEqual([]);

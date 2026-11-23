@@ -4963,7 +4963,7 @@ prouver "le dépôt choisi sur la réception oublié" modules/socle/ecrans/entre
 " "" \
   "$DPW"
 prouver "un transfert qui ne s'enregistre pas" modules/socle/ecrans/entreprise/app-2.js \
-  "          r.ajustements.forEach(a => data.stockAdjustments.push(a));" "" \
+  "        r.ajustements.forEach(a => data.stockAdjustments.push(a));" "" \
   "$DPW"
 prouver "la moitié d'un transfert supprimée seule" modules/socle/ecrans/entreprise/app-2.js \
   "    const ids = paire.length > 1 ? paire.map(x => x.id) : [id];" "    const ids = [id];" \
@@ -5855,7 +5855,7 @@ prouver "la page Caisse absente du menu du caissier" modules/socle/ecrans/entrep
 " "" \
   "$CW"
 prouver "le serveur qui ne dit pas qui tient une caisse" serveur/v10/droits.ts \
-  "    caisse: permet(roles, 'caisse.ticket.encaisser', true) } };" "    caisse: false } };" \
+  "    caisse: permet(roles, 'caisse.ticket.encaisser', true)," "    caisse: false," \
   "$CW"
 prouver "le caissier qui ne sait pas où vont les espèces" serveur/v10/droits.ts \
   "  accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier')," "  accounts: R('tresorerie.voir', 'tresorerie.comptes.modifier')," \
@@ -8051,7 +8051,7 @@ prouver 'le pied de la pièce qui imprime le matricule tel que tapé' modules/so
   ''\''Matricule fiscal '\'') + matriculeLisible(company.matricule)' ''\''Matricule fiscal '\'') + company.matricule' \
   "$MAT3"
 prouver 'la pièce qui imprime le matricule du client tel que tapé' modules/socle/moteur/core-2.js \
-  'L.mfCin + '\'' '\'' + escapeHtml(matriculeLisible(cl.matricule))' 'L.mfCin + '\'' '\'' + escapeHtml(cl.matricule)' \
+  'L.mfCin) + '\'' '\'' + escapeHtml(matriculeLisible(cl.matricule))' 'L.mfCin) + '\'' '\'' + escapeHtml(cl.matricule)' \
   "$MAT3"
 prouver 'le ticket de caisse qui imprime le matricule tel que tapé' modules/socle/moteur/core-2.js \
   ''\''<br>MF '\'' + escapeHtml(matriculeLisible(co.matricule))' ''\''<br>MF '\'' + escapeHtml(co.matricule)' \
@@ -17814,8 +17814,8 @@ prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/sr
     comptable.oublier();' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'le comptable invité qui arrive sur la porte de l'"'"'entreprise' 'web/src/ecrans/Porte.tsx' \
-  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>(pourUnClient || profil === '"'"'cabinet'"'"' ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
-  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"' | '"'"'depart'"'"'>('"'"'porte'"'"')' \
+  'useState<Etape>(pourUnClient || profil === '"'"'cabinet'"'"' ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
+  'useState<Etape>('"'"'porte'"'"')' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'la vitrine de la première facture pour le comptable invité' 'web/src/ecrans/Inscription.tsx' \
   ': comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> :' \
@@ -18186,9 +18186,8 @@ prouver 'le journal en tableau qui coupe le geste au bord du téléphone' web/co
   "$CTEL"
 
 
-prouver '« Première fois sur cette page ? » qui reste sur l'\''éditeur pendant le défilement du téléphone' modules/socle/ecrans/entreprise/app-2.js \
-  "    window.addEventListener('scroll', defile, { passive: true });" '' \
-  'au téléphone, faire défiler l'\''éditeur de facture referme « Première fois sur cette page ? »'
+# (1.388.34) « Première fois sur cette page ? » ne se pose plus au téléphone (DIR-16) : la preuve du défilement qui la
+# refermait n'a plus d'écran où tomber ; « (DIR-16) au téléphone… ne se pose pas » tient la règle.
 
 prouver 'la grille des prix qui défile de côté au téléphone' web/console/src/console.css \
   $'@media (max-width: 860px) {\n  .c-defile:has(> .c-rg-grille)' $'@media (max-width: 1px) {\n  .c-defile:has(> .c-rg-grille)' \
@@ -18571,7 +18570,7 @@ prouver 'le refus en bas de l'\''écran effacé avant d'\''être lu' web/src/com
   $'m.erreur ? Math.min(8000, Math.max(2600, m.texte.length * 60)) : 2600' $'2600' \
   '« Ton entreprise » : le curseur'
 prouver 'la page ouverte avec le mauvais compte, sans moyen d'\''en changer' web/public/plateforme/poste.js \
-  $'${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : \'\'}' $'' \
+  $'<div class="po-gestes">${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : \'\'}' $'<div class="po-gestes">' \
   '(1.100.0) ouverte avec le mauvais compte'
 prouver 'l'\''autre compte qui laisse ouverte la session du premier' web/public/plateforme/pont.js \
   $"    try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }" $"" \
@@ -20176,7 +20175,7 @@ prouver 'barre 23 : la visite de la barre ne montre rien' web/public/plateforme/
   '    cible.classList.add('"'"'sb-cible-visite'"'"');' '' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 24 : G puis F ne mène nulle part' web/public/plateforme/barre.js \
-  '      if (!auCabinet() && (k === '"'"'f'"'"' || k === '"'"'F'"'"')) { e.preventDefault(); aller('"'"'#/factures'"'"'); return; }' '' \
+  '        : (!auCabinet() && (k === '"'"'f'"'"' || k === '"'"'F'"'"')) ? '"'"'#/factures'"'"'' '        : false ? '"'"'#/factures'"'"'' \
   'repliée et au clavier'
 prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' 'web/public/plateforme/barre.css|||web/public/plateforme/messagerie.js' \
   '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
@@ -20783,7 +20782,7 @@ prouver 'reprendre 6 : la commande enregistrée qui reste à reprendre' 'modules
 |||> 7 * 86400000 || commandesF().some(x => x.id === d.id)) { brouillonCf.effacer(); return; }" '|||> 7 * 86400000) { brouillonCf.effacer(); return; }' \
   'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
 prouver 'reprendre 7 : la question du poste partagé qui ne dit pas pourquoi' modules/socle/ecrans/entreprise/app-1.js \
-  '      partage ? `Rien ne se garde' '      false ? `Rien ne se garde' \
+  '      (partage ? `Rien ne se garde' '      (false ? `Rien ne se garde' \
   'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
 prouver 'cabinet reprendre 1 : l'"'"'écriture commencée qui ne se garde pas sur le poste' modules/socle/ecrans/cabinet/app-2.js \
   '    if (!apresGarde && brouillonE) { clearTimeout(gardeETimer); gardeETimer = setTimeout(garderSaisies, 1000); }' '' \
@@ -21501,9 +21500,8 @@ prouver 'tableau 5 : le menu ⋯ trop petit pour le doigt' web/public/plateforme
 prouver 'tableau 6 : la recherche perd le curseur à chaque lettre' modules/socle/ecrans/cabinet/app-1.js \
   "const n = \$('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); }" "" \
   'une page : À faire, la campagne du mois'
-prouver 'tableau 7 : l'"'"'invitation de visite couvre « Accepter le dossier »' modules/socle/ecrans/cabinet/app-2.js \
-  "if (\$('#view .premiers-pas, #view .cd-prop')) return;" "if (\$('#view .premiers-pas')) return;" \
-  'le client invite par e-mail'
+# (1.388.34) tableau 7 retirée : depuis la 1.388.23 l'invitation de visite se pose dans le coin (`ga-coin`), elle ne
+# peut plus couvrir « Accepter le dossier » ; la garde `.cd-prop` reste, sans défaut observable à prouver.
 prouver 'tableau 8 : au téléphone, le tableau de bord se dit pensé pour un ordinateur' modules/socle/ecrans/cabinet/app-1.js \
   "  const ECRANS_ORDINATEUR = ['dossier', 'ecritures'];" "  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];" \
   'au téléphone : rien ne déborde'
@@ -22512,7 +22510,7 @@ prouver "paie 1.250 d, 1.251 : le calendrier des congés ne suit pas le mois cho
 # aujourd'hui marqué dans la grille ; plus de second cadre autour des tableaux des cartes ; la déclaration du mois en cours.
 WP251R='importer ses salariés depuis la page vide ; un arrêt maladie et son certificat ; un seul mois au pointage'
 prouver "paie 1.251 a : un mois de la bande ne change pas le mois de la page" modules/personnel/ecrans/entreprise/paie.js \
-  "s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3));" "s.quarter = String(Math.ceil(Number(m2) / 3));" \
+  "        s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3)); s.moisTouche = true;" "        s.quarter = String(Math.ceil(Number(m2) / 3)); s.moisTouche = true;" \
   "$WP251R"
 prouver "paie 1.251 b : la bande ne dit pas qu'un mois reste à payer" modules/personnel/ecrans/entreprise/paie.js \
   "if (C.payslipsOf(data, y, m).some(b => !b.paidDate)) return ['ambre', 'à payer'];" "" \
@@ -23260,7 +23258,7 @@ prouver 'paie 10.1-4 e : un salarié sorti estimé après sa sortie' modules/soc
   ' || (e.endDate && e.endDate < debut)) && !aBulletin' ') && !aBulletin' \
   "$PTR2"
 prouver 'paie 10.1-10 a : le salaire prévu sans les primes de la fiche' modules/socle/moteur/core-2.js \
-  'return computePayslip(e, saisieDeLaFiche(e, sPaie), sPaie) || {};' 'return computePayslip(e, {}, sPaie) || {};' \
+  'return computePayslip(e, saisieDeLaFiche(e, sPaie, { data, year: y, month: m }), sPaie) || {};' 'return computePayslip(e, {}, sPaie) || {};' \
   "$PTR3"
 prouver 'paie 10.1-10 b : le coût d'"'"'une heure sans les primes de la fiche' modules/socle/moteur/core-1.js \
   'computePayslip(emp, saisieDeLaFiche(emp, s), s).employerCost' 'computePayslip(emp, {}, s).employerCost' \
@@ -23295,10 +23293,10 @@ prouver 'paie 10.1-4 j : le point de contact oublie « sans la paie »' web/publ
   'paieCachee = !!(d && d.paieCachee === true);' 'paieCachee = false;' \
   "$SPP1"
 prouver 'paie 10.1-4 k : la copie du poste oublie « sans la paie »' web/public/plateforme/pont.js \
-  'tout: !ecrivables, responsable, caisse: tientCaisse, paieCachee } });' 'tout: !ecrivables, responsable, caisse: tientCaisse } });' \
+  'proprietaire: proprio, caisse: tientCaisse, paieCachee } });' 'proprietaire: proprio, caisse: tientCaisse } });' \
   "$SPP1"
 prouver 'paie 10.1-4 l : la page ne reçoit pas « sans la paie »' web/public/plateforme/pont.js \
-  'responsable, caisse: tientCaisse, paieCachee }),' 'responsable, caisse: tientCaisse }),' \
+  'proprietaire: proprio, caisse: tientCaisse, paieCachee }),' 'proprietaire: proprio, caisse: tientCaisse }),' \
   "$SPP1"
 prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' modules/socle/ecrans/entreprise/app-2.js \
   '${bandeauSansPaie('"'"'ces soldes et cette prévision'"'"', true)}' '' \
@@ -26652,7 +26650,7 @@ prouver 'parametres 1.327.0 a : le refus d'\''un matricule incomplet ne vit que 
   'placeholder="1234567X/A/M/000" data-verif="matricule"' 'placeholder="1234567X/A/M/000"' \
   "$PA"
 prouver 'parametres 1.327.0 b : une adresse e-mail sans « @ » s'\''enregistre sans un mot' modules/socle/ecrans/entreprise/app-2.js \
-  "c.email, 'email', 'data-verif=\"email\"')" "c.email, 'email')" \
+  "'co.email'), 'email', c.email, 'email', 'data-verif=\"email\"')" "'co.email'), 'email', c.email, 'email')" \
   "$PA"
 prouver 'parametres 1.327.0 c : enregistrer en bas de page fait descendre la page sous la souris' modules/socle/ecrans/entreprise/app-2.js \
   "setDirty = false; \$('#save-bar').classList.add('save-bar-repos');" "setDirty = false; \$('#save-bar').hidden = true;" \
@@ -28267,7 +28265,7 @@ prouver 'montants en français 1.356.9 a : la case de nombre de field() garde le
   '    if (type === '\''number'\'' && /\bstep="(?!1")[^"]*"/.test(attrs)) {' '    if (false && type === '\''number'\'' && /\bstep="(?!1")[^"]*"/.test(attrs)) {' \
   "$PS13569A"
 prouver 'montants en français 1.356.9 b : le prix d'\''une ligne d'\''achat redevient une case numérique' 'modules/socle/ecrans/entreprise/app-1.js' \
-  '<input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off">' '<input type="number" class="num${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${l.unitPrice}" step="0.001">' \
+  '<input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off" placeholder="prix d'\''achat">' '<input type="number" class="num${estMarque(i, '\''unitPrice'\'') ? '\'' lu-douteux'\'' : '\'''\''}" data-k="unitPrice" value="${l.unitPrice}" step="0.001">' \
   "$PS13569A"
 prouver 'montants en français 1.356.9 c : des milliers groupés à la française ne se lisent plus' 'modules/socle/ecrans/entreprise/app-1.js' \
   '    const g = t.match(/^(-?)(\d{1,3}([.,])\d{3}(?:\3\d{3})*)(?:([.,])(\d*))?$/);' '    const g = null;' \
@@ -29242,8 +29240,8 @@ prouver $'avoir 1.362.2 n : la copie d\'une facture de contrat garde sa période
 # l'avance qu'une fois, les salariés qu'un mois attend, l'exercice et le mois qui ont commencé, la réponse en retard.
 W=$'l\'exercice qui a commencé, le mois qui a commencé, et janvier sans personne en poste'
 prouver $'paie 1.362.3 a : la prévision sort l\'avance deux fois (le jour du versement, puis dans le salaire entier)' modules/socle/moteur/core-2.js \
-  $'const net = round3((ficheDe(e).net || 0) - avance);' \
-  $'const net = round3((ficheDe(e).net || 0));' \
+  $'const net = round3((ficheDe(e, y, m).net || 0) - avance);' \
+  $'const net = round3((ficheDe(e, y, m).net || 0));' \
   $'300 DT à 150 par mois : 150 retenus en novembre et en décembre, rien en janvier'
 prouver $'paie 1.362.3 b : la prévision retient plus que ce qui reste de l\'avance' modules/socle/moteur/core-2.js \
   $'(restes[d.advanceId] || 0) - (retenuPrevu[d.advanceId] || 0)' \
@@ -30765,7 +30763,7 @@ prouver $'vers-obligatoire' modules/socle/ecrans/entreprise/app-2.js $'<label cl
 prouver $'retenue-plus-que-net' modules/personnel/ecrans/entreprise/paie.js $'if (netR > 0 && Number(v.monthly) > netR + 0.0005) {' $'if (false) {' $'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
 prouver $'annuler-ce-depart' modules/personnel/ecrans/entreprise/paie.js $'14)} Annuler ce départ</button>' $'14)} Il reste finalement</button>' $'le bouton qui défait la sortie dit ce qu\'il fait : « Annuler ce départ », plus « Il reste finalement »'
 prouver $'hs-mene-au-reglage' modules/personnel/ecrans/entreprise/paie.js $'.then(async ok => { if (!ok) return; await allerVue(\'pt-horaires\');' $'.then(async ok => { if (!ok) return;' $'la journée : quatre choix d\'un clic, « + Retard » et « + H. sup » sur la ligne, l\'effet en dinars, le congé prévu'
-prouver $'etablir-vide-avant-25' modules/personnel/ecrans/entreprise/paie.js $"\${enLecture('payslips') || avant25(y, m) ? ''" $"\${enLecture('payslips') ? ''" $'le mois : ce qui change un montant retient les bulletins, « Régler d\'abord » mène au pointage ; « Plus tard » remet un rappel à lundi'
+prouver $'etablir-vide-avant-25' modules/personnel/ecrans/entreprise/paie.js $"              : miss.length && avant25(y, m) ? ''" $"              : false ? ''" $'le mois : ce qui change un montant retient les bulletins, « Régler d\'abord » mène au pointage ; « Plus tard » remet un rappel à lundi'
 prouver $'cin-sans-chiffre' modules/personnel/ecrans/entreprise/paie.js $'if (cc && ci && !/\\d/.test(ci))' $'if (false && cc && ci && !/\\d/.test(ci))' $'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d\'avant 2026 se disent'
 prouver $'brut-enorme-demande' modules/personnel/ecrans/entreprise/paie.js $'if (Number(v.grossSalary) > 50000 &&' $'if (false && Number(v.grossSalary) > 50000 &&' $'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d\'avant 2026 se disent'
 prouver $'cin-sans-chiffre-cabinet' modules/personnel/ecrans/cabinet/paie.js $'if (cinTxt && !/\\d/.test(cinTxt))' $'if (false && cinTxt && !/\\d/.test(cinTxt))' $'(1.344.0) l\'écriture validée depuis la Paie, la paie passée au journal comptée dans l\'année, le fichier CNSS une ligne par salarié'
@@ -30820,7 +30818,7 @@ prouver $'inventaire-par-depot-moteur' modules/socle/moteur/core-1.js \
   $'      const book = depotId ? ((stockParDepot(data, c.id, d).find(x => x.depotId === depotId) || { qty: 0 }).qty) : s.qty;' $'      const book = s.qty;' \
   $'le théorique et l\'écart sont ceux du dépôt compté ; sans dépôt, tous lieux confondus'
 prouver $'inventaire-par-depot-ecart-pose' modules/socle/ecrans/entreprise/app-2.js \
-  $"unitCost: '', source: 'inventaire', reference: '', ...(depInv ? { depotId: depInv } : {})," $"unitCost: '', source: 'inventaire', reference: ''," \
+  $"reference: '', ...(depInv ? { depotId: depInv } : {}), ...(lotInv" $"reference: '', ...(lotInv" \
   $'Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie'
 prouver $'cout-article-moyen-du-stock' modules/socle/moteur/core-1.js \
   $"      if (st.qty > 0 && st.cmp > 0) return { cout: st.cmp, source: 'moyen', fiche };" "" \
@@ -30892,8 +30890,8 @@ prouver $'client-fenetre-archive-pas-supprime' modules/socle/ecrans/entreprise/a
   $'${!client ? \'\' : true ? \'<button class="btn btn-danger" id="del-client"' \
   $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
 prouver $'client-fenetre-e-mail' modules/socle/ecrans/entreprise/app-1.js \
-  $'${field(lbl(\'E-mail\', \'cl.email\')' \
-  $'${field(lbl(\'Email\', \'cl.email\')' \
+  $'${field(lblVerif(\'E-mail\', \'cl.email\')' \
+  $'${field(lblVerif(\'Email\', \'cl.email\')' \
   $'une facture en euros avec TVA propose l\'exportation avant d\'émettre ; un numéro fiscal étranger ne se reproche pas'
 prouver $'document-prix-unitaire-entier' modules/socle/moteur/core-2.js \
   $'<td class="r num">${fmtPu(l.unitPrice)}</td>' \
@@ -31381,8 +31379,8 @@ prouver $'cabportefeuille10-toutes-les-cases-en-rouge' modules/socle/ecrans/cabi
   $'            void 0;' \
   $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
 prouver $'cabportefeuille10-annuler-demande' modules/socle/ecrans/cabinet/app-2.js \
-  $'<button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>' \
-  $'<button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>' \
+  $'<span class="grow"></span>\n         <button class="btn" id="no" data-close>Annuler</button>' \
+  $'<span class="grow"></span>\n         <button class="btn" id="no">Annuler</button>' \
   $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
 prouver $'cabportefeuille10-honoraires-menent-a-leur-case' modules/socle/ecrans/cabinet/app-1.js \
   $'    const hn = $(\'#fd-hon\', view); if (hn) hn.onclick = () => dossierForm(d, { focus: \'#f-fees\' });' \
@@ -31705,7 +31703,7 @@ prouver $'l3-dir2-chercher-le-client-cache-le-pied' web/public/plateforme/piece.
   $'  body:has(#ed-pourqui:not([hidden]):focus-within) .ed-geste { }' \
   $'(DIR-16) au téléphone, « Première fois sur cette page ? » ne se pose pas ; chercher le client cache le pied'
 prouver $'l3-dir3-l-email-du-client-se-refuse' modules/socle/ecrans/entreprise/app-1.js \
-  $'          if (v.email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(v.email).trim())) {' \
+  $'          if (String(v.email || \'\').trim() && !emailsBienFormes(v.email)) {' \
   $'          if (false) {' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 prouver $'l3-dir4-pas-de-pdf-promis' modules/socle/ecrans/entreprise/app-1.js \

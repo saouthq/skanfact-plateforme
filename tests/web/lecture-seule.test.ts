@@ -128,11 +128,13 @@ describe('les pages en lecture seule, à la souris', () => {
 
     // 2. Omar : la page des clients le dit ; créer un client lui est refusé.
     const o = await ouvrir(omar.jeton, '#/clients');
-    await expect.poll(() => bandeau(o), { timeout: 10_000 }).toMatch(/^Lecture seule\. Ton rôle te laisse lire les fiches clients/);
+    // (1.388.25, COLLAB-15) La page des clients dit déjà sa lecture seule (son bandeau `.lc-bandeau`, vérifié juste en
+    // dessous) : le bandeau général ne s'y ajoute pas, un seul bandeau par page.
     // (1.199.0, maquette Clients « Rôle qui lit seulement ») La liste ne propose ni « Importer… » ni « Nouveau client »,
     // et le dit en haut.
     await expect.poll(async () => (await o.locator('#view .lc-bandeau').innerText().catch(() => '')).replace(/\s+/g, ' ').trim(), { timeout: 15_000 })
       .toBe('Lecture seule : ton rôle te laisse lire les fiches clients, pas les modifier Un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    expect(await o.locator('#bandeau-lecture').count()).toBe(0);
     expect(await o.locator('#imp-clients, #view .lc-tete #new').count()).toBe(0);
     // Sa fiche (1.200.0, maquette Clients « Fiche, rôle qui lit seulement ») : le bandeau le dit, le geste principal est son
     // relevé, et aucun geste qui changerait la fiche n'est proposé (ni « Modifier », ni « Archiver », ni « Supprimer »).

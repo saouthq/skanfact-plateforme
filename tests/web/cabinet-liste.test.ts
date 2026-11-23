@@ -151,6 +151,8 @@ describe('une liste de clients collée, à la souris', () => {
     await expect.poll(marquee).toBe('true');
     expect(await portefeuille()).toEqual([]);
     await p.locator('#modal-root .modal').last().locator('#no').click();
+    // (1.388.23) Une fenêtre remplie demande avant de jeter la saisie : on répond comme un humain.
+    await p.getByRole('button', { name: 'Abandonner', exact: true }).click({ timeout: 5_000 }).catch(() => {});
 
     // ── Dans une liste collée : la ligne refusée est nommée, avec ce qui est déjà entré ────────────────────────────────
     await expect.poll(async () => {

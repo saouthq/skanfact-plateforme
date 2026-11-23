@@ -6710,3 +6710,21 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 La vérification avant l'envoi a trouvé S1 à 1 303 Ko pour 1 300 : l'assistant de démarrage (`assistant.js` et sa
 feuille) se charge maintenant à sa première ouverture, comme « Ton compte » (L14). Sans réseau, l'ancien assistant
 prend le relais. Détail dans `docs/leger.md` (L15). Tests : `leger`, `assistant`, `premiers-pas`.
+
+## 1.388.34 — Dix-neuf preuves réajustées, deux retirées sur le code du jour
+
+Le contrôle éclair de GitHub est tombé sur la 1.388.33 : vingt et une preuves visaient du code que les lots 1.388.25 →
+1.388.33 avaient déplacé (une indentation, un paramètre de plus, un champ renommé `lblVerif`, une ligne fusionnée dans
+une autre) ou copié (deux fois le même bouton : la preuve aurait pu toucher la mauvaise copie). Dix-neuf sont ré-ancrées sur
+la forme actuelle, avec un motif assez long pour n'exister qu'une fois, et rejouées : chacune fait tomber son test. Deux n'ont plus de défaut à
+montrer et sont retirées, chacune avec sa raison écrite à sa place : l'invitation de visite du Cabinet se pose dans le coin
+depuis la 1.388.23 (elle ne couvre plus « Accepter le dossier »), et la vingt et unième (le défilement qui refermait « Première fois sur cette page ? » au téléphone) n'a plus d'écran où tomber :
+l'invitation ne se pose plus au téléphone (DIR-16), et c'est ce test-là qui tient la règle. Leçon : `bash
+tests/verif-preuves.sh` passe AVANT chaque envoi, pas seulement les tests.
+
+Les tests GitHub de la 1.388.33 ont aussi trouvé neuf tests écrits contre l'état d'avant les lots : une phrase du serveur
+(« nom invalide », 1.388.24) absente du catalogue des textes (ajoutée : « ton nom compte de 2 à 120 caractères »), le rôle
+« Saisie et validation » qui s'appelait « Collaborateur », « Annuler » qui demande maintenant avant de jeter une saisie,
+un seul bandeau « Lecture seule » par page (COLLAB-15), la phrase du pont « est relié à ton dossier », « tu le tiens » pour
+un cabinet d'une personne, un titre qui porte sa bulle « i », et un commerce dont les premiers pas comptent le premier
+article et le premier achat (le test les pose). Chaque test a été retourné vers la règle, et les dix passent en local.

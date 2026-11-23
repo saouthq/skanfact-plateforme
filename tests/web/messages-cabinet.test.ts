@@ -132,7 +132,7 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(await ecrire.locator('[data-msg-note-pied]').isHidden()).toBe(true);
     // ── Le dossier à côté : le contact, l'année, « Ouvrir le dossier », l'alerte ; rien n'est attendu de Hela ───────
     const cote = p.locator('[data-cote]');
-    expect(net(await cote.locator('.msg-cote-qui').innerText())).toBe('H Hela Ben Salah Librairie Ennour personne ne le suit encore');
+    expect(net(await cote.locator('.msg-cote-qui').innerText())).toBe('H Hela Ben Salah Librairie Ennour tu le tiens'); // (1.388.23) Un cabinet d'une seule personne : c'est toi qui le tiens.
     expect(await cote.locator('.msg-segs i').count()).toBe(12);
     expect(await cote.getByRole('link', { name: /Ouvrir le dossier/ }).getAttribute('href')).toBe(`#/dossier/${hela.ent}`);
     expect(await cote.locator('[data-msg-attente]').count()).toBe(0);

@@ -911,7 +911,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'c\'est déjà le plafond de ce cabinet : rien ne changerait', cle: 'base.cabinet.geste_plafond_deja', fr: 'c\'est déjà le plafond de ce cabinet : rien ne changerait' },
   { base: 'ce cabinet paie déjà le prix de tout le monde', cle: 'base.cabinet.geste_prix_regle', fr: 'ce cabinet paie déjà le prix de tout le monde' },
   { base: 'ce cabinet a déjà le plafond de tout le monde', cle: 'base.cabinet.geste_plafond_regle', fr: 'ce cabinet a déjà le plafond de tout le monde' },
-  { base: 'ce geste n\'existe pas pour un cabinet', cle: 'base.cabinet.geste_inconnu', fr: 'ce geste n\'existe pas pour un cabinet' },
+  { base: 'ce geste n\'existe pas pour un cabinet', cle: 'base.cabinet.geste_inconnu', fr: 'ce geste n\'existe pas pour un cabinet' },  { base: 'nom invalide', cle: 'base.compte.nom_invalide', fr: 'ton nom compte de 2 à 120 caractères' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

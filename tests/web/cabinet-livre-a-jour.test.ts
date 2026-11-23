@@ -74,7 +74,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/journal/${annee}`);
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
-    const enTete = () => p.locator('#lv-brouillard').locator('xpath=..').innerText().catch(() => '');
+    const enTete = () => p.locator('#lv-brouillard').locator('xpath=..').innerText().then((t) => t.trim()).catch(() => '');
     await expect.poll(enTete, { timeout: 15_000 }).toBe('Compter 1 écriture en brouillard');
 
     // 1. Un mouvement arrive pendant que Leïla est ailleurs ; elle revient sur la fenêtre : le livre le compte.

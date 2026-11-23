@@ -171,6 +171,13 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
       lines: [{ label: 'Boîte de vis inox', description: '', qty: 3, unit: '', unitPrice: 40, vatRate: 19 }], discountRate: 0, applyStamp: true,
       withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 1 };
     expect(await ecrire('documents', 'f1', facture)).toBe(200);
+    // (1.388.29, ENTACHATS-13) Un commerce a aussi pour premiers pas son premier article et son premier achat : posés ici,
+    // pour que « ce qui reste » ne porte que la facture à son image et le comptable.
+    expect(await ecrire('catalog', 'k1', { id: 'k1', label: 'Boîte de vis inox', unitPrice: 40, vatRate: 19, unit: '' })).toBe(200);
+    expect(await ecrire('suppliers', 's1', { id: 's1', name: 'Quincaillerie du Cap' })).toBe(200);
+    expect(await ecrire('purchases', 'a1', { id: 'a1', kind: 'facture', supplierId: 's1', number: 'Q-7', date: '2026-10-18', currency: 'DT',
+      exchangeRate: 1, fees: 0, withholdingRate: 0, tvaRecuperable: true, payments: [],
+      lines: [{ label: 'Boîtes de vis inox', qty: 10, unitPrice: 20, vatRate: 19, destination: 'charge', deductible: true }] })).toBe(200);
     // (Un poste neuf encore : il lit la facture que le serveur tient.)
     const suite = await nouvellePage(jeton);
     p = suite.p;
