@@ -183,6 +183,12 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await p.keyboard.press('Control+A');
     await p.keyboard.type('-5');
     expect(await remise.inputValue()).toBe('5');
+    // (1.388.26, DIR-18) Une lettre ne s'écrit pas, et le DIT.
+    await remise.fill('');
+    await remise.click();
+    await p.keyboard.type('12abc');
+    expect(await remise.inputValue()).toBe('12');
+    await expect.poll(() => p.locator('#toast').innerText().then(net).catch(() => '')).toContain('Seuls des chiffres s\'écrivent dans cette case');
     await remise.fill('0');
     // (1.362.3) Une vraie case de nombre qui ne descend pas sous zéro (plateforme/virgule.js) : la remise d'une ligne. Depuis
     // que la remise de la pièce est une case de texte, l'instrument ne passait plus par aucune, et les deux preuves de

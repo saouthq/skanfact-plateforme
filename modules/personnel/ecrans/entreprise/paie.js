@@ -1517,7 +1517,7 @@
           if (statut) l.statut = statut; else delete l.statut;
           if (statut === 'demande' && !l.demandeLe) l.demandeLe = C.today();
           if (!leave) data.leaves.push(l);
-          save(true); close(); if (done) done();
+          save(true); close(); if (done) done(l);
         };
         if ($('#del-lv', root)) $('#del-lv', root).onclick = async () => {
           if (!await confirmDialog('Supprimer cette absence ? Les bulletins déjà établis ne changeront pas.')) return;
@@ -2282,7 +2282,7 @@
         if (!dE.salaries) return ['ok', 'payée'];
         // (1.355.7) Le cabinet l'a déposée : il reste à la verser. La pastille disait « à déclarer » au-dessus de la ligne
         // « déposée le … par ton cabinet ».
-        return dE.dueDate < C.today() ? ['rouge', 'en retard'] : depotDeLaDeclaration(`dm-${ym}`, relireDepotPaie) ? ['ambre', 'à verser'] : ['ambre', 'à déclarer'];
+        return dE.dueDate < C.today() ? ['rouge', 'non déclarée'] : depotDeLaDeclaration(`dm-${ym}`, relireDepotPaie) ? ['ambre', 'à verser'] : ['ambre', 'à déclarer'];
       }
       return ['ok', 'déclarée'];
     };
@@ -2581,7 +2581,7 @@
       // (1.256.0) Sans cabinet, personne ne vérifie les bulletins : SkanFact le dit en tête, et mène à ses contrôles (la maquette,
       // « Sans cabinet : le mois »).
       const sansCab = modeDuMois(y, m) === 'sans';
-      const banSans = ctl.length && sansCab && !ban ? `<div class="bandeau gris pa-bandeau" id="p-sans-b" role="status">${lfIc('coche', 18)}<span class="txt"><b>Personne ne vérifie tes bulletins : SkanFact les a contrôlés</b><span>${pl(ctl.length, 'contrôle')} avant que tu les paies (SMIG, écarts, férié, avance, CNSS, RIB) : ${ctlKo.length ? `${pl(ctlKo.length, 'chose')} à savoir` : 'tout est juste'}. Un cabinet peut les vérifier pour toi, chaque mois.</span></span><button type="button" class="btn" id="p-sans-voir">Voir les contrôles</button></div>` : '';
+      const banSans = ctl.length && sansCab && !ban ? `<div class="bandeau gris pa-bandeau" id="p-sans-b" role="status">${lfIc('coche', 18)}<span class="txt"><b>Personne ne vérifie tes bulletins : SkanFact les a contrôlés</b><span>${pl(ctl.length, 'contrôle')} avant que tu les paies (net, écarts, avances, CNSS, RIB) : ${ctlKo.length ? `${pl(ctlKo.length, 'chose')} à savoir` : 'tout est juste'}. Un cabinet peut les vérifier pour toi, chaque mois.</span></span><button type="button" class="btn" id="p-sans-voir">Voir les contrôles</button></div>` : '';
       // (1.256.0) La carte des contrôles, dans la page, sert au bon à payer (la maquette, « Bon à payer : approuver ») ; sans
       // cabinet, le bandeau gris ouvre la fenêtre de tous les contrôles (« Les 12 contrôles »).
       const controles = ctl.length && !sansCab ? `<div class="apy carte" id="p-ctrl"><div class="apy-t"><b>Ce que SkanFact a contrôlé</b><span class="mu">${pl(ctl.length, 'contrôle')} · ${pl(ctl.length - ctlKo.length, 'juste', 'justes')}${ctlKo.length ? ` · ${ctlKo.length} à savoir` : ''}</span></div>
@@ -5372,7 +5372,11 @@
       if ($('#new-emp')) $('#new-emp').onclick = ouvrirSalarie;
       if ($('#emp-first')) $('#emp-first').onclick = ouvrirSalarie;
       if ($('#emp-imp')) $('#emp-imp').onclick = () => importerTableau('salaries', () => { paieState.tab = 'salaries'; render(); });
-      if ($('#new-lv')) $('#new-lv').onclick = () => leaveForm(null, null, () => draw());
+      // (DIR-17, issue 8) Un congé posé hors du mois affiché ne se voyait pas : la page va au mois de son début.
+      if ($('#new-lv')) $('#new-lv').onclick = () => leaveForm(null, null, l => {
+        if (l && /^\d{4}-\d{2}/.test(l.from || '')) { const m2 = String(Number(l.from.slice(5, 7))); s.year = l.from.slice(0, 4); s.month = m2; s.quarter = String(Math.ceil(Number(m2) / 3)); s.moisTouche = true; }
+        draw();
+      });
       if ($('#new-av')) $('#new-av').onclick = () => advanceForm(null, null, () => draw());
     };
     const draw = dansUnLot(() => {

@@ -755,7 +755,7 @@
       // (1.100.0) « Continuer » ouvrait l'entreprise de ce compte-là : qui a ouvert le lien avec le mauvais compte (vu au
       // parcours du 21/10/2026 : la facture de la console ouverte dans le navigateur du comptable) n'avait que le menu
       // pour se déconnecter, et perdait la pièce. L'autre compte se connecte ici, et la même adresse se rouvre.
-      poste.conclure(`Cette entreprise ne t'est pas ouverte : ton compte${email ? ` (${email})` : ''} ne fait pas partie de son équipe, ou elle n'existe pas.`,
+      poste.refuser(`Cette entreprise ne t'est pas ouverte : ton compte${email ? ` (${email})` : ''} ne fait pas partie de son équipe, ou elle n'existe pas.`,
         { libelle: 'Me connecter avec un autre compte', geste: () => { void sortirDuCompte(location.pathname + location.search + location.hash); } });
       return await new Promise(() => { /* rien ne s'ouvre */ });
     }

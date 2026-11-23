@@ -87,9 +87,13 @@ describe('ce que l\'offre ouvre, à la souris', () => {
     expect(await salaries(ent)).toBe(0);
 
     // ── La comptabilité complète : ses trois onglets, affichés, portent leur cadenas et disent ce qui reste ─────────────
-    await p.evaluate(() => { location.hash = '#/modules'; });
-    await p.locator('input[data-sousmod="compta.livres"]').check();
     await p.evaluate(() => { location.hash = '#/compta'; });
+    // (1.388.26, DIR-13) La comptabilité complète s'ajoute sur place : la question dit que l'option manque, et on reste.
+    await p.locator('#c-plus').click();
+    await expect.poll(() => fenetre(p).locator('h2').innerText().catch(() => '')).toBe('Comptabilité complète');
+    expect(net(await fenetre(p).innerText())).toContain('Ils ne sont pas dans ton offre');
+    await fenetre(p).getByRole('button', { name: 'Les ajouter', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/compta');
     const grandLivre = p.locator('#c-tabs button[data-tab="grandlivre"]');
     await grandLivre.waitFor();
     await grandLivre.click();

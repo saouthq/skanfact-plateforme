@@ -125,6 +125,8 @@ describe('les envois, à la souris', () => {
     // (1.155.0, maquette « Envoyer la facture ») Le lien part toujours avec une facture émise : il se dit en puce, à côté
     // du PDF ; « Veuillez trouver ci-joint » devient « Voici » (rien n'est joint).
     expect(net(await fenetre.locator('.env-pj').innerText())).toContain('lien de la pièce');
+    // (1.388.26, DIR-4) Le navigateur ne joint aucun fichier : la fenêtre ne montre plus un « .pdf » qui ne part pas.
+    expect(net(await fenetre.locator('.env-pj').innerText())).not.toMatch(/\.pdf\b/i);
     const message = fenetre.locator('textarea[name=body]');
     expect(await message.inputValue()).toMatch(/^Bonjour,\n\nVoici notre facture FAC-2026-001, d'un montant net à payer de 1\s073,190\sDT/);
     expect(net(await fenetre.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Le lien de la pièce s\'ajoute avant la formule de politesse.');

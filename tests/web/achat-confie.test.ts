@@ -60,6 +60,23 @@ describe('une facture confiée au cabinet, à la souris', () => {
     const cab = (await api('POST', '/cabinets', sonia, { nom: 'Fiduciaire Ennour' })).corps;
     const amine = await personne('amine', 'Amine Gharbi');
     const ent = String((await api('POST', '/entreprises', amine, { raisonSociale: 'Gharbi Informatique SARL' })).corps.id);
+    // (1.388.26, DIR-10) Sans cabinet relié, la carte « Confier au cabinet » le dit, et mène à « Mon comptable ».
+    const seule = String((await api('POST', '/entreprises', amine, { raisonSociale: 'Atelier Sans Cabinet SARL' })).corps.id);
+    {
+      const cx0 = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+      await cx0.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, amine);
+      const p0 = await cx0.newPage();
+      await p0.goto(`${serveur.adresse}/v10/?e=${seule}#/dashboard`);
+      await p0.locator('#view h1').first().waitFor({ timeout: 20_000 });
+      await plusTard(p0);
+      await p0.evaluate(() => { location.hash = '#/achat/new'; });
+      const lien = p0.locator('a#ac-cabinet');
+      await lien.waitFor({ timeout: 15_000 });
+      await expect.poll(async () => net(await lien.innerText()), { timeout: 15_000 }).toContain('Pas encore de cabinet relié');
+      await lien.click();
+      await expect.poll(() => p0.evaluate(() => location.hash)).toBe('#/comptable');
+      await cx0.close();
+    }
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, amine, { codeCabinet: cab.code })).corps.mandat);
     expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, sonia)).statut).toBe(200);
 

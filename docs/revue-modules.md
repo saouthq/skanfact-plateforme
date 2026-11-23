@@ -6556,3 +6556,40 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - **L'accueil d'un rôle** ne propose que les pages ouvertes (pas une page « Prochainement »).
 - Tests : `menu-role` (catalogue, statistiques, échéances, messagerie, administratrice), `equipe-entreprise`,
   `montants-fr-1356-9`, `v10/droits-dossier` ; sept preuves.
+
+## 1.388.26 — La direction (issue 8) : ce qui couvre, ce qui ment, ce qui revient
+
+- **Au téléphone, la feuille « Plus » passe au-dessus du pied d'une pièce** (DIR-1), et **chercher le client d'une
+  facture neuve cache le pied** et remonte la case au-dessus du clavier ; en sombre la case n'a plus de rectangle (DIR-2).
+- **La fiche d'un client refuse une adresse e-mail sans « @ »**, en la nommant ; la remarque paraît pendant la frappe
+  (DIR-3).
+- **L'envoi par e-mail ne promet plus un PDF joint** : un navigateur ne joint aucun fichier. La fenêtre montre le lien de
+  la pièce, ou « PDF à joindre toi-même » ; les phrases et la visite le disent (DIR-4).
+- **Payer de la caisse plus qu'elle ne porte se demande** (« La caisse passerait sous zéro »), avec le solde au jour de la
+  sortie (DIR-5). **Recevoir plus que ce qui reste commandé se demande** avant de valider ; validée, la réception dit ce
+  qui est entré en plus et le geste qui corrige (DIR-6).
+- **« À relancer »** nomme la vue des relances (le filtre « En retard » compte toutes les factures échues — deux mots,
+  deux chiffres, plus un seul nom) (DIR-7).
+- **L'exemple s'appelle l'exemple** sur une facture émise, et propose « Quitter l'exemple » quand la vraie entreprise
+  existe ; son abonnement n'a pas d'histoire à raconter (DIR-8).
+- **La paie de l'exemple déclare ses retenues** : plus de mois rouges sur une entreprise qui paie à l'heure ; un mois
+  rouge dit « non déclarée », sa cause (DIR-9).
+- **« Confier au cabinet » sans cabinet relié le dit** et mène à « Mon comptable » (DIR-10).
+- **« Précédent » après un avoir émis ne rouvre pas l'avoir neuf** ; **un second avoir ne propose que ce qui reste** à
+  reprendre (DIR-11).
+- **Une remise sur un total négatif s'écrit « + »**, jamais « −− » ; le refus d'un avoir dit « hors timbre » ; une
+  quantité négative se dit sous sa ligne ; une ligne de plus d'un milliard est refusée (DIR-12).
+- **« + Comptabilité complète » ajoute les onglets sur place**, et dit avant si l'option manque à l'offre (DIR-13).
+- **Une entreprise qui ne t'est pas ouverte ferme toute la page**, « Me connecter avec un autre compte » et « Revenir à
+  mon entreprise » (DIR-14).
+- **Au téléphone, la liste des factures est compacte** (numéro ; client et net ; statut et reste ; échéance) (DIR-15) ;
+  **« Première fois sur cette page ? » ne se pose plus** (la visite reste dans « Guide-moi ») et le bandeau de l'exemple
+  tient sur une ligne (DIR-16).
+- **Un congé posé hors du mois affiché y emmène** (DIR-17). **Une lettre tapée dans un montant le dit** (DIR-18). Le
+  bandeau du mois de paie ne cite plus que les contrôles réellement faits (DIR-19). « + Ligne libre » sur une commande
+  (DIR-20 ; la liste Statut reste : elle porte des gestes réels — décidé).
+- Tests : `telephone-commercant` (deux assertions retournées), `exemple-puis-vraie` (la page pleine), `retour-stock-1362-4`
+  (l'assertion qui gravait l'avoir recopié, retournée), `facture-charte`, `recette-alpha`, `offre`, `coquille-1387`,
+  `envois`, `tiroir-1357`, `commandes-fournisseurs`, `achat-confie`, `paie-mois`, `recette-entreprise`, `barre`,
+  `v10/abonnement-textes` ; vingt preuves (la case sans rectangle en sombre ne se reproduit pas dans le test : la règle
+  reste, sans preuve).

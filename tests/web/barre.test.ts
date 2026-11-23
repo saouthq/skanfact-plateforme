@@ -120,7 +120,7 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await p.locator('#view .vues-page a[data-vue="relances"]').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 5_000 }).toBe('#/relances');
     await expect.poll(vues, { timeout: 10_000 }).toEqual(['factures', 'relances*']);
-    expect(net(await p.locator('#view .vues-page a[data-vue="relances"]').innerText())).toBe('En retard');
+    expect(net(await p.locator('#view .vues-page a[data-vue="relances"]').innerText())).toMatch(/^À relancer( \d+)?$/);
     // Une entreprise de services garde « Relances » dans « Au quotidien » (son métier l'y met) : son lien s'allume.
     const allumes = () => p.locator('#nav a.active').evaluateAll((as) => as.map((a) => (a as HTMLElement).dataset.route));
     expect(await allumes()).toEqual(['relances']);

@@ -31695,6 +31695,90 @@ prouver $'l2-collab25-les-stats-sans-achats' modules/socle/ecrans/entreprise/app
   $'    const onglets = STATS_TABS;' \
   $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
 
+# 1.388.26 — la direction (issue 8) : ce qui couvre au téléphone, l'e-mail du client, l'envoi sans PDF, la caisse et la réception qui demandent.
+prouver $'l3-dir1-la-feuille-plus-cache-le-pied' web/public/plateforme/piece.css \
+  $'  body:has(> .sb-plus) .ed-geste { display: none; }' \
+  $'  body:has(> .sb-plus) .ed-geste { }' \
+  $'une pièce au téléphone : l\'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d\'une pièce émise tient'
+prouver $'l3-dir2-chercher-le-client-cache-le-pied' web/public/plateforme/piece.css \
+  $'  body:has(#ed-pourqui:not([hidden]):focus-within) .ed-geste { display: none; }' \
+  $'  body:has(#ed-pourqui:not([hidden]):focus-within) .ed-geste { }' \
+  $'(DIR-16) au téléphone, « Première fois sur cette page ? » ne se pose pas ; chercher le client cache le pied'
+prouver $'l3-dir3-l-email-du-client-se-refuse' modules/socle/ecrans/entreprise/app-1.js \
+  $'          if (v.email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(String(v.email).trim())) {' \
+  $'          if (false) {' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+prouver $'l3-dir4-pas-de-pdf-promis' modules/socle/ecrans/entreprise/app-1.js \
+  $'${lien ? \'\' : `<span class="env-chip attire">${lfIc(\'piece\', 13)}PDF à joindre toi-même</span>`}' \
+  $'<span class="env-chip">${lfIc(\'piece\', 13)}${h(docFileName(doc))}</span>' \
+  $'la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint'
+prouver $'l3-dir5-la-caisse-sous-zero-demande' modules/socle/ecrans/entreprise/app-1.js \
+  $'            if (apres < -0.0005 && !await confirmDialog(' \
+  $'            if (false && !await confirmDialog(' \
+  $'la caisse se compte, l\'écart se note et part au Cabinet ; les espèces vont à la caisse ; la dépense dit « À payer »'
+prouver $'l3-dir6-recevoir-en-trop-demande' modules/socle/ecrans/entreprise/app-1.js \
+  $'      if (t.length && !await confirmDialog(`${t.join(\' ; \')}.' \
+  $'      if (false && !await confirmDialog(`${t.join(\' ; \')}.' \
+  $'Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions'
+prouver $'l3-dir7-a-relancer' modules/socle/moteur/core-1.js \
+  $'vueDe: \'factures\', vueNom: \'À relancer\',' \
+  $'vueDe: \'factures\', vueNom: \'En retard\',' \
+  $'au bureau : les deux groupes, un lien par page, le volet à côté, l\'épingle, ranger, « Créer », la cloche, le pied'
+prouver $'l3-dir10-sans-cabinet-la-carte-le-dit' modules/socle/ecrans/entreprise/app-1.js \
+  $'    ? \'Pas encore de cabinet relié : relie-le d\\\'abord dans « Mon comptable »\'' \
+  $'    ? \'Tu envoies la photo à ton comptable, il la saisit\'' \
+  $'la photo part dans le fil, la page la suit : envoyée, vue par le cabinet, rangée ; une autre photo'
+prouver $'l3-dir11-precedent-ne-rouvre-pas-l-avoir-neuf' modules/socle/ecrans/entreprise/app-1.js \
+  $'  function remplacerPage(hash) { pageRemplacee = currentHash; location.replace(\'#\' + String(hash).replace(/^#/, \'\')); }' \
+  $'  function remplacerPage(hash) { pageRemplacee = currentHash; navigate(hash); }' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'l3-dir11-un-second-avoir-ne-propose-que-le-reste' modules/socle/ecrans/entreprise/app-1.js \
+  $'      lines: lignesRestantAAvoiser(inv), discountRate:' \
+  $'      lines: deepCopy(inv.lines || []), discountRate:' \
+  $'le motif dit si la marchandise revient, chaque ligne se change, et la fenêtre d\'émission le dit'
+prouver $'l3-dir12-la-remise-negative-s-ecrit-plus' modules/socle/ecrans/entreprise/app-1.js \
+  $'<td>${t.discount < 0 ? \'+\' : \'−\'}${nu(Math.abs(t.discount))}</td>' \
+  $'<td>−${nu(t.discount)}</td>' \
+  $'le brouillon : carte du client, puces, totaux par taux, avant d\'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver $'l3-dir12-la-retenue-negative-s-ecrit-plus' modules/socle/ecrans/entreprise/app-1.js \
+  $'<td>${t.withholding < 0 ? \'+\' : \'−\'}${nu(Math.abs(t.withholding))}</td>' \
+  $'<td>−${nu(t.withholding)}</td>' \
+  $'le brouillon : carte du client, puces, totaux par taux, avant d\'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver $'l3-dir12-la-quantite-negative-se-dit' modules/socle/ecrans/entreprise/app-1.js \
+  $'      if ((isInv || isQ) && !l.noDiscount && (Number(l.qty) || 0) < 0) r.push(' \
+  $'      if (false) r.push(' \
+  $'le brouillon : carte du client, puces, totaux par taux, avant d\'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver $'l3-dir12-l-avoir-dit-hors-timbre' modules/socle/ecrans/entreprise/app-1.js \
+  $'? `Cet avoir fait ${C.money(horsTimbre, docCur(doc))} hors timbre : un avoir rend' \
+  $'? `Cet avoir fait ${C.money(horsTimbre, docCur(doc))} : un avoir rend' \
+  $'un avoir négatif ne s\'émet pas : le refus vient avant la fenêtre d\'émission'
+prouver $'l3-dir13-la-compta-complete-sur-place' modules/socle/ecrans/entreprise/app-2.js \
+  $'    if ($(\'#c-plus\')) $(\'#c-plus\').onclick = () => ajouterComptaComplete();' \
+  $'    if ($(\'#c-plus\')) $(\'#c-plus\').onclick = vers(\'#/modules\', () => { pageFocus = \'sm-compta-livres\'; });' \
+  $'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s\'ouvre'
+prouver $'l3-dir14-la-page-pleine' web/public/plateforme/pont.js \
+  $'poste.refuser(`Cette entreprise ne t\'est pas ouverte' \
+  $'poste.conclure(`Cette entreprise ne t\'est pas ouverte' \
+  $'une entreprise dont le compte n\'est pas de l\'équipe : « ne t\'est pas ouverte », sans parler d\'un retrait'
+prouver $'l3-dir15-la-carte-compacte' web/public/plateforme/telephone.css \
+  $'> td:is(.cl, .st, .ech)[data-label]::before { content: none; }' \
+  $'> td:is(.cl, .st, .ech)[data-label]::before { }' \
+  $'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l\'ordinateur, un tableau'
+prouver $'l3-dir16-pas-d-invitation-au-telephone' modules/socle/ecrans/entreprise/app-2.js \
+  $'    if (window.matchMedia && window.matchMedia(\'(max-width: 760px)\').matches) return;
+' \
+  $'' \
+  $'(DIR-16) au téléphone, « Première fois sur cette page ? » ne se pose pas ; chercher le client cache le pied'
+prouver $'l3-dir18-la-lettre-se-dit' modules/socle/ecrans/entreprise/app-1.js \
+  $'      x.dataset.lettreDit = \'1\'; toast(' \
+  $'      x.dataset.lettreDit = \'1\'; (() => {})(' \
+  $'le seul client pris par la pièce neuve, le paiement qui dit ce qu\'il attend, ce qui reste des premiers pas, les envois'
+prouver $'l3-dir20-ligne-libre' modules/socle/ecrans/entreprise/app-1.js \
+  $'id="cf-add">+ Ligne libre</button></div>`}' \
+  $'id="cf-add">+ Ligne</button></div>`}' \
+  $'Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions'
+
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

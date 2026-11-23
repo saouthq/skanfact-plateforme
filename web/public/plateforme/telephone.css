@@ -152,6 +152,18 @@
     text-transform: uppercase; color: var(--muted); }
   table.list[data-cartes] > * > tr > [data-tel="titre"], table.list[data-cartes] > * > tr > td[colspan] { grid-column: 1 / -1; font-size: 15px; }
   table.list[data-cartes] > * > tr > [data-tel="vide"] { display: none; }
+  /* (DIR-15, issue 8) La liste des factures, compacte comme celle des achats : le numéro, puis client | net, statut | reste,
+     l'échéance en petit ; la date et la case à cocher se replient (le choix en lot reste à l'ordinateur). Devis, clients et
+     fournisseurs portent aussi `lf-table` : ils gardent la carte générique. */
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "num num" "cl net" "st reste" "ech ech"; gap: 4px 12px; padding: 10px 14px; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.cn { grid-area: num; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.cl { grid-area: cl; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.st { grid-area: st; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.ech { grid-area: ech; font-size: 12.5px; color: var(--muted); }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.cm { grid-area: net; text-align: end; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td.r.m:not(.cm) { grid-area: reste; text-align: end; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td:is(.cx, .cd, .tt) { display: none; }
+  table.list.lf-table:not(.ld-table):not(.lc-table)[data-cartes] > tbody > tr:not(.mois) > td:is(.cl, .st, .ech)[data-label]::before { content: none; }
   /* (1.139.0) Les montants d'abord : une carte de facture rangeait le net à payer et le reste dû en dernier, sous le pli,
      après le type, le client, la date et le statut. Les colonnes de chiffres (alignées à droite, `.r`) remontent juste
      sous ce qui nomme la ligne, en gras ; le reste suit dans son ordre (UX 3). */

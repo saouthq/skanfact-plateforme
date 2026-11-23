@@ -1347,7 +1347,7 @@
       mesure: () => envois(), but: n0 => envois() > n0 && aucuneFenetre(),
       echec: 'Le message n\'est pas préparé — c\'est « Ouvrir dans la messagerie », dans la fenêtre du mail, qui le prépare. Rien n\'est parti, et la pièce n\'a pas changé.',
       bravo: 'Ton message est prêt',
-      conclusion: 'Il t\'attend dans ta messagerie, PDF joint : relis-le et clique sur « Envoyer » — SkanFact ne peut pas le faire à ta place. De ce côté, la pièce est notée envoyée ; quand ton client répond à un devis, note sa réponse depuis le menu « Actions » de la liste, ou facture directement.',
+      conclusion: 'Il t\'attend dans ta messagerie, avec le lien de la pièce : relis-le et clique sur « Envoyer » — SkanFact ne peut pas le faire à ta place. De ce côté, la pièce est notée envoyée ; quand ton client répond à un devis, note sa réponse depuis le menu « Actions » de la liste, ou facture directement.',
       etapes: [
         // 10.14.0 — sur un devis déjà envoyé, l'envoi n'est plus l'étape suivante : il vit dans
         // « Plus ▾ » (la barre tient ainsi sur une rangée). La visite ouvre d'abord le menu.
@@ -1777,7 +1777,7 @@
       conclusion: 'Chaque envoi se prépare dans ta messagerie, pièce jointe comprise : tu relis, et tu envoies. Rien ne part sans toi.',
       etapes: [
         { page: '#/parametres', avant: onglet('#set-tabs', 'envois'), cible: '#p-envoi', cote: 'dessus', titre: 'Comment partent tes mails',
-          texte: 'SkanFact prépare le message dans ta messagerie, avec le PDF : tu relis, et tu envoies. Rien ne part sans toi.' },
+          texte: 'SkanFact prépare le message dans ta messagerie, avec le lien de la pièce : tu relis, et tu envoies. Rien ne part sans toi.' },
         { page: '#/parametres', cible: '#p-modeles', cote: 'dessus', titre: 'Tes modèles de messages',
           texte: 'L\'objet et le texte proposés pour chaque envoi — devis, facture, relances. <b>{numero}</b>, <b>{client}</b>, <b>{montant}</b>… se remplacent tout seuls.' },
         { page: '#/parametres', cible: '#p-comptable', cote: 'dessus', titre: 'L\'adresse de ton comptable',
@@ -2515,7 +2515,7 @@
       conclusion: 'Ce que SkanFact fabrique — un PDF, un paquet — se range là où tu le choisis. Ce que tu joins, il en garde une copie à côté de tes données. Et ta copie de sécurité emporte tout.',
       etapes: [
         { page: () => ctx.premier('factureEmise') || ctx.premier('devis'), si: () => !!(ctx.premier('factureEmise') || ctx.premier('devis')), cible: '#pdf', cote: 'dessous',
-          titre: 'Le PDF d\'une pièce', texte: '<b>« PDF »</b> l\'enregistre là où tu le choisis sur ton ordinateur, puis l\'ouvre. Pour l\'envoyer, <b>« E-mail »</b> prépare le message avec le PDF déjà joint.' },
+          titre: 'Le PDF d\'une pièce', texte: '<b>« PDF »</b> l\'enregistre là où tu le choisis sur ton ordinateur, puis l\'ouvre. Pour l\'envoyer, <b>« E-mail »</b> prépare le message avec le lien de la pièce ; un navigateur ne joint pas de fichier : le PDF, tu le joins toi-même.' },
         { si: () => !!$('#attachments'), cible: '.panel:has(> #attachments)', cote: 'dessus', facultatif: true,
           titre: 'Les fichiers joints à une pièce', texte: 'Le bon signé, une photo du chantier : le nom ouvre le fichier, le menu <b>« Actions »</b> de sa ligne le montre dans son dossier sur ton ordinateur. Pour en retrouver un sans savoir sur quelle pièce il est, tape son nom dans <b>Ctrl K</b>.' },
         { page: '#/compta', avant: onglet('#c-tabs', 'ventes'), cible: '#exp-pdfs', cote: 'dessous', facultatif: true,

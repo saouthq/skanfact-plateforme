@@ -134,6 +134,14 @@ describe('le tiroir de la boulangerie 1.357.6 : il se compte, les espèces y von
     await f.locator('[name=accountId]').selectOption('a-caisse');
     await f.locator('[data-mode="virement"]').click();
     expect(await compte()).toBe('a-caisse');
+    // (1.388.26, DIR-5) Payer de la caisse plus qu'elle ne porte : la question le dit, et « Annuler » ne range rien.
+    await f.locator('#ok').click();
+    const q5 = a.locator('#modal-root .modal').filter({ hasText: 'passerait sous zéro' });
+    await q5.waitFor({ timeout: 10_000 });
+    expect(net(await q5.innerText())).toMatch(/» porte 47,000 DT/);
+    await q5.getByRole('button', { name: 'Annuler' }).click();
+    await expect.poll(() => q5.count()).toBe(0);
+    expect(await f.locator('#spf').isVisible()).toBe(true);
     await f.getByRole('button', { name: 'Annuler' }).click();
     const q = a.locator('#modal-root .modal').filter({ hasText: 'Abandonner' });
     if (await q.count()) await q.getByRole('button', { name: /Abandonner/ }).click();

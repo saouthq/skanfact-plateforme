@@ -148,10 +148,17 @@ describe('l\'avoir qui rend la marchandise, ou pas (1.362.4)', () => {
     expect(recap2).toContain('5 remis en stock à l\'émission (10 → 15)');
     await expect.poll(async () => net(await p.locator('#lecture-piece').innerText()), { timeout: 10_000 }).toContain('5 remis en stock');
     await photo('2-retour');
+    // (1.388.26, DIR-11) Le retour du navigateur ne rouvre pas l'avoir neuf : la page de création est remplacée par l'avoir émis.
+    const surAvoir = p.url();
+    await p.goBack();
+    await expect.poll(() => p.url(), { timeout: 10_000 }).not.toBe(surAvoir);
+    expect(p.url()).not.toContain('/doc/new/');
 
-    // D. Un troisième avoir recopie les 20 coffrets : la ligne dit que 5 sont déjà revenus.
+    // D. (1.388.26, DIR-11) Un troisième avoir ne propose que ce qui reste : 20 vendus, 5 déjà repris ; la remise (autre prix)
+    // ne retire rien.
     await aller('#/doc/new/avoir/f1', '#lines');
-    await expect.poll(lignes, { timeout: 15_000 }).toContain(`${FAC} en a vendu 20, dont 5 déjà remis en stock`);
+    await expect.poll(() => champ('qty').inputValue(), { timeout: 15_000 }).toBe('15');
+    expect(await lignes()).not.toContain('en a vendu');
 
     // E. Le stock : 30 − 20 + 5 = 15 coffrets, au coût moyen de 25, soit 375 DT.
     await aller('#/stock');

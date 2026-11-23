@@ -207,7 +207,7 @@ describe('la paie : le mois, tel que sa maquette', () => {
     await p.locator('#pj-avant-go').click();
     await expect.poll(() => p.locator('#p-remettre').count(), { timeout: 15_000 }).toBe(1);
     // Tous payés : le mois n'est plus « à payer » dans la bande (il attend sa déclaration).
-    expect(['à déclarer', 'en retard']).toContain(await texte(`#p-mois [data-p-mois="${mois}"] small`));
+    expect(['à déclarer', 'non déclarée']).toContain(await texte(`#p-mois [data-p-mois="${mois}"] small`));
     expect(await texte('#p-remettre')).toBe('Remettre les 4 bulletins');
     expect(await etapes()).toEqual([['fait', 'Pointer'], ['fait', 'Bulletins'], ['ici', 'Payer'], ['', 'Déclarer']]);
     expect(await texte('#p-sous .pa-etape:nth-child(3)')).toContain('4 à remettre');

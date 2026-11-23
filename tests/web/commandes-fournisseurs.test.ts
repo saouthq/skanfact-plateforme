@@ -102,6 +102,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await choisir(p, '#cf-cat', 'Ciment');
     await choisir(p, '#cf-cat', 'Fer');
     await p.locator('#cf-add').click();
+    expect((await p.locator('#cf-add').innerText()).trim()).toBe('+ Ligne libre'); // (DIR-20)
     const ligne = (i: number, k: string) => p.locator(`#cf-lines [data-k=${k}][data-i="${i}"]`);
     // (1.357.2) La désignation d'une ligne cherche dans le catalogue, comme la facture d'achat ; un article qui n'y est pas
     // se crée au clavier : la flèche descend sur « + Créer … », Entrée ouvre sa fiche, suivie en stock (on commande pour
@@ -197,6 +198,16 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.locator('#cf-recevoir').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception \(brouillon\)/);
     expect([await recu(0).inputValue(), await recu(1).inputValue()]).toEqual(['40', '1,25']);
+    // (1.388.26, DIR-6) Recevoir plus que ce qui reste commandé : la validation le demande, « Annuler » garde le brouillon.
+    await recu(0).fill('45');
+    await expect.poll(async () => net(await p.locator('#rec-avis').innerText())).toContain('de plus que ce qui reste à recevoir');
+    await p.locator('#rec-valider').click();
+    const q6 = p.locator('#modal-root .modal').filter({ hasText: 'Plus que ce qui reste commandé' });
+    await q6.waitFor({ timeout: 10_000 });
+    await q6.getByRole('button', { name: 'Annuler' }).click();
+    await expect.poll(() => q6.count()).toBe(0);
+    expect(await titre(p)).toMatch(/^Réception \(brouillon\)/);
+    await recu(0).fill('40');
     expect(await p.locator('[data-rq]').count()).toBe(2);
     await p.locator('#rec-valider').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Réception BR-\d{4}-002/);

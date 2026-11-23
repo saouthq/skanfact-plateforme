@@ -72,7 +72,7 @@ describe('les textes de l\'abonnement', () => {
 
   it('une entreprise sans échéance dit ce qu\'elle est ; payé, l\'état montre la facture du renouvellement qui attend', () => {
     expect(A.etatEnClair({ etat: 'hors', raison: 'offert' }, {}, {})).toMatchObject({ pastille: 'Offert', titre: 'Abonnement offert par SkanFact' });
-    expect(A.etatEnClair({ etat: 'hors', raison: 'bac_a_sable' }, {}, {})).toMatchObject({ titre: 'Une entreprise pour essayer' });
+    expect(A.etatEnClair({ etat: 'hors', raison: 'bac_a_sable' }, {}, {})).toMatchObject({ titre: 'Une entreprise pour apprendre' });
     expect(A.etatEnClair({ etat: 'hors', raison: 'tenu_par_cabinet' }, {}, {})).toMatchObject({ titre: 'Ton cabinet tient ce dossier' });
     expect(net(A.etatEnClair(actif, { relances: [15, 7, 1] }, { aFaire: 'payer' }).texte))
       .toBe('Encore 10 jours. Ta facture du renouvellement t\'attend juste en dessous : réglée d\'ici le 01/11/2026, rien ne s\'arrête.');

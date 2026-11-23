@@ -798,6 +798,15 @@
     const soc = C.socialDue(d, T);
     const aGarder = soc.filter(x => x.kind === 'cnss').slice(-1).map(x => x.id);
     soc.filter(x => !aGarder.includes(x.id)).forEach(x => d.socialFilings.push({ id: x.id, filedAt: C.addDays(x.dueDate, -3), label: x.label }));
+    // (DIR-9) Et ses retenues sur salaires de chaque mois échu sont déclarées : le paiement est le mouvement « IRPP retenu… »
+    // posé plus haut ; la mention se pose SANS montant (comme la CNSS) pour ne pas le compter deux fois. Sans elle, la Paie
+    // peignait chaque mois passé en rouge sur une entreprise qui paie tout à l'heure.
+    Object.keys(parMois).sort().forEach(k => {
+      const [yy, mm] = k.split('-').map(Number);
+      const echeance = C.addMonths(`${k}-01`, 1, 28);
+      if (echeance >= T) return;
+      d.socialFilings.push({ id: `dm-${k}`, filedAt: C.addDays(echeance, -3), label: `Retenues sur les salaires de ${C.MONTHS_FR[mm - 1]} ${yy}` });
+    });
     // Et une déclaration CNSS déposée se PAIE, le même jour (10.14.0) : la cotisation du trimestre
     // quitte la banque sur le compte CNSS. Sans ça, trente mille dinars de cotisations s'empilaient
     // au passif — cinq ans de CNSS jamais versée, sur une entreprise qui déclare tout à l'heure.

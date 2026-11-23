@@ -142,7 +142,7 @@
 .ed-remise input { width: 72px; height: 36px; background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; text-align: end; }
 
 /* les totaux, le geste, avant d'émettre, l'aperçu */
-.ed-totaux .totals-box { display: block; margin: 0; }
+.ed-totaux .totals-box { display: block; margin: 0; overflow-x: auto; }
 .ed-totaux .totals-box table.ed-tot { width: 100%; border-collapse: collapse; font-size: 13.5px; background: none; border-radius: 0; padding: 0; }
 .ed-totaux .totals-box table.ed-tot td { padding: 5px 0; color: var(--sb-gris); text-align: start; }
 .ed-totaux .totals-box table.ed-tot td:last-child { text-align: end; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sb-encre); white-space: nowrap; }
@@ -273,6 +273,13 @@
   .ed-geste .ed-deux { grid-template-columns: minmax(0, 1fr); }
   .ed-geste .btn-grand { height: 48px; }
   #view:has(.ed-geste) { padding-bottom: 190px; }
+  /* (DIR-1) La feuille « Plus » couvre l'écran sous le haut : le pied de la pièce (z 70) passait par-dessus elle (z 55). Elle
+     n'existe dans le document que pendant qu'elle est ouverte (fermerPlus la retire) : le pied revient tout seul. */
+  body:has(> .sb-plus) .ed-geste { display: none; }
+  /* (DIR-2) Pendant qu'on cherche le client, le pied (Net à payer, Émettre) n'a rien à dire et couvrait les résultats.
+     :focus-within : toucher un résultat garde le focus dans #ed-pourqui ; le pied revient quand le client est choisi. */
+  body:has(#ed-pourqui:not([hidden]):focus-within) .ed-geste { display: none; }
+  #ed-pq-q { scroll-margin-top: calc(var(--sb-haut-tel, 64px) + 8px); }
 }
 @media (max-width: 760px) {
   .ed-cl-gestes { order: 3; width: 100%; }
@@ -378,6 +385,9 @@
 .ed-pq-champ { display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border: 1px solid var(--sb-sarcelle); border-radius: 11px; background: var(--sb-papier); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 15%, transparent); color: var(--sb-gris-2); }
 .ed-pq-champ input { flex: 1; min-width: 0; border: 0; background: none; height: 100%; padding: 0; font-size: 15px; color: var(--sb-encre); box-shadow: none; }
 .ed-pq-champ input:focus { outline: none; box-shadow: none; }
+/* (DIR-2) La case est posée sur le fond de sa boîte : en sombre, la règle des champs (body.dark input:not()…, 0,5,2) y
+   repeignait un rectangle #12161c. L'identifiant la bat ; aucune couleur n'est posée. Même chose pour la barre d'ajout. */
+#view :is(.ed-pq-champ, .ed-ajout) input, #view :is(.ed-pq-champ, .ed-ajout) input:focus { background: transparent; }
 .ed-pq-liste { display: grid; gap: 2px; }
 .ed-pq-o, .ed-pq-nv { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 0; border-radius: 10px; background: none; text-align: start; cursor: pointer; font: inherit; color: inherit; min-height: 48px; }
 .ed-pq-o:hover, .ed-pq-o.sel, .ed-pq-nv:hover, .ed-pq-nv.sel { background: var(--sb-survol); }

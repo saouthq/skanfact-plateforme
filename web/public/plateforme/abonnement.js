@@ -249,9 +249,9 @@
   function etatEnClair(e, regles = {}, suite = {}) {
     if (e.etat === 'hors') {
       // (1.122.0) Le titre dit ce que c'est (« Rien ne s'arrête ici » ne disait rien, recette du 23/10/2026).
-      return { ton: 'calme', pastille: ({ bac_a_sable: 'Entreprise d\'essai', tenu_par_cabinet: 'Tenue par ton cabinet', offert: 'Offert' })[e.raison || ''] || 'Sans échéance',
-        titre: ({ bac_a_sable: 'Une entreprise pour essayer', tenu_par_cabinet: 'Ton cabinet tient ce dossier', offert: 'Abonnement offert par SkanFact' })[e.raison || ''] || 'Pas d\'abonnement ici',
-        jauge: null, texte: ({ bac_a_sable: 'C\'est une entreprise d\'essai : elle ne s\'arrête jamais, et rien n\'y est facturé.',
+      return { ton: 'calme', pastille: ({ bac_a_sable: 'Entreprise d\'exemple', tenu_par_cabinet: 'Tenue par ton cabinet', offert: 'Offert' })[e.raison || ''] || 'Sans échéance',
+        titre: ({ bac_a_sable: 'Une entreprise pour apprendre', tenu_par_cabinet: 'Ton cabinet tient ce dossier', offert: 'Abonnement offert par SkanFact' })[e.raison || ''] || 'Pas d\'abonnement ici',
+        jauge: null, texte: ({ bac_a_sable: 'C\'est une entreprise d\'exemple : elle ne s\'arrête jamais, et rien n\'y est facturé.',
         tenu_par_cabinet: 'C\'est lui qui le paie : rien ne s\'arrête ici, et rien ne t\'est facturé.', offert: 'SkanFact t\'offre cet abonnement, sans échéance : rien ne s\'arrête, et rien ne t\'est facturé.',
         inconnu: 'Cette entreprise n\'a pas encore d\'abonnement : rien ne s\'y ferme.' })[e.raison || ''] || '' };
     }
@@ -781,7 +781,7 @@
       return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b>${compris ? `<span>${esc(compris)}</span>` : ''}${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
         <span class="abo-plus-prix">${an ? `<b>${esc(montant(an, mm))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois, mm))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
     }).join('');
-    const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jourDeTunis(String(v.le)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
+    const histoire = a.etat.etat === 'hors' && a.etat.raison === 'bac_a_sable' ? '' : a.historique.map((v) => `<li><span class="abo-quand">${esc(jourDeTunis(String(v.le)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
     const sujet = encodeURIComponent(a.etat.etat === 'actif' ? 'Mon abonnement SkanFact' : 'M\'abonner à SkanFact');
     // Les factures, lues comme la pièce les imprime : la fiche de l'entreprise SkanFact complétée de ses valeurs par défaut
     // par la même fonction que la v10 (`migrateData`), comme l'espace client.

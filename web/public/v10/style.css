@@ -217,6 +217,9 @@ body.dark .banner.demo-banner .btn:not(.btn-primary):not(.btn-danger) { backgrou
    de travail sous le bas d'un portable. Trois classes : `.banner.demo-banner` en a deux. */
 .banner.demo-banner.court { padding-block: 6px; margin-bottom: 12px; }
 .demo-banner.court .db-ico svg { width: 18px; height: 18px; }
+/* (DIR-16, issue 8) Au téléphone, le rappel de l'exemple tient sur une ligne : son nom et ses gestes ; la phrase entière est
+   dans la bulle du titre. `.db-suite` n'est posée que par l'app entreprise. */
+@media (max-width: 760px) { .banner.demo-banner.court .db-suite { display: none; } .banner.demo-banner.court { gap: 8px; } }
 
 /* Le repère « bêta » (7.25.0). Discret mais permanent : il vit dans le nom de l'application, en
    haut à gauche, et dans l'écran des mises à jour. Il ne doit pas crier — une bêta est un mode

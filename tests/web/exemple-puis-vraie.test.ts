@@ -150,8 +150,11 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     const sienne = String((await api('POST', '/entreprises', autre, { raisonSociale: 'Librairie Omar' })).corps.id);
     const { p, erreurs } = await page(jeton);
     await p.goto(`${serveur.adresse}/v10/?e=${sienne}#/dashboard`);
-    await expect.poll(() => p.locator('#poste-bandeau').innerText().then(net).catch(() => ''), { timeout: 20_000 })
-      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Continuer`);
+    await expect.poll(() => p.locator('#poste-ouverture').innerText().then(net).catch(() => ''), { timeout: 20_000 })
+      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Revenir à mon entreprise`);
+    // (1.388.26, DIR-14) La page pleine couvre la coquille : rien du menu ne se clique dessous.
+    expect(await p.evaluate(() => [[20, 200], [innerWidth / 2, innerHeight - 20]].every(([x, y]) => !!document.elementFromPoint(x, y)?.closest('#poste-ouverture')))).toBe(true);
+    expect(await p.locator('#poste-ouverture').getAttribute('role')).toBe('alert');
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-2-pas-ouverte.png') });
     expect(erreurs).toEqual([]);
   }, 60_000);
@@ -170,9 +173,9 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
     await p.goto(`${serveur.adresse}/v10/?e=${sienne}#/clients`);
-    const bandeau = p.locator('#poste-bandeau');
+    const bandeau = p.locator('#poste-ouverture');
     await expect.poll(() => bandeau.innerText().then(net).catch(() => ''), { timeout: 20_000 })
-      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Continuer`);
+      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Revenir à mon entreprise`);
     await bandeau.getByRole('button', { name: 'Me connecter avec un autre compte', exact: true }).click();
     // La session de Lina est fermée au serveur, et la connexion attend le bon compte.
     await p.locator('input[type=email]').waitFor({ timeout: 20_000 });

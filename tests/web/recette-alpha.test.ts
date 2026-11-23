@@ -656,7 +656,7 @@ describe('la recette alpha, à la souris', () => {
     await p.getByRole('button', { name: 'Émettre l\'avoir', exact: true }).click();
     // Le refus dit le montant et la raison ; aucune fenêtre « Émettre l'avoir ? » ne s'ouvre, rien n'est numéroté.
     await expect.poll(() => p.locator('#toast').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toMatch(/^Cet avoir fait − ?23,800 DT : un avoir rend de l'argent, son montant est positif\./);
+      .toMatch(/^Cet avoir fait − ?23,800 DT hors timbre : un avoir rend de l'argent, son montant est positif\./);
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
     expect(await p.locator('#view h1').first().innerText()).toMatch(/^Nouvel avoir/);
     // Deux phrases restent le temps de se lire : encore là après 5,5 s (un message court part à 4 s).

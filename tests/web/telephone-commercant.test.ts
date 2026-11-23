@@ -132,15 +132,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
         carte: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
         titre: cases.find((x) => x.role === 'titre')?.texte,
         montants: cases.filter((x) => /Net à payer|Reste/.test(x.titre)).map((x) => ({ titre: x.titre, texte: x.texte, left: x.r.left, right: x.r.right, top: x.r.top })),
-        // (1.139.0) Les montants d'abord : rien d'autre que le titre n'est au-dessus d'eux.
-        dessus: cases.filter((x) => x.role !== 'titre' && x.texte && x.texte !== 'Actions' && !/Net à payer|Reste/.test(x.titre)).map((x) => x.r.top),
         actions: actions && { left: actions.left, right: actions.right, top: actions.top, bottom: actions.bottom },
       };
     }));
     expect(cartes.map((x) => x.titre)).toEqual(['FAC-2026-002', 'FAC-2026-001']);
     for (const x of cartes) {
       expect(x.montants.map((m) => m.titre)).toEqual(['"Net à payer"', '"Reste"']);
-      expect(Math.min(...x.dessus)).toBeGreaterThan(Math.max(...x.montants.map((m) => m.top)));
       for (const m of x.montants) { expect(m.left).toBeGreaterThanOrEqual(x.carte.left); expect(m.right).toBeLessThanOrEqual(Math.min(x.carte.right, 390) + 0.5); }
       // « Actions » dans sa carte, en haut à droite.
       const a = x.actions;
@@ -151,13 +148,15 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     }
     // (1.162.0, maquette liste) En dinars, le montant seul : son titre (« Net à payer », « Reste ») le dit.
     expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000', '714,000']);
-    // (1.143.0) Le client juste sous les montants, avant la date de la pièce (1.154.0 : « Client et objet », la colonne
-    // « Type » a laissé la place à l'étiquette « Avoir »). L'ordre de lecture : la rangée, puis la gauche.
-    const sous = await p.locator('table.list > tbody > tr:not(.mois)').first().evaluate((tr) => ['Client et objet', 'Date'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));
-    expect(sous[0]).toBeGreaterThan(0);
-    expect(sous[0]).toBeLessThan(sous[1] ?? 0);
+    // (1.388.26, DIR-15) La carte compacte, comme celle des achats : le client sur la rangée du net, le statut sur celle du
+    // reste, la date et la case à cocher repliées, sans titre en capitales sur les cases qui se lisent seules.
+    const rangs = await p.locator('table.list > tbody > tr:not(.mois)').first().evaluate((tr) => {
+      const top = (s: string) => Math.round(tr.querySelector(s)?.getBoundingClientRect().top ?? -1);
+      return [top('td.cl') === top('td.cm'), top('td.st') === top('td.r.m:not(.cm)'), (tr.querySelector('td.cd') as HTMLElement).offsetParent === null, getComputedStyle(tr.querySelector('td.cl') as Element, '::before').content];
+    });
+    expect(rangs).toEqual([true, true, true, 'none']);
     // (1.143.0) Le doigt laisse la carte touchée « survolée » : son « Actions » ne s'allume pas seul.
-    await p.locator('table.list > tbody > tr:not(.mois)').nth(1).locator('td[data-label="Date"]').hover();
+    await p.locator('table.list > tbody > tr:not(.mois)').nth(1).locator('td.cl').hover();
     expect(new Set(await p.locator('table.list > tbody > tr td.row-actions .row-menu-btn').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor))).size).toBe(1);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-factures-cartes.png'), fullPage: true });
@@ -250,6 +249,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('#ed-geste #pay').innerText()).toBe('Enregistrer un paiement');
     expect(await p.locator('#ed-geste .ed-net-tel').innerText()).toMatch(/^Net à payer\s+\d/);
     expect(await p.locator('#view .page-head .btn-primary').count()).toBe(0);
+    // (1.388.26, DIR-1) La feuille « Plus » passe au-dessus du pied de la pièce, et le pied revient quand elle se ferme.
+    await p.locator('.sb-onglets [data-tel="plus"]').click();
+    await p.locator('.sb-plus').waitFor();
+    expect(await p.locator('#ed-geste').isVisible()).toBe(false);
+    await p.locator('.sb-onglets [data-tel="plus"]').click();
+    await expect.poll(() => p.locator('#ed-geste').isVisible()).toBe(true);
     // « WhatsApp » se voit, et envoie.
     expect(await p.locator('#wa-tel').isVisible()).toBe(true);
     await p.locator('#wa-tel').click();
@@ -312,9 +317,10 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await o.cx.close();
   }, 180_000);
 
-  // Au téléphone, la page entière défile (pas `#view`) : l'invitation « Première fois sur cette page ? » restait sur le bas
-  // de l'écran de l'éditeur de facture (230 points) pendant tout le défilement (1.87.3). Le défilement la ferme.
-  it('au téléphone, faire défiler l\'éditeur de facture referme « Première fois sur cette page ? »', async () => {
+  // Au téléphone, l'invitation « Première fois sur cette page ? » couvrait le tiers de l'écran à chaque page neuve (1.87.3 la
+  // refermait au défilement) : (1.388.26, DIR-16) elle ne se pose plus, la visite reste dans « Guide-moi ». Et (DIR-2) chercher
+  // le client d'une facture neuve cache le pied, et la case n'a pas de rectangle en sombre.
+  it('(DIR-16) au téléphone, « Première fois sur cette page ? » ne se pose pas ; chercher le client cache le pied', async () => {
     const c = await commercante();
     const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: true, hasTouch: true });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, c.jeton);
@@ -323,11 +329,15 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const erreurs: string[] = [];
     p.on('pageerror', (x) => erreurs.push(x.message));
     await p.goto(`${serveur.adresse}/v10/?e=${c.ent}#/doc/new/facture`);
-    await p.locator('#guide-appel').waitFor({ timeout: 20_000 });
-    await p.evaluate(() => window.scrollTo(0, 400));
-    // L'instrument exige d'avoir défilé : une page qui ne défile pas ne prouve rien.
-    expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(300);
-    await expect.poll(() => p.locator('#guide-appel').count()).toBe(0);
+    await p.locator('#ed-pq-q').waitFor({ timeout: 20_000 });
+    await p.waitForTimeout(1_500);
+    expect(await p.locator('#guide-appel').count()).toBe(0);
+    expect(await p.locator('#ed-geste').isVisible()).toBe(true);
+    await p.locator('#ed-pq-q').tap();
+    await p.keyboard.type('a');
+    await expect.poll(() => p.locator('#ed-geste').isVisible()).toBe(false);
+    await p.evaluate(() => document.body.classList.add('dark'));
+    expect(await p.locator('#ed-pq-q').evaluate((e) => getComputedStyle(e).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);

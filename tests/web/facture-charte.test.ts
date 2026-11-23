@@ -124,6 +124,17 @@ describe('la facture de la maquette, à la souris, au clavier et au téléphone'
     expect(await p.locator('#f-head input[name=discountRate]').inputValue()).toBe('10');
     await p.locator('#ed-remise').fill('0');
     await expect.poll(totaux).not.toContain('Remise 10 % −37,690');
+    // (1.388.26, DIR-12) Une quantité négative se dit sous la ligne ; sur un HT négatif la remise s'écrit « + », jamais « −− ».
+    const qte0 = p.locator('#lines tr[data-i="0"] input[data-k=qty]');
+    const qteAvant = await qte0.inputValue();
+    await qte0.fill('-5'); await qte0.press('Tab');
+    await expect.poll(() => p.locator('#lines').innerText().catch(() => '')).toContain('quantité négative');
+    await p.locator('#ed-remise').fill('10');
+    await expect.poll(async () => (await totaux()).join(' ')).toMatch(/Remise 10 % \+/);
+    expect((await totaux()).join(' ')).not.toContain('−−');
+    await p.locator('#ed-remise').fill('0');
+    await qte0.fill(qteAvant); await qte0.press('Tab');
+    await expect.poll(() => p.locator('#lines').innerText().catch(() => '')).not.toContain('quantité négative');
 
     // 4. Les gestes d'une ligne sont dans son ⋯ : dupliquer, retirer ; Entrée sur la dernière ligne en ajoute une.
     const rangees = () => p.locator('#lines tr').count();

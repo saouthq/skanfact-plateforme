@@ -6980,7 +6980,7 @@
     // n'en portent qu'un bouton (« Choisir les modules affichés… ») : y envoyer ferait deux clics
     // de plus pour trouver une ligne au milieu de dix-neuf. `pageFocus` amène la ligne à l'écran et
     // la marque une seconde et demie — c'est la règle « un raccourci vise un PANNEAU » (7.18.0).
-    if ($('#c-plus')) $('#c-plus').onclick = vers('#/modules', () => { pageFocus = 'sm-compta-livres'; });
+    if ($('#c-plus')) $('#c-plus').onclick = () => ajouterComptaComplete();
     $$('#c-tabs button[data-tab]').forEach(b => b.onclick = () => {
       // LA porte de l'option, ici et nulle part ailleurs (SPEC-UI-ENT-002). Le cadenas se voit
       // AVANT le clic : un onglet qui refuse sans le dire d'abord, on croit s'être trompé.
@@ -8022,6 +8022,25 @@
   //     le module dans le menu sans plus aucun moyen de revenir en arrière ;
   //   — décocher ne supprime rien : la phrase le dit avant, pas après, et masquer un module qui
   //     contient quelque chose se confirme, en nommant ce qui reste atteignable.
+  // (DIR-13, issue 8) Poser ou retirer un sous-module : UNE fonction pour la case de « Tous les modules » et pour le bouton de la
+  // Comptabilité. `null` (aucun choix enregistré) devient la liste de tous les modules plus le sous-module (7.0.0).
+  function poserSousModule(id, on) {
+    const liste = Array.isArray(company().modules) ? company().modules.slice() : C.MODULES.map(m => m.id);
+    const i = liste.indexOf(id);
+    if (on && i < 0) liste.push(id);
+    if (!on && i >= 0) liste.splice(i, 1);
+    company().modules = liste;
+    save();
+  }
+  // (DIR-13, issue 8) « + Comptabilité complète » ajoute les trois onglets là où on les demande : il menait à la page des
+  // modules, la case tout en bas, et on quittait la Comptabilité. La question dit AVANT si l'option est dans l'offre.
+  async function ajouterComptaComplete() {
+    const offre = (licence.options || []).includes('compta') ? '' : ` Ils ne sont pas dans ton offre ${licence.offreLabel || 'Essentiel'} : les trois onglets s'afficheront avec un cadenas et diront quoi faire.`;
+    if (!await confirmDialog(`Ajouter le grand livre, la balance et les états financiers à cette page ? Rien n'est supprimé si tu les retires plus tard, dans « Tous les modules ».${offre}`, 'Les ajouter', false, { titre: 'Comptabilité complète' })) return;
+    poserSousModule('compta.livres', true);
+    render();
+    toast('Grand livre, balance et états financiers ajoutés à cette page');
+  }
   routes.modules = () => {
     const co = company();
     const choisis = Array.isArray(co.modules) ? co.modules.slice() : null;
@@ -8109,12 +8128,7 @@
         // `null` (aucun choix enregistré) devient la liste de tous les modules VISIBLES plus le
         // sous-module : sans le « plus », cocher l'option masquerait d'un coup tout le reste du
         // menu. C'est la règle « on ne masque jamais ce que quelqu'un a saisi » (7.0.0).
-        const liste = Array.isArray(company().modules) ? company().modules.slice() : C.MODULES.map(m => m.id);
-        const i = liste.indexOf(id);
-        if (cb.checked && i < 0) liste.push(id);
-        if (!cb.checked && i >= 0) liste.splice(i, 1);
-        company().modules = liste;
-        save();
+        poserSousModule(id, cb.checked);
         dessine();
         const encore = $(`[data-sousmod="${id}"]`);
         if (encore) encore.focus();
@@ -8523,6 +8537,9 @@
     // (plateforme, Support S2) En lecture pour le support, la page n'est pas celle de qui la lit : aucune invitation (vue le
     // 14/10/2026 par-dessus la fenêtre qui ferme la lecture).
     if (bridge.lecture) return;
+    // (DIR-16, issue 8) Au téléphone, l'invitation couvrait le tiers de l'écran à chaque page neuve : la visite reste à un toucher,
+    // dans « Guide-moi ». Elle ne compte pas non plus comme vue.
+    if (window.matchMedia && window.matchMedia('(max-width: 760px)').matches) return;
     const et = visitesEtat();
     // (1.273.0, L9) Ce qui la tait sans lire les visites passe d'abord : elles ne se chargent que pour une invitation
     // qui peut encore se montrer, puis l'invitation reprend, si l'on est toujours sur la page.

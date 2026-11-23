@@ -329,7 +329,7 @@
   // pas), la page le dit ; au-delà de 10 secondes, que c'est plus long que d'habitude. Un refus du serveur à l'ouverture
   // (une erreur de notre côté) laissait l'écran blanc pour toujours : il le dit, avec « Réessayer » et la page d'état.
   style.textContent += ` #poste-ouverture { position: fixed; inset: var(--poste-bandeau-h, 0px) 0 0 0; z-index: 9998; display: grid;
-    place-items: center; padding: 16px; background: var(--bg, #f5f7fa); color: var(--text, #1b2430); font: 15px/1.5 system-ui, sans-serif; }
+    place-items: center; padding: 16px; background: var(--bg, #f5f7fa); color: var(--text, #1b2430); font: 15px/1.5 var(--sb-police, system-ui, sans-serif); }
     #poste-ouverture > div { max-width: 34em; text-align: center; display: grid; gap: 10px; justify-items: center; }
     #poste-ouverture p { margin: 0; } #poste-ouverture .po-petit { font-size: 13px; color: var(--muted, #7b8794); }
     #poste-ouverture .po-roue { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line, #d6dde5);
@@ -386,6 +386,18 @@
     if (b) b.onclick = () => location.reload();
   }
 
+  // (DIR-14, issue 8) Une page qui ne s'ouvrira jamais se ferme EN ENTIER : le bandeau laissait la coquille dessous (menu,
+  // « Créer »), cliquable pour rien. La page pleine dit pourquoi, offre l'autre compte, et ramène à sa propre entreprise.
+  /** @param {string} texte @param {{ libelle: string, geste: () => void }} [autre] */
+  function refuser(texte, autre) {
+    finOuverture();
+    close = true;
+    poserOuverture(`<p><strong>${esc(texte)}</strong></p><div class="po-gestes">${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : ''}<a href="/" id="poste-continuer">Revenir à mon entreprise</a></div>`, true);
+    const b = document.getElementById('poste-continuer');
+    if (b) b.onclick = (e) => { e.preventDefault(); location.replace('/'); };
+    const a = document.getElementById('poste-autre');
+    if (a && autre) a.onclick = () => autre.geste();
+  }
   // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée. (1.100.0) `autre` : un second geste, avant
   // « Continuer » (« Me connecter avec un autre compte », quand la page est ouverte dans le navigateur d'un autre compte).
   /** @param {string} texte @param {{ libelle: string, geste: () => void }} [autre] */
@@ -420,7 +432,7 @@
   window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
-    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, garderBrouillon, relireBrouillon, effacerBrouillon, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
+    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, garderBrouillon, relireBrouillon, effacerBrouillon, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure, refuser,
     horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse, ouverture, finOuverture, echecOuverture,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
     pourLeCabinet: () => { cabinet = true; },

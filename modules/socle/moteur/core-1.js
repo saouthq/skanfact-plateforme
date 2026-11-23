@@ -414,7 +414,7 @@
       quoi: 'Réclamer l\'argent du travail fait : la pièce officielle, numérotée et définitive.' },
     // (1.269.0 ; Skander, 04/11/2026 : 17 § 1) Une « vue » d'une page (`vueDe`, la même que sa fiche) quitte les volets du
     // menu : elle s'ouvre par la bande des vues de sa page. Son adresse, la palette et « Au quotidien » y mènent toujours.
-    { id: 'relances', titre: 'Relances', module: 'ventes', famille: 'Vendre', vueDe: 'factures', vueNom: 'En retard',
+    { id: 'relances', titre: 'Relances', module: 'ventes', famille: 'Vendre', vueDe: 'factures', vueNom: 'À relancer',
       quoi: 'Les factures en retard de paiement, et le message à envoyer pour chacune.' },
     { id: 'caisse', titre: 'Caisse', module: 'caisse', famille: 'Vendre',
       quoi: 'Vendre au comptoir : le panier, l\'encaissement, le ticket, et le bilan de la journée.' },

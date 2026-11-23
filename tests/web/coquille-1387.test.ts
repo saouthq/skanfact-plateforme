@@ -130,6 +130,24 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await expect.poll(async () => net(await p.locator('#toast').innerText()), { timeout: 10_000 }).toContain('n\'est pas un numéro de téléphone');
     const societe = (await admin.query('select contenu from socle.dossier_v10 where entreprise = $1 and collection = \'company\'', [ent])).rows.map((x) => JSON.stringify(x.contenu)).join(' ');
     expect(societe).not.toContain('pas-un-email');
+    // (1.388.26, DIR-3) La fiche d'un client refuse aussi une adresse fausse, en la nommant ; la fenêtre reste ouverte.
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    // Le téléphone en lettres n'a pas été enregistré : la page pose sa question, on quitte sans enregistrer.
+    const quitter = p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true });
+    await quitter.waitFor({ timeout: 5_000 }).then(() => quitter.click()).catch(() => undefined);
+    await p.locator('#vide-client, #new').first().click();
+    await p.locator('#cf input[name=name]').fill('Café du Port');
+    await p.locator('#cf-plus summary').click();
+    await p.locator('#cf input[name=email]').fill('pas-un-email');
+    await p.locator('#modal-root .modal').last().locator('#ok').click();
+    await expect.poll(async () => net(await p.locator('#modal-root .modal').last().innerText()), { timeout: 10_000 }).toContain('n\'a pas la forme d\'une adresse e-mail');
+    expect(await p.locator('#cf').isVisible()).toBe(true);
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler', exact: true }).click();
+    const abandon = p.getByRole('button', { name: /Abandonner/ });
+    await abandon.waitFor({ timeout: 3_000 }).then(() => abandon.click()).catch(() => undefined);
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
+    await p.evaluate(() => { location.hash = '#/parametres'; });
+    await p.locator('#pf').waitFor({ timeout: 30_000 });
     // (1.387.76) La cloche dit « en retard » : son clic ouvre ce qui est en retard — les relances pour les factures, les
     // achats filtrés sur « En retard » pour les achats — et plus la liste entière. Et les cases de la numérotation se nomment.
     expect(String(await p.locator('#pf input[data-num="facture"]').getAttribute('aria-label'))).toContain('Dernière facture émise');
