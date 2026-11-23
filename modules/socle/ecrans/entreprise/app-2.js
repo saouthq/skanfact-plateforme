@@ -10884,7 +10884,24 @@
   // Jusqu'à la 7.1.1 il ne s'affichait qu'une fois — `needsSetup` exige qu'il n'y ait NI société, NI
   // document, NI client — et « Passer » le condamnait pour de bon. Quelqu'un qui l'avait sauté par
   // réflexe le premier jour ne pouvait plus jamais le revoir.
+  // (1.388.33, L15) L'assistant de démarrage (assistant.js, 11 Ko, et sa feuille) ne part plus avec la première ouverture :
+  // il se charge ici, la première fois qu'il s'ouvre, comme « Ton compte » (L14). Sans réseau, l'ancien assistant prend
+  // le relais (le chargement raté ne bloque rien), et le prochain appel réessaie.
+  let assistantDemande = null;
+  function chargerAssistant() {
+    if (window.SkanAssistant) return Promise.resolve(true);
+    if (!assistantDemande) {
+      assistantDemande = Promise.all([chargerScript('../plateforme/assistant.js'), chargerFeuille('../plateforme/assistant.css', '../plateforme/acces.css')])
+        .then(() => !!window.SkanAssistant, () => false)
+        .then(ok => { assistantDemande = null; return ok; });
+    }
+    return assistantDemande;
+  }
   function runSetup(rejoue) {
+    if (!window.SkanAssistant) return chargerAssistant().then(() => runSetupCharge(rejoue));
+    return runSetupCharge(rejoue);
+  }
+  function runSetupCharge(rejoue) {
     // (plateforme, lot onboarding) L'assistant au nouveau style (plateforme/assistant.js) : « Où te joindre ? », puis
     // l'activité, la TVA et le menu. Il écrit par `OB.applySetup`, et montre la vraie facture et le vrai menu.
     if (window.SkanAssistant) {

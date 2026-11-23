@@ -6704,3 +6704,9 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - La phrase de l'Aide de la caisse dit « les écritures que lit ton comptable » (ENTSOCLE-10, la caisse est à venir).
 - Test : `coquille-1387` (nouveau parcours : le nom d'un bouton, puis une visite de trois étapes dont une sautée) ; deux
   preuves.
+
+## 1.388.33 — Le poids de la première ouverture (L15)
+
+La vérification avant l'envoi a trouvé S1 à 1 303 Ko pour 1 300 : l'assistant de démarrage (`assistant.js` et sa
+feuille) se charge maintenant à sa première ouverture, comme « Ton compte » (L14). Sans réseau, l'ancien assistant
+prend le relais. Détail dans `docs/leger.md` (L15). Tests : `leger`, `assistant`, `premiers-pas`.

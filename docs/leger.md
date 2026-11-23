@@ -256,6 +256,16 @@ l'entreprise qui avait grossi au fil des lots). Le levier pris :
   l'ouverture).
 - Mesuré : **1 294 Ko** (S1), 1 297 Ko avec la copie gardée. Le Cabinet charge encore `compte.js` avec sa page.
 
+## L15 : l'assistant de démarrage à sa première ouverture (23/11/2026, 1.388.33)
+
+S1 mesurait **1 303 Ko** après la 1.388.32 (les lots de l'entreprise avaient regagné les 9 Ko pris par L14). Le levier :
+
+- **`plateforme/assistant.js`** (11,5 Ko en brotli) et **`assistant.css`** ne partent plus avec la page de l'entreprise :
+  l'assistant ne s'ouvre qu'une fois, au premier jour (ou quand on rejoue « Choisir mon activité »). `runSetup` les
+  charge par `chargerAssistant()` (`chargerScript` + `chargerFeuille`, la feuille posée juste après `acces.css`, la place
+  qu'elle avait dans la page). Sans réseau, l'ancien assistant prend le relais : rien n'est bloqué, et l'appel suivant
+  réessaie.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à
