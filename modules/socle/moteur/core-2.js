@@ -4425,9 +4425,10 @@
     // Le relevé dit ce que le client VERSERA (le net) ; son compte chez lui, comme le nôtre, porte
     // aussi la retenue qu'il gardera pour l'État en payant (10.14.0). Elle se dit à part, pour que sa
     // comptabilité rapproche son 401 du total sans deviner d'où vient l'écart.
-    const rsASubir = round3((data.documents || [])
+    // (issue 15 V-4) La retenue encore à subir se lit, comme les restes dus, sur l'état du jour du relevé (`vu`).
+    const rsASubir = round3((vu.documents || [])
       .filter(d => d.clientId === clientId && (d.type === 'facture' || d.type === 'avoir') && d.date <= t)
-      .reduce((s, d) => s + retenueASubir(d, data, company, natif), 0));
+      .reduce((s, d) => s + retenueASubir(d, vu, company, natif), 0));
     return {
       client, date: t, currency: devise, lang, lignes, rsASubir,
       montant: somme('montant'), regle: somme('regle'), total: somme('reste'),
@@ -6109,7 +6110,7 @@
       payment: 'Règlement', bank: 'Banque', rib: 'RIB', motif: 'Motif', creditText: (n, nom) => `Cet avoir vient en déduction de ${nom || 'la facture'} ${n}`, creditFreeText: 'Cet avoir n\'est rattaché à aucune facture : il est à valoir sur une prochaine facture, ou remboursé', conditions: 'Conditions', validText: d => `Devis valable jusqu'au ${d}.`,
       subtotal: 'Total HT', discount: 'Remise', netHT: 'Net HT', on: 'sur', stamp: 'Timbre fiscal', totalTTC: 'Total TTC', withholding: 'Retenue à la source', exoRS: (n, d) => `Exonéré de la retenue à la source${n ? ` — attestation n°\u00a0${n}` : ''}, valable jusqu'au ${d}.`, netToPay: 'Net à payer', creditAmount: 'Montant de l\'avoir',
       wordsInvoice: 'Arrêtée la présente facture à la somme de', wordsFees: 'Arrêtée la présente note d\'honoraires à la somme de', wordsCredit: 'Arrêté le présent avoir à la somme de', wordsQuote: 'Arrêté le présent devis à la somme de', wordsDoc: 'Arrêté le présent document à la somme de',
-      approve: 'Bon pour accord', approveSub: 'Date, signature et cachet du client', stampSign: 'Cachet et signature', provider: 'Le prestataire', draft: 'Brouillon', paid: 'Payée', cancelled: 'Annulée', mf: 'MF', mfCin: 'MF / CIN', rate: 'Taux',
+      approve: 'Bon pour accord', approveSub: 'Date, signature et cachet du client', stampSign: 'Cachet et signature', provider: 'Le prestataire', draft: 'Brouillon', paid: 'Payée', cancelled: 'Annulée', mf: 'MF', mfCin: 'MF / CIN', taxId: 'N° fiscal', rate: 'Taux',
       proforma: 'Facture proforma', commande: 'Bon de commande', livraison: 'Bon de livraison', contrat: 'Contrat de prestation',
       established: 'Établi le', orderedOn: 'Commandé le', deliveredOn: 'Livré le', signedOn: 'Signé le', from: 'Suite à', deliveryNotes: 'Bons de livraison', deliveryNote1: 'Bon de livraison',
       commandeFournisseur: 'Bon de commande', supplier: 'Fournisseur', wantedBy: 'Livraison souhaitée le',
@@ -6130,7 +6131,7 @@
       payment: 'Payment', bank: 'Bank', rib: 'Account (RIB)', motif: 'Reference', creditText: (n, nom) => `This credit note is deducted from ${nom || 'invoice'} ${n}`, creditFreeText: 'This credit note is not attached to any invoice: it may be applied to a future invoice, or refunded', conditions: 'Terms', validText: d => `This quote is valid until ${d}.`,
       subtotal: 'Subtotal excl. VAT', discount: 'Discount', netHT: 'Net excl. VAT', on: 'on', stamp: 'Stamp duty', totalTTC: 'Total incl. VAT', withholding: 'Withholding tax', exoRS: (n, d) => `Exempt from withholding tax${n ? ` — certificate no.\u00a0${n}` : ''}, valid until ${d}.`, netToPay: 'Amount due', creditAmount: 'Credit amount',
       wordsInvoice: 'Total amount in words:', wordsFees: 'Total amount in words:', wordsCredit: 'Total amount in words:', wordsQuote: 'Total amount in words:', wordsDoc: 'Total amount in words:',
-      approve: 'Approved — signature', approveSub: 'Date, signature and stamp of the client', stampSign: 'Stamp and signature', provider: 'Provider', draft: 'Draft', paid: 'Paid', cancelled: 'Cancelled', mf: 'Tax ID', mfCin: 'Tax ID', rate: 'Rate',
+      approve: 'Approved — signature', approveSub: 'Date, signature and stamp of the client', stampSign: 'Stamp and signature', provider: 'Provider', draft: 'Draft', paid: 'Paid', cancelled: 'Cancelled', mf: 'Tax ID', mfCin: 'Tax ID', taxId: 'Tax ID', rate: 'Rate',
       proforma: 'Proforma invoice', commande: 'Purchase order', livraison: 'Delivery note', contrat: 'Service agreement',
       established: 'Issued on', orderedOn: 'Ordered on', deliveredOn: 'Delivered on', signedOn: 'Signed on', from: 'Following', deliveryNotes: 'Delivery notes', deliveryNote1: 'Delivery note',
       commandeFournisseur: 'Purchase order', supplier: 'Supplier', wantedBy: 'Delivery requested by',
@@ -6287,7 +6288,8 @@
       : `<tr><td>${L.vat}</td><td class="r num">${fmt(t.totalVAT)}</td></tr>`;
 
     const contact = [company.phone, company.email, company.website].filter(Boolean).map(escapeHtml).join('<br>');
-    const clientContact = [cl.contact ? escapeHtml(cl.contact) : '', cl.matricule ? L.mfCin + ' ' + escapeHtml(matriculeLisible(cl.matricule)) : '', cl.phone ? escapeHtml(cl.phone) : '', cl.email ? escapeHtml(cl.email) : ''].filter(Boolean).join('<br>');
+    // (issue 15 V-10) Un client à l'étranger a un numéro fiscal, pas un « MF / CIN » : il s'écrit tel quel.
+    const clientContact = [cl.contact ? escapeHtml(cl.contact) : '', cl.matricule ? (cl.currency && normCurrency(cl.currency) !== normCurrency(company.currency || 'DT') && !matriculeBienForme(cl.matricule) ? L.taxId : L.mfCin) + ' ' + escapeHtml(matriculeLisible(cl.matricule)) : '', cl.phone ? escapeHtml(cl.phone) : '', cl.email ? escapeHtml(cl.email) : ''].filter(Boolean).join('<br>');
     // Pied de page légal : le texte libre s'il est rempli, sinon composé du nom et du matricule
     const footerBase = company.footer || [company.name, company.matricule ? (lang === 'en' ? 'Tax ID ' : 'Matricule fiscal ') + matriculeLisible(company.matricule) : ''].filter(Boolean).join(' — ');
     // (1.387.74, issue 15 V-16) « Capital 1 000 DT » se coupait en deux lignes au pied : ses espaces ne se coupent plus.
@@ -7710,6 +7712,8 @@
         ligne.objet = obj;
         if (!obj.name) refus(fournisseur ? 'le nom manque — c\'est lui qui se lit sur chaque achat.' : 'le nom manque — c\'est lui qui s\'imprime sur chaque pièce.');
         if (obj.email && !obj.email.split(/\s*,\s*/).every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) ligne.avert.push(`l'email « ${obj.email} » n'a pas la forme d'une adresse : un envoi n'arriverait pas.`);
+        // (issue 15 V-14) Un matricule de travers s'importait sans un mot. On prévient (un client étranger a une autre forme), on ne refuse pas.
+        if (obj.matricule && !matriculeBienForme(obj.matricule) && !/^\d{8}$/.test(mfCompact(obj.matricule))) ligne.avert.push(`le matricule « ${obj.matricule} » n'a ni la forme d'un matricule fiscal (1234567A/A/M/000) ni celle d'un CIN (8 chiffres) : relis-le, sauf client à l'étranger.`);
         // Un RIB tunisien a vingt chiffres : un autre se garde tel quel (un IBAN étranger), et se dit avant le virement.
         if (obj.rib && !/^\d{20}$/.test(obj.rib.replace(/[\s.-]/g, ''))) ligne.avert.push(`le RIB « ${obj.rib} » n'a pas les vingt chiffres d'un RIB tunisien : relis-le avant le premier virement.`);
         if (ligne.statut === 'refus') return ligne;

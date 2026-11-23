@@ -31779,6 +31779,28 @@ prouver $'l3-dir20-ligne-libre' modules/socle/ecrans/entreprise/app-1.js \
   $'Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions'
 
 
+# 1.388.27 — les ventes (issue 15) : l'acompte hors des sections, le n° fiscal étranger, le trop annoncé, une seule forme d'e-mail.
+prouver $'l4-v3-l-acompte-hors-des-sections' modules/socle/moteur/core-1.js \
+  $'      if (titre >= 0 && !l.noDiscount) out[titre] = round3(out[titre] + l.ht);' \
+  $'      if (titre >= 0) out[titre] = round3(out[titre] + l.ht);' \
+  $'la déduction d\'un acompte n\'entre dans le sous-total d\'aucune section (1.388.27, issue 15 V-3)'
+prouver $'l4-v10-numero-fiscal-etranger' modules/socle/moteur/core-2.js \
+  $'cl.matricule ? (cl.currency && normCurrency(cl.currency) !== normCurrency(company.currency || \'DT\') && !matriculeBienForme(cl.matricule) ? L.taxId : L.mfCin)' \
+  $'cl.matricule ? (L.mfCin)' \
+  $'chaque pièce imprimée porte les matricules sous leur forme lisible, en tête comme au pied ; une carte d\'identité, telle quelle'
+prouver $'l4-v12-le-trop-se-dit' modules/socle/ecrans/entreprise/app-1.js \
+  $'${montant > tc + 0.0005 ? ` · ${C.money(C.round3(montant - tc), cur)} de trop` :' \
+  $'${montant > tc + 0.0005 ? \'\' :' \
+  $'le virement de l\'hôtel règle deux factures : la plus ancienne d\'abord, un règlement par facture, et le lettrage du Cabinet'
+prouver $'l4-v15-attend-sa-reponse' modules/socle/ecrans/entreprise/app-1.js \
+  $'\'1 attend sa réponse\'}' \
+  $'\'1 attend leur réponse\'}' \
+  $'relancer un client pour toutes ses factures d\'un message, puis attendre sa réponse une semaine ; le menu dit le même chiffre'
+prouver $'l4-dir3-v14-une-forme-d-email' modules/socle/ecrans/entreprise/app-1.js \
+  $'const EMAIL_FORME = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;' \
+  $'const EMAIL_FORME = /^.+$/;' \
+  $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

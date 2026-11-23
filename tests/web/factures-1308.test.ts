@@ -189,7 +189,7 @@ describe('les factures 1.308.0 : encaisser, relancer, corriger', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/relances`);
     await p.waitForTimeout(3000);
     await plusTard(p);
-    expect(net(await p.locator('#view').innerText())).toContain('Aucune facture à relancer aujourd\'hui : 1 relancée attend leur réponse.');
+    expect(net(await p.locator('#view').innerText())).toContain('Aucune facture à relancer aujourd\'hui : 1 relancée attend sa réponse.');
     await photo('b-relances');
 
     // C. Le Café El Medina rend une chaise abîmée : un avoir d'une chaise.

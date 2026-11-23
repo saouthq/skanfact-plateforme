@@ -1550,7 +1550,9 @@
     let titre = -1;
     t.lines.forEach((l, i) => {
       if (l.titre) { titre = i; out[i] = 0; return; }
-      if (titre >= 0) out[titre] = round3(out[titre] + l.ht);
+      // (issue 15 V-3) La déduction d'un acompte déjà facturé (`noDiscount`) n'appartient à aucune section : ajoutée à la
+      // dernière, elle faisait mentir son sous-total. Elle se lit sur sa propre ligne et dans le Total HT.
+      if (titre >= 0 && !l.noDiscount) out[titre] = round3(out[titre] + l.ht);
     });
     return out;
   }

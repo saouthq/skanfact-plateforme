@@ -118,6 +118,8 @@ describe('un client règle plusieurs factures d\'un seul virement (1.360.0)', ()
     await fenetre().locator('[data-mode="virement"]').click();
     await expect.poll(async () => fenetre().locator('[data-effet] input').first().isDisabled(), { timeout: 5_000 }).toBe(true);
     await fenetre().locator('[name=amount]').fill('3000');
+    // (1.388.27, issue 15 V-12) Le trop se dit sur le bouton pendant la frappe (3 000 − 2 026 = 974).
+    await expect.poll(async () => net(await fenetre().locator('#ok').innerText())).toMatch(/· 974,000 DT de trop$/);
     await fenetre().locator('#ok').click();
     await expect.poll(async () => net(await p.locator('body').innerText()), { timeout: 10_000 }).toContain('Les factures cochées ne doivent plus que 2 026,000 DT');
     expect(await p.locator('#modal-root .modal').count()).toBe(1);

@@ -1628,6 +1628,10 @@
   // valeur fausse), et une adresse sans « @ » s'enregistrait sans un mot — elle s'imprime en haut de chaque devis et
   // facture. La remarque vit dans la ligne du libellé (H-E1) ; on prévient, et seul le matricule se refuse à
   // l'enregistrement (il décide de la licence et de ce que le serveur porte).
+  // (issue 15 V-14) UNE forme d'adresse e-mail pour toute l'application : un nom, @, un domaine avec un point.
+  const EMAIL_FORME = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailsBienFormes = v => String(v || '').split(/\s*,\s*/).filter(Boolean).every(a => EMAIL_FORME.test(a.trim()));
+  const REFUS_EMAIL = 'Cette adresse e-mail n\'a pas la bonne forme : un nom, @, puis le domaine (ex. contact@domaine.tn).';
   const lblVerif = (text, key) => `<span class="fl">${text} ${info(key)}<span class="rib-note" aria-live="polite"></span></span>`;
   const VERIFS = {
     matricule: v => !v || C.matriculeBienForme(v) ? null
@@ -2149,6 +2153,8 @@
         const iso = C.parseDateInput(txt.value);
         if (!txt.value.trim()) return commit('');
         if (!iso) { txt.value = C.fmtDateInput(hidden.value); toast('Date incomprise : écris-la sous la forme 12/03/2026.', true); return; }
+        // (issue 15 V-5) La date corrigée est comprise : le reproche d'avant ne reste pas affiché par-dessus.
+        { const tt = $('#toast'), tx = tt && $('.toast-txt', tt); if (tx && tt.classList.contains('show') && /^Date incomprise/.test(tx.textContent.trim())) { clearTimeout(tt._timer); tt.className = ''; } }
         commit(iso);
       };
       txt.onkeydown = e => {
@@ -7405,7 +7411,7 @@
         if (!d || Date.now() - (b.contenu.le || 0) > 7 * 86400000 || data.documents.some(x => x.id === d.id)) { if (d) brouillonD.effacer(); return serveur(); }
         const cl = clientById(d.clientId);
         poser(bandeauReprise({ id: 'ed-reprendre', titre: `${nomDe(d)}${cl ? ` pour ${cl.name}` : ''} commencé${fem(d)} ${quandCommence(b.contenu.le)}, pas encore enregistré${fem(d)}`,
-          texte: `${resume(d) ? resume(d) + (cl ? '' : ', sans client encore') + '. ' : ''}Gardé${fem(d)} sur cet ordinateur seulement : ${d.type === 'facture' || d.type === 'avoir' ? 'rien n\'est dans tes factures tant que tu n\'as pas choisi le client.' : `${fem(d) ? 'elle prend son' : 'il prend son'} numéro quand tu l'enregistres.`}`,
+          texte: `${resume(d) ? resume(d) + (cl ? '' : ', sans client encore') + '. ' : ''}Gardé${fem(d)} sur cet ordinateur seulement : ${d.type === 'facture' || d.type === 'avoir' ? (cl ? `rien n'est encore dans tes factures : reprends-l${fem(d) ? 'a' : 'e'} pour l'enregistrer.` : 'rien n\'est dans tes factures tant que tu n\'as pas choisi le client.') : `${fem(d) ? 'elle prend son' : 'il prend son'} numéro quand tu l'enregistres.`}`,
           ok: 'Reprendre', non: 'Le jeter',
           surOk: () => { docReprise = { hash: location.hash, doc: d }; render(true); },
           surNon: el => { (d.attachments || []).forEach(a => { try { bridge.removeAttachment(d.id, a.file); } catch (_) { /* déjà parti */ } }); brouillonD.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré'); } }));
@@ -8132,6 +8138,17 @@
           const items = projectItems(doc.clientId);
           projectCombo.setItems(items);
           if (doc.projectId && !items.some(x => x.v === doc.projectId)) { doc.projectId = ''; projectCombo.setValue('', true); }
+        }
+        // (issue 15 V-2) Changer de client défait la facture d'un autre client : l'avoir ne peut corriger qu'une facture de SON
+        // client, et le serveur le refusait après la saisie. On le dit maintenant, avant toute frappe.
+        if (isAv && !figee && doc.creditOf) {
+          const faAncien = docById(doc.creditOf);
+          if (faAncien && faAncien.clientId !== doc.clientId) {
+            doc.creditOf = ''; doc.creditOfNumber = '';
+            if (creditCombo && creditCombo.setValue) creditCombo.setValue('', true);
+            const ligneAv = $('.ed-ligne-avoir', head); if (ligneAv) ligneAv.hidden = false;
+            toast(`${faAncien.number} est une facture de ${clientName(faAncien.clientId)} : choisis une facture de ${clientName(doc.clientId)}.`);
+          }
         }
         if (creditCombo && creditCombo.setItems) creditCombo.setItems(invoiceItems());
         majFicheClient();
@@ -8926,7 +8943,7 @@
             // question le dit, le message après offre de le lui dire.
             await periodeValideeLue();
             const dvSup = dateDansLaPeriodeValidee([p.date]);
-            if (!await confirmDialog(`Supprimer ${rend ? 'le remboursement' : 'le paiement'} de ${C.money(Math.abs(p.amount), cur)} du ${C.fmtDate(p.date)}${p.reference ? ` (${p.reference})` : ''} ? ${suite}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, rend ? 'Supprimer le remboursement' : 'Supprimer le paiement')) return;
+            if (!await confirmDialog(`Supprimer ${rend ? 'le remboursement' : 'le paiement'} de ${C.money(Math.abs(p.amount), cur)} du ${C.fmtDate((p.effet && p.effet.recuLe) || p.date)}${p.effet && p.effet.recuLe && p.effet.recuLe !== p.date ? ` (échéance le ${C.fmtDate(p.date)})` : ''}${p.reference ? ` (${p.reference})` : ''} ? ${suite}${dvSup ? ` ${phraseAnnulationValidee(dvSup, { sujet: 'Il', fem: false })}` : ''}`, rend ? 'Supprimer le remboursement' : 'Supprimer le paiement')) return;
             // (1.359.0) Son rejet part avec lui : un rejet ne désigne que le paiement qu'il annule.
             s.payments = s.payments.filter(x => x.id !== p.id && x.rejetDe !== p.id); save(true); render();
             if (dvSup) {
@@ -9929,13 +9946,17 @@
       const finDeMois = iso => { const d = new Date(iso + 'T00:00:00Z'); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10); };
       const DELAIS = [['reception', 'À réception', 0, false], ['15', '15 jours', 15, false], ['30', '30 jours', 30, false], ['30fm', '30 jours fin de mois', 30, true], ['45fm', '45 jours fin de mois', 45, true], ['60', '60 jours', 60, false]];
       const dateDuDelai = ([, , j, fm]) => { const d = C.addDays(doc.date || C.today(), j); return fm ? finDeMois(d) : d; };
+      // (issue 15 V-7) Un devis a une durée de VALIDITÉ, pas un délai de paiement : ni « à réception » ni « fin de mois », et
+      // la fiche du client (son délai de paiement) n'a rien à en dire.
+      const VALIDITES = [['v15', '15 jours', 15, false], ['v30', '30 jours', 30, false], ['v60', '60 jours', 60, false], ['v90', '90 jours', 90, false]];
+      const LISTE_DL = isQ ? VALIDITES : DELAIS;
       function majEcheance() {
         const b = $('#ed-ech', head); if (!b) return;
         const due = doc.dueDate;
         if (!due) { b.innerHTML = '<span class="vide">à choisir</span>'; return; }
-        const d = DELAIS.find(x => dateDuDelai(x) === due);
+        const d = LISTE_DL.find(x => dateDuDelai(x) === due);
         const j = doc.date ? C.daysBetween(doc.date, due) : null;
-        const mot = d ? (d[0] === 'reception' ? 'à réception' : `à ${d[1]}`) : j != null && j >= 0 ? (isQ ? `${pl(j, 'jour')}` : `à ${pl(j, 'jour')}`) : '';
+        const mot = d ? (d[0] === 'reception' ? 'à réception' : isQ ? d[1] : `à ${d[1]}`) : j != null && j >= 0 ? (isQ ? `${pl(j, 'jour')}` : `à ${pl(j, 'jour')}`) : '';
         const avant = doc.date && due < doc.date;
         b.classList.toggle('ko', avant);
         // (maquette « Refus avant émission ») Sans délai qui la nomme, la date est le texte principal de la case.
@@ -9944,11 +9965,11 @@
       if ($('#ed-ech', head)) $('#ed-ech', head).onclick = e => {
         const b = e.currentTarget;
         const cl = clientById(doc.clientId);
-        ouvrirBulle(b, `<div class="pop-t">${isQ ? 'Validité' : 'Échéance'}</div>${cl && cl.paymentTermsDays != null && cl.paymentTermsDays !== '' ? `<p class="pop-s">La fiche ${h(deNom(cl.name))} dit « à ${pl(cl.paymentTermsDays, 'jour')}${cl.paymentTermsEom ? ' fin de mois' : ''} » ; ${isQ ? 'le devis' : 'la facture'} le reprend.</p>` : ''}
-            ${DELAIS.map(x => choix('data-dl', x[0], x[1], C.fmtDate(dateDuDelai(x)), dateDuDelai(x) === doc.dueDate)).join('')}
+        ouvrirBulle(b, `<div class="pop-t">${isQ ? 'Validité' : 'Échéance'}</div>${!isQ && cl && cl.paymentTermsDays != null && cl.paymentTermsDays !== '' ? `<p class="pop-s">La fiche ${h(deNom(cl.name))} dit « à ${pl(cl.paymentTermsDays, 'jour')}${cl.paymentTermsEom ? ' fin de mois' : ''} » ; la facture le reprend.</p>` : ''}
+            ${LISTE_DL.map(x => choix('data-dl', x[0], x[1], C.fmtDate(dateDuDelai(x)), dateDuDelai(x) === doc.dueDate)).join('')}
             <label class="pop-champ"><span>Une date précise…</span><input type="date" id="pop-date" value="${h(doc.dueDate || '')}" min="${h(doc.date || '')}"></label>
-            ${cl ? '<label class="pop-case"><input type="checkbox" id="pop-garder-dl"> Garder ce délai pour ce client</label>' : ''}
-            <p class="pop-n">Si l'échéance contredit tes conditions de paiement, SkanFact le dit avant d'émettre. Aucun plafond légal trouvé en Tunisie pour un délai entre entreprises : À VÉRIFIER avec un juriste.</p>`,
+            ${cl && !isQ ? '<label class="pop-case"><input type="checkbox" id="pop-garder-dl"> Garder ce délai pour ce client</label>' : ''}
+            ${isQ ? '' : `<p class="pop-n">Si l'échéance contredit tes conditions de paiement, SkanFact le dit avant d'émettre. Aucun plafond légal trouvé en Tunisie pour un délai entre entreprises : À VÉRIFIER avec un juriste.</p>`}`,
           (pop, fermer) => {
             const poser = (iso, delai) => {
               const garder = $('#pop-garder-dl', pop) && $('#pop-garder-dl', pop).checked;
@@ -9956,7 +9977,7 @@
               const hid = $('input[name=dueDate]', head); hid.value = iso; hid.dispatchEvent(new Event('change', { bubbles: true }));
               if (garder && cl && delai) { cl.paymentTermsDays = delai[2]; cl.paymentTermsEom = !!delai[3]; save(true); toast(`${cl.name} : « ${delai[1]} » est gardé dans sa fiche.`); }
             };
-            $$('[data-dl]', pop).forEach(x => x.onclick = () => { const d = DELAIS.find(y => y[0] === x.dataset.dl); poser(dateDuDelai(d), d); });
+            $$('[data-dl]', pop).forEach(x => x.onclick = () => { const d = LISTE_DL.find(y => y[0] === x.dataset.dl); poser(dateDuDelai(d), d); });
             $('#pop-date', pop).onchange = e => { if (e.target.value) poser(e.target.value, null); };
           }, { label: isQ ? 'Date de validité' : 'Échéance' });
       };
@@ -10825,6 +10846,8 @@
     // (1.155.0, maquette de la facture) La fenêtre d'un paiement : le montant en grand avec « Tout le reste », la date et le
     // compte, le mode en boutons, la référence ; la retenue gardée par le client dite avant ; le bouton dit ce qui suivra.
     const modeur = p0 ? p0.method : (C.PAYMENT_METHODS[0] || [''])[0];
+    // (issue 15 V-13) On ne rend pas de l'argent par une traite : un remboursement propose les autres moyens.
+    const modesP = rend ? C.PAYMENT_METHODS.filter(m => m[0] !== 'traite' || m[0] === modeur) : C.PAYMENT_METHODS;
     const charteP = inv.type === 'facture' || inv.type === 'avoir';
     // (1.303.0) Un paiement daté dans la période que le cabinet a validée (le nouveau, ou celui qu'on change, à sa nouvelle date
     // comme à l'ancienne) : la phrase sous le formulaire le dit avant d'enregistrer, le message après offre de le lui dire. Un
@@ -10841,7 +10864,7 @@
         <div class="pf-montant"><label class="field">${lbl(rend ? 'Montant rendu' : 'Montant reçu', 'ed.payAmount')}<span class="pf-m"><input type="text" inputmode="decimal" data-montant name="amount" value="${h(C.money(p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), null, C.decimalsFor(cur)))}" class="num" autocomplete="off"><span>${h(cur)}</span></span></label>
           ${!rend && !p0 ? '<span class="choix-t pf-vite"><button type="button" data-vite="tout" class="on">Tout le reste</button><button type="button" data-vite="partie">Une partie…</button></span>' : ''}</div>
         ${rangeeDateCompteTaux(inv, p0, 'ed.payRate', dateFieldHtml(lbl('<span data-mot-date>Date</span>', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true }), accountFieldHtml(p0 && p0.accountId))}
-        <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${C.PAYMENT_METHODS.map(m => `<button type="button" data-mode="${h(m[0])}" class="${m[0] === modeur ? 'on' : ''}">${h(m[1])}</button>`).join('')}</div>
+        <div class="choix-t pf-modes" role="group" aria-label="Mode de paiement">${modesP.map(m => `<button type="button" data-mode="${h(m[0])}" class="${m[0] === modeur ? 'on' : ''}">${h(m[1])}</button>`).join('')}</div>
         <input type="hidden" name="method" value="${h(modeur)}">
         <div class="pf-deux"><label class="field">${lbl('Référence', 'ed.payReference')}<input type="text" name="reference" value="${h(p0 ? p0.reference || '' : '')}" placeholder="n° du virement, du chèque…"></label>${rend ? '' : champEffetHtml(p0)}</div>
         <input type="hidden" name="note" value="${h(p0 ? p0.note || '' : '')}">
@@ -10853,7 +10876,7 @@
         ${dateFieldHtml(lbl('<span data-mot-date>Date</span>', 'ed.payDate'), 'date', p0 ? (p0.effet && p0.effet.recuLe) || p0.date : C.today(), { obligatoire: true })}
         ${obligatoire(field(lbl(`${rend ? 'Montant rendu' : 'Montant'} (${h(cur)})`, 'ed.payAmount'), 'amount', p0 ? Math.abs(Number(p0.amount) || 0) : (rend ? aRendre : reste), 'number', 'step="0.001" min="0" class="num"'))}
         ${champTauxReglement(inv, p0, 'ed.payRate')}
-        <label class="field">${lbl('Mode', 'ed.payMethod')}<select name="method">${C.PAYMENT_METHODS.map(m => `<option value="${m[0]}" ${p0 && p0.method === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Mode', 'ed.payMethod')}<select name="method">${modesP.map(m => `<option value="${m[0]}" ${p0 && p0.method === m[0] ? 'selected' : ''}>${m[1]}</option>`).join('')}</select></label>
         ${accountFieldHtml(p0 && p0.accountId)}
         ${field(lbl('Référence (n° chèque, virement…)', 'ed.payReference'), 'reference', p0 ? p0.reference || '' : '')}
         ${rend ? '' : champEffetHtml(p0)}
@@ -11033,7 +11056,7 @@
         const moisRs = C.MONTHS_FR[Number(d0.slice(5, 7)) - 1];
         $('#ee-rs', root).innerHTML = rs > 0.0005 ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Le client garde ${C.money(rs, cur)} de retenue à la source</b><span>${/* (1.387.79, issue 15 V-18) Le titre et sa phrase vivent sur deux rangées de la grille : « : une retenue subie… » commençait la seconde. */''}C'est une retenue subie ${/^[aeiou]/i.test(moisRs) ? 'd\'' : 'de '}${moisRs} ${d0.slice(0, 4)}, qu'il doit te justifier par une attestation.</span></span></div>` : '';
         const nb = parts.filter(([, m]) => m > 0.0005).length, tc = totalC();
-        $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${montant > 0 && nb ? ` sur ${pl(nb, 'facture')}${montant > tc + 0.0005 ? '' : montant < tc - 0.0005 ? ` · reste dû ${C.money(C.round3(tc - montant), cur)}` : ' · toutes soldées'}` : ''}`;
+        $('#ok', root).innerHTML = `${lfIc('coche', 15, 2.4)}Enregistrer${montant > 0 && nb ? ` sur ${pl(nb, 'facture')}${montant > tc + 0.0005 ? ` · ${C.money(C.round3(montant - tc), cur)} de trop` : montant < tc - 0.0005 ? ` · reste dû ${C.money(C.round3(tc - montant), cur)}` : ' · toutes soldées'}` : ''}`;
         majAvertValide($('#ee-valide', root), dateDansLaPeriodeValidee([v.date], annoncer), v.date, { sujet: 'Ce paiement', fem: false, neuve: true, geste: 'En l\'enregistrant' });
       }
       $$('[data-coche]', root).forEach(x => x.onchange = () => { mE.value = C.money(totalC(), null, C.decimalsFor(cur)); annoncer(); });
@@ -11364,7 +11387,7 @@
           if (!v.name.trim()) return refus('#cf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque document.');
           if (telephoneRefuse(v.phone)) return refus('#cf input[name=phone]', telephoneRefuse(v.phone));
           // (DIR-3) Une adresse sans « @ » s'imprimait sur chaque devis et facture de ce client, et rien n'y partait.
-          if (v.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v.email).trim())) {
+          if (String(v.email || '').trim() && !emailsBienFormes(v.email)) {
             const plus = $('#cf-plus', root); if (plus) plus.open = true;
             return refus('#cf input[name=email]', `« ${String(v.email).trim()} » n'a pas la forme d'une adresse e-mail (nom@domaine.tn) : c'est là que partent ses devis et ses factures. Laisse la case vide si tu ne la connais pas.`);
           }
@@ -13967,7 +13990,7 @@
         $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
         if (charteM && $('#env-copie', root) && $('#env-copie', root).checked) v.cc = moi;
-        if (!v.to || !String(v.to).split(',').every(x => /^[^@\s]+@[^@\s]+$/.test(x.trim()))) return refus(charteM ? ($('#env-autre-v', root).hidden ? $('#env-autre', root) : $('#env-autre-v', root)) : $('[name=to]', root), charteM ? (adresses.length ? 'Choisis au moins une adresse, ou tape-en une autre.' : 'Tape l\'adresse où l\'envoyer : sa fiche n\'en a pas.') : 'Adresse email invalide.');
+        if (!v.to || !emailsBienFormes(v.to)) return refus(charteM ? ($('#env-autre-v', root).hidden ? $('#env-autre', root) : $('#env-autre-v', root)) : $('[name=to]', root), charteM ? (adresses.length ? 'Choisis au moins une adresse, ou tape-en une autre.' : 'Tape l\'adresse où l\'envoyer : sa fiche n\'en a pas.') : REFUS_EMAIL);
         const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
         try {
           // Envoyer, c'est le geste qui fait passer la pièce de brouillon à envoyée — et le PDF joint
@@ -14839,7 +14862,7 @@
           if (!String(client.phone || '').trim()) client.phone = v.tel.trim();
           return noter('+' + n.numero, 'whatsapp');
         }
-        if (!v.to || !String(v.to).split(',').every(x => /^[^@\s]+@[^@\s]+$/.test(x.trim()))) return refus($('[name=to]', f), 'Adresse e-mail invalide.');
+        if (!v.to || !emailsBienFormes(v.to)) return refus($('[name=to]', f), REFUS_EMAIL);
         if (!await messagerie()) return;
         ok.disabled = true; ok.textContent = 'Préparation…';
         try { await bridge.composeMail({ to: v.to, subject: v.subject, body: v.body, attachment: null, mode: modeEnvoi() }); }
@@ -14893,7 +14916,7 @@
         <td>${derniereRelance(x)}
           ${x.snoozed ? `<div class="small warn-link">reporté au ${C.fmtDate(x.remindAfter)}</div>` : ''}
           ${x.attente ? `<div class="small muted" data-remontre>on te la remontre le ${C.fmtDate(x.remontre)}</div>` : ''}</td>
-        ${rowMenuCell(x.doc.id, x.attente ? '' : `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par email, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
+        ${rowMenuCell(x.doc.id, x.attente ? '' : `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par e-mail, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
       // (1.293.0) La vue par client : une ligne par client, ses factures nommées, le reste dû, le plus grand retard et son
       // ton, la dernière relance faite sur l'une d'elles ; UN geste pour toutes.
       const groupes = C.relancesParClient(od, company());
@@ -14949,7 +14972,7 @@
       const chiffreRl = (lbl2, val, sous, ton, aller) => `<div class="mg-chiffre"${aller ? ` data-aller="${aller}" role="button" tabindex="0"` : ''}><span class="mu">${lbl2}</span><b class="${ton || ''}">${val}</b><small>${sous}</small></div>`;
       const resumeEl = $('#rel-resume');
       resumeEl.hidden = rienDuTout;
-      resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), (enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : nAttente ? 'rien à relancer aujourd\'hui' : 'aucune facture en retard') + (nAttente ? ` · ${nAttente > 1 ? `${nAttente} attendent` : '1 attend'} leur réponse` : ''), enCours.length ? 'rouge' : 'vert', nAttente && !enCours.length ? 'r-attente' : '')
+      resumeEl.innerHTML = rienDuTout ? '' : chiffreRl('À relancer', String(enCours.length), (enCours.length ? `${montantU(aRecuperer, cur)} à récupérer` : nAttente ? 'rien à relancer aujourd\'hui' : 'aucune facture en retard') + (nAttente ? ` · ${nAttente > 1 ? `${nAttente} attendent leur réponse` : '1 attend sa réponse'}` : ''), enCours.length ? 'rouge' : 'vert', nAttente && !enCours.length ? 'r-attente' : '')
         + chiffreRl('Plus de 45 jours', String(vieux.length), vieuxSous, vieux.length ? (vieuxAttente + vieuxLitige >= vieux.length ? 'ambre' : 'rouge') : '')
         + chiffreRl('Échéances sous 7 jours', String(soonAll.length), soonAll.length ? `${montantU(bientotDT, cur)} attendus — voir lesquelles` : 'rien n\'arrive à échéance', soonAll.length ? 'ambre' : '', soonAll.length ? 'r-bientot' : '')
         + chiffreRl('Devis sans réponse', String(quotesAll.length), quotesAll.length ? 'envoyés il y a plus de 10 jours — voir lesquels' : 'aucun devis en attente', quotesAll.length ? 'ambre' : '', quotesAll.length ? 'r-devis' : '');
@@ -14967,7 +14990,7 @@
           <input type="search" id="rel-q" placeholder="Rechercher : n°, client, objet…" value="${h(relState.q)}">
           ${q ? `<span class="small muted">${od.length} sur ${nAll}</span>${filterReset(true)}` : ''}`, all.length, !!q)}
         ${od.length ? `<div class="banner">${pl(od.length, 'facture')} à relancer${vue === 'client' ? ` chez ${pl(groupes.length, 'client')}` : ''} — ${C.money(total, cur)} à récupérer</div>`
-          : `<div class="banner info">${q ? 'Aucune facture ne correspond à cette recherche.' : `Aucune facture à relancer aujourd'hui${attente.length ? ` : ${attente.length > 1 ? `${attente.length} relancées attendent` : '1 relancée attend'} leur réponse` : ''}${later.length ? `${attente.length ? ', ' : ' ('}${pl(later.length, 'reportée')}${attente.length ? '' : ')'}` : ''}.`}</div>`}
+          : `<div class="banner info">${q ? 'Aucune facture ne correspond à cette recherche.' : `Aucune facture à relancer aujourd'hui${attente.length ? ` : ${attente.length > 1 ? `${attente.length} relancées attendent leur réponse` : '1 relancée attend sa réponse'}` : ''}${later.length ? `${attente.length ? ', ' : ' ('}${pl(later.length, 'reportée')}${attente.length ? '' : ')'}` : ''}.`}</div>`}
         ${!q && all.length && peutEcrireAuCabinet() ? carteImpayesPourLeComptable() : ''}
         ${od.length && plusieurs ? `<div class="choix-t rl-vue" role="tablist" aria-label="Ranger par"><button type="button" data-rl-vue="facture"${vue === 'facture' ? ' class="on"' : ''}>Par facture</button><button type="button" data-rl-vue="client"${vue === 'client' ? ' class="on"' : ''}>Par client</button></div>` : ''}
         ${od.length && vue === 'client' && plusieurs ? `<table class="list rl-t rl-clients"><colgroup><col class="c-cl"><col class="c-ret"><col class="c-reste"><col class="c-der"><col class="c-act"></colgroup><thead><tr><th>Client</th><th class="r">Plus grand retard</th><th class="r">Reste à payer</th><th>Dernière relance</th><th></th></tr></thead><tbody>${groupes.map(ligneClient).join('')}</tbody></table>`

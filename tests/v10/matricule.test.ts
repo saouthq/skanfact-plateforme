@@ -81,5 +81,11 @@ describe('la forme d\'un matricule fiscal, à l\'écran et au serveur', () => {
     expect(pieces.facture).toMatch(/MF \/ CIN 7654321B\/A\/M\/000/);
     expect(pieces.releve).toContain('7654321B/A/M/000');
     expect(C.documentHtml(facture, { ...hotel, matricule: '01234567' }, societe, { preview: true }).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).toContain('MF / CIN 01234567');
+    // (1.388.27, issue 15 V-10) Un client à l'étranger porte « N° fiscal », jamais « MF / CIN » ; le même numéro en dinars le garde.
+    const aplatir = (x: string) => x.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    const etranger = aplatir(C.documentHtml(facture, { ...hotel, currency: 'EUR', matricule: 'FR12345678901' }, societe, { preview: true }));
+    expect(etranger).toContain('N° fiscal FR12345678901');
+    expect(etranger).not.toContain('MF / CIN');
+    expect(aplatir(C.documentHtml(facture, { ...hotel, matricule: 'FR12345678901' }, societe, { preview: true }))).toContain('MF / CIN FR12345678901');
   });
 });

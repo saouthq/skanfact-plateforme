@@ -6593,3 +6593,24 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   `envois`, `tiroir-1357`, `commandes-fournisseurs`, `achat-confie`, `paie-mois`, `recette-entreprise`, `barre`,
   `v10/abonnement-textes` ; vingt preuves (la case sans rectangle en sombre ne se reproduit pas dans le test : la règle
   reste, sans preuve).
+
+## 1.388.27 — Les ventes (issue 15) : l'avoir du bon client, les sous-totaux, le relevé, la validité d'un devis
+
+- **Changer le client d'un avoir défait la facture d'un autre client**, et le dit tout de suite (V-2) : le serveur le
+  refusait après toute la saisie.
+- **La déduction d'un acompte n'entre dans le sous-total d'aucune section** (V-3) : elle faisait mentir la dernière.
+- **Le relevé à une date passée compte la retenue encore à subir ce jour-là**, pas celle d'aujourd'hui (V-4).
+- **Une date corrigée efface le reproche « Date incomprise »** resté par-dessus (V-5).
+- **La validité d'un devis propose des durées** (15, 30, 60, 90 jours), jamais « à réception » ni « fin de mois », et ne
+  propose plus de garder un délai de paiement sur la fiche (V-7).
+- **Un client à l'étranger porte « N° fiscal »** sur la pièce, jamais « MF / CIN » (V-10).
+- **Le bandeau de reprise d'une facture dont le client est choisi** ne dit plus « tant que tu n'as pas choisi le client »
+  (V-11).
+- **Un encaissement groupé dit le trop pendant la frappe** (« · 974,000 DT de trop ») (V-12).
+- **Supprimer une traite** la date du jour de réception, avec son échéance ; **un remboursement ne propose pas la traite**
+  (V-13).
+- **Une seule forme d'adresse e-mail** dans toute l'application (un domaine avec un point) : fiche client, quatre
+  fenêtres d'envoi ; l'import prévient d'un matricule de travers (V-14).
+- **« 1 attend sa réponse »**, « Par e-mail » (V-15).
+- Tests : `v10/matricule`, `moteur/document-pourcent-1387`, `paiement-groupe-1360`, `factures-1308` et
+  `relances-client` (le singulier) ; cinq preuves.

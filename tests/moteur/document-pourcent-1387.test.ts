@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ecranDeLaPlateforme } from './v10.ts';
 
 type Objet = Record<string, unknown>;
-const C = ecranDeLaPlateforme('core.js') as { documentHtml: (doc: Objet, client: Objet, company: Objet, opts?: Objet) => string };
+const C = ecranDeLaPlateforme('core.js') as { documentHtml: (doc: Objet, client: Objet, company: Objet, opts?: Objet) => string; sousTotauxDeSections: (doc: Objet, company: Objet) => Record<string, number> };
 
 const societe = (activity: string) => ({ name: 'Meubles du Sahel', currency: 'DT', stampFee: 1, regimeTva: 'reel', activity });
 const piece = (type: string, lang: string) => ({ id: 'p1', type, number: type === 'devis' ? 'DEV-2026-001' : 'FAC-2026-001', status: 'envoyé', date: '2026-11-16', dueDate: '2026-12-16',
@@ -46,5 +46,13 @@ describe('le pourcentage du document imprimé (issue 15, V-16)', () => {
     const html = C.documentHtml(piece('facture', 'fr'), { name: 'Client' }, { ...societe('services'), capital: '10000' });
     expect(html).toContain('Capital 10 000 DT');
     expect(html).toMatch(/\.page\.compact:not\(\.t-contrat\) \.sign \.s small \{[^}]*text-overflow: ellipsis/);
+  });
+  it('la déduction d\'un acompte n\'entre dans le sous-total d\'aucune section (1.388.27, issue 15 V-3)', () => {
+    const doc = { type: 'facture', currency: 'DT', discountRate: 0, lines: [
+      { kind: 'titre', label: 'Gros œuvre' }, { label: 'Maçonnerie', qty: 1, unitPrice: 100, vatRate: 19 },
+      { kind: 'titre', label: 'Finitions' }, { label: 'Peinture', qty: 2, unitPrice: 100, vatRate: 19 },
+      { label: 'Acompte déjà facturé (FAC-2026-001)', qty: 1, unitPrice: -50, vatRate: 19, noDiscount: true }] };
+    const st = C.sousTotauxDeSections(doc, { currency: 'DT', stampFee: 1 });
+    expect(Object.values(st).sort((a, b) => a - b)).toEqual([100, 200]);
   });
 });

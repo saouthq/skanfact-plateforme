@@ -5349,7 +5349,7 @@
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
           (root, close) => { $('#ok', root).onclick = async () => {
             const v = formValues($('#cpf', root));
-            if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus($('[name=to]', root), 'Adresse e-mail invalide.');
+            if (!v.to || !emailsBienFormes(v.to)) return refus($('[name=to]', root), REFUS_EMAIL);
             const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
             try {
               const att = await bridge.saveTextSilent(`journal-ventes-${tag}.csv`, C.toCsv(rows, journalColumns()));
@@ -10225,7 +10225,7 @@
         };
         $('#ok', root).onclick = async () => {
         const v = formValues($('#mf', root));
-        if (!v.to || !/^[^@\s]+@[^@\s]+$/.test(v.to)) return refus('#mf input[name=to]', 'Adresse e-mail invalide.');
+        if (!v.to || !emailsBienFormes(v.to)) return refus('#mf input[name=to]', REFUS_EMAIL);
         const b = $('#ok', root); b.disabled = true; b.textContent = 'Préparation…';
         try {
           let attachment = null;

@@ -153,7 +153,7 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     await expect.poll(() => p.locator('#poste-ouverture').innerText().then(net).catch(() => ''), { timeout: 20_000 })
       .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Revenir à mon entreprise`);
     // (1.388.26, DIR-14) La page pleine couvre la coquille : rien du menu ne se clique dessous.
-    expect(await p.evaluate(() => [[20, 200], [innerWidth / 2, innerHeight - 20]].every(([x, y]) => !!document.elementFromPoint(x, y)?.closest('#poste-ouverture')))).toBe(true);
+    expect(await p.evaluate(() => ([[20, 200], [innerWidth / 2, innerHeight - 20]] as [number, number][]).every(([x, y]) => !!document.elementFromPoint(x, y)?.closest('#poste-ouverture')))).toBe(true);
     expect(await p.locator('#poste-ouverture').getAttribute('role')).toBe('alert');
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-2-pas-ouverte.png') });
     expect(erreurs).toEqual([]);

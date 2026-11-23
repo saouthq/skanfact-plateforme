@@ -86,7 +86,7 @@ describe('les relances par client et l\'attente d\'une réponse', () => {
     await plusTard(p);
     // Le Golfe, relancé il y a 3 jours, attend sa réponse : il n'est pas à relancer, et l'on dit quand il revient.
     const chiffre1 = async () => net(await p.locator('#rel-resume .mg-chiffre').first().innerText());
-    await expect.poll(chiffre1).toBe('À relancer 3 6 486,095 DT à récupérer · 1 attend leur réponse');
+    await expect.poll(chiffre1).toBe('À relancer 3 6 486,095 DT à récupérer · 1 attend sa réponse');
     expect(net(await p.locator('#r-attente').innerText())).toContain(`on te la remontre le ${fr(jour(4))}`);
     expect(await p.locator('#r-attente [data-relancer]').count()).toBe(0);
     await expect.poll(async () => net(await p.locator('#nav-relances').innerText())).toBe('3');
