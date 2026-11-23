@@ -19,7 +19,7 @@ export type EnvoiSms = 'parti' | 'rate' | 'limite';
 export type Defi = { defi: string; methode: 'application'; posteDUnAutre: boolean }
   | { defi: string; methode: 'sms'; posteDUnAutre: boolean; telephone: string; envoi: EnvoiSms }
   | { defi: string; methode: 'courriel'; posteDUnAutre: boolean; adresse: string; raison: 'inscription' | 'appareil' };
-type ReponseConnexion = { etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application' | 'courriel'; appareil?: string | null; adresse?: string;
+type ReponseConnexion = { etat: string; jeton?: string; defi?: string; methode?: 'sms' | 'application' | 'courriel'; appareil?: string | null; adresse?: string; jusqua?: string;
   raison?: 'inscription' | 'appareil'; telephone?: string; envoi?: EnvoiSms };
 // Le défi que décrit une réponse de connexion, ou rien.
 export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null {
@@ -30,7 +30,7 @@ export function defiDe(r: ReponseConnexion, posteDUnAutre: boolean): Defi | null
 }
 // `sous` : la phrase sous le titre, quand un partenaire a envoyé la personne ici (brique 133).
 // `email` : l'adresse déjà connue (un compte qu'on vient de créer), pour ne pas la retaper.
-type Props = { connecte: () => void; code: (d: Defi) => void; inscription: (profil: 'cabinet' | 'entreprise') => void; oubli: (email: string) => void; sous?: string | null; email?: string };
+type Props = { connecte: () => void; code: (d: Defi) => void; inscription: (profil: 'cabinet' | 'entreprise') => void; oubli: (email: string) => void; sous?: string | null; email?: string; note?: string | null };
 const rien = () => undefined;
 
 
@@ -45,7 +45,7 @@ export function useOptions() {
   return options;
 }
 
-export function Connexion({ connecte, code, inscription, oubli, sous, email: connu }: Props) {
+export function Connexion({ connecte, code, inscription, oubli, sous, note, email: connu }: Props) {
   const g = useGeste(rien);
   const options = useOptions();
   const [email, setEmail] = useState(connu ?? '');
@@ -59,7 +59,24 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
   // au-dessus du formulaire tant qu'on ne s'est pas reconnecté.
   const [sortie] = useState(() => { try { return sessionStorage.getItem('skanfact.sortie') ?? ''; } catch { return ''; } });
 
+  // (issue 4, ENTREE-10) Trop d'essais : le bouton attend l'heure donnée par le serveur et dit combien il reste.
+  const [jusqua, setJusqua] = useState(0);
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => {
+    if (jusqua <= Date.now()) return undefined;
+    const t = setInterval(() => { const n = Date.now(); setMaintenant(n); if (n >= jusqua) clearInterval(t); }, 1000);
+    return () => clearInterval(t);
+  }, [jusqua]);
+  const reste = Math.max(0, Math.ceil((jusqua - maintenant) / 1000));
+  const temps = `${Math.floor(reste / 60)}:${String(reste % 60).padStart(2, '0')}`;
+
   const envoyer = () => g.geste(async () => {
+    // (ENTREE-11) Ce qui manque se dit avant l'envoi, sur chaque case, avec son nom.
+    const manque = [
+      ...(email.trim() ? [] : [{ champ: 'email', texte: phrase('ecran.connexion.email_manque') }]),
+      ...(motDePasse ? [] : [{ champ: 'motDePasse', texte: phrase('ecran.connexion.mot_de_passe_manque') }]),
+    ];
+    if (manque.length) { g.refuserTous(manque); return; }
     const appareil = session.appareil();
     let r;
     try {
@@ -77,7 +94,10 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
       if (!posteDUnAutre && r.corps.appareil) session.retenirAppareil(r.corps.appareil);
       code(defi);
     } else {
-      g.refuser(refusDe(r));
+      if (r.corps.etat === 'attendre' && r.corps.jusqua) { const fin = Date.parse(r.corps.jusqua); if (Number.isFinite(fin)) { setMaintenant(Date.now()); setJusqua(fin); } }
+      // Un refus de connexion tient au mot de passe : il se vide, et sa case dit pourquoi.
+      if (r.corps.etat === 'refuse') { setMotDePasse(''); g.refuser({ ...refusDe(r), champ: 'motDePasse' }); }
+      else g.refuser(refusDe(r));
     }
   });
 
@@ -87,13 +107,14 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
       bas={<span className="sur"><Dessin id="cadenas" />{phrase('ecran.connexion.chiffree')}</span>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.connexion.titre')}</h1><p>{sous ?? phrase('ecran.connexion.sous')}</p></div>
+        {note ? <p id="entree-note" className="ent-note" role="status">{note}</p> : null}
         {sortie ? <p id="session-finie" className="ent-note" role="status">{phrase('ecran.connexion.session_finie')}{sortie === 'perdu' ? <> {phrase('ecran.connexion.session_perdu')}</> : null}</p> : null}
         <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" premier={!adresseDonnee} {...g.sur('email')} />
         <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable premier={adresseDonnee} {...g.sur('motDePasse')} />
         {options.oubli ? <div className="ent-sous-champ"><button type="button" className="ent-lien" onClick={() => oubli(email)}>{titre('ecran.connexion.oublie')}</button></div> : null}
         {/* Ce que la case change se lit dans son « i », avant le geste : rien n'apparaît sous le curseur. */}
         <Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} />
-        <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.connexion.bouton')}<Dessin id="fleche" /></Bouton>
+        <Bouton principal type="submit" occupe={g.occupe} eteint={reste > 0}>{reste > 0 ? titre('ecran.connexion.attendre', { temps }) : <>{titre('ecran.connexion.bouton')}<Dessin id="fleche" /></>}</Bouton>
         <div className="ent-separe">{titre('ecran.connexion.premiere_fois')}</div>
         {/* (1.379.3) Deux portes, dès ici : chacun tombe sur son écran (une seule porte menait à un choix, plus loin). */}
         <div className="ent-deux-portes">

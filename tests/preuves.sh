@@ -16319,8 +16319,8 @@ prouver 'créer son compte sans curseur' 'web/src/ecrans/Inscription.tsx' \
   'autoComplete="name" {...g.sur('"'"'nom'"'"')} />' \
   'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
 prouver 'la phrase après l'"'"'inscription qui tait l'"'"'e-mail' 'web/src/ecrans/Inscription.tsx' \
-  'toast(phrase(options.oubli ? '"'"'ecran.inscription.faite_courriel'"'"' : '"'"'ecran.inscription.faite'"'"'));' \
-  'toast(phrase('"'"'ecran.inscription.faite'"'"'));' \
+  'aConnecter(email, phrase(options.oubli ? '"'"'ecran.inscription.faite_courriel'"'"' : '"'"'ecran.inscription.faite'"'"'));' \
+  'aConnecter(email, phrase('"'"'ecran.inscription.faite'"'"'));' \
   'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
 
 # 1.59.0 : la paie de 2026, contre un vrai logiciel ; les primes de chaque mois (docs/paie.md, « Le métier de la paie, premier lot »).
@@ -31600,6 +31600,70 @@ prouver $'lot0-c9-ajouter-un-client' modules/socle/ecrans/cabinet/app-1.js \
   $'a.push({ titre: \'Ajouter un client…\', sous:' \
   $'a.push({ titre: \'Nouveau dossier\', sous:' \
   $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+
+# 1.388.24 — l'entrée (issue 4) : la connexion nomme ses cases, garde la place d'un refus, fait attendre, recommence un code périmé ; Précédent ; le thème ; le nom.
+prouver $'l1-entree4-le-refus-garde-sa-place' web/src/composants/Champ.tsx \
+  $'  if (f.rouge && refus) dernierRefus.current = refus;' \
+  $'  if (f.rouge && refus && false) dernierRefus.current = refus;' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree11-chaque-case-vide-se-nomme' web/src/ecrans/Connexion.tsx \
+  $'    if (manque.length) { g.refuserTous(manque); return; }' \
+  $'    if (manque.length && false) { g.refuserTous(manque); return; }' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree11-pas-de-message-en-double' web/src/geste.ts \
+  $'    setTimeout(() => { if (!document.querySelector(\'[aria-invalid="true"]\')) toast(v.texte, true); }, 150);' \
+  $'    toast(v.texte, true);' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree10-le-mot-de-passe-refuse-se-vide' web/src/ecrans/Connexion.tsx \
+  $'      if (r.corps.etat === \'refuse\') { setMotDePasse(\'\'); g.refuser({ ...refusDe(r), champ: \'motDePasse\' }); }' \
+  $'      if (r.corps.etat === \'refuse\') { g.refuser(refusDe(r)); }' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree10-trop-d-essais-fait-attendre' web/src/ecrans/Connexion.tsx \
+  $'eteint={reste > 0}>' \
+  $'eteint={false}>' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree10-un-code-perime-propose-de-recommencer' serveur/connexion.ts \
+  $'  if (!lu) return { etat: \'refuse\', motif: motif(\'connexion.code_perime\'), perime: true };' \
+  $'  if (!lu) return { etat: \'refuse\', motif: motif(\'connexion.code_perime\') };' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree12-precedent-revient' web/src/App.tsx \
+  $'      if (!a || !ENTREE_HISTOIRE.has(a.ecran) || session.jeton()) return;' \
+  $'      return;' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree17-le-theme-choisi-se-retient' web/src/main.tsx \
+  $'const appliquerTheme = () => { const t = choisi(); document.body.classList.toggle(\'dark\', t === \'dark\' || (t === \'auto\' && sombre.matches)); };' \
+  $'const appliquerTheme = () => document.body.classList.toggle(\'dark\', sombre.matches);' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree8-la-porte-promet-un-devis' web/src/textes.ts \
+  $'  \'ecran.porte.demarrer_puce1\': \'ton premier devis ou ta première facture dans la foulée\',' \
+  $'  \'ecran.porte.demarrer_puce1\': \'ta première facture dans la foulée\',' \
+  $'la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)'
+prouver $'l1-entree16-la-phrase-reste-ecrite' web/src/ecrans/Connexion.tsx \
+  $'        {note ? <p id="entree-note" className="ent-note" role="status">{note}</p> : null}' \
+  $'        {null}' \
+  $'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu\'une inscription, et le lien du mot de passe oublié par e-mail'
+prouver $'l1-entree5-le-refus-au-dessus-des-boutons' web/public/plateforme/compte.js \
+  $'    if (alerte && actions && actions.classList.contains(\'modal-actions\')) actions.before(alerte);' \
+  $'    if (false) actions.before(alerte);' \
+  $'l\'entreprise : l\'adresse change par un code reçu à la nouvelle ; le mot de passe par l\'actuel ; de nouveaux codes de secours, puis le code désactivé, par le code du moment'
+prouver $'l1-entree15-le-nom-se-change-a-l-ecran' web/public/plateforme/compte.js \
+  $'        try { await o.appel(\'PUT\', \'/moi/nom\', { nom }); } catch (x) { refuser(racine, x, { nom: \'#cpt-nom-champ\' }); return; }' \
+  $'        try { await o.appel(\'PUT\', \'/moi/nomx\', { nom }); } catch (x) { refuser(racine, x, { nom: \'#cpt-nom-champ\' }); return; }' \
+  $'l\'entreprise : l\'adresse change par un code reçu à la nouvelle ; le mot de passe par l\'actuel ; de nouveaux codes de secours, puis le code désactivé, par le code du moment'
+prouver $'l1-entree15-le-nom-change-en-base' base/migrations/0223_changer_mon_nom.sql \
+  $'    update socle.utilisateur set nom = v_nom where id = socle.moi();' \
+  $'    null;' \
+  $'le nom change, tracé avec l\'ancien ; un nom d\'une lettre se refuse'
+prouver $'l1-entree13-la-bulle-nomme-le-bouton-lu' web/public/v10/visite.js \
+  $'    const t = libelleDe(el);
+    return t.length > 60' \
+  $'    const t = (el.textContent || \'\').trim();
+    return t.length > 60' \
+  $'le bouton visé se nomme par le libellé lu, sans ses touches ; pas d\'astuce clavier au doigt'
+prouver $'l1-entree9-la-declaration-de-tva-sans-salarie' modules/socle/moteur/core-2.js \
+  $'      byId[d.id] = { ...d, active: (d.id === \'cnss\' && hasStaff) ? true : d.active, ...(d.id === \'tva\' && !hasStaff ? { label: \'Déclaration mensuelle de TVA\' } : {}) };' \
+  $'      byId[d.id] = { ...d, active: (d.id === \'cnss\' && hasStaff) ? true : d.active };' \
+  $'la déclaration du mois ne parle d\'employeur qu\'à un employeur (issue 4, ENTREE-9)'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

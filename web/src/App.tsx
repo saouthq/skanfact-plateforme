@@ -8,7 +8,7 @@
 // son compte avec l'adresse invitée) ; il s'accepte alors, et ce qu'il fait rejoindre s'ouvre.
 // Lot entrée (06/10/2026 ; docs/entree.md) : le lien du mot de passe oublié (`/?reinitialiser=<jeton>`) ouvre le choix
 // d'un nouveau mot de passe ; et ce qui s'ouvre passe par l'écran d'ouverture, qui coche ce qui est fait.
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { appeler, ErreurReseau, session } from './api.ts';
 import { toast, Toast } from './composants/Toast.tsx';
 import { Bouton } from './composants/Bouton.tsx';
@@ -44,8 +44,10 @@ const PROFIL_DEMANDE: Profil | null = (() => {
   history.replaceState(null, '', `/${q.size ? `?${q}` : ''}`);
   return v;
 })();
-type Accueil = { ecran: 'connexion'; email?: string } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' }
+type Accueil = { ecran: 'connexion'; email?: string; note?: string } | { ecran: 'inscription' } | { ecran: 'code'; defi: Defi } | { ecran: 'dedans' }
   | { ecran: 'oubli'; email: string } | { ecran: 'nouveau'; jeton: string };
+// (issue 4, ENTREE-12) Les écrans de l'entrée qui ont leur page dans l'historique du navigateur.
+const ENTREE_HISTOIRE = new Set<Accueil['ecran']>(['connexion', 'inscription', 'oubli', 'code']);
 type Moi = { id: string; code_methode: string | null; codeAConfigurer: boolean; entreprises: EntrepriseDeMoi[]; cabinets: { id: string; nom: string }[] };
 
 const RETENUE = 'skanfact.entreprise';
@@ -193,9 +195,28 @@ export function App() {
     return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() || PROFIL_DEMANDE ? 'inscription' : 'connexion' };
   });
   // L'écran du code se garde dans l'onglet ; tout autre écran l'oublie.
+  // (ENTREE-12) « Précédent » revient à l'écran d'avant. Le code ne se rouvre jamais par l'historique (son défi a pu
+  // servir ou périmer) : on revient à la connexion. Une session ouverte ignore l'historique de l'entrée.
+  const vu = useRef<Accueil>(accueil);
   const setAccueil = useCallback((a: Accueil) => {
     if (a.ecran === 'code') defiEnCours.garder(a.defi); else defiEnCours.oublier();
+    if (ENTREE_HISTOIRE.has(a.ecran) && a.ecran !== vu.current.ecran) { try { history.pushState({ ...(history.state ?? {}), entree: a }, '', location.href); } catch { /* l'écran change quand même */ } }
+    vu.current = a;
     setAccueilBrut(a);
+  }, []);
+  useEffect(() => { vu.current = accueil; }, [accueil]);
+  useEffect(() => {
+    if (ENTREE_HISTOIRE.has(vu.current.ecran)) { try { history.replaceState({ ...(history.state ?? {}), entree: vu.current }, '', location.href); } catch { /* rien */ } }
+    const revenir = (e: PopStateEvent) => {
+      const a = (e.state as { entree?: Accueil } | null)?.entree;
+      if (!a || !ENTREE_HISTOIRE.has(a.ecran) || session.jeton()) return;
+      const b: Accueil = a.ecran === 'code' ? { ecran: 'connexion' } : a;
+      defiEnCours.oublier();
+      vu.current = b;
+      setAccueilBrut(b);
+    };
+    addEventListener('popstate', revenir);
+    return () => removeEventListener('popstate', revenir);
   }, []);
   const [moi, setMoi] = useState<Moi | null>(null);
   const [profilChoisi, setProfilChoisi] = useState<Profil | null>(profil.lire);
@@ -380,7 +401,7 @@ export function App() {
   let ecran: ReactNode;
   switch (accueil.ecran) {
     case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })}
-      aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend ?? sousInvitation('inscription')}
+      aConnecter={(email, note) => setAccueil({ ecran: 'connexion', email, ...(note ? { note } : {}) })} connexion={vers({ ecran: 'connexion' })} sous={attend ?? sousInvitation('inscription')}
       invitation={invite} comptable={duClient} dossier={duDossier} profil={profilChoisi} changerProfil={choisirProfil} key={invite?.email ?? emailDuClient ?? duDossier?.email ?? ''} />; break;
     case 'code': {
       const defi = accueil.defi;
@@ -390,7 +411,7 @@ export function App() {
     }
     case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} oubli={(email) => setAccueil({ ecran: 'oubli', email })}
       inscription={(v) => { choisirProfil(v); setAccueil({ ecran: 'inscription' }); }} sous={attend ?? sousInvitation('connexion')} key={accueil.email ?? invite?.email ?? ''}
-      {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : emailDuClient ? { email: emailDuClient } : duDossier ? { email: duDossier.email } : {})} />; break;
+      {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : emailDuClient ? { email: emailDuClient } : duDossier ? { email: duDossier.email } : {})} {...(accueil.note ? { note: accueil.note } : {})} />; break;
     case 'oubli': ecran = <Oubli email={accueil.email} retour={vers({ ecran: 'connexion', email: accueil.email })} />; break;
     case 'nouveau': ecran = <NouveauMotDePasse jeton={accueil.jeton} fait={() => { session.quitter(); setMoi(null); setAccueil({ ecran: 'connexion' }); }}
       redemander={vers({ ecran: 'oubli', email: '' })} retour={vers({ ecran: 'connexion' })} />; break;

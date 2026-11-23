@@ -68,11 +68,12 @@ describe('l\'entrée refaite, à la souris', () => {
   // Le dernier code parti à cette adresse, lu dans l'objet de l'e-mail (« Ton code SkanFact : 482913 »).
   const codeRecu = (email: string) => /(\d{6})$/.exec(partis.filter((m) => m.a === email).at(-1)?.objet ?? '')?.[1] ?? '';
   let n = 0;
+  const MDP_PERSONNE = 'Un-bon-mot-de-passe';
   async function personne() {
     const email = `entree-${++n}-${Date.now()}@exemple.tn`;
-    await api('POST', '/inscription', undefined, { email, nom: 'Amine Gharbi', motDePasse: 'Un-bon-mot-de-passe' });
+    await api('POST', '/inscription', undefined, { email, nom: 'Amine Gharbi', motDePasse: MDP_PERSONNE });
     // Ce serveur envoie des e-mails : la première connexion vérifie l'adresse, par le code reçu.
-    const defi = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).defi);
+    const defi = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP_PERSONNE, appareil: { nom: 'Essai', type: 'navigateur' } })).defi);
     const jeton = String((await api('POST', '/connexion/code', undefined, { defi, code: codeRecu(email) })).jeton);
     return { email, jeton };
   }
@@ -286,7 +287,10 @@ describe('l\'entrée refaite, à la souris', () => {
     await bouton(p, 'ecran.inscription.bouton').click();
     // Pas de refus : la page de connexion, l'adresse remplie, le curseur au mot de passe, et une phrase vraie dans les deux cas.
     await ecran(p, 'ecran.connexion.titre');
-    await expect.poll(() => p.locator('#toast').innerText()).toBe(phrase('ecran.inscription.faite_courriel'));
+    // (issue 4, ENTREE-16) La phrase reste écrite sur l'écran de connexion, au-delà des huit secondes d'un message.
+    await expect.poll(() => p.locator('#entree-note').innerText().catch(() => '')).toBe(phrase('ecran.inscription.faite_courriel'));
+    await p.waitForTimeout(9_000);
+    expect(await p.locator('#entree-note').isVisible()).toBe(true);
     expect(await champ(p, 'ecran.connexion.email').inputValue()).toBe(deja.email);
     await expect.poll(() => champ(p, 'ecran.connexion.mot_de_passe').evaluate((i) => i === document.activeElement)).toBe(true);
     // L'e-mail : le lien du mot de passe oublié, avec ce qui s'est passé ; aucun code de vérification d'une inscription.
@@ -571,4 +575,84 @@ describe('l\'entrée refaite, à la souris', () => {
     await expect.poll(async () => (await p.locator('#session-finie').innerText()).replace(/[\s\u202f\u00a0]+/g, ' ')).toBe(`${phrase('ecran.connexion.session_finie')} ${phrase('ecran.connexion.session_perdu')}`.replace(/[\s\u202f\u00a0]+/g, ' '));
     await p.context().close();
   });
+
+  it('la connexion : un formulaire vide nomme chaque case sans message en double ; un refus garde sa place, vide le mot de passe et le montre ; trop d\'essais fait attendre le bouton ; un code périmé propose de recommencer ; « Précédent » revient ; le thème choisi se retient (issue 4)', async () => {
+    const p = await page();
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.connexion.titre');
+    // (ENTREE-8) La porte ne promet que ce que les premiers pas font : un devis, ou une facture.
+    expect(phrase('ecran.porte.demarrer_puce1')).toMatch(/devis/);
+    // (ENTREE-11) Formulaire vide : les deux cases disent ce qui leur manque, le curseur va à l'adresse, aucun message en bas.
+    const h0 = (await p.locator('.ent-formulaire').boundingBox())?.height ?? 0;
+    await bouton(p, 'ecran.connexion.bouton').click();
+    await expect.poll(() => champ(p, 'ecran.connexion.email').getAttribute('aria-invalid')).toBe('true');
+    expect(await champ(p, 'ecran.connexion.mot_de_passe').getAttribute('aria-invalid')).toBe('true');
+    expect(await p.locator('.ent-champ').filter({ has: champ(p, 'ecran.connexion.email') }).innerText()).toContain(phrase('ecran.connexion.email_manque'));
+    expect(await p.locator('.ent-champ').filter({ has: champ(p, 'ecran.connexion.mot_de_passe') }).innerText()).toContain(phrase('ecran.connexion.mot_de_passe_manque'));
+    expect(await p.evaluate(() => document.activeElement?.getAttribute('type'))).toBe('email');
+    await p.waitForTimeout(400);
+    expect(await p.locator('#toast.show').count()).toBe(0);
+    // (ENTREE-4) Le refus part à la première frappe, sa place reste : rien ne remonte sous le curseur.
+    const h1 = (await p.locator('.ent-formulaire').boundingBox())?.height ?? 0;
+    const y1 = (await bouton(p, 'ecran.connexion.bouton').boundingBox())?.y ?? 0;
+    expect(h1).toBeGreaterThan(h0);
+    await champ(p, 'ecran.connexion.email').pressSequentially('a');
+    await expect.poll(() => champ(p, 'ecran.connexion.email').getAttribute('aria-invalid')).toBe(null);
+    expect((await p.locator('.ent-formulaire').boundingBox())?.height).toBe(h1);
+    expect((await bouton(p, 'ecran.connexion.bouton').boundingBox())?.y).toBe(y1);
+    // (ENTREE-10) Un mot de passe faux : la case se vide et dit pourquoi.
+    const { email } = await personne();
+    await champ(p, 'ecran.connexion.email').fill(email);
+    await champ(p, 'ecran.connexion.mot_de_passe').fill('pas-le-bon-mot-de-passe');
+    await bouton(p, 'ecran.connexion.bouton').click();
+    await expect.poll(() => champ(p, 'ecran.connexion.mot_de_passe').getAttribute('aria-invalid')).toBe('true');
+    expect(await champ(p, 'ecran.connexion.mot_de_passe').inputValue()).toBe('');
+    // (ENTREE-11) Le refus se lit sous la case, une seule fois : pas de message en bas de l'écran.
+    await p.waitForTimeout(500);
+    expect(await p.locator('#toast.show').count()).toBe(0);
+    // Trop d'essais : le bouton attend, éteint, et dit combien de temps.
+    const principal = p.locator('.ent-formulaire button[type=submit]');
+    for (let i = 0; i < 12 && !/^Réessayer dans \d+:\d\d$/.test((await principal.innerText()).trim()); i++) {
+      await champ(p, 'ecran.connexion.mot_de_passe').fill('pas-le-bon-mot-de-passe');
+      await principal.click();
+      await p.waitForTimeout(300);
+    }
+    expect((await principal.innerText()).trim()).toMatch(/^Réessayer dans \d+:\d\d$/);
+    expect(await principal.isDisabled()).toBe(true);
+    await p.context().close();
+    // Un code périmé ne se répare pas en retapant : « Recommencer la connexion » ramène à la connexion.
+    const autre = await personne();
+    // (0219) Le code par e-mail à chaque nouvel appareil est un choix : il l'a fait.
+    await api('POST', '/moi/code/courriel', autre.jeton, { actif: true });
+    const q = await page();
+    await q.goto(serveur.adresse);
+    await ecran(q, 'ecran.connexion.titre');
+    await champ(q, 'ecran.connexion.email').fill(autre.email);
+    await champ(q, 'ecran.connexion.mot_de_passe').fill(MDP_PERSONNE);
+    await bouton(q, 'ecran.connexion.bouton').click();
+    await q.locator('input[autocomplete="one-time-code"]').first().waitFor({ timeout: 10_000 });
+    await admin.query("update socle.defi_connexion set expire_le = now() - interval '1 minute' where resolu_le is null and utilisateur = (select id from socle.utilisateur where lower(email) = lower($1))", [autre.email]);
+    await q.locator('input[autocomplete="one-time-code"]').first().fill('123456');
+    await q.locator('button.btn-primary[type=submit]').first().click();
+    await bouton(q, 'ecran.code.recommencer').waitFor({ timeout: 10_000 });
+    await bouton(q, 'ecran.code.recommencer').click();
+    await ecran(q, 'ecran.connexion.titre');
+    // (ENTREE-12) « Précédent » revient à l'écran d'avant, sans quitter SkanFact.
+    await q.getByRole('button', { name: titre('ecran.connexion.creer_entreprise'), exact: true }).click();
+    await q.locator('h1').filter({ hasNotText: titre('ecran.connexion.titre') }).first().waitFor({ timeout: 10_000 });
+    await q.goBack();
+    await ecran(q, 'ecran.connexion.titre');
+    expect(new URL(q.url()).origin).toBe(new URL(serveur.adresse).origin);
+    // (ENTREE-17) Le thème choisi dans l'application se retient pour l'entrée ; sinon, celui du système.
+    await q.evaluate(() => localStorage.setItem('skanfact.theme', 'dark'));
+    await q.reload();
+    await ecran(q, 'ecran.connexion.titre');
+    expect(await q.evaluate(() => document.body.classList.contains('dark'))).toBe(true);
+    await q.emulateMedia({ colorScheme: 'dark' });
+    await q.evaluate(() => localStorage.setItem('skanfact.theme', 'light'));
+    await q.reload();
+    await ecran(q, 'ecran.connexion.titre');
+    expect(await q.evaluate(() => document.body.classList.contains('dark'))).toBe(false);
+    await q.context().close();
+  }, 120_000);
 });

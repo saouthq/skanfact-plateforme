@@ -6506,3 +6506,32 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Tests : `cabinet-production`, `fiche-dossier-cabinet`, `cabinet-nom-dossier`, `cabinet-relances`,
   `cabinet-abonnement-cabinet`, `visites-une-fois`, `console-clients`, `console`, `barre-cabinet`, `cabinet`,
   `cabinet-entree-1373`, `cabinet-equipe` ; douze preuves.
+
+## 1.388.24 — L'entrée : la connexion dit ce qui manque, garde sa place, fait attendre ; ton nom se change (issue 4)
+
+- **Un formulaire vide nomme chaque case** (ENTREE-11) : « ton adresse e-mail manque », « ton mot de passe manque »,
+  avant l'envoi, le curseur dans la première. **Un refus qui tient à une case ne se dit plus deux fois** : sous la case
+  seulement ; le message du bas ne vient que si aucune case de l'écran ne le montre (vaut pour tous les écrans de
+  l'entrée).
+- **Un refus garde sa place** (ENTREE-4) : il partait à la première frappe et tout ce qui suit remontait sous le
+  curseur ; la case réserve maintenant la hauteur du refus et de son aide.
+- **Un mot de passe refusé se vide et sa case le dit** ; **trop d'essais** éteint le bouton, qui compte le temps
+  restant (« Réessayer dans 4:52 ») ; **un code périmé** ne se répare pas en retapant : « Recommencer la connexion »
+  ramène à la connexion (ENTREE-10 — le serveur le dit par `perime`).
+- **« Précédent » du navigateur revient à l'écran d'avant** dans l'entrée et sur la porte, sans quitter SkanFact
+  (ENTREE-12) ; le code ne se rouvre jamais par l'historique.
+- **La phrase après l'inscription reste écrite** sur l'écran de connexion (ENTREE-16) : elle s'effaçait en huit secondes
+  alors qu'elle dit qu'un e-mail attend.
+- **Le thème choisi dans l'application vaut aussi pour l'écran de connexion** ; sans choix, l'entreprise suit le système
+  comme le Cabinet (ENTREE-17). Une entreprise qui a déjà un thème le garde.
+- **La porte promet ce que les premiers pas font** : « ton premier devis ou ta première facture dans la foulée »
+  (ENTREE-8, décidé : on aligne la promesse, pas l'étape).
+- **La déclaration du mois d'une entreprise sans salarié** s'appelle « Déclaration mensuelle de TVA » (ENTREE-9) ;
+  « d'employeur et de TVA » revient avec le premier salarié.
+- **« Ton compte »** : une carte « Ton nom » et « Changer mon nom… » (ENTREE-15 ; migration 0223, tracée avec l'ancien
+  nom) ; un refus dans ses fenêtres se lit **au-dessus** des boutons (ENTREE-5, décidé).
+- **La bulle d'une visite nomme le bouton comme on le lit** (sans ses touches de raccourci), et ne propose pas l'astuce
+  des flèches au doigt (ENTREE-13).
+- Tests : `entree` (un parcours neuf de la connexion), `compte` (le nom, le refus au-dessus), `socle/compte` (le nom en
+  base), `premiers-pas` (le refus sous sa case, plus en bas — assertion retournée), `date-employeur-une-1387`,
+  `compta-grossiste-1301`, `visite-libelle` ; quinze preuves.

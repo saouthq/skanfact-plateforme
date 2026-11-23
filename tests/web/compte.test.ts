@@ -110,6 +110,17 @@ describe('ton compte, à la souris', () => {
     expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil se vérifie par e-mail');
     await p.screenshot({ path: path.join(PHOTOS, 'compte-1-entreprise.png') });
 
+    // (issue 4, ENTREE-15) Le nom se change ici ; un nom d'une lettre se refuse sur sa case, la fenêtre reste.
+    await p.getByRole('button', { name: 'Changer mon nom…', exact: true }).click();
+    await champ(p, 'Ton prénom et ton nom').fill('N');
+    await bouton(p, 'Enregistrer').click();
+    await expect.poll(() => refus(p).innerText()).toBe('Ton nom doit compter au moins deux lettres.');
+    expect(await aLeCurseur(champ(p, 'Ton prénom et ton nom'))).toBe(true);
+    await champ(p, 'Ton prénom et ton nom').fill('Nour Ben Salah');
+    await bouton(p, 'Enregistrer').click();
+    await expect.poll(() => p.locator('#cpt-nom').innerText()).toBe('Nour Ben Salah');
+    expect((await api('GET', '/moi', jeton)).corps.nom).toBe('Nour Ben Salah');
+
     // Changer d'adresse : un mot de passe faux est refusé sur sa case ; puis un code part à la nouvelle adresse, et
     // rien ne change avant qu'il soit tapé.
     const nouvelle = email.replace('@exemple.tn', '@exemple.com.tn');
@@ -119,6 +130,8 @@ describe('ton compte, à la souris', () => {
     await bouton(p, 'Envoyer le code').click();
     await expect.poll(() => refus(p).innerText()).toBe(phrase('compte.mot_de_passe_actuel_faux'));
     expect(await aLeCurseur(champ(p, 'Ton mot de passe actuel'))).toBe(true);
+    // (issue 4, ENTREE-5) Le refus se lit au-dessus des boutons, avant de recliquer.
+    expect(await fenetre(p).evaluate((f) => { const a = f.querySelector('[role=alert]'), b = f.querySelector('.modal-actions'); return !!a && !!b && a.getBoundingClientRect().bottom <= b.getBoundingClientRect().top + 1; })).toBe(true);
     await champ(p, 'Ton mot de passe actuel').fill('Un-bon-mot-de-passe');
     await bouton(p, 'Envoyer le code').click();
     await expect.poll(() => fenetre(p).innerText()).toContain(`On vient d'envoyer un code à ${nouvelle}.`);

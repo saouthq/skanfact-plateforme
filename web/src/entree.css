@@ -134,6 +134,8 @@ body.dark .ent-etapes .ent-logo { background: #0f9d8f; color: #fff; }
 .ent-aide-pile { display: grid; }
 .ent-aide-pile > * { grid-area: 1 / 1; }
 .ent-aide-gabarit { font-size: 13px; line-height: 1.5; font-weight: 400; visibility: hidden; }
+/* L'aide d'un champ refusé tient sa place sous le refus, invisible (ENTREE-4) : rien ne bouge quand le refus s'efface. */
+.ent-aide-cache { visibility: hidden; }
 .ent-champ { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .ent-oeil-zone { position: relative; }
 .ent-oeil-zone label.field input { padding-inline-end: 104px; }

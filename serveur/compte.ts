@@ -198,6 +198,13 @@ async function motDePasseBon(ctx: Contexte, email: string, motDePasse: string, t
 
 // Changer son mot de passe : les autres sessions se ferment, celle-ci reste ouverte.
 // `tx` : celle de la route de la console (le journal de l'équipe s'écrit dans la même) ; l'application n'en donne pas.
+// (issue 4, ENTREE-15) Changer son nom : l'équipe et le cabinet le lisent par jointure, les messages déjà envoyés gardent
+// celui du moment ; la base trace l'ancien.
+export async function changerNom(ctx: Contexte, qui: Qui, nom: string, tx?: Dans): Promise<{ ok: true }> {
+  await dans(ctx, tx, qui.utilisateur, (t) => t.query('select socle.changer_mon_nom($1)', [nom]));
+  return { ok: true };
+}
+
 export async function changerMotDePasse(ctx: Contexte, qui: Qui, actuel: string, nouveau: string, tx?: Dans): Promise<{ ok: true } | Refuse> {
   const email = await monAdresse(ctx, qui, tx);
   const bloque = await attente(ctx, email, tx);

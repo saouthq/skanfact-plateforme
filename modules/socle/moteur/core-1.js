@@ -57,7 +57,7 @@
     currency: 'DT',
     defaultLang: 'fr',
     stampImage: '',       // cachet / signature (data URL) sur les documents
-    theme: 'light',       // light | dark | auto
+    theme: 'auto',        // light | dark | auto — comme le système tant qu'on n'a rien choisi (issue 4, ENTREE-17)
     tagline: '',
     accountantEmail: '',
     activity: '',         // secteur choisi à la première utilisation (voir ACTIVITIES)

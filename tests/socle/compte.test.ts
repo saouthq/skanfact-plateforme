@@ -7,7 +7,7 @@ import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import pg from 'pg';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
-import { activerCode, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode } from '../../serveur/compte.ts';
+import { activerCode, changerMotDePasse, changerNom, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, nouveauxCodesDeSecours, preparerCode, retirerCode } from '../../serveur/compte.ts';
 import { connecter, inscrire, mettreEnPlaceCode, quiEst, validerCode, type Contexte, type Qui } from '../../serveur/connexion.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -301,5 +301,19 @@ describe('vérifier son adresse sans en changer (0077)', () => {
     expect(await demanderVerificationAdresse(ctx, q.qui)).toMatchObject({ ok: true });
     expect(await demanderVerificationAdresse(ctx, q.qui)).toMatchObject({ ok: true });
     await expect(demanderVerificationAdresse(ctx, q.qui)).rejects.toThrow(/trois demandes/);
+  });
+});
+
+describe('changer son nom (issue 4, ENTREE-15)', () => {
+  it('le nom change, tracé avec l\'ancien ; un nom d\'une lettre se refuse', async () => {
+    const { id, qui } = await personne();
+    const avant = (await admin.query('select nom from socle.utilisateur where id = $1', [id])).rows[0].nom as string;
+    await changerNom(sansRelais, qui, 'Amine Gharbi');
+    expect((await admin.query('select nom from socle.utilisateur where id = $1', [id])).rows[0].nom).toBe('Amine Gharbi');
+    const trace = (await admin.query("select avant, apres from socle.audit where utilisateur = $1 and geste = 'compte.nom.changer' order by instant desc limit 1", [id])).rows[0];
+    expect(trace?.avant).toEqual({ nom: avant });
+    expect(trace?.apres).toEqual({ nom: 'Amine Gharbi' });
+    await expect(changerNom(sansRelais, qui, 'A')).rejects.toThrow();
+    expect((await admin.query('select nom from socle.utilisateur where id = $1', [id])).rows[0].nom).toBe('Amine Gharbi');
   });
 });

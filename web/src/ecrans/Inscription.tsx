@@ -41,7 +41,7 @@ export function Jauge({ motDePasse }: { motDePasse: string }) {
 // `comptable` : un client invite son comptable (1.77.0) : son adresse déjà remplie, et la vitrine du comptable.
 // `dossier` : un cabinet invite son client tenu à rejoindre son dossier (1.78.0) : son adresse remplie, sa vitrine.
 export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation, comptable, dossier, profil, changerProfil }: {
-  connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null;
+  connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string, note?: string) => void; connexion: () => void; sous?: string | null;
   invitation?: { email: string; ou: string; qui: string } | null; comptable?: { email: string; ou: string; qui: string } | null;
   dossier?: { email: string; ou: string; cabinet: string } | null;
   // (1.379.3) Venu pour son cabinet ou pour son entreprise : le titre, la vitrine et la suite le suivent.
@@ -82,8 +82,8 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
         return;
       }
     } catch { /* la connexion se fera à la main */ }
-    toast(phrase(options.oubli ? 'ecran.inscription.faite_courriel' : 'ecran.inscription.faite'));
-    aConnecter(email);
+    // (issue 4, ENTREE-16) Ce qui vient de se passer reste écrit sur l'écran de connexion, au lieu d'un message qui s'efface.
+    aConnecter(email, phrase(options.oubli ? 'ecran.inscription.faite_courriel' : 'ecran.inscription.faite'));
   });
 
   return (

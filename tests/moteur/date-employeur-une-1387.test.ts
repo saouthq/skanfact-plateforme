@@ -21,4 +21,12 @@ describe('la déclaration annuelle d\'employeur n\'a qu\'une date (issue 16, con
     expect(lignes.length).toBe(2);
     for (const l of lignes) expect(l).toMatch(/C\.dateLimiteSociale\(data, 'employeur', t?y\)/);
   });
+  it('la déclaration du mois ne parle d\'employeur qu\'à un employeur (issue 4, ENTREE-9)', () => {
+    const fd = (core as unknown as { fiscalDeadlines: (d: Objet) => { id: string; label: string; day?: number }[] }).fiscalDeadlines;
+    expect(fd({}).find((r) => r.id === 'tva')?.label).toBe('Déclaration mensuelle de TVA');
+    expect(fd({ employees: [{ id: 's1' }] }).find((r) => r.id === 'tva')?.label).toBe('Déclaration mensuelle d\'employeur et de TVA');
+    const regle = fd({ fiscalDeadlines: [{ id: 'tva', day: 20 }] }).find((r) => r.id === 'tva');
+    expect(regle?.label).toBe('Déclaration mensuelle de TVA');
+    expect(regle?.day).toBe(20);
+  });
 });

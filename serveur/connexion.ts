@@ -70,7 +70,7 @@ export type Contexte = {
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };
 
 export type ResultatConnexion =
-  | { etat: 'refuse'; motif: Texte }
+  | { etat: 'refuse'; motif: Texte; perime?: true }
   | { etat: 'attendre'; jusqua: Date; motif: Texte }
   | { etat: 'code'; defi: string; methode: 'application'; appareil: string }
   // Le code par SMS : au numéro masqué ; `envoi` dit s'il est parti (« rate » : le fournisseur n'a pas pu ; « limite » :
@@ -210,7 +210,8 @@ export async function validerCode(ctx: Contexte, demande: {
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   // Un code refusé compte, même si la suite échoue : on l'écrit dans sa propre transaction.
   const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.lire_defi($1, $2)', [demande.defi, maintenant])).rows[0]);
-  if (!lu) return { etat: 'refuse', motif: motif('connexion.code_perime') };
+  // (issue 4, ENTREE-10) Un défi périmé ne se répare pas en retapant : l'écran propose de recommencer la connexion.
+  if (!lu) return { etat: 'refuse', motif: motif('connexion.code_perime'), perime: true };
 
   const saisi = demande.code.replace(/\s/g, '');
   let bon: boolean;

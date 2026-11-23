@@ -1800,7 +1800,7 @@
     const liste = cur.items.length ? `<ol class="vb-liste" aria-label="Ce que fait chaque bouton">${cur.items.map((x, k) =>
       `<li class="vb-item" tabindex="0" data-k="${k}"><span class="vb-num" aria-hidden="true">${k + 1}</span><span class="vb-it"><b>${h(x.nom)}</b><span class="vb-it-t">${x.texte}</span></span></li>`).join('')}</ol>` : '';
     // L'astuce du clavier, une fois par visite : sur la première bulle qu'on lit.
-    const astuce = cur.vues <= 1 && !faire && !cur.perdu
+    const astuce = cur.vues <= 1 && !faire && !cur.perdu && !(global.matchMedia && global.matchMedia('(pointer: coarse)').matches)
       ? '<div class="vb-astuce"><kbd>←</kbd><kbd>→</kbd> pour avancer · <kbd>Échap</kbd> pour faire une pause</div>' : '';
     els.bulle.innerHTML = `<i class="vb-pointe" hidden></i>
       <div class="vb-haut">${tete(cur.perdu ? ICONE_PERDU : iconeDe(coul), t.sur, cur.perdu ? t.lieu : lieuDe(t.lieu, e.titre, p), 'fermer', 'Mettre la visite en pause (Échap) — tu la reprendras depuis « Me guider »')}${t.barre}</div>
@@ -2145,7 +2145,8 @@
   function libelleCible(e) {
     const el = resoudre(e.cible);
     if (!el) return '';
-    const t = (el.getAttribute('aria-label') || el.textContent || el.value || '').replace(/\s+/g, ' ').trim();
+    // (issue 4, ENTREE-13) Le nom LU par la personne : sans les touches de raccourci (<kbd aria-hidden>), ni la bulle « i ».
+    const t = libelleDe(el);
     return t.length > 60 ? t.slice(0, 57) + '…' : t;
   }
   function action(e) {

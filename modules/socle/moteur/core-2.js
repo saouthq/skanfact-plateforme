@@ -1620,7 +1620,9 @@
     // qu'un salarié existe, et restent éteintes sinon (5.2.0). L'utilisateur peut toujours trancher.
     const hasStaff = !!(data && (data.employees || []).length);
     DEFAULT_FISCAL_DEADLINES.forEach(d => {
-      byId[d.id] = { ...d, active: (d.id === 'cnss' && hasStaff) ? true : d.active };
+      // (issue 4, ENTREE-9) Sans salarié, la déclaration du mois ne parle pas d'employeur : celle de TVA (avec les retenues
+      // opérées, que dit sa note). Le libellé suit les salariés ; le réglage de l'utilisateur ne porte que le jour et l'état.
+      byId[d.id] = { ...d, active: (d.id === 'cnss' && hasStaff) ? true : d.active, ...(d.id === 'tva' && !hasStaff ? { label: 'Déclaration mensuelle de TVA' } : {}) };
     });
     custom.forEach(d => { if (d && d.id) byId[d.id] = { ...(byId[d.id] || {}), ...d }; });
     return Object.values(byId);

@@ -5,7 +5,7 @@
 // et le matricule fiscal), avec le haut de la facture qui se dessine pendant la frappe et la forme du matricule dite
 // avant le geste (vu au parcours débutant : rien ne disait où le trouver ni ce qui manquait). Un cabinet comptable : son
 // nom, et le Cabinet v10 s'ouvre sur ses dossiers (brique 37 ; docs/cabinet.md).
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Carte } from '../composants/Carte.tsx';
 import { Champ } from '../composants/Champ.tsx';
@@ -18,7 +18,27 @@ import { dire, phrase, titre } from '../langue.ts';
 // la phrase dit le client qui l'attend.
 export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient, profil }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null; profil?: 'cabinet' | 'entreprise' | null }) {
   const g = useGeste(deconnecte);
-  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet' | 'depart'>(pourUnClient || profil === 'cabinet' ? 'cabinet' : 'porte');
+  type Etape = 'porte' | 'entreprise' | 'cabinet' | 'depart';
+  const [etape, setEtapeBrute] = useState<Etape>(pourUnClient || profil === 'cabinet' ? 'cabinet' : 'porte');
+  // (ENTREE-12) Ouvrir une carte est une page de plus : « Précédent » ramène à la porte. « Ton départ » remplace sa page
+  // et ne se quitte pas par l'historique : l'entreprise ou le cabinet y est déjà créé.
+  const etapeVue = useRef<Etape>(etape);
+  const setEtape = (e: Etape) => {
+    if (e !== etapeVue.current) { try { if (e === 'depart') history.replaceState({ ...(history.state ?? {}), porte: e }, '', location.href); else history.pushState({ ...(history.state ?? {}), porte: e }, '', location.href); } catch { /* l'écran change quand même */ } }
+    etapeVue.current = e;
+    setEtapeBrute(e);
+  };
+  useEffect(() => {
+    try { history.replaceState({ ...(history.state ?? {}), porte: etapeVue.current }, '', location.href); } catch { /* rien */ }
+    const revenir = (ev: PopStateEvent) => {
+      const e = (ev.state as { porte?: Etape } | null)?.porte;
+      if (!e || e === 'depart' || etapeVue.current === 'depart') return;
+      etapeVue.current = e;
+      setEtapeBrute(e);
+    };
+    addEventListener('popstate', revenir);
+    return () => removeEventListener('popstate', revenir);
+  }, []);
   // (1.379.3) Venu pour son entreprise, la porte ne montre que les deux façons de commencer ; le cabinet reste à un lien.
   const sansCabinet = profil === 'entreprise';
   // (1.373.0) Le cabinet créé, on choisit par où commencer (son dossier d'exemple, ou ses clients) avant de l'ouvrir.

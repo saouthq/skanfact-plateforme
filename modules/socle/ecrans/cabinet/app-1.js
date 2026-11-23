@@ -1681,6 +1681,7 @@
   function appliquerTheme() {
     const t = ((S || {}).settings || {}).theme || 'auto';
     document.body.classList.toggle('dark', t === 'dark' || (t === 'auto' && mqSombre.matches));
+    try { localStorage.setItem('skanfact.theme', t); } catch (_) { /* sans stockage : l'entrée suit le système */ }
   }
   mqSombre.addEventListener('change', () => { if (S) appliquerTheme(); });
 

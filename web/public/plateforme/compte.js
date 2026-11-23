@@ -43,6 +43,9 @@
   /** @param {HTMLElement} racine @param {unknown} x @param {Record<string, string>} [cases] */
   function refuser(racine, x, cases) {
     const alerte = racine.querySelector('[role=alert]');
+    // (issue 4, ENTREE-5) Le refus se lit AVANT les boutons : il passe au-dessus de la rangée d'actions qui le précède.
+    const actions = alerte && alerte.previousElementSibling;
+    if (alerte && actions && actions.classList.contains('modal-actions')) actions.before(alerte);
     if (alerte) alerte.textContent = x instanceof Error ? x.message : String(x);
     racine.querySelectorAll('.cpt-faute').forEach((c) => c.classList.remove('cpt-faute'));
     const champ = x && typeof x === 'object' && 'champ' in x ? /** @type {any} */ (x).champ : null;
@@ -174,6 +177,12 @@
 
     el.innerHTML = `<div class="cpt">
       <section class="cpt-carte"><div class="cpt-ligne">
+        <div class="cpt-quoi"><span class="cpt-etiquette">Ton nom</span>
+          <div class="cpt-valeur"><strong id="cpt-nom">${esc(moi.nom || '')}</strong></div>
+          <p class="small muted">C'est ainsi que ton équipe et ton cabinet te voient. Les messages déjà envoyés gardent le nom du moment.</p></div>
+        <button type="button" class="btn" id="cpt-changer-nom">Changer mon nom…</button>
+      </div></section>
+      <section class="cpt-carte"><div class="cpt-ligne">
         <div class="cpt-quoi"><span class="cpt-etiquette">Ton adresse e-mail</span>
           <div class="cpt-valeur"><strong id="cpt-email">${esc(moi.email)}</strong>${c.adresseVerifiee ? `<span class="badge cpt-ok">${dessin('coche')}Vérifiée</span>` : '<span class="badge cpt-attente">À vérifier</span>'}</div>
           <p class="small muted">${adresseNote}</p></div>
@@ -204,6 +213,7 @@
     $('#cpt-adresse').onclick = () => changerAdresse(outils, relais, moi.email, redessiner);
     if ($('#cpt-verifier')) $('#cpt-verifier').onclick = () => verifierAdresse(outils, moi.email, redessiner);
     $('#cpt-mdp').onclick = () => changerMotDePasse(outils, c.motDePasseMin || 10, redessiner);
+    $('#cpt-changer-nom').onclick = () => changerNom(outils, moi.nom || '', redessiner);
     if ($('#cpt-activer')) $('#cpt-activer').onclick = () => activer(outils, methode, redessiner);
     if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, methode, redessiner);
     if ($('#cpt-sms')) $('#cpt-sms').onclick = () => activerSms(outils, methode, redessiner);
@@ -288,6 +298,30 @@
           fini();
         });
       });
+    });
+  }
+
+  // (issue 4, ENTREE-15) Le nom tapé à l'inscription se corrige ici.
+  /** @param {Outils} o @param {string} actuel @param {() => void} fini */
+  function changerNom(o, actuel, fini) {
+    o.modal(`<h2>Changer mon nom</h2>
+      <form class="cpt-form" novalidate>
+        <label class="field">Ton prénom et ton nom<input type="text" id="cpt-nom-champ" autocomplete="name" maxlength="120" value="${esc(actuel)}"></label>
+        <p class="small muted">Il se lit dans ton équipe, chez ton cabinet et sur tes prochains messages. Ce qui est déjà envoyé garde l'ancien.</p>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="cpt-ok">Enregistrer</button></div>
+        <p class="small cpt-alerte" role="alert"></p>
+      </form>`, (racine, fermer) => {
+      const champ = /** @type {HTMLInputElement} */ (racine.querySelector('#cpt-nom-champ'));
+      surClic(racine, '#cpt-ok', async () => {
+        effacerRefus(racine);
+        const nom = champ.value.trim();
+        if (nom.length < 2) { refuser(racine, Object.assign(new Error('Ton nom doit compter au moins deux lettres.'), { champ: 'nom' }), { nom: '#cpt-nom-champ' }); return; }
+        try { await o.appel('PUT', '/moi/nom', { nom }); } catch (x) { refuser(racine, x, { nom: '#cpt-nom-champ' }); return; }
+        fermer();
+        o.toast('C\'est fait : ton nom est changé.');
+        fini();
+      });
+      champ.focus(); champ.select();
     });
   }
 

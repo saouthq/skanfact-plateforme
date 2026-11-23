@@ -9,7 +9,7 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envoyerCodeReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
 import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
-import { activerCode, activerSms, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
+import { activerCode, activerSms, changerMotDePasse, changerNom, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
@@ -282,6 +282,15 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!qui) throw new Error('session attendue');
       const r = await nouveauxCodesDeSecours(ctx, qui, corps.code);
       return r.ok ? { corps: { codesDeSecours: r.codes } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/moi/nom', geste: 'compte.securite.gerer',
+    corps: z.object({ nom: z.string().trim().min(2).max(120) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      await changerNom(ctx, qui, corps.nom);
+      return { corps: { ok: true, nom: corps.nom } };
     },
   });
   ajouter({

@@ -88,6 +88,9 @@ declarerTextes({
   'ecran.connexion.poste_autre': 'je suis sur l\'ordinateur de quelqu\'un d\'autre',
   'ecran.connexion.poste_autre_aide': 'la session se fermera après 30 minutes sans activité, et cet appareil ne sera pas retenu',
   'ecran.connexion.bouton': 'se connecter',
+  'ecran.connexion.attendre': 'réessayer dans {temps}',
+  'ecran.connexion.email_manque': 'ton adresse e-mail manque',
+  'ecran.connexion.mot_de_passe_manque': 'ton mot de passe manque',
   'ecran.connexion.premiere_fois': 'première fois sur SkanFact ?',
   'ecran.connexion.creer_entreprise': 'je gère une entreprise',
   'ecran.connexion.creer_cabinet': 'je suis comptable',
@@ -175,6 +178,7 @@ declarerTextes({
   'ecran.code.retrouve': 'tu as retrouvé ton téléphone ?',
   'ecran.code.utiliser_telephone': 'taper le code du téléphone',
   'ecran.code.bouton': 'valider le code',
+  'ecran.code.recommencer': 'recommencer la connexion',
   'ecran.code.retour': 'retour à la connexion',
 
   // Le code par e-mail (lot onboarding, 09/10/2026 ; migration 0076) : l'adresse à vérifier juste après l'inscription
@@ -272,7 +276,7 @@ declarerTextes({
   'ecran.porte.demarrer_titre': 'commencer avec mon entreprise',
   'ecran.porte.demarrer_texte': 'sa raison sociale et son matricule fiscal : ce qui s\'imprime en haut de chaque facture. Le reste se règle ensuite, quand tu en as besoin',
   'ecran.porte.demarrer_meta': 'une minute',
-  'ecran.porte.demarrer_puce1': 'ta première facture dans la foulée',
+  'ecran.porte.demarrer_puce1': 'ton premier devis ou ta première facture dans la foulée',
   'ecran.porte.demarrer_puce2': 'pas encore de matricule ? Tu le mets plus tard',
   'ecran.porte.demarrer_bouton': 'créer mon entreprise',
   'ecran.porte.entreprise_titre': 'ton entreprise',

@@ -219,9 +219,9 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await p.locator('form').getByRole('button', { name: /Créer mon entreprise/ }).click();
     await expect.poll(() => zone.locator('[role=alert]').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/déjà celui d'une autre entreprise/);
     expect(await zone.innerText()).not.toMatch(/Matricule complet/);
-    // Le message du bas reste le temps de se lire (2,6 secondes ne suffisaient pas à ses deux lignes).
-    await p.waitForTimeout(3500);
-    expect(await p.locator('#toast').innerText()).toMatch(/déjà celui d'une autre entreprise/);
+    // (issue 4, ENTREE-11) Le refus se lit sous sa case, et seulement là : plus de message en double en bas de l'écran.
+    await p.waitForTimeout(400);
+    expect(await p.locator('#toast.show').count()).toBe(0);
     // Retouché, le champ ne se dit plus refusé.
     await mf.locator('input').press('End');
     await mf.locator('input').press('Backspace');

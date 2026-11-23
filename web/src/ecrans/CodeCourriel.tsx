@@ -45,6 +45,7 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
   const [corriger, setCorriger] = useState(false);
   const [nouvelle, setNouvelle] = useState('');
   const [parti, setParti] = useState(false);
+  const [perime, setPerime] = useState(false);
   const decompte = useDecompte();
   const inscription = defi.raison === 'inscription';
 
@@ -58,6 +59,8 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
       session.ouvrir(r.corps.jeton, !defi.posteDUnAutre);
       if (inscription) toast(phrase('ecran.courriel.verifiee'));
       connecte();
+    // (ENTREE-10) Un défi périmé ne se répare pas en retapant : on recommence la connexion.
+    } else if ((r.corps as { perime?: boolean }).perime) { setPerime(true); g.refuser({ ...refusDe(r), champ: null });
     } else g.refuser({ ...refusDe(r), champ: 'code' });
   });
   const renvoyer = () => g.geste(async () => {
@@ -93,8 +96,8 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
       <Carte icone="ecran" titre={titre('ecran.courriel.titre_appareil')}
         sous={<>{titre('ecran.courriel.appareil')} <b data-donnee>{masquer(adresse)}</b>.</>}
         droite={<button type="button" className="ent-lien" onClick={retour}><Dessin id="retour" />{titre('ecran.code.retour')}</button>}
-        onSubmit={() => { void valider(); }}
-        pied={<Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.courriel.bouton')}</Bouton>}
+        onSubmit={() => { if (perime) retour(); else void valider(); }}
+        pied={perime ? <Bouton principal type="submit">{titre('ecran.code.recommencer')}</Bouton> : <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.courriel.bouton')}</Bouton>}
         aide={<>
           <span className="ent-renvoi"><span>{titre('ecran.courriel.rien_recu_court')}</span>{boutonRenvoi}{renvoye}</span>
           <span className="ent-aide">{phrase('ecran.courriel.telephone')}</span>
@@ -123,7 +126,7 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
           <button type="button" className="ent-lien ent-centre" onClick={() => setCorriger(false)}>{titre('ecran.courriel.corriger_annuler')}</button>
         </form>
       ) : (
-        <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void valider(); }}>
+        <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); if (perime) retour(); else void valider(); }}>
           <span className="ent-carte-ico"><Dessin id="enveloppe" /></span>
           <div className="ent-entete">
             <h1>{titre('ecran.courriel.titre_inscription')}</h1>
@@ -131,7 +134,7 @@ export function CodeCourriel({ defi, connecte, retour, corrige }: { defi: DefiCo
           </div>
           <Champ classe="ent-code" libelle={titre('ecran.courriel.champ_inscription')} aide={phrase('ecran.courriel.champ_aide')} valeur={code} changer={setCode}
             autoComplete="one-time-code" inputMode="numeric" premier dessous={<span className="ent-aide">{phrase('ecran.courriel.dernier')}</span>} {...g.sur('code')} />
-          <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.courriel.bouton_inscription')}<Dessin id="fleche" /></Bouton>
+          {perime ? <Bouton principal type="submit">{titre('ecran.code.recommencer')}</Bouton> : <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.courriel.bouton_inscription')}<Dessin id="fleche" /></Bouton>}
           <div className="ent-rien-recu">
             <span>{phrase('ecran.courriel.rien_recu')}</span>
             <span className="ent-renvoi">{boutonRenvoi}{renvoye}</span>

@@ -29,6 +29,7 @@ function CodeTelephone({ defi, connecte, retour }: { defi: Exclude<Defi, { metho
   const [secours, setSecours] = useState(false);
   const [envoi, setEnvoi] = useState(defi.methode === 'sms' ? defi.envoi : 'parti');
   const [renvoye, setRenvoye] = useState(false);
+  const [perime, setPerime] = useState(false);
   const decompte = useDecompte();
   const sms = defi.methode === 'sms';
 
@@ -39,6 +40,8 @@ function CodeTelephone({ defi, connecte, retour }: { defi: Exclude<Defi, { metho
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     if (r.corps.etat === 'connecte' && r.corps.jeton) { session.ouvrir(r.corps.jeton, !defi.posteDUnAutre); connecte(); }
     // Un code faux tient au champ du code, même quand le serveur ne le nomme pas.
+    // (ENTREE-10) Un défi périmé ne se répare pas en retapant : on recommence la connexion.
+    else if ((r.corps as { perime?: boolean }).perime) { setPerime(true); g.refuser({ ...refusDe(r), champ: null }); }
     else g.refuser({ ...refusDe(r), champ: 'code' });
   });
   // « Renvoyer le SMS » : un nouveau code remplace l'ancien (30 secondes entre deux envois, cinq au plus).
@@ -64,8 +67,8 @@ function CodeTelephone({ defi, connecte, retour }: { defi: Exclude<Defi, { metho
     <Carte icone={secours ? 'cle' : 'telephone'} titre={titre(secours ? 'ecran.code.titre_secours' : 'ecran.code.titre')}
       sous={secours ? phrase('ecran.code.sous_secours') : sousSms ?? phrase('ecran.code.application')}
       droite={<button type="button" className="ent-lien" onClick={retour}><Dessin id="retour" />{titre('ecran.code.retour')}</button>}
-      onSubmit={() => { void envoyer(); }}
-      pied={<Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>}
+      onSubmit={() => { if (perime) retour(); else void envoyer(); }}
+      pied={perime ? <Bouton principal type="submit">{titre('ecran.code.recommencer')}</Bouton> : <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code.bouton')}</Bouton>}
       aide={<>
         {renvoi}
         <b>{titre(secours ? 'ecran.code.retrouve' : 'ecran.code.perdu')}</b>

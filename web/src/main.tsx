@@ -12,8 +12,10 @@ import '@fontsource/ibm-plex-mono/500.css';
 import './entree.css';
 
 // Le thème sombre de la v10 (`body.dark`) suit celui du système, tant qu'aucun réglage ne le fixe.
+// (ENTREE-17) Le thème choisi dans l'application (retenu par elle sur ce navigateur), sinon celui du système.
 const sombre = window.matchMedia('(prefers-color-scheme: dark)');
-const appliquerTheme = () => document.body.classList.toggle('dark', sombre.matches);
+const choisi = () => { try { const t = localStorage.getItem('skanfact.theme'); return t === 'dark' || t === 'light' ? t : 'auto'; } catch { return 'auto'; } };
+const appliquerTheme = () => { const t = choisi(); document.body.classList.toggle('dark', t === 'dark' || (t === 'auto' && sombre.matches)); };
 appliquerTheme();
 sombre.addEventListener('change', appliquerTheme);
 

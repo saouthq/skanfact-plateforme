@@ -7,23 +7,26 @@ import { titre } from '../langue.ts';
 import { Libelle } from './Info.tsx';
 
 // Le refus d'un champ : `n` change à chaque refus, même quand le champ est le même ; `texte`, ce qu'il dit.
-export type Faute = { champ: string; n: number; texte?: string } | null;
+export type Faute = { champ: string; n: number; texte?: string; aussi?: Record<string, string> } | null;
 
-function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) {
+function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined, vise = true) {
   const ref = useRef<T>(null);
+  // (issue 4, ENTREE-11) Plusieurs cases refusées d'un coup : seule la première prend le curseur.
+  const viseRef = useRef(vise);
+  viseRef.current = vise;
   const [rouge, setRouge] = useState(false);
   useEffect(() => { if (faute) setRouge(true); }, [faute, n]);
   // (1.99.2) Le focus vient APRÈS le rendu qui montre le refus : son message sous le champ (1.99.0) rebâtit le champ, et
   // un focus posé avant tombait sur la saisie remplacée (le curseur n'était plus nulle part).
   useEffect(() => {
-    if (!faute || !rouge) return;
+    if (!faute || !rouge || !viseRef.current) return;
     ref.current?.focus();
     try { ref.current?.scrollIntoView({ block: 'center' }); } catch { /* un vieux navigateur : le focus suffit */ }
   }, [faute, n, rouge]);
   return { ref, rouge, effacer: () => setRouge(false) };
 }
 
-type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number | undefined; refus?: string | undefined; obligatoire?: boolean; classe?: string };
+type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number | undefined; refus?: string | undefined; obligatoire?: boolean; classe?: string; vise?: boolean | undefined };
 
 // (1.121.0) Le libellé porte la bulle « i », un bouton : sans `htmlFor`, le navigateur relie le libellé à ce bouton (le
 // premier élément actif qu'il contient), et la saisie restait sans nom (un lecteur d'écran disait « champ de texte »,
@@ -48,8 +51,8 @@ type PropsChamp = Commun & {
   revelable?: boolean; dessous?: ReactNode; maxLength?: number;
 };
 
-export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, refus, ...cadre }: PropsChamp) {
-  const f = useFaute<HTMLInputElement>(faute, n);
+export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, refus, vise = true, ...cadre }: PropsChamp) {
+  const f = useFaute<HTMLInputElement>(faute, n, vise);
   const id = useId();
   const [vu, setVu] = useState(false);
   const enveloppe = useRef(false);
@@ -67,6 +70,18 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
   // s'efface en quelques secondes, et l'aide d'en dessous (« Matricule complet ») disait le contraire du refus
   // (« déjà celui d'une autre entreprise »), parcours du 21/10/2026.
   const sous = f.rouge && refus ? <span className="ent-aide alerte" role="alert">{refus}</span> : dessous;
+  // (issue 4, ENTREE-4) Le refus garde sa place : il part à la première frappe, et tout ce qui suit remontait sous le
+  // curseur. Une fois refusé, le champ réserve la hauteur du dernier refus ET celle de son aide (la plus haute décide,
+  // `.ent-aide-pile`), et y montre l'un ou l'autre.
+  const dernierRefus = useRef<ReactNode>(undefined);
+  if (f.rouge && refus) dernierRefus.current = refus;
+  const place = dernierRefus.current === undefined ? sous : (
+    <span className="ent-aide-pile">
+      <span className="ent-aide-gabarit" aria-hidden="true">{dernierRefus.current}</span>
+      {sous}
+      {sous !== dessous && dessous ? <span className="ent-aide-cache" aria-hidden="true">{dessous}</span> : null}
+    </span>
+  );
   // (1.373.0) Une fois enveloppé, le champ le reste : au premier caractère tapé après un refus, le message partait, le
   // champ repassait « nu », React le rebâtissait, et le curseur n'était plus nulle part — la suite de la frappe partait
   // dans le vide (un cabinet créé sous le nom « C », revue du 16/11/2026).
@@ -82,7 +97,7 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
             onClick={() => { setVu(!vu); f.ref.current?.focus(); }}>{titre(vu ? 'ecran.champ.cacher' : 'ecran.champ.afficher')}</button>
         </div>
       ) : champ}
-      {sous}
+      {place}
     </div>
   );
 }

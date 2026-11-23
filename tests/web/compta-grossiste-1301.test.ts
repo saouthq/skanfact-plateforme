@@ -192,7 +192,7 @@ describe('la Comptabilité 1.301.0 : le grossiste et sa comptable', () => {
     await expect.poll(async () => p.locator('#decl-cabinet tbody tr').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.periode)), { timeout: 15_000 }).toEqual(['2026-10', '2026-09']);
     expect(net(await p.locator('#decl-cabinet tr[data-periode="2026-10"]').innerText())).toBe('octobre 2026 28/11/2026 à préparer Lui écrire');
     expect(net(await p.locator('#decl-cabinet tr[data-periode="2026-09"]').innerText())).toBe('septembre 2026 28/10/2026 Déposée le 27/10/2026 réf. TEJ-2026-0927 tes pièces du mois ont changé depuis Voir la TVA');
-    const tva = p.locator('#c-body tr', { hasText: 'Déclaration mensuelle d\'employeur et de TVA' }).first();
+    const tva = p.locator('#c-body tr', { hasText: 'Déclaration mensuelle de TVA' }).first();
     expect(net(await tva.locator('td.actions').innerText())).toBe('Ton cabinet la dépose Je l\'ai déposée moi-même');
     await photo('calendrier');
     // « Voir la TVA » mène à la TVA de septembre.

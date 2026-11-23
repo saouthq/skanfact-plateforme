@@ -4,13 +4,13 @@ import type { ReactNode } from 'react';
 
 type Props = {
   children: ReactNode; principal?: boolean; discret?: boolean; petit?: boolean; danger?: boolean; occupe?: boolean;
-  type?: 'submit' | 'button'; onClick?: () => void; id?: string; classe?: string; titre?: string;
+  type?: 'submit' | 'button'; onClick?: () => void; id?: string; classe?: string; titre?: string; eteint?: boolean;
 };
 
-export function Bouton({ children, principal, discret, petit, danger, occupe = false, type = 'button', onClick, id, classe, titre }: Props) {
+export function Bouton({ children, principal, discret, petit, danger, occupe = false, type = 'button', onClick, id, classe, titre, eteint = false }: Props) {
   const c = ['btn', principal ? 'btn-primary' : '', discret ? 'btn-ghost' : '', petit ? 'btn-sm' : '', danger ? 'btn-danger' : '', classe ?? ''].filter(Boolean).join(' ');
   return (
-    <button type={type} className={c} onClick={onClick} disabled={occupe} aria-busy={occupe || undefined} {...(id ? { id } : {})} {...(titre ? { title: titre } : {})}>
+    <button type={type} className={c} onClick={onClick} disabled={occupe || eteint} aria-busy={occupe || undefined} {...(id ? { id } : {})} {...(titre ? { title: titre } : {})}>
       {children}
     </button>
   );

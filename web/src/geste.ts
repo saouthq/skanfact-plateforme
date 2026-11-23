@@ -41,8 +41,18 @@ export function useGeste(deconnecte: () => void) {
   // Dire un refus : en bas de l'écran, et sur son champ s'il en a un (`renommer` traduit le chemin
   // du serveur, « brouillon.lignes.0.prixUnitaire », en celui de l'écran).
   const refuser = useCallback((v: RefusVu, renommer?: (champ: string) => string) => {
-    toast(v.texte, true);
     setFaute(v.champ ? { champ: renommer ? renommer(v.champ) : v.champ, n: ++numero, texte: v.texte } : null);
+    // (issue 4, ENTREE-11) Un refus qui tient à une case se lit sous elle ; en bas de l'écran, seulement si aucune case
+    // ne le montre (un champ que cet écran ne porte pas). Jamais deux fois.
+    if (!v.champ) { toast(v.texte, true); return; }
+    setTimeout(() => { if (!document.querySelector('[aria-invalid="true"]')) toast(v.texte, true); }, 150);
+  }, []);
+
+  // Plusieurs cases refusées d'un coup (un formulaire vide) : chacune dit ce qui lui manque ; le curseur va à la première.
+  const refuserTous = useCallback((liste: { champ: string; texte: string }[]) => {
+    const [premier, ...autres] = liste;
+    if (!premier) return;
+    setFaute({ champ: premier.champ, n: ++numero, texte: premier.texte, aussi: Object.fromEntries(autres.map((x) => [x.champ, x.texte])) });
   }, []);
 
   const geste = useCallback(async (f: () => Promise<void>) => {
@@ -54,6 +64,11 @@ export function useGeste(deconnecte: () => void) {
   }, [refuser]);
 
   // Ce qu'un champ reçoit pour se montrer refusé : `faute` et le numéro du refus.
-  const sur = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : undefined, refus: faute?.champ === champ ? faute.texte : undefined });
-  return { faute, occupe, api, geste, refuser, sur };
+  const sur = (champ: string) => {
+    const vise = faute?.champ === champ;
+    const aussi = faute?.aussi?.[champ];
+    const refuse = vise || aussi !== undefined;
+    return { faute: refuse, n: refuse ? faute?.n : undefined, refus: vise ? faute?.texte : aussi, vise };
+  };
+  return { faute, occupe, api, geste, refuser, refuserTous, sur };
 }

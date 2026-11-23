@@ -764,7 +764,8 @@
     return String(Math.round(n));
   };
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
-  function applyTheme() { const t = company().theme || 'light'; document.body.classList.toggle('dark', t === 'dark' || (t === 'auto' && mq.matches)); }
+  // (ENTREE-17) Le thème choisi se retient aussi pour l'écran de connexion, qui n'a pas les données de l'entreprise.
+  function applyTheme() { const t = company().theme || 'auto'; document.body.classList.toggle('dark', t === 'dark' || (t === 'auto' && mq.matches)); try { localStorage.setItem('skanfact.theme', t); } catch (_) { /* sans stockage : l'entrée suit le système */ } }
   mq.addEventListener('change', () => { if (data) applyTheme(); });
 
   // ---------- bulles d'explication « i » ----------
