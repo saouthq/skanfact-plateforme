@@ -149,7 +149,11 @@ export function filtrer<O extends { collection: string; cle: string }>(roles: st
   return { objets: visibles, droits: { cachees: [...cachees].sort(), lectureSeule: [...lectureSeule].sort(), ecrivables: [...ecrivables].sort(),
     tout: permet(roles, TOUT.ecrire, true), responsable: permet(roles, 'ventes.accord.donner', true),
     // Il tient une caisse (brique 121) : la page Caisse s'ouvre, même sans lire les pièces de vente.
-    caisse: permet(roles, 'caisse.ticket.encaisser', true) } };
+    caisse: permet(roles, 'caisse.ticket.encaisser', true),
+    // (COLLAB-16) Le miroir de messagerie.cote_entreprise (0078) et de socle.cabinet.choisir : l'écran ne propose ni
+    // « Mon comptable » ni l'invitation du cabinet à qui le serveur les refuserait.
+    messagerie: roles.some((r) => r === 'proprietaire' || r === 'administrateur' || r === 'comptabilite_interne'),
+    proprietaire: roles.includes('proprietaire') } };
 }
 
 // Avant d'écrire : chaque changement doit être permis ; sinon rien n'est écrit, et le refus nomme la partie.

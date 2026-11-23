@@ -168,6 +168,17 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
     await fenetre.locator('#eqp-ok').click();
     await expect.poll(async () => (await equipe()).membres.find((m) => m.nom === 'Yassine')?.roles).toEqual(['commercial', 'caissier']);
     await expect.poll(async () => aplatir(await p.locator('#eqp-membres').innerText())).toMatch(/Yassine .*Commercial Caissier/);
+    // (1.388.25, COLLAB-19) Faire de quelqu'un un administrateur lui ouvre tout : la question est posée, et « Annuler » ne change rien.
+    await menu(`M:${yassine}`, 'Changer ses rôles');
+    await fenetre.locator('input[name="eqp-role"][value="administrateur"]').check();
+    await fenetre.locator('#eqp-ok').click();
+    await p.getByRole('heading', { name: 'Faire de Yassine un administrateur ?' }).waitFor({ timeout: 10_000 });
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler', exact: true }).click();
+    await p.waitForTimeout(800);
+    expect((await equipe()).membres.find((m) => m.nom === 'Yassine')?.roles).toEqual(['commercial', 'caissier']);
+    await fenetre.getByRole('button', { name: 'Annuler', exact: true }).click();
+    if (await p.getByRole('button', { name: 'Abandonner', exact: true }).count()) await p.getByRole('button', { name: 'Abandonner', exact: true }).click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
     await menu(`M:${yassine}`, 'Retirer de l\'équipe');
     await fenetre.getByRole('button', { name: 'Retirer de l\'équipe', exact: true }).click();
     await expect.poll(async () => (await equipe()).membres.map((m) => m.nom)).toEqual(['Nadia']);

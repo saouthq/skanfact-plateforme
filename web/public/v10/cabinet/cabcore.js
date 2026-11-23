@@ -19,7 +19,8 @@
   const pad2 = n => String(n).padStart(2, '0');
   // « 1 dossier(s) » : un logiciel qui parle mal paraît bâclé, et c'est le premier contact d'un
   // comptable avec SkanFact.
-  const pl = (n, un, plur) => `${Math.abs(n) >= 1000 ? Number(n).toLocaleString('fr-FR') : n} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
+  // (COLLAB-24) Un nombre non entier s'écrit à la française (« 3,5 articles ») : `${n}` écrivait « 3.5 ».
+  const pl = (n, un, plur) => `${Number.isInteger(n) && Math.abs(n) < 1000 ? n : Number(n).toLocaleString('fr-FR')} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
   // Un compte de milliers se lit groupé : « 3 526 », jamais « 3526 » (10.14.0, saturation).
   const nbFr = n => (Math.abs(Number(n)) >= 1000 ? Number(n).toLocaleString('fr-FR') : String(n));
   function round3(n) { const x = Number(n) || 0, r = Math.round(Math.abs(x) * 1000 * (1 + 4 * Number.EPSILON)) / 1000; return x < 0 && r ? -r : r; }

@@ -6535,3 +6535,24 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
 - Tests : `entree` (un parcours neuf de la connexion), `compte` (le nom, le refus au-dessus), `socle/compte` (le nom en
   base), `premiers-pas` (le refus sous sa case, plus en bas — assertion retournée), `date-employeur-une-1387`,
   `compta-grossiste-1301`, `visite-libelle` ; quinze preuves.
+
+## 1.388.25 — Collaborer : chacun ne voit que ce que son rôle lui ouvre (issue 7)
+
+- **Qui lit le catalogue sans l'écrire** n'a plus « Importer… » ni « + Nouvelle… », et un seul bandeau « Lecture
+  seule » ; même règle sur les factures (pas de « + Nouvelle facture » ni d'exemple) et sur les achats vides d'un rôle
+  qui lit (COLLAB-15). La caisse ne propose plus de créer un article à qui n'écrit pas le catalogue.
+- **« Mon comptable » suit la messagerie que le serveur ouvre** (propriétaire, administrateur, comptabilité interne) ;
+  **« Inviter mon comptable » reste au seul propriétaire** — une administratrice lit sur la page que c'est son geste
+  (COLLAB-16 ; `droits.messagerie`, `droits.proprietaire` au dossier). La messagerie refusée dit pourquoi, sans
+  « Réessayer ».
+- **« À faire » ne parle plus d'une échéance fiscale à qui ne voit pas la Comptabilité** : la paie garde la CNSS, le
+  commercial ne lit plus la TVA (COLLAB-17).
+- **Faire de quelqu'un un administrateur se demande** (« Faire de Yassine un administrateur ? ») : il verra et changera
+  tout ; « Annuler » ne change rien (COLLAB-19).
+- **Un nombre non entier s'écrit à la française** dans les phrases (« 3,5 articles »), dans les deux applications
+  (COLLAB-24).
+- **Les statistiques d'un rôle sans achats** n'ont ni onglet Achats, ni tuiles « Acheté » et « Marge », ni colonnes
+  dans l'export (COLLAB-25).
+- **L'accueil d'un rôle** ne propose que les pages ouvertes (pas une page « Prochainement »).
+- Tests : `menu-role` (catalogue, statistiques, échéances, messagerie, administratrice), `equipe-entreprise`,
+  `montants-fr-1356-9`, `v10/droits-dossier` ; sept preuves.

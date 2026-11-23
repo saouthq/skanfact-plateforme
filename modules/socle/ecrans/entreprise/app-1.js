@@ -3219,9 +3219,12 @@
     const modules = $('#foot-modules');
     nav.innerHTML = html;
     const q = $('.nav-quotidien', nav);
-    if (comptable && role !== 'caissier') {
+    // (COLLAB-16) « Mon comptable » suit la messagerie que le serveur ouvre (propriétaire, administrateur, comptabilité
+    // interne) ; « Inviter mon comptable », le seul propriétaire (socle.cabinet.choisir). Sinon le lien reste dans le pied, caché.
+    const dr = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    if (comptable && role !== 'caissier' && (!dr || dr.messagerie)) {
       q.appendChild(comptable);
-      if (comptable.hidden && role === 'proprietaire') {
+      if (comptable.hidden && (!dr || dr.proprietaire)) {
         q.insertAdjacentHTML('beforeend', `<a href="#/compta" class="lien inviter" id="b-inviter-comptable" data-tip="Inviter mon comptable"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/></svg></span><span class="lib-inv">Inviter mon comptable</span><span class="point"></span></a>`);
         $('#b-inviter-comptable').onclick = (e) => { e.preventDefault(); allerInviterComptable(); };
         libelleInviter($('#b-inviter-comptable'), messagerieVue);
@@ -4047,7 +4050,7 @@
   // l'entreprise (le travail du propriétaire et des administrateurs) : les pages que son rôle lui ouvre, celles du
   // menu (déjà filtré par le rôle, brique 101). Le premier bouton est vert quand l'en-tête n'en a pas.
   function accueilDuRole() {
-    const pages = $$('nav a[data-route]').map(a => [a.dataset.route, Array.from(a.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()])
+    const pages = $$('nav a[data-route]:not([hidden]):not(.a-venir)').map(a => [a.dataset.route, Array.from(a.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()])
       .filter(([r, l]) => r && r !== 'dashboard' && l);
     if (!pages.length) return '';
     if (roleBarre() === 'commercial') {
@@ -4964,7 +4967,8 @@
   const manqueDit = r => r ? `${r.q.nom} tient à ${Number(r.q.minimum)} : ${r.jours.length > 3 ? `${r.jours.length} jours` : r.jours.map(j => `le ${C.fmtDate(j.iso).slice(0, 5)}`).join(' et ')}, il ne resterait ${r.jours[0].restent.length ? `que ${r.jours[0].restent.join(' et ')}` : 'personne'}${r.jours.length > 1 ? ' (au plus bas)' : ''}.` : '';
   // (1.257.0) Les jours d'une équipe en clair (« du lundi au samedi ») : pour les écrans hors du pointage.
   const joursDitCourt = L => { const S = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'], o = [1, 2, 3, 4, 5, 6, 0].filter(i => (L || []).includes(i)); if (!o.length) return '—'; const k = o.map(i => [1, 2, 3, 4, 5, 6, 0].indexOf(i)); return k.every((v, j) => !j || v === k[j - 1] + 1) && o.length > 2 ? `du ${S[o[0]]} au ${S[o[o.length - 1]]}` : o.map(i => S[i]).join(', '); };
-  const pl = (n, un, plur) => `${Math.abs(n) >= 1000 ? Number(n).toLocaleString('fr-FR') : n} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
+  // (COLLAB-24) Un nombre non entier s'écrit à la française (« 3,5 articles ») : `${n}` écrivait « 3.5 ».
+  const pl = (n, un, plur) => `${Number.isInteger(n) && Math.abs(n) < 1000 ? n : Number(n).toLocaleString('fr-FR')} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
   // L'accord de ce qui SUIT le nom — un adjectif, un participe. « 3 écarts enregistrés », mais
   // « 1 écart enregistré ». Sans lui, la moitié du travail de `pl` se perdait un mot plus loin.
   // Il sert aussi là où le nombre est déjà mis en forme (« 2,5 jours » : `pct` rend une chaîne, et
@@ -5527,6 +5531,9 @@
           <p>SkanFact suit ensuite tout seul ce qu'on te doit, et te le remonte dans « Relances » dès qu'une facture dépasse son échéance.</p>
           <div class="pr-b"><button class="btn btn-primary" id="vide-new">${lfIc('croix', 15, 2.4)} Créer ma première facture</button><button class="btn" id="vide-demo">Voir un exemple rempli</button></div></div>
           <ol class="pr-e"><li><b>1</b><span><b>Tu écris</b><small>le client, les lignes ; le brouillon se garde tout seul</small></span></li><li><b>2</b><span><b>Tu émets</b><small>le serveur donne le numéro, dans l'ordre, sans trou</small></span></li>${ttn ? '<li><b>3</b><span><b>Tu signes</b><small>par DigiGo ; elle part d\'elle-même à El Fatoora</small></span></li>' : ''}<li><b>${ttn ? 4 : 3}</b><span><b>Tu encaisses</b><small>paiement partiel, retenue à la source, relances</small></span></li></ol></div>`}`;
+    // (COLLAB-15) Qui lit les pièces sans les écrire (la lecture, la comptabilité interne) ne se voit offrir aucune création :
+    // le refus tombait après la saisie.
+    if (!peutEcrireDossier('documents')) $$('#view .page-head #new, #view .page-head #new-avoir, #vide-new, #vide-demo').forEach(b => b.remove());
     if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/facture');
     if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
     if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
@@ -11229,7 +11236,8 @@
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
   function bandeauLecture(name) {
     const p = (PARTIES_DES_PAGES[name] || [])[0];
-    if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture')) return;
+    // (COLLAB-15) Une page qui dit déjà sa lecture seule (Achats, Clients, Fournisseurs ont la leur) n'en reçoit pas une seconde.
+    if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture') || $$('#view .banner, #view .bandeau').some(x => /^\s*Lecture seule/.test(x.textContent))) return;
     // (brique 121) La caisse vend par sa route à elle : qui la tient n'y est jamais « en lecture seule ».
     if (name === 'caisse' && (bridge.droitsDossier() || {}).caisse) return;
     const tete = $('#view .page-head');
@@ -13614,7 +13622,7 @@
       const t = TABS.find(x => x[0] === catalogTab);
       return `<div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Catalogue</span></div><h1>${t[1]} ${info(t[2])}</h1><p class="sous">${h(SOUS[catalogTab] || '')}</p></div><div class="actions">
         ${catalogTab === 'presta' && (catalogState.archives || data.catalog.some(c => c.archived)) ? `<button class="btn btn-ghost" id="cat-archives" aria-pressed="${!!catalogState.archives}">${catalogState.archives ? 'Retour au catalogue' : `Archivés (${data.catalog.filter(c => c.archived).length})`}</button>` : ''}
-        ${catalogTab === 'presta' ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn${data.catalog.length ? ' btn-primary' : ''}" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
+        ${catalogTab === 'presta' && peutEcrireDossier('catalog') ? `<button class="btn" id="imp-catalogue">Importer…</button><button class="btn${data.catalog.length ? ' btn-primary' : ''}" id="new">+ ${motsCatalogue().nouveau}</button>` : ''}
         ${catalogTab === 'textes' ? '<button class="btn btn-primary" id="new-snip">+ Nouveau texte</button>' : ''}
         ${catalogTab === 'modeles' ? '<span class="small muted">Depuis un devis ou une facture : Plus ▾ → « Enregistrer comme modèle »</span>' : ''}
       </div>`;
@@ -15247,6 +15255,15 @@
     // libellé « Fiche société incomplète », c'est dire deux fois la même chose, dont une fois comme
     // un reproche, à quelqu'un qui vient de finir l'assistant.
     if (premiersPasVisibles()) items = items.filter(x => x.id !== 'societe');
+    // (COLLAB-17) Le calendrier fiscal est le travail de qui lit la Comptabilité. Un rôle qui ne la lit pas ne garde, de la
+    // ligne des échéances, que les déclarations sociales s'il tient la paie (la CNSS) ; sinon la ligne s'en va.
+    if (pageCachee('compta')) items = items.flatMap(x => {
+      if (x.id !== 'fiscal') return [x];
+      if (pageCachee('paie')) return [];
+      const sociales = new Set(C.upcomingFiscal(data, C.today(), 14).filter(f => f.socialId).map(f => `${f.label} le ${C.fmtDate(f.date)}`));
+      const parts = String(x.detail || '').split(' · ').filter(t => sociales.has(t));
+      return parts.length ? [{ ...x, label: `${pl(parts.length, 'échéance fiscale', 'échéances fiscales')} sous 15 jours`, detail: parts.join(' · '), count: parts.length }] : [];
+    });
     // (plateforme) 1.102.0 — une pièce demandée ou une question sans réponse du cabinet est une chose à faire : la
     // pastille de « Mon comptable », au bas d'un menu à faire défiler, en était le seul signe. Le même compte que la
     // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
@@ -17682,6 +17699,8 @@
         ['Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo ou le PDF de chaque facture fournisseur, il la saisit pour toi. C\'est ce qui permet de récupérer la TVA que tu as payée.',
          'La photo part dans « Mon comptable », où tu retrouves vos échanges. Tu peux aussi saisir une facture toi-même.'],
         [['vide-photo', 'Envoyer une photo à mon comptable', true], ['vide-achat', 'Saisir moi-même'], ['vide-dep', '+ Noter une dépense']])
+      : videAchats && roleLit ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
+        ['Les factures fournisseurs et les dépenses de l\'entreprise s\'affichent ici dès qu\'elles sont saisies. Ton rôle les lit ; le propriétaire ou un administrateur peut te donner le rôle qui permet de les saisir.'], [])
       : videAchats ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
         ['Saisis ici tes factures fournisseurs et tes dépenses : c\'est ce qui permet de récupérer la TVA que tu as payée, et de connaître ta marge réelle.',
          'Commence par joindre la photo ou le PDF de la facture : la saisie se fait en la regardant.'],

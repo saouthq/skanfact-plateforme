@@ -31665,6 +31665,36 @@ prouver $'l1-entree9-la-declaration-de-tva-sans-salarie' modules/socle/moteur/co
   $'      byId[d.id] = { ...d, active: (d.id === \'cnss\' && hasStaff) ? true : d.active };' \
   $'la déclaration du mois ne parle d\'employeur qu\'à un employeur (issue 4, ENTREE-9)'
 
+# 1.388.25 — collaborer (issue 7) : chacun ne voit que ce que son rôle lui ouvre (catalogue, statistiques, échéances, messagerie), l'administrateur se demande, un nombre non entier à la française.
+prouver $'l2-collab15-le-catalogue-lu-sans-boutons' modules/socle/ecrans/entreprise/app-1.js \
+  $'catalogTab === \'presta\' && peutEcrireDossier(\'catalog\') ?' \
+  $'catalogTab === \'presta\' ?' \
+  $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
+prouver $'l2-collab16-la-messagerie-selon-le-role' serveur/v10/droits.ts \
+  $'    messagerie: roles.some((r) => r === \'proprietaire\' || r === \'administrateur\' || r === \'comptabilite_interne\'),' \
+  $'    messagerie: true,' \
+  $'chacun ne lit que sa part, et l\'écran sait ce qu\'il ne doit ni montrer ni renvoyer'
+prouver $'l2-collab16-l-administrateur-n-invite-pas' modules/socle/ecrans/entreprise/app-2.js \
+  $'peutInviter: !bridge.droitsDossier || !!bridge.droitsDossier().proprietaire,' \
+  $'peutInviter: true,' \
+  $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
+prouver $'l2-collab17-l-echeance-fiscale-cachee' modules/socle/ecrans/entreprise/app-1.js \
+  $'    if (pageCachee(\'compta\')) items = items.flatMap(x => {' \
+  $'    if (false) items = items.flatMap(x => {' \
+  $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
+prouver $'l2-collab19-administrateur-demande' web/public/plateforme/equipe.js \
+  $'        if (roles.includes(\'administrateur\') && !m.roles.includes(\'administrateur\')' \
+  $'        if (false && roles.includes(\'administrateur\') && !m.roles.includes(\'administrateur\')' \
+  $'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver $'l2-collab24-un-nombre-non-entier' modules/socle/ecrans/entreprise/app-1.js \
+  $'  const pl = (n, un, plur) => `${Number.isInteger(n) && Math.abs(n) < 1000 ? n : Number(n).toLocaleString(\'fr-FR\')}' \
+  $'  const pl = (n, un, plur) => `${Math.abs(n) < 1000 ? n : Number(n).toLocaleString(\'fr-FR\')}' \
+  $'un nombre non entier s\'écrit à la française dans une phrase (1.388.25, COLLAB-24)'
+prouver $'l2-collab25-les-stats-sans-achats' modules/socle/ecrans/entreprise/app-2.js \
+  $'    const onglets = STATS_TABS.filter(t => t[0] !== \'achats\' || !sansAchats);' \
+  $'    const onglets = STATS_TABS;' \
+  $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

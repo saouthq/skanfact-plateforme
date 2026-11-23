@@ -698,7 +698,7 @@
               ${n ? `<span class="ct-badge" aria-hidden="true">${pct(n)}</span>` : ''}
             </button>`;
           }).join('') + (liste.length > vus.length ? `<p class="small muted cs-plus">${liste.length - vus.length} autres articles : précise la recherche.</p>` : '')
-          : `<p class="small muted">Aucun article ne correspond à « ${h(q)} ». <button type="button" class="btn btn-sm" id="cs-creer-art">+ Créer cet article</button></p>`;
+          : `<p class="small muted">Aucun article ne correspond à « ${h(q)} ».${peutEcrireDossier('catalog') ? ' <button type="button" class="btn btn-sm" id="cs-creer-art">+ Créer cet article</button>' : ' Le catalogue se complète par le propriétaire ou un administrateur.'}</p>`;
         // À la souris, le curseur revient au champ du haut après chaque tuile (la douchette reste prête) ; au doigt, non :
         // le clavier de l'écran s'ouvrirait. Une frappe de la douchette y arrive quand même (voir `caisseClavier`).
         $$('#cs-articles [data-art]').forEach(b => { b.onclick = () => { ajouter(articles.find(a => a.id === b.dataset.art)); if (window.matchMedia('(pointer: fine)').matches) scan(); }; });
@@ -1127,6 +1127,8 @@
         ${zCompte != null ? `<p class="muted" id="cs-fond-z">Compté au dernier Z (${h(heureCaisse(zDernier.fermeeLe))}) : ${h(argentCaisse(zCompte))}.</p>` : ''}
         <div class="ct-fond-ecart" id="cs-fond-ecart" aria-live="polite"></div>
         <button type="button" class="ct-principal" id="cs-ouvrir">Ouvrir la caisse</button></div></div>`;
+      // (COLLAB-15) Qui lit la caisse sans la tenir (la comptabilité interne, la lecture) ne se voit pas proposer de l'ouvrir.
+      if (dd && !dd.caisse) { $('#cs-fermee').innerHTML = '<h2>La caisse est fermée.</h2><p>Ton rôle lit la caisse, ses tickets et ses Z ; l\'ouvrir est le geste d\'un caissier, du propriétaire ou d\'un administrateur.</p>'; return; }
       // (1.313.0) Un fond qui n'est pas ce que la Trésorerie garde pour la caisse : la différence est de l'argent qui entre
       // dans le tiroir, ou en sort, à l'ouverture. Rien ne la notait : le Z du soir comptait un tiroir de 66 DT quand la
       // Trésorerie, le livre et le comptable gardaient 16 DT pour la caisse (les 50 DT du fond n'étaient entrés nulle part).
@@ -4570,7 +4572,7 @@
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       sansCabinet: bridge.dessinerSansCabinet ? el => {
         const focus = !!comptaState.versInvitation; comptaState.versInvitation = false;
-        bridge.dessinerSansCabinet(el, { peutInviter: roleBarre() === 'proprietaire', focus, toast });
+        bridge.dessinerSansCabinet(el, { peutInviter: !bridge.droitsDossier || !!bridge.droitsDossier().proprietaire, focus, toast });
       } : null,
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
     });
@@ -4800,7 +4802,11 @@
   routes.stats = () => {
     const cur = company().currency;
     const s = statsState;
-    if (!STATS_TABS.some(t => t[0] === s.tab)) s.tab = 'ventes';
+    // (COLLAB-25) Un rôle qui ne lit pas les achats (le commercial) n'a ni leur onglet, ni leur tuile, ni la marge, qui en
+    // dépend : « 0,000 DT » et « Aucun achat » diraient faux.
+    const sansAchats = pageCachee('achats'), sansMarge = pageCachee('marges');
+    const onglets = STATS_TABS.filter(t => t[0] !== 'achats' || !sansAchats);
+    if (!onglets.some(t => t[0] === s.tab)) s.tab = 'ventes';
     s.pagesF = s.pagesF || {}; s.pagesC = s.pagesC || {};
     // Les années d'un commerce qui n'a encore que des achats comptent aussi : l'onglet Achats a des chiffres.
     const years = Array.from(new Set(data.documents.map(d => (d.date || '').slice(0, 4))
@@ -4815,7 +4821,7 @@
         <div class="actions mg-act"><button class="btn" id="s-export">Exporter</button></div></div>
       <div class="lf mg sx">
         <div class="cf-carte mg-resume" id="s-resume"></div>
-        <div class="mg-barre"><div class="pa-seg" id="s-tabs" role="tablist" aria-label="Les statistiques">${STATS_TABS.map(([id, label]) =>
+        <div class="mg-barre"><div class="pa-seg" id="s-tabs" role="tablist" aria-label="Les statistiques">${onglets.map(([id, label]) =>
           `<button type="button" role="tab" data-tab="${id}" aria-selected="${id === s.tab}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
           <div class="sx-periode">${choix('s-kind', 'Période analysée', [['annee', 'Année entière'], ['trimestre', 'Trimestre'], ['mois', 'Mois']], s.kind)}
             ${choix('s-year', 'Année', years.map(y => [y, y]), s.year)}
@@ -4871,6 +4877,8 @@
         + chiffre('s-c-marge', 'Marge estimée', lignesMarge.length ? `${montantU(marge, cur)}${margeIncomplete ? ' <span class="u" title="Des prestations n\'ont pas de coût connu : la marge est surestimée">≈</span>' : ''}` : '—',
           lignesMarge.length ? `${vendu ? `${pct(Math.round(marge / vendu * 1000) / 10)} % de ce qui est vendu` : ''} · voir les marges` : 'aucune vente sur la période', marge < 0 ? 'rouge' : '', 'stat.marge', 'marges')
         + chiffre('s-c-achats', 'Acheté HT', montantU(ach.ht, cur), compare(ach.ht, achPrev.ht, an, true), '', 'stat.achats', 'achats');
+      if (sansMarge && $('#s-c-marge')) $('#s-c-marge').remove();
+      if (sansAchats && $('#s-c-achats')) $('#s-c-achats').remove();
       $$('#s-resume [data-aller]').forEach(el => {
         const aller = () => { if (el.dataset.aller === 'marges') { navigate('#/marges'); return; } s.tab = el.dataset.aller; draw(); };
         el.onclick = aller;
@@ -4893,7 +4901,7 @@
         const rows = statsCsvRows(p, cur1, prev, funnel, aging, C.topItems(data, company(), p.from, p.to, 8), C.topClients(data, company(), p.from, p.to, 8),
           C.clientMovement(data, company(), p.from, p.to, company().dormantDays || 180, now), C.payerRanking(data, company(), 5),
           C.objectiveProgress(company().revenueTarget, C.salesTotals(data, company(), `${p.year}-01-01`, `${p.year}-12-31`).ht, now, p.year),
-          { canaux, enc, marge, vendu, margeIncomplete, ach, refus: C.motifsDeRefus(data, company(), p.from, p.to) });
+          { canaux, enc, marge: sansMarge ? null : marge, vendu, margeIncomplete, ach: sansAchats ? null : ach, refus: C.motifsDeRefus(data, company(), p.from, p.to) });
         const cols = [{ key: 'section', label: 'Rubrique' }, { key: 'label', label: 'Libellé' }, { key: 'value', label: 'Valeur' }];
         const name = `statistiques-${p.kind === 'annee' ? p.year : `${p.year}-${p.kind}${p.n}`}.csv`;
         const f = await bridge.saveText(name, C.toCsv(rows, cols));
@@ -5084,12 +5092,12 @@
         { section: 'Ventes', label: 'Dont factures', value: `${m(plus.canaux.factures.ht)} (${pl(plus.canaux.factures.pieces, 'facture')})` },
         { section: 'Ventes', label: 'Dont tickets de caisse', value: `${m(plus.canaux.comptoir.ht)} (${pl(plus.canaux.comptoir.pieces, 'ticket')})` },
         { section: 'Encaissements', label: 'Encaissé sur la période', value: `${m(plus.enc.montant)} (${pl(plus.enc.reglements, 'règlement')})` },
-        { section: 'Marge', label: 'Marge estimée', value: `${m(plus.marge)}${plus.margeIncomplete ? ' (surestimée : des coûts manquent)' : ''}` },
+        ...(plus.marge == null ? [] : [{ section: 'Marge', label: 'Marge estimée', value: `${m(plus.marge)}${plus.margeIncomplete ? ' (surestimée : des coûts manquent)' : ''}` }]),
         ...cur1.cession.biens.map(b => ({ section: 'Revente d\'un bien (hors chiffre d\'affaires, 775)', label: b.label, value: `${m(b.ht)} HT (${b.pieces.map(x => x.number).join(', ')})` })),
-        { section: 'Achats', label: 'Achats HT de la période', value: `${m(plus.ach.ht)} (${pl(plus.ach.pieces, 'pièce')})` },
-        ...(Math.abs(plus.ach.immo) > 0.0005 ? [{ section: 'Achats', label: 'Dont matériel immobilisé (au bilan)', value: m(plus.ach.immo) }] : []),
-        ...plus.ach.fournisseurs.map(x => ({ section: 'Achats par fournisseur', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` })),
-        ...plus.ach.categories.map(x => ({ section: 'Achats par catégorie', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` }))
+        ...(plus.ach ? [{ section: 'Achats', label: 'Achats HT de la période', value: `${m(plus.ach.ht)} (${pl(plus.ach.pieces, 'pièce')})` }] : []),
+        ...(plus.ach && Math.abs(plus.ach.immo) > 0.0005 ? [{ section: 'Achats', label: 'Dont matériel immobilisé (au bilan)', value: m(plus.ach.immo) }] : []),
+        ...(plus.ach ? plus.ach.fournisseurs : []).map(x => ({ section: 'Achats par fournisseur', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` })),
+        ...(plus.ach ? plus.ach.categories : []).map(x => ({ section: 'Achats par catégorie', label: x.label, value: `${m(x.ht)} (${pl(x.pieces, 'pièce')})` }))
       ] : []),
       { section: 'Devis', label: 'Émis', value: funnel.total },
       { section: 'Devis', label: 'Acceptés', value: `${funnel.accepted} (${m(funnel.acceptedAmount)})` },

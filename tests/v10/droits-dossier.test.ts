@@ -80,7 +80,7 @@ describe('les droits geste par geste dans le dossier v10', () => {
     const e = await entreprise();
     const tout = await e.lire(e.proprio.jeton);
     expect(parties(tout.objets)).toEqual(expect.arrayContaining(['catalog', 'employees', 'suppliers', '_racine/payrollSettings', '_racine/company']));
-    expect(tout.droits).toMatchObject({ cachees: [], lectureSeule: [], tout: true, responsable: true });
+    expect(tout.droits).toMatchObject({ cachees: [], lectureSeule: [], tout: true, responsable: true, messagerie: true, proprietaire: true });
     const c = await e.lire(e.membres.commercial?.jeton ?? '');
     expect(parties(c.objets)).toEqual(['_racine/company', '_racine/counters', 'catalog']);
     expect(c.droits.cachees).toEqual(expect.arrayContaining(['employees', 'payslips', 'payrollSettings', 'suppliers', 'purchases', 'accounts']));
@@ -89,6 +89,7 @@ describe('les droits geste par geste dans le dossier v10', () => {
     expect(c.droits.tout).toBe(false);
     // Le propriétaire décide des accords ; le commercial les demande (brique 100 : l'écran grise ce que la base refuserait).
     expect(c.droits.responsable).toBe(false);
+    expect((c.droits as Record<string, unknown>).messagerie).toBe(false); // (1.388.25, COLLAB-16)
     const pa = await e.lire(e.membres.paie?.jeton ?? '');
     expect(parties(pa.objets)).toEqual(['_racine/company', '_racine/counters', '_racine/payrollSettings', 'employees']);
     const ci = await e.lire(e.membres.comptabilite_interne?.jeton ?? '');

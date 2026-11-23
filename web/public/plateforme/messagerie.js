@@ -1450,8 +1450,8 @@
         if (!lu) el.innerHTML = `<div class="msg-page"><header class="msg-tete"><span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(o.nom || 'Ce client')}</h1></span></header>
           <div class="msg-zone"><div class="msg-vide" data-msg-echec>${sansReseau(x)
             ? '<b>Pas de réseau : la messagerie attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
-            : `<b>La messagerie ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}
-          <button type="button" class="btn" data-msg-relire>Réessayer</button></div></div></div>`;
+            : `<b>${x && /** @type {any} */ (x).statut === 403 ? 'Ton rôle ne t\'ouvre pas la messagerie avec le cabinet.' : 'La messagerie ne s\'est pas ouverte.'}</b><span>${esc(motif(x))}</span>`}
+          ${x && /** @type {any} */ (x).statut === 403 ? '' : '<button type="button" class="btn" data-msg-relire>Réessayer</button>'}</div></div></div>`;
         const b = el.querySelector('[data-msg-relire]');
         if (b) /** @type {HTMLElement} */ (b).onclick = () => { void lire(); };
       } finally { enCours = false; }

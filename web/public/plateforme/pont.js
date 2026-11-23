@@ -224,7 +224,7 @@
   // La liste blanche de ce qui peut repartir (null : tout, pour qui voit toute l'entreprise).
   /** @type {Set<string> | null} */ let ecrivables = null;
   // Le propriétaire ou un administrateur : il règle les seuils et décide des accords (brique 100).
-  let responsable = false;
+  let responsable = false, messagerie = false, proprio = false;
   // Il tient une caisse (brique 121) : la page Caisse s'ouvre, même sans lire les pièces de vente.
   let tientCaisse = false;
   // (1.266.7 ; 16 § 10.1, point 4) Le rôle ne lit pas la paie d'une entreprise qui en a une : l'écran le dit.
@@ -236,7 +236,7 @@
     cachees = new Set((d && d.cachees) || []);
     lectureSeule = new Set((d && d.lectureSeule) || []);
     ecrivables = !d || d.tout !== false ? null : new Set(d.ecrivables || []);
-    responsable = !!(d && d.responsable === true);
+    responsable = !!(d && d.responsable === true); messagerie = d && typeof d.messagerie === 'boolean' ? d.messagerie : responsable; proprio = d && typeof d.proprietaire === 'boolean' ? d.proprietaire : responsable;
     tientCaisse = !!(d && d.caisse === true);
     paieCachee = !!(d && d.paieCachee === true);
   };
@@ -469,7 +469,7 @@
   }).sort((a, b) => (a.collection < b.collection ? -1 : a.collection > b.collection ? 1 : (a.rang ?? 0) - (b.rang ?? 0)));
   // La copie : les objets et leurs révisions, les questions, les droits, et la marque de la lecture qu'elle reflète.
   const contenuDeLaCopie = () => ({ objets: objetsVus(), questions: questionsLues, marque: marqueLue, profil: profilLu,
-    droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable, caisse: tientCaisse, paieCachee } });
+    droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee } });
   function garderLaCopie() {
     if (!poste.garde()) return;
     if (copieAFaire) clearTimeout(copieAFaire);
@@ -1428,7 +1428,7 @@
     // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
     // Ce que la personne peut écrire dans le dossier (brique 99) : l'écran refuse avant le geste ce qui ne repartirait pas.
-    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null, responsable, caisse: tientCaisse, paieCachee }),
+    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee }),
 
     // L'accord d'un responsable au-delà de l'encours d'un client (brique 100 ; docs/accords.md) : le serveur
     // recalcule le dépassement, garde la demande, et seul un responsable la décide.

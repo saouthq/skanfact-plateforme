@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import vm from 'node:vm';
 import pg from 'pg';
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright-core';
 import { build } from 'vite';
@@ -130,6 +131,17 @@ describe('1.356.9 : les cases chiffrées s\'écrivent en français, même sur un
     expect(erreurs).toEqual([]);
   }, 120_000);
 
+  it('un nombre non entier s\'écrit à la française dans une phrase (1.388.25, COLLAB-24)', () => {
+    for (const f of ['modules/socle/ecrans/entreprise/app-1.js', 'modules/socle/ecrans/cabinet/app-1.js']) {
+      const ligne = /const pl = \(n, un, plur\) => (`[^\n]*`);/.exec(fs.readFileSync(path.join(RACINE, f), 'utf8'));
+      expect(ligne, f).not.toBeNull();
+      const pl = vm.runInNewContext(`(n, un, plur) => ${ligne?.[1]}`) as (n: number, un: string) => string;
+      expect(pl(3.5, 'article'), f).toBe('3,5 articles');
+      expect(pl(2, 'article'), f).toBe('2 articles');
+      expect(pl(1, 'article'), f).toBe('1 article');
+      expect(pl(1200, 'article'), f).toMatch(/^1\s200 articles$/);
+    }
+  });
   it('aucune case à virgule ne reste numérique dans les écrans de l\'entreprise et de la paie, hors la grille de la pièce', () => {
     // La grille des lignes d'une facture et d'un devis (`dessinerLignesCharte`) garde ses cases numériques : une vue en français
     // est posée par-dessus quand on n'y est pas (1.155.3). C'est la seule exception, nommée ici.

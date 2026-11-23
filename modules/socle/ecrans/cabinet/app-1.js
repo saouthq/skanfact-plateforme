@@ -732,7 +732,8 @@
   // « 1 dossier(s) » : personne n'écrit ça non plus. Un logiciel qui parle mal donne l'impression
   // d'être bâclé, et c'est le premier contact d'un comptable avec SkanFact.
   // Le pluriel regarde la valeur absolue (10.12.0, jumeau de l'app entreprise : « −3 jour »).
-  const pl = (n, un, plur) => `${Math.abs(n) >= 1000 ? Number(n).toLocaleString('fr-FR') : n} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
+  // (COLLAB-24) Un nombre non entier s'écrit à la française (« 3,5 articles ») : `${n}` écrivait « 3.5 ».
+  const pl = (n, un, plur) => `${Number.isInteger(n) && Math.abs(n) < 1000 ? n : Number(n).toLocaleString('fr-FR')} ${Math.abs(n) > 1 ? (plur || un + 's') : un}`;
   // Les douze mois, dans l'ordre du calendrier. Ils servent à dessiner l'année ENTIÈRE sur la fiche
   // d'un client : n'afficher que les mois attendus laissait croire que l'application en avait perdu.
   // Les codes de journal proposés. Ce réglage vaut pour TOUS les dossiers, donc la liste est celle

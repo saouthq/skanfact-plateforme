@@ -233,6 +233,10 @@
         effacerRefus(racine);
         const roles = rolesCoches(racine);
         if (!roles.length) { refuser(racine, AU_MOINS_UN(), cases); return; }
+        // (COLLAB-19) Donner « Administrateur » donne tout : on le demande avant, et « Annuler » laisse la fenêtre et ses cases
+        // telles quelles (rien ne part).
+        if (roles.includes('administrateur') && !m.roles.includes('administrateur')
+          && !await o.confirmDialog(`${nomDe(m)} verra et changera tout : les ventes, les achats, la paie et l'équipe. Seuls l'abonnement, le choix du comptable et la propriété restent à toi.`, 'Oui, le faire administrateur', false, { titre: `Faire de ${nomDe(m)} un administrateur ?` })) return;
         try { await o.appel('PUT', `/membres/${encodeURIComponent(m.id)}/roles`, { roles }); } catch (x) { refuser(racine, x, cases); return; }
         fermer();
         o.toast(`Rôles de ${nomDe(m)} enregistrés : ${roles.map(nomRole).join(', ')}.`);

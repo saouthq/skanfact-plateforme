@@ -127,6 +127,21 @@ describe('le menu selon le rôle, à la souris', () => {
     // sont dans la barre. Ni ce que l'entreprise doit, ni son chiffre d'affaires.
     expect(net(await k.locator('#accueil-role').innerText())).toMatch(/^Ton accueil de commercial : les devis, les factures, les clients Les chiffres de l'entreprise/);
     expect(await k.locator('#view [data-stat="dois"], #view [data-stat="ca-mois"], #view .a-graph, #view .a-top').count()).toBe(0);
+    // (1.388.25, COLLAB-15) Il LIT le catalogue sans l'écrire : ni « Importer… » ni « + Nouvelle… », un seul bandeau.
+    await k.evaluate(() => { location.hash = '#/catalogue'; });
+    await expect.poll(() => k.locator('#cat-head').count(), { timeout: 10_000 }).toBe(1);
+    expect(await k.locator('#imp-catalogue, #cat-head #new').count()).toBe(0);
+    expect(await k.locator('#view .banner, #view .bandeau').filter({ hasText: /^\s*Lecture seule/ }).count()).toBe(1);
+    // (COLLAB-25) Les statistiques ne lui montrent ni les achats ni la marge, qu'il ne voit nulle part ailleurs.
+    await k.evaluate(() => { location.hash = '#/stats'; });
+    await expect.poll(() => k.locator('#s-tabs [data-tab="ventes"]').count(), { timeout: 10_000 }).toBe(1);
+    expect(await k.locator('#s-tabs [data-tab="achats"]').count()).toBe(0);
+    expect(await k.locator('#s-c-achats, #s-c-marge').count()).toBe(0);
+    // (COLLAB-17) Le 20/10, la TVA du 28/10 tombe sous quinze jours : elle n'est pas son affaire.
+    const k2 = await ouvrir(karim.jeton, '#/dashboard', '2026-10-20T09:00:00');
+    await expect.poll(() => k2.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await k2.locator('#view').innerText())).not.toContain('échéance fiscale');
+    await k2.context().close();
 
     // 2. Leila, la paie. Son navigateur vit le 10/10/2026 : la CNSS du 15/10 tombe sous quinze jours, la TVA du 28/10
     // non (le 14/10, il y en avait deux ; du 29 au 13, souvent aucune : le test changeait d'avis avec le calendrier).
@@ -144,6 +159,9 @@ describe('le menu selon le rôle, à la souris', () => {
     await l.evaluate(() => { location.hash = '#/dashboard'; });
     await expect.poll(() => l.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
     expect(await l.locator('#new-devis, #new-facture').count()).toBe(0);
+    // (1.388.25, COLLAB-16) La messagerie avec le cabinet n'est pas son rôle : ni « Mon comptable », ni le lien du menu.
+    expect(await l.locator('#accueil-role a', { hasText: 'Mon comptable' }).count()).toBe(0);
+    expect(await menu(l)).not.toContain('comptable');
     expect(net(await l.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
     // « À faire » lui dit l'échéance de la CNSS ; mais pas de bouton vers le calendrier de la Comptabilité, page que
     // son rôle ne lui montre pas (brique 111).
@@ -157,6 +175,23 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(await l.locator('#view .btn-primary').count()).toBe(1);
     await l.locator('#accueil-role a', { hasText: 'Paie' }).click();
     await expect.poll(() => titre(l), { timeout: 10_000 }).toBe('Paie');
+
+    // (COLLAB-17) Le 14/10 elle a deux échéances au calendrier ; seule la CNSS est la sienne.
+    const l2 = await ouvrir(leila.jeton, '#/dashboard', '2026-10-14T09:00:00');
+    await expect.poll(() => l2.locator('#todo-list').count(), { timeout: 10_000 }).toBe(1);
+    const aFaire2 = net(await l2.locator('#todo-list').innerText());
+    expect(aFaire2).toContain('Déclaration CNSS trimestrielle');
+    expect(aFaire2).toContain('1 échéance fiscale sous 15 jours');
+    expect(aFaire2).not.toMatch(/TVA/);
+    await l2.context().close();
+    // (COLLAB-16) Une administratrice n'invite pas le cabinet : c'est le geste du propriétaire, et la page le dit.
+    const amel = await personne('Amel', true);
+    await inviter(amel.email, amel.jeton, 'administrateur');
+    const a = await ouvrir(amel.jeton, '#/comptable');
+    await a.waitForTimeout(1500);
+    expect(await a.locator('#mandat-email').count()).toBe(0);
+    expect(net(await a.locator('#view').innerText())).toContain('propriétaire');
+    await a.context().close();
 
     expect(erreurs).toEqual([]);
     await k.context().close(); await l.context().close();
