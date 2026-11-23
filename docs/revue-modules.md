@@ -6673,3 +6673,24 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   (prorata calculé à la main sur le calendrier), `poche-1358`, `tva-versee-1359`, `accueil-1312` (et une assertion qui
   dépendait du jour — une échéance fiscale entrée dans les quinze jours — retournée vers la règle : la phrase dit le nombre
   que « À faire » range), `caisse-1313` ; cinq preuves.
+
+## 1.388.31 — Le thème de chacun, sur son appareil ; les décisions prises, et ce qui attend
+
+- **Le thème est celui de la personne, sur cet appareil** (COLLAB-21, décidé selon la recommandation : par appareil,
+  sans migration ; le défaut reste le thème de l'entreprise, puis le système). Il se règle tout de suite, même pour un
+  collaborateur qui n'écrit pas la fiche, et ne change ni la fiche ni le thème des collègues. Test : `menu-role` (Karim
+  passe en sombre, la fiche ne bouge pas, le rechargement le garde) ; une preuve.
+- Décidé sans changement de code : la promesse de la porte (ENTREE-8) disait déjà « ton premier devis ou ta première
+  facture » ; la liste Statut d'une commande reste (DIR-20) ; la famille des visites et la place du sélecteur
+  d'entreprise restent (ENTSOCLE-12, ENTSOCLE-16).
+- **Ce qui attend, et pourquoi** :
+  - Les quatorze points de la caisse vue par un collaborateur (COLLAB-4, 6 à 14, 20, 22, 23, 26) : la caisse est
+    « À venir » en production, aucune de ces fenêtres ne s'ouvre aujourd'hui. Ils se reprennent le jour où la caisse ouvre,
+    avant de la rendre visible.
+  - COLLAB-18 (dire à une personne retirée de quelle entreprise, quand, et si c'est elle qui est partie) demande une
+    fonction de base neuve (security definer) : décidé « oui aux trois » selon la recommandation, à livrer dans un lot
+    serveur avec sa migration.
+  - C3 (une seule mention « À VÉRIFIER » par écran et par sujet au Cabinet) et ENTREE-5 (le refus au-dessus des boutons dans
+    « Ton compte », une ligne réservée) : décidés selon la recommandation, à livrer dans le lot suivant.
+  - ENTSOCLE-9 (la visite qui nomme ce qu'elle montre et compte les étapes) et ENTSOCLE-10 (la phrase de la caisse dans
+    l'Aide) : petits, au lot suivant.

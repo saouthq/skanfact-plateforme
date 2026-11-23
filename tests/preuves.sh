@@ -31879,6 +31879,12 @@ prouver $'l7-g19-chiffre-d-affaires-en-entier' modules/socle/ecrans/entreprise/a
   $'<div class="lbl">CA HT — ${h(periodLabel())}' \
   $'la quincaillerie de Sousse ouvre son accueil un lundi matin : chaque carte dit le chiffre de sa page, et le Cabinet le même chiffre d\'affaires'
 
+# 1.388.31 — le thème de chacun, sur son appareil (COLLAB-21, décidé).
+prouver $'l8-c21-le-theme-par-appareil' modules/socle/ecrans/entreprise/app-1.js \
+  $'function applyTheme() { const t = themePerso() || company().theme || \'auto\';' \
+  $'function applyTheme() { const t = company().theme || \'auto\';' \
+  $'chacun ne voit dans son menu que les pages de son rôle ; une adresse cachée dit pourquoi'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

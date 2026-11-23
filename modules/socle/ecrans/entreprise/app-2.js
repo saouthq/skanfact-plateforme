@@ -7397,7 +7397,7 @@
              désormais en tête de « L'application », avec ce qui parle du logiciel lui-même. -->
         <section data-pane="app" hidden>
         ${panneau('p-apparence')}<div class="grid-3">
-          <label class="field">${lbl('Thème', 'ap.theme')}<select name="theme"><option value="light" ${c.theme !== 'dark' && c.theme !== 'auto' ? 'selected' : ''}>Clair</option><option value="dark" ${c.theme === 'dark' ? 'selected' : ''}>Sombre</option><option value="auto" ${c.theme === 'auto' ? 'selected' : ''}>Comme le système</option></select></label>
+          <label class="field">${lbl('Thème', 'ap.theme')}${(() => { const t = themePerso() || c.theme || 'auto'; return `<select id="set-theme" aria-label="Thème, sur cet appareil"><option value="light" ${t === 'light' ? 'selected' : ''}>Clair</option><option value="dark" ${t === 'dark' ? 'selected' : ''}>Sombre</option><option value="auto" ${t === 'auto' ? 'selected' : ''}>Comme le système</option></select>`; })()}</label>
           <label class="field">${lbl('Langue des documents par défaut', 'ap.defaultLang')}<select name="defaultLang"><option value="fr" ${c.defaultLang !== 'en' ? 'selected' : ''}>Français</option><option value="en" ${c.defaultLang === 'en' ? 'selected' : ''}>English</option></select></label>
         </div><p class="small muted mt">Le thème sombre ne concerne que l'interface : les documents restent clairs. Le changement se voit tout de suite ; il n'est gardé qu'une fois enregistré.</p></div>
         </section>
@@ -7757,13 +7757,12 @@
     // Le thème et les couleurs sont purement visuels et réversibles : les montrer tout de suite
     // évite de chercher « Enregistrer » pour savoir à quoi ça ressemble. L'enregistrement, lui,
     // reste explicite — la barre du bas apparaît comme pour tout le reste.
-    const themeSel = $('#pf select[name=theme]');
-    if (themeSel) themeSel.onchange = () => {
-      const v = themeSel.value;
-      const sombre = v === 'dark' || (v === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-      document.body.classList.toggle('dark', sombre);
-      markSet();
-    };
+    // (COLLAB-21) Le thème se range sur cet appareil, tout de suite : il ne part plus dans la fiche de l'entreprise.
+    const themeSel = $('#set-theme');
+    if (themeSel) { themeSel.disabled = false; themeSel.onchange = () => {
+      try { localStorage.setItem('skanfact.theme_perso', themeSel.value); } catch (_) { /* sans stockage : le défaut de l'entreprise */ }
+      applyTheme();
+    }; }
     // ---------- appairage du cabinet (6.2.0) ----------
     // Le cabinet remet à ses clients un petit fichier contenant sa clé publique. Une fois importé,
     // les paquets mensuels sont chiffrés POUR LUI : rien à transmettre, rien à retenir, et une clé

@@ -192,6 +192,20 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(await a.locator('#mandat-email').count()).toBe(0);
     expect(net(await a.locator('#view').innerText())).toContain('propriétaire');
     await a.context().close();
+    // (COLLAB-21) Le thème est celui de la personne, sur cet appareil : Karim passe en sombre sans toucher la fiche.
+    const kt = await ouvrir(karim.jeton, '#/parametres');
+    const onglet = await kt.evaluate(() => document.querySelector('#set-theme')?.closest('[data-pane]')?.getAttribute('data-pane') ?? '');
+    expect(onglet).not.toBe('');
+    await kt.locator(`#set-tabs [data-tab="${onglet}"]`).click();
+    expect(await kt.locator('#set-theme').isDisabled()).toBe(false);
+    await kt.locator('#set-theme').selectOption('dark');
+    await expect.poll(() => kt.evaluate(() => document.body.classList.contains('dark'))).toBe(true);
+    const fiche = ((await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === '_racine' && o.cle === 'company');
+    expect(fiche?.contenu.theme ?? null).not.toBe('dark');
+    await kt.reload();
+    await expect.poll(() => kt.evaluate(() => document.body.classList.contains('dark')), { timeout: 15_000 }).toBe(true);
+    await kt.context().close();
 
     expect(erreurs).toEqual([]);
     await k.context().close(); await l.context().close();

@@ -29,7 +29,7 @@
     'mq.accent': { t: 'Couleur d\'accent', d: 'Elle colore le numéro de la pièce, les petits titres de rubrique, « Net à payer » et les fonds légers. Les pastilles proposées se lisent toutes sur une page blanche ; « Autre… » accepte n\'importe quelle couleur, et SkanFact te prévient si elle devient trop claire pour être lue.', a: 'demarrer' },
     'mq.principale': { t: 'Couleur du texte', d: 'C\'est la couleur de TOUT le texte de tes documents : adresses, lignes, conditions. Un noir bleuté se lit le mieux ; une couleur claire rendrait la facture illisible à l\'impression. « Couleurs d\'origine » remet les deux couleurs de départ.', a: 'demarrer' },
     // — apparence —
-    'ap.theme': { t: 'Thème', d: 'L\'apparence de l\'application : clair, sombre, ou comme le réglage de ton ordinateur. Les documents PDF restent toujours clairs, quel que soit le thème.' },
+    'ap.theme': { t: 'Thème', d: 'L\'apparence de l\'application POUR TOI, sur cet appareil : clair, sombre, ou comme le réglage de ton ordinateur. Elle ne change pas celle de tes collègues. Les documents PDF restent toujours clairs, quel que soit le thème.' },
     'ap.defaultLang': { t: 'Langue des documents par défaut', d: 'La langue utilisée pour les nouveaux devis et factures. Tu peux toujours la changer document par document, ou la fixer par client (utile pour un client étranger).' },
     // — paiement —
     'pay.bank': { t: 'Banque et RIB', d: 'Ton RIB (Relevé d\'Identité Bancaire) s\'affiche sur les factures, dans le bloc « Règlement ». C\'est ce que ton client copie pour faire le virement : vérifie-le deux fois, une erreur ici, c\'est un paiement qui n\'arrive jamais.', a: 'paiements' },
