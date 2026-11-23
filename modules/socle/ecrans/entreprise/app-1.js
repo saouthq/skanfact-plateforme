@@ -415,11 +415,15 @@
   // d'elles tombe dans une période clôturée, elle explique et refuse. Deux dates quand on MODIFIE
   // une pièce : l'ancienne et la nouvelle — sortir une facture d'un mois clos est aussi interdit
   // que d'y en entrer une, sinon il suffirait de changer la date pour contourner la clôture.
-  function closedBlock(dates, what) {
+  function closedBlock(dates, what, opts) {
     const list = (Array.isArray(dates) ? dates : [dates]).filter(Boolean);
     const hit = list.find(d => C.isClosedDate(data, d));
     if (!hit) return false;
     const until = C.closedUntil(data);
+    // (1.388.29, ENTACHATS-17) Quand c'est la date qu'on vient de taper qui tombe dans la période (une dépense datée
+    // d'août clôturé), l'étape suivante est de la changer, pas de quitter la saisie : `opts.changerDate` referme la fenêtre
+    // et rend le curseur à la date ; « Voir les clôtures » passe en second. Les autres appels ne changent pas.
+    const changer = !!(opts && typeof opts.changerDate === 'function');
     modal(`<h2>Période clôturée</h2>
       <p>${h(what)} porte la date du <strong>${C.fmtDate(hit)}</strong>, dans <strong>${h(C.closedPeriodLabel(data, hit))}</strong> — une période clôturée jusqu'au ${C.fmtDate(until)}.</p>
       <p class="small">Ce qui est clôturé a été transmis à ton comptable et ne doit plus bouger. Deux façons d'avancer :</p>
@@ -427,8 +431,11 @@
         <li><strong>Sans toucher au passé</strong> — ${/facture|document|pièce|achat|avoir/i.test(what) ? 'refais la pièce à la date d\'aujourd\'hui. Pour corriger une facture déjà émise, c\'est un avoir.' : 'date-le d\'un jour encore ouvert (aujourd\'hui, par exemple).'}</li>
         <li><strong>En rouvrant la période</strong> — Comptabilité → Clôtures, avec un motif. Préviens ton comptable : les chiffres qu'il a reçus vont changer.</li>
       </ul>
-      <div class="modal-actions"><button class="btn" data-close>Compris</button><button class="btn btn-primary" id="go-clot">Aller aux clôtures</button></div>`,
-      (root, close) => { $('#go-clot', root).onclick = () => { close(); comptaState.tab = 'clotures'; navigate('#/compta'); }; });
+      <div class="modal-actions">${changer ? '<button class="btn" id="go-clot">Voir les clôtures</button><button class="btn btn-primary" id="chg-date">Changer la date</button>' : '<button class="btn" data-close>Compris</button><button class="btn btn-primary" id="go-clot">Aller aux clôtures</button>'}</div>`,
+      (root, close) => {
+        $('#go-clot', root).onclick = () => { close(); comptaState.tab = 'clotures'; navigate('#/compta'); };
+        if (changer) $('#chg-date', root).onclick = () => { close(); opts.changerDate(); };
+      });
     return true;
   }
 
@@ -1210,6 +1217,14 @@
     layer.addEventListener('click', e => { if (e.target === layer) dismiss(); });
     $$('[data-close], [data-fen-x]', layer).forEach(b => b.addEventListener('click', dismiss));
     bindDateFields(layer);
+    // (1.388.29, X-3) Le geste principal ne part pas avec une date illisible (la souris et Entrée passent par ce clic).
+    layer.addEventListener('click', e => {
+      if (!(e.target instanceof Element) || !e.target.closest('.modal-actions .btn-primary')) return;
+      const f = dateIllisibleDans(layer);
+      if (!f) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      refus(f, DATE_ILLISIBLE);
+    }, true);
     bindWithholdingFields(layer);
     bindRibFields(layer);
     bindVerifFields(layer);
@@ -2051,6 +2066,14 @@
   // Un champ date est un COUPLE : un <input type=hidden> nommé et un champ texte visible dans le
   // même `.datefield` (règle apprise en 3.0.0). Le mettre à jour depuis du code demande de toucher
   // les deux — sinon la valeur enregistrée change et l'écran continue d'afficher l'ancienne.
+  // (1.388.29, X-3) La première date tapée qui ne se lit pas : une case de date marquée à la sortie (`data-illisible`), ou un
+  // champ du navigateur adapté par plateforme/dates.js (`dateIllisible`). Visible et actif seulement.
+  const DATE_ILLISIBLE = 'Cette date n\'existe pas : écris-la jour/mois/année (05/10/2026), ou vide la case.';
+  function dateIllisibleDans(root) {
+    const vue = x => !x.disabled && x.offsetParent !== null;
+    return $$('.datefield[data-illisible="1"] .d-txt', root).find(vue)
+      || $$('input[data-jour-mois]', root).find(x => x.dateIllisible && vue(x)) || null;
+  }
   function poserDateField(root, name, iso) {
     const hid = $(`input[name=${name}]`, root);
     if (!hid) return;
@@ -2058,6 +2081,7 @@
     const box = hid.closest('.datefield');
     const txt = box && $('.d-txt', box);
     if (txt) txt.value = iso ? C.fmtDateInput(iso) : '';
+    if (box) { delete box.dataset.illisible; if (txt) txt.removeAttribute('aria-invalid'); }
   }
   // Une échéance posée par l'application SUIT la date de la pièce tant qu'on n'y a pas touché
   // (7.19.0) — et dans les DEUX éditeurs : celui des achats ne l'avait jamais reçue, et un achat
@@ -2096,6 +2120,7 @@
       let view = null;
       const fire = () => hidden.dispatchEvent(new Event('change', { bubbles: true }));
       const commit = (iso, silent) => {
+        delete el.dataset.illisible; txt.removeAttribute('aria-invalid');
         if (hidden.value === iso) { txt.value = C.fmtDateInput(iso); return; }
         hidden.value = iso; txt.value = C.fmtDateInput(iso);
         if (!silent) fire();
@@ -2152,7 +2177,10 @@
       txt.onblur = () => {
         const iso = C.parseDateInput(txt.value);
         if (!txt.value.trim()) return commit('');
-        if (!iso) { txt.value = C.fmtDateInput(hidden.value); toast('Date incomprise : écris-la sous la forme 12/03/2026.', true); return; }
+        // (1.388.29, X-3, jumeau de CABPORTEFEUILLE-19) Une date qui n'existe pas ne se remplace plus en silence par l'ancienne :
+        // le texte tapé reste, la case est marquée, et la fenêtre comme l'éditeur refusent d'enregistrer tant qu'elle ne se lit
+        // pas (le message seul était aussitôt recouvert par « Enregistré »). La valeur rangée ne bouge pas.
+        if (!iso) { el.dataset.illisible = '1'; txt.setAttribute('aria-invalid', 'true'); toast('Date incomprise : écris-la sous la forme 12/03/2026.', true); return; }
         // (issue 15 V-5) La date corrigée est comprise : le reproche d'avant ne reste pas affiché par-dessus.
         { const tt = $('#toast'), tx = tt && $('.toast-txt', tt); if (tx && tt.classList.contains('show') && /^Date incomprise/.test(tx.textContent.trim())) { clearTimeout(tt._timer); tt.className = ''; } }
         commit(iso);
@@ -4040,6 +4068,9 @@
     client: ['+ Créer un client', () => clientForm(null, () => render())],
     catalogue: ['Remplir le catalogue', () => navigate('#/catalogue')],
     devis: ['+ Créer un devis', () => navigate('#/doc/new/devis')],
+    // (1.388.29, ENTACHATS-13) Les deux étapes d'un métier de marchandise (plateforme/premiers-pas.js).
+    article: ['+ Créer un article', () => catalogForm(null, () => render(true), { titre: 'Nouvel article' })],
+    achat: ['Saisir un achat', () => navigate('#/achat/new')],
     // « L'envoyer » ne se fait pas depuis l'accueil : le geste vit sur le devis lui-même. Le bouton
     // mène donc à la liste. Il portait le même libellé que l'étape précédente — deux boutons voisins
     // marqués « + Créer un devis » pour deux gestes différents.
@@ -9173,6 +9204,7 @@
     }
     function persist() {
       if (enLecture('documents')) return refus('#save', refusLecture('documents'));
+      { const dIll = dateIllisibleDans($('#view')); if (dIll) { refus(dIll, DATE_ILLISIBLE); return false; } }
       if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
       if (!validate()) return false;
       // L'ancienne date compte autant que la nouvelle : déplacer une pièce hors d'un mois clos
@@ -16210,7 +16242,7 @@
               chez lui la reprend, et sa fiche dit ce qu'on lui doit dans sa devise (1.310.0). */''}
         <label class="field">${lbl('Devise de ses factures', 'sup.currency')}<select name="currency"><option value="" ${!s.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${s.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
         ${field(lbl('Banque', 'pay.bank'), 'bank', s.bank || '')}
-        ${ribField('RIB du fournisseur', s.rib)}
+        ${ribField('RIB ou IBAN du fournisseur', s.rib)}
         <label class="field span-2">${lbl('Notes internes', 'sup.notes')}<textarea name="notes">${h(s.notes || '')}</textarea></label>
         ${supplier ? '' : '</div></details>'}
       </form>
@@ -16317,7 +16349,9 @@
   // (1.311.0) Un fournisseur archivé ne se voit que dans « Archivés » ; il ne compte nulle part ailleurs (la règle des clients).
   const lfoPasse = (r, f) => (f === 'archives' ? !!r.f.archived : r.f.archived ? false : !f ? true : f === 'dois' ? r.sum.remaining > 0.0005 : f === 'retard' ? r.sum.late > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
   const lfoTrouve = (r, q) => !q || C.correspondRecherche([r.f.name, r.f.contact, r.f.matricule, r.f.email, r.f.phone, String(r.f.phone || '').replace(/\s/g, ''), r.f.city].join(' '), q);
-  const lfoDelai = f => (f.paymentTermsDays === '' || f.paymentTermsDays == null ? 'délai non précisé' : Number(f.paymentTermsDays) === 0 ? 'paie à réception' : `paie à ${pl(Number(f.paymentTermsDays), 'jour')}`);
+  // (1.388.29, ENTACHATS-18) Sans délai saisi, la liste dit celui que sa facture appliquera (delaiAchat : 30 jours), pas
+  // « délai non précisé » : deux écrans qui parlent du même fournisseur disent le même délai.
+  const lfoDelai = f => (f.paymentTermsDays === '' || f.paymentTermsDays == null ? `paie à ${pl(delaiAchat(), 'jour')} (par défaut)` : Number(f.paymentTermsDays) === 0 ? 'paie à réception' : `paie à ${pl(Number(f.paymentTermsDays), 'jour')}`);
   // Régler ce qui est en retard chez un fournisseur : une pièce, sa fenêtre ; plusieurs, un seul virement (1.203.0).
   const lfoRegler = (r, done) => (r.ret.length > 1 && r.ret.every(p => (p.currency || company().currency) === company().currency) ? reglerEnsemble(r.ret, done) : supplierPaymentForm(r.ret[0], done));
 
@@ -17289,7 +17323,7 @@
       toast(`${o.status === 'demande' ? 'Demande de prix' : 'Commande'} ${o.number} enregistrée`);
       if (neuf) remplacerPage('#/commandef/' + o.id); else render(true);
     };
-    // Envoyer : le bon part en PDF joint au courriel du fournisseur, puis passe « envoyée » par le même chemin que le statut
+    // Envoyer : le message s'ouvre, le bon se télécharge ; la commande passe « envoyée » quand on dit qu'elle est partie, par le même chemin que le statut
     // choisi à la main (l'accord, au-delà du montant permis, se demande avant).
     if ($('#cf-envoyer')) $('#cf-envoyer').onclick = async () => {
       if (dirty && !enregistrer()) return;
@@ -17315,6 +17349,12 @@
         const html = C.documentHtml({ ...cmd, type: 'commandeFournisseur' }, sup, company());
         const att = await bridge.exportPdfSilent(html, `${cmd.number}_${String(sup.name || '').replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_')}.pdf`);
         const rm = await bridge.composeMail({ to: sup.email || '', mode, attachment: att, ...mailCommandeFournisseur(cmd) });
+        // (1.388.29, ENTACHATS-10) Un lien d'e-mail OUVRE la messagerie ; il ne prouve pas que la commande est partie (et le
+        // bon, téléchargé, est à joindre à la main). On le demande avant de la dire « envoyée ».
+        const partie = await choiceDialog('La commande est-elle partie ?',
+          `${messageOuvert(rm, 'le bon de commande')}. Une fois le message envoyé à ${sup.name || 'ton fournisseur'}, dis-le : la commande passera « envoyée ».`,
+          'Oui, elle est partie', null, 'Pas encore');
+        if (partie !== 'a') { b.disabled = false; b.textContent = 'Envoyer au fournisseur…'; toast('La commande reste à envoyer : clique « Envoyer au fournisseur… » quand le message sera parti.'); return; }
         // Un seul message (« enregistrée » écrasait celui qui dit où trouver le PDF à joindre).
         $('[name=status]', tete).value = 'envoyée'; touch();
         if (!enregistrer()) return;
@@ -18948,9 +18988,11 @@
     // (1.387.55, issue 13, ENTACHATS-19) Le prix proposé à l'achat est le DERNIER prix payé pour l'article (achat ou réception,
     // en dinars), pas le coût saisi sur sa fiche le jour de sa création : la farine achetée 68,000 revenait à 62,500.
     const dernierPrixAchat = it => { const d = it && it.tracked && it.id ? C.fournisseurDeLArticle(data, it.id) : null; return d && Number(d.unitCost) > 0 ? Number(d.unitCost) : null; };
-    const coutDeBase = it => dernierPrixAchat(it) ?? (Number(it.unitCost) || Number(it.unitPrice) || 0);
+    // (1.388.29, ENTACHATS-19) Sans dernier achat ni coût sur la fiche, la ligne arrive SANS prix (« prix d'achat » en invite) :
+    // jamais le prix de VENTE (une colle vendue 6,800 se proposait achetée 6,800), jamais 0 qu'on enregistre sans le voir.
+    const coutDeBase = it => dernierPrixAchat(it) ?? (Number(it.unitCost) > 0 ? Number(it.unitCost) : '');
     const coutCatalogue = it => { const v = C.prixDuCatalogue(coutDeBase(it), p, company()); if (v === null) toast(`Saisis d'abord le taux de change de la pièce : les prix du catalogue sont en ${company().currency || 'DT'}.`, true); return v === null ? '' : v; };
-    const coutAffiche = c => { const v = C.prixDuCatalogue(coutDeBase(c), p, company()); return v === null ? C.money(coutDeBase(c), company().currency) : C.money(v, cur); };
+    const coutAffiche = c => { const b = coutDeBase(c); if (b === '') return 'prix à saisir'; const v = C.prixDuCatalogue(b, p, company()); return (v === null ? C.money(b, company().currency) : C.money(v, cur)) + ' HT'; };
     const poserArticle = (i, it) => {
       const l = p.lines[i]; if (!l) return;
       Object.assign(l, { label: it.label, itemId: it.id, unit: it.unit || '',
@@ -18970,7 +19012,7 @@
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
         <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lecture ? `<span class="ligne-lue">${h(l.label || '—')}</span>` : ''}${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
         <td><input type="text" inputmode="decimal" data-montant class="num${estMarque(i, 'qty') ? ' lu-douteux' : ''}" data-k="qty" value="${h(frChiffre(l.qty))}" autocomplete="off"></td>
-        <td><input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off"></td>
+        <td><input type="text" inputmode="decimal" data-montant class="num montant${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${h(frMontant(l.unitPrice, p.currency))}" autocomplete="off" placeholder="prix d'achat"></td>
         <td><select data-k="vatRate"${estMarque(i, 'vatRate') ? ' class="lu-douteux"' : ''}>${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
         <td>${p.kind === 'acompte' ? '<span class="ac-avance" title="Un acompte versé est une avance au fournisseur (compte 409, À VÉRIFIER) : ni une charge, ni du stock, ni un bien">Avance</span>' : ''}<select data-k="destination"${p.kind === 'acompte' ? ' hidden' : ''}>${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
         <td class="c">${C.tvaRecuperable(p, company())
@@ -19009,7 +19051,7 @@
       // stock — c'est pour ça qu'on la créait.
       if (!clos && !lecture) $$('input[data-k=label]', body).forEach(el => suggererCatalogue(el, {
         items: () => data.catalog,
-        right: c => coutAffiche(c) + ' HT',
+        right: c => coutAffiche(c),
         onPick: c => poserArticle(Number(el.closest('tr').dataset.i), c),
         onCreate: q => {
           const i = Number(el.closest('tr').dataset.i);
@@ -19087,7 +19129,7 @@
       // Dans un lot : le dernier prix d'achat de chaque article lit les mouvements, calculés une fois pour tout le catalogue.
       items: C.enLot(() => data.catalog.slice().sort((a2, b2) => (a2.label || '').localeCompare(b2.label || '', 'fr'))
         .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? (dernierPrixAchat(c) != null ? 'suivi en stock · prix du dernier achat' : 'suivi en stock') : (c.description || ''),
-          right: coutAffiche(c) + ' HT',
+          right: coutAffiche(c),
           text: `${c.label} ${c.description || ''}` }))),
       // (1.387.54, issue 13, ENTACHATS-12) Le premier achat de marchandise, catalogue vide : « Rien à choisir », et il
       // fallait quitter la facture pour créer l'article. La commande fournisseur offrait « + Nouvel article » ; l'achat aussi,
@@ -20653,6 +20695,8 @@
           `Indique le taux de change : combien vaut 1 ${p.currency} en ${company().currency} ? Sans lui, ta TVA déductible et tes charges compteraient 1 ${p.currency} = 1 ${company().currency}.`);
       }
       if (!p.lines.some(l => (l.label || '').trim() || Number(l.unitPrice))) return refus('#b-lines input[data-k=label]', 'Saisis au moins une ligne avec un montant.');
+      const sansPrix = p.lines.findIndex(l => l.itemId && (l.unitPrice === '' || l.unitPrice == null));
+      if (sansPrix >= 0) return refus($$('#b-lines input[data-k=unitPrice]')[sansPrix], `Saisis le prix d'achat de « ${p.lines[sansPrix].label} » : ni sa fiche ni un achat précédent ne le connaissent.`);
       // Un avoir et la facture qu'il diminue sont dans la MÊME devise (10.2.0) : un fournisseur
       // avoise dans la monnaie où il a facturé. Déduire 300 € de 1 000 DT donnerait un reste dû
       // faux, et personne ne le verrait — c'est exactement la faute de la 10.1.0, un cran plus loin.
@@ -20695,10 +20739,16 @@
     }
 
     function persist() {
+      { const dIll = dateIllisibleDans($('#view')); if (dIll) { refus(dIll, DATE_ILLISIBLE); return false; } }
       if (bridge.dessinerAbonnement && !data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
       if (!validate()) return false;
       const wasDate = (data.purchases.find(x => x.id === p.id) || {}).date;
-      if (closedBlock([wasDate, p.date], 'Cet achat')) return false;
+      // Seulement quand la date d'avant est ouverte : si c'est la pièce déjà rangée qui est dans le mois clos, changer la date
+      // ne la sortirait pas de la période (on garde alors « Aller aux clôtures »).
+      if (closedBlock([wasDate, p.date], 'Cet achat', wasDate && C.isClosedDate(data, wasDate) ? null : { changerDate: () => {
+        const x = $('#view [name=date]'); const v = x && x.closest('.datefield') ? x.closest('.datefield').querySelector('.d-txt') : null;
+        if (v) { v.scrollIntoView({ block: 'center' }); v.focus(); v.select(); }
+      } })) return false;
       if (!data.purchases.some(x => x.id === p.id) && licenceBlock('Enregistrer un nouvel achat', 'achats')) return false;
       if (!p.supplierId && p.kind === 'depense') p.supplierId = fournisseurDivers().id;
       const idx = data.purchases.findIndex(x => x.id === p.id);

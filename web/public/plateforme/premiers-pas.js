@@ -83,6 +83,16 @@
     // 6. et 7. Ton premier client, ton premier devis (ou ta première facture : qui facture sans devis a commencé aussi).
     lesEtapes.push({ id: 'client', titre: 'Ton premier client', fait: (d.clients || []).length > 0, action: 'client',
       quoi: 'Son adresse et son matricule se reporteront tout seuls sur tes devis et tes factures.' });
+    // (1.388.29, ENTACHATS-13) Un commerce, un restaurant ou un atelier commencent souvent par acheter et ranger leur
+    // marchandise : pour eux, leur premier article (un article à eux, pas un exemple posé par l'assistant) et leur premier
+    // achat. La liste des métiers est celle qui fait dire « article » au catalogue (METIERS_ARTICLES, app-1.js).
+    if (['commerce', 'restauration', 'artisanat'].includes(txt(c.activity))) {
+      lesEtapes.push({ id: 'article', titre: 'Ton premier article', action: 'article',
+        fait: (d.catalog || []).some((/** @type {any} */ x) => x && !x.fromSetup && !x.archived),
+        quoi: 'Ce que tu vends, avec son prix : il se reporte tout seul sur tes factures, et suivi en stock il se compte à chaque achat et chaque vente.' });
+      lesEtapes.push({ id: 'achat', titre: 'Ton premier achat', action: 'achat', fait: (d.purchases || []).length > 0,
+        quoi: 'La facture de ton fournisseur ou une dépense du comptoir : la TVA payée dessus se déduit de celle que tu dois.' });
+    }
     const unDevis = docs.some((/** @type {any} */ x) => x.type === 'devis');
     const uneFacture = docs.some((/** @type {any} */ x) => x.type === 'facture');
     lesEtapes.push({ id: 'devis', titre: !unDevis && uneFacture ? 'Ta première facture' : 'Ton premier devis', fait: unDevis || uneFacture, action: 'devis',

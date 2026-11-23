@@ -73,12 +73,12 @@ describe('les premiers pas de la plateforme, à la souris', () => {
   const accueil = async (p: Page) => { await p.evaluate(() => { location.hash = '#/dashboard'; }); await panneau(p).waitFor({ timeout: 15_000 }); };
 
   // La porte, puis l'assistant d'une entreprise de conseil (le RIB lui est demandé : elle est payée par virement).
-  async function conseil(p: Page) {
+  async function conseil(p: Page, activite = 'Conseil, formation et services', nom = 'Gharbi Conseil', matricule = '1732051L/A/M/000') {
     await p.goto(serveur.adresse);
     await p.getByRole('button', { name: 'Créer mon entreprise', exact: true }).first().click();
-    await p.locator('label.field').filter({ hasText: 'Raison sociale' }).locator('input').fill('Gharbi Conseil');
+    await p.locator('label.field').filter({ hasText: 'Raison sociale' }).locator('input').fill(nom);
     // Un matricule à ce fichier seul (tests/matricule-libre.ts).
-    await p.locator('label.field').filter({ hasText: 'Matricule fiscal' }).locator('input').fill('1732051L/A/M/000');
+    await p.locator('label.field').filter({ hasText: 'Matricule fiscal' }).locator('input').fill(matricule);
     await p.locator('form').getByRole('button', { name: /Créer mon entreprise/ }).click();
     await p.waitForURL(/\/v10\/\?e=[0-9a-f-]{36}/, { timeout: 15_000 });
     const as = p.locator('#setup.as');
@@ -86,7 +86,7 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await as.locator('#as-tel').fill('55 123 456');
     await as.locator('#as-suite').click();
     await as.locator('h1').filter({ hasText: 'Que fais-tu' }).waitFor();
-    await as.locator('.as-tuile').filter({ hasText: 'Conseil, formation et services' }).click();
+    await as.locator('.as-tuile').filter({ hasText: activite }).click();
     await as.locator('#as-suite').click();
     await as.locator('h1').filter({ hasText: 'Factures-tu la TVA' }).waitFor();
     await as.locator('#as-suite').click();
@@ -140,6 +140,28 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     const comptable = ligne(p, 'Invite ton comptable');
     expect(await comptable.getAttribute('class')).toContain('fait');
     expect(net(await comptable.innerText())).toContain('Ta proposition attend que ton cabinet l\'accepte.');
+    expect(erreurs).toEqual([]);
+    await p.context().close();
+  }, 180_000);
+
+  it('(1.388.29, ENTACHATS-13) un commerce voit « Ton premier article » et « Ton premier achat » ; un article créé coche le premier', async () => {
+    const { jeton } = await personne('commerce');
+    const { p, erreurs } = await page(jeton);
+    await conseil(p, 'Commerce et vente de produits', 'Épicerie Gharbi', '1732053N/A/M/000');
+    const article = ligne(p, 'Ton premier article');
+    await article.waitFor({ timeout: 15_000 });
+    expect(await article.getAttribute('class')).not.toContain('fait');
+    expect(await ligne(p, 'Ton premier achat').count()).toBe(1);
+    await article.getByRole('button', { name: '+ Créer un article', exact: true }).click();
+    const f = p.locator('#modal-root .modal').last();
+    await f.locator('input[name=label]').fill('Vis 4×40');
+    await f.locator('input[name=unitPrice]').fill('0,350');
+    await f.locator('.modal-actions .btn-primary').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 15_000 }).toBe(0);
+    await accueil(p);
+    await expect.poll(() => ligne(p, 'Ton premier article').getAttribute('class'), { timeout: 15_000 }).toContain('fait');
+    await ligne(p, 'Ton premier achat').getByRole('button', { name: 'Saisir un achat', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/achat/new');
     expect(erreurs).toEqual([]);
     await p.context().close();
   }, 180_000);

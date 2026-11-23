@@ -115,6 +115,18 @@ describe('les lots, à la souris', () => {
     expect(historique).toMatch(/Achat lot L-0910 F-77 \+50/);
     await plusTard(p);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lots-2-article.png') });
+    // (1.388.29, ENTACHATS-14) L'inventaire d'un article par lot : l'écart va au lot choisi, jamais « sans lot ».
+    await p.evaluate(() => { location.hash = '#/stock'; });
+    await p.locator('#st-tabs button[data-tab="inventaire"]').click({ timeout: 15_000 });
+    const lotInv = p.locator('#st-body select.inv-lot[data-iid="yaourt"]');
+    await expect.poll(() => lotInv.inputValue(), { timeout: 10_000 }).toBe('L-0901');
+    await lotInv.selectOption('L-0910');
+    await p.locator('#st-body .inv-in[data-iid="yaourt"]').fill('54');
+    await p.locator('#inv-apply').click();
+    await expect.poll(async () => net(await p.locator('#modal-root').innerText()), { timeout: 10_000 }).toContain('(lot L-0910)');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.evaluate(() => { location.hash = '#/article/yaourt'; });
+    await expect.poll(parLot, { timeout: 10_000 }).toBe(`Par lot i : L-0901 8 pots (périme le ${fr(dans5)}) · L-0910 46 pots (périme le ${fr(dans20)})`);
 
     // (1.387.58, issue 13, ENTACHATS-14) Stock › Alertes dit les lots qui périment (l'onglet disait « Rien à signaler »), et
     // une nouvelle facture qui prend le yaourt au catalogue sort d'office du lot conseillé, celui qui périme le plus tôt.

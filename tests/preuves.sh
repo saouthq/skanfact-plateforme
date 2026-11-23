@@ -31815,6 +31815,48 @@ prouver $'l5-es8-ce-que-ton-comptable-lit' modules/socle/ecrans/entreprise/app-1
   $'Tes écritures, ta TVA, tes clôtures et le paquet de ton comptable restent disponibles.' \
   $'en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s\'ouvre'
 
+# 1.388.29 — les achats (issue 17) : le prix d'achat, la date, le téléphone, la commande partie, le transfert, les lots et les inventaires.
+prouver $'l6-ea19-pas-le-prix-de-vente' modules/socle/ecrans/entreprise/app-1.js \
+  $'const coutDeBase = it => dernierPrixAchat(it) ?? (Number(it.unitCost) > 0 ? Number(it.unitCost) : \'\');' \
+  $'const coutDeBase = it => dernierPrixAchat(it) ?? (Number(it.unitCost) || Number(it.unitPrice) || 0);' \
+  $'(1.387.55, ENTACHATS-19) un article suivi en stock se propose à l\'achat au prix du dernier achat, pas au coût de sa fiche'
+prouver $'l6-ea17-changer-la-date' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (changer) $(\'#chg-date\', root).onclick' \
+  $'if (false) $(\'#chg-date\', root).onclick' \
+  $'(1.387.57, ENTACHATS-17) la date d\'un achat se dit dans « Avant d\'enregistrer » : dans plus de trois mois, ou dans un mois clôturé'
+prouver $'l6-x3-la-date-illisible-reste' modules/socle/ecrans/entreprise/app-1.js \
+  $'if (!iso) { el.dataset.illisible = \'1\'; txt.setAttribute(\'aria-invalid\', \'true\');' \
+  $'if (!iso) { txt.value = C.fmtDateInput(hidden.value);' \
+  $'(1.387.57, ENTACHATS-17) la date d\'un achat se dit dans « Avant d\'enregistrer » : dans plus de trois mois, ou dans un mois clôturé'
+prouver $'l6-ea16-facture-d-achat-au-telephone' web/public/plateforme/liste.css \
+  $'  .lc-tete #new, .la-tete #new { display: inline-flex; }' \
+  $'  .lc-tete #new { display: inline-flex; }' \
+  $'(1.387.67, ENTACHATS-22) un commerce importe des ARTICLES : l\'aperçu, le bouton et le compte rendu parlent son métier'
+prouver $'l6-ea10-la-commande-est-elle-partie' modules/socle/ecrans/entreprise/app-1.js \
+  $'        if (partie !== \'a\') { b.disabled' \
+  $'        if (false) { b.disabled' \
+  $'(1.387.59, ENTACHATS-10) envoyer une commande à un fournisseur sans e-mail le dit d\'abord : compléter sa fiche, ou noter qu\'elle est partie autrement'
+prouver $'l6-ea18-le-delai-par-defaut' modules/socle/ecrans/entreprise/app-1.js \
+  $'? `paie à ${pl(delaiAchat(), \'jour\')} (par défaut)` :' \
+  $'? \'délai non précisé\' :' \
+  $'les colonnes, les filtres et leurs nombres, la ville, le pied, « Régler », le menu, le clavier, le téléphone'
+prouver $'l6-ea9-transferer-depuis-stock' modules/socle/ecrans/entreprise/app-2.js \
+  $'${items.length && C.depotsDe(data).length > 1 && peutEcrireDossier(\'stockAdjustments\') ? \'<button class="btn" id="st-transfert">Transférer…</button>\' : \'\'}' \
+  $'' \
+  $'Nadia ouvre un second magasin, y reçoit du ciment, puis en transfère une partie'
+prouver $'l6-ea14-le-lot-de-l-ecart' modules/socle/ecrans/entreprise/app-2.js \
+  $'...(lotInv(r.itemId) ? { lot: lotInv(r.itemId) } : {}), note:' \
+  $'note:' \
+  $'Samia saisit ses yaourts par lot, voit ceux qui périment, et vend le plus ancien'
+prouver $'l6-ea15-annuler-un-inventaire' modules/socle/ecrans/entreprise/app-2.js \
+  $'      $(\'#st-body\').insertAdjacentHTML(\'beforeend\', inventairesPassesHtml());' \
+  $'      void inventairesPassesHtml;' \
+  $'commander au dernier fournisseur et jusqu\'au stock à atteindre, un bon par fournisseur ; la fiche dit d\'où il vient et combien il se vend'
+prouver $'l6-ea13-premier-article' web/public/plateforme/premiers-pas.js \
+  $'    if ([\'commerce\', \'restauration\', \'artisanat\'].includes(txt(c.activity))) {' \
+  $'    if (false) {' \
+  $'(1.388.29, ENTACHATS-13) un commerce voit « Ton premier article » et « Ton premier achat » ; un article créé coche le premier'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -101,7 +101,7 @@ describe('la liste des fournisseurs, à la souris, au clavier et au téléphone'
     expect(await cellules('s-sahel')).toEqual(['ES Emballages du Sahel Hela Mansour · Sfax', '1520034M/A/M/000 sans retenue', '74 862 004 pas d\'e-mail',
       '115,500 2 pièces', '137,445 dont 137,445 en retard', '25/09/2026 paie à 45 jours', 'Régler']);
     expect((await cellules('s-steg')).slice(1, 6)).toEqual(['à renseigner sa retenue s\'écrit avec lui', '71 341 311 clients@steg.example', '123,457 1 pièce', '—', '26/09/2026 paie à réception']);
-    expect((await cellules('s-trans')).slice(4, 6)).toEqual(['267,500 267,500 sous 7 jours', '28/09/2026 délai non précisé']);
+    expect((await cellules('s-trans')).slice(4, 6)).toEqual(['267,500 267,500 sous 7 jours', '28/09/2026 paie à 30 jours (par défaut)']);
     expect((await cellules('s-neuf')).slice(3, 7)).toEqual(['aucun achat', '—', 'paie à 15 jours', '']);
     // Le pied additionne la sélection, et dit la retenue que les règlements garderont (1 % de 414,625).
     expect(net(await p.locator('#list-wrap tfoot').innerText())).toBe('Total de la sélection 5 fournisseurs · tu garderas 4,146 DT de retenue pour l\'État en les payant 876,457 DT 815,424 dont 547,924 en retard');

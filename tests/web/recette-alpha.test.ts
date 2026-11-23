@@ -231,6 +231,14 @@ describe('la recette alpha, à la souris', () => {
     expect(net(await choix.innerText())).toContain('prix du dernier achat');
     await choix.click();
     await expect.poll(() => p.locator('#view input[data-k=unitPrice]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['62,500']);
+    // (1.388.29, ENTACHATS-19) Sans achat ni coût sur sa fiche, la colle n'arrive pas à son prix de VENTE : sans prix, et
+    // l'enregistrement le demande en montrant la case.
+    await p.locator('#b-cat .combo-btn').click();
+    const colle = p.locator('#b-cat .combo-it').filter({ hasText: 'Colle à bois' });
+    expect(net(await colle.innerText())).toContain('prix à saisir');
+    await colle.click();
+    await expect.poll(() => p.locator('#view input[data-k=unitPrice]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['62,500', '']);
+    expect(await p.locator('#view input[data-k=unitPrice]').nth(1).getAttribute('placeholder')).toBe('prix d\'achat');
     // La commande fournisseur aussi : le dernier prix d'achat, pas le coût de la fiche.
     // (La facture en cours n'est pas enregistrée : on la quitte sans l'enregistrer, comme on répondrait à la question.)
     await p.evaluate(() => { location.hash = '#/commandef/new'; });
@@ -301,6 +309,32 @@ describe('la recette alpha, à la souris', () => {
     await date.press('Tab');
     await expect.poll(() => avant.innerText().then(net), { timeout: 10_000 }).toContain('est dans un mois clôturé : l\'achat ne s\'enregistrera pas à cette date');
     expect(net(await avant.innerText())).not.toContain('dans plus de trois mois');
+    // (1.388.29, ENTACHATS-17) L'achat déjà rangé, redaté en août : la fenêtre propose d'abord de changer la date.
+    await p.evaluate(() => { location.hash = '#/achat/a1/modifier'; });
+    const quitter = p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true });
+    await quitter.click({ timeout: 5_000 }).catch(() => undefined);
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toContain('/achat/a1');
+    const date1 = p.locator('#view [name=date]').locator('xpath=ancestor::*[contains(@class,"datefield")][1]').locator('.d-txt');
+    await date1.waitFor({ timeout: 15_000 });
+    await date1.fill('15/08/2026');
+    await date1.press('Tab');
+    await p.locator('#save').click();
+    const fen = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.locator('h2').innerText().then(net), { timeout: 10_000 }).toBe('Période clôturée');
+    expect(net(await fen.locator('.btn-primary').innerText())).toBe('Changer la date');
+    await fen.locator('.btn-primary').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    expect(await p.evaluate(() => location.hash)).toContain('/achat/a1');
+    await expect.poll(() => p.evaluate(() => document.activeElement?.classList.contains('d-txt'))).toBe(true);
+    // (1.388.29, X-3) Une date qui n'existe pas : le texte tapé reste, et l'achat ne s'enregistre pas.
+    await date1.fill('31/02/2026');
+    await date1.press('Tab');
+    expect(await date1.inputValue()).toBe('31/02/2026');
+    await p.locator('#save').click();
+    await expect.poll(() => p.locator('#toast').innerText().then(net), { timeout: 10_000 }).toContain('Cette date n\'existe pas');
+    const lu = await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const a1 = (lu.corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[]).find((o) => o.collection === 'purchases' && o.cle === 'a1');
+    expect(a1 && a1.contenu.date).toBe(aujourdhui);
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 240_000);
@@ -337,6 +371,17 @@ describe('la recette alpha, à la souris', () => {
     // Le défilement et le changement de page dans le même geste : rien ne redessine entre les deux.
     expect(await p.evaluate(() => { window.scrollTo(0, 400); const y = window.scrollY; location.hash = '#/catalogue'; return y; })).toBeGreaterThan(200);
     await expect.poll(() => p.evaluate(() => location.hash + ' ' + Math.round(window.scrollY)), { timeout: 10_000 }).toBe('#/catalogue 0');
+    // (1.388.29, ENTACHATS-16) Au téléphone, la tête des achats garde « Facture d'achat » à côté de « Dépense » ; celle des
+    // factures, non.
+    await p.evaluate(() => { location.hash = '#/achats'; });
+    await expect.poll(() => p.locator('#view .la-tete #new').isVisible(), { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#view .la-tete #new-dep').isVisible()).toBe(true);
+    expect(await p.locator('#view .la-tete').evaluate((e) => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+    await p.evaluate(() => { location.hash = '#/factures'; });
+    await expect.poll(() => p.locator('#view .la-tete').count(), { timeout: 15_000 }).toBe(0);
+    await p.locator('#view .lf-tete').first().waitFor({ timeout: 15_000 });
+    expect(await p.locator('#view .lf-tete #new').isVisible()).toBe(false);
+    await p.evaluate(() => { location.hash = '#/catalogue'; });
     // (1.387.69, ENTACHATS-20) Un commerce lit d'abord les unités de la marchandise dans la fiche d'un article.
     await p.setViewportSize({ width: 1440, height: 900 });
     await p.locator('#new').click({ timeout: 20_000 });
@@ -402,6 +447,9 @@ describe('la recette alpha, à la souris', () => {
     expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: 'supplierOrders', cle: 'o2', rang: 0, revision: null, contenu: { id: 'o2', type: 'commandeFournisseur', number: 'BCF-2026-007', status: 'brouillon', date: aujourdhui, supplierId: 's1', currency: 'DT',
         lines: [{ label: 'Colle à bois', qty: 10, unit: 'u', unitPrice: { '~n': '5' }, vatRate: 19 }] } },
+      { collection: 'suppliers', cle: 's2', rang: 1, revision: null, contenu: { id: 's2', name: 'Moulins du Nord', email: 'cmd@moulins.example' } },
+      { collection: 'supplierOrders', cle: 'o3', rang: 1, revision: null, contenu: { id: 'o3', type: 'commandeFournisseur', number: 'BCF-2026-008', status: 'brouillon', date: aujourdhui, supplierId: 's2', currency: 'DT',
+        lines: [{ label: 'Farine', qty: 5, unit: 'sac', unitPrice: { '~n': '50' }, vatRate: 19 }] } },
     ] })).statut).toBe(200);
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
@@ -417,6 +465,17 @@ describe('la recette alpha, à la souris', () => {
     expect(net(await p.locator('#view .ed-h1').innerText())).not.toContain('envoyée');
     await p.locator('#cf-envoyer').click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Partie autrement', exact: true }).click();
+    await expect.poll(() => p.locator('#view .ed-h1').innerText().then(net), { timeout: 15_000 }).toContain('envoyée');
+    // (1.388.29, ENTACHATS-10) Avec une adresse : un lien d'e-mail ne prouve pas l'envoi, la commande demande si elle est partie.
+    await p.evaluate(() => { location.hash = '#/commandef/o3'; });
+    await p.locator('#cf-envoyer').click({ timeout: 20_000 });
+    const q2 = p.locator('#modal-root .modal').last();
+    await expect.poll(() => q2.innerText().then(net), { timeout: 15_000 }).toContain('La commande est-elle partie ?');
+    await q2.getByRole('button', { name: 'Pas encore', exact: true }).click();
+    expect(net(await p.locator('#view .ed-h1').innerText())).not.toContain('envoyée');
+    await expect.poll(() => p.locator('#cf-envoyer').isEnabled()).toBe(true);
+    await p.locator('#cf-envoyer').click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Oui, elle est partie', exact: true }).click({ timeout: 15_000 });
     await expect.poll(() => p.locator('#view .ed-h1').innerText().then(net), { timeout: 15_000 }).toContain('envoyée');
     expect(erreurs).toEqual([]);
     await cx.close();

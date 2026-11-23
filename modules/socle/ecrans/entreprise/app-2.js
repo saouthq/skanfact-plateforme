@@ -35,6 +35,41 @@
   let demandeEtatStock = null;
   const STOCK_TABS = [['etat', 'État du stock'], ['mouvements', 'Mouvements'], ['series', 'Numéros de série'], ['inventaire', 'Inventaire'], ['alertes', 'Alertes']];
 
+  // Transférer d'un dépôt à l'autre (brique 94) : deux mouvements, sans coût ; ce que le dépôt n'a pas se refuse.
+  // (1.388.29, ENTACHATS-9) La fiche de l'article ET la tête de Stock ouvrent la MÊME fenêtre ; depuis Stock, l'article se
+  // choisit en tête. Deux fenêtres recopiées divergeraient au premier ajustement.
+  function transfertForm(itemId, done) {
+    const deps = C.depotsDe(data);
+    if (deps.length < 2) return toast('Un transfert demande deux dépôts : ajoute le second par « Dépôts… ».', true);
+    const items = C.trackedItems(data);
+    const fixe = itemId ? (data.catalog || []).find(c => c.id === itemId) || null : null;
+    if (!fixe && !items.length) return toast('Aucun article n\'est suivi en stock : il n\'y a rien à transférer.', true);
+    const opts = sel => deps.map(d => `<option value="${h(d.id)}" ${d.id === sel ? 'selected' : ''}>${h(d.nom)}</option>`).join('');
+    modal(`<h2>${fixe ? `Transférer « ${h(fixe.label)} »` : 'Transférer de la marchandise'}</h2>
+      <form id="tr-form" class="grid-2" onsubmit="return false">
+        ${fixe ? '' : `<div class="field span-2 obligatoire">${lbl('Article', 'stk.adjustItem')}${combo({ name: 'itemId', value: '', items: items.map(c => ({ v: c.id, label: c.label, sub: c.unit || '', text: c.label })), placeholder: '— Choisir un article —', search: 'Rechercher un article…' })}</div>`}
+        <label class="field">De<select name="de">${opts(deps[0].id)}</select></label>
+        <label class="field">Vers<select name="vers">${opts(deps[1].id)}</select></label>
+        <label class="field">Quantité${fixe && fixe.unit ? ` (${h(fixe.unit)})` : ''}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="qty" class="num"></label>
+        ${dateFieldHtml('Date', 'date', C.today())}
+        <label class="field span-2">Note (optionnel)<input type="text" name="note" placeholder="Réassort du magasin"></label>
+      </form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="tr-ok">Transférer</button></div>`,
+    (root, fermer) => {
+      if (!fixe) bindCombo($('[data-combo=itemId]', root), { items: items.map(c => ({ v: c.id, label: c.label, text: c.label })), placeholder: '— Choisir un article —' });
+      $('#tr-ok', root).onclick = () => {
+        const v = formValues($('#tr-form', root));
+        const id = fixe ? fixe.id : v.itemId;
+        if (!id) return refus($('[name=itemId]', root), 'Choisis l\'article à transférer.');
+        const r = C.transfertStock(data, { id: C.uid(), itemId: id, de: v.de, vers: v.vers, qty: v.qty, date: v.date || C.today(), note: String(v.note || '').trim() });
+        if (r.erreur) return toast(r.erreur, true);
+        data.stockAdjustments = data.stockAdjustments || [];
+        r.ajustements.forEach(a => data.stockAdjustments.push(a));
+        save(true); fermer(); toast(`Transféré : ${pct(Number(v.qty))} de ${C.nomDepot(data, v.de)} vers ${C.nomDepot(data, v.vers)}.`);
+        if (done) done();
+      };
+    });
+  }
   function adjustForm(itemId, done) {
     const items = C.trackedItems(data);
     if (!items.length) return toast('Aucun article n\'est suivi en stock. Coche « Suivi en stock » sur une prestation du catalogue.', true);
@@ -1423,6 +1458,7 @@
           ${items.length ? `<button class="btn" id="st-csv" data-csv="${h(s.tab)}">Exporter ${h(ST_LABELS[s.tab] || ST_LABELS.etat)}</button>` : ''}
           <button class="btn" id="st-war">Garanties</button>
           <button class="btn" id="st-depots">Dépôts…</button>
+          ${items.length && C.depotsDe(data).length > 1 && peutEcrireDossier('stockAdjustments') ? '<button class="btn" id="st-transfert">Transférer…</button>' : ''}
           ${a ? `<button class="btn btn-primary" id="${a[0]}">${a[1]}</button>` : ''}
         </div>`;
     };
@@ -1468,14 +1504,19 @@
     function drawState() {
       const t = C.stockTotals(data);
       const q = s.q.trim().toLowerCase();
+      // (1.388.29, ENTACHATS-9) Avec deux dépôts ou plus, l'état se lit dépôt par dépôt : la quantité du dépôt choisi (celle
+      // de « Par dépôt » sur la fiche) s'ajoute en colonne, et « En stock seulement » la regarde.
+      const deps = C.depotsDe(data);
+      const dep = deps.length > 1 && deps.some(d => d.id === s.depot) ? s.depot : '';
+      const qDep = new Map(dep ? t.rows.map(r => [r.itemId, (C.stockParDepot(data, r.itemId).find(x => x.depotId === dep) || { qty: 0 }).qty]) : []);
       const rows = t.rows.filter(r => (!q || C.correspondRecherche(`${r.label || ''} ${r.location || ''}`, q))
-        && (!s.only || (s.only === 'alerte' ? (r.low || r.negative) : r.qty > 0)));
+        && (!s.only || (s.only === 'alerte' ? (r.low || r.negative) : (dep ? qDep.get(r.itemId) : r.qty) > 0)));
       // Paginé comme toute liste (2.2.0) : cent vingt articles faisaient six mille pixels. Le total,
       // lui, porte la sélection entière, jamais la page (2.2.0, 7.16.0).
       // (1.387.70, ENTACHATS-9) L'état du stock se trie comme la liste des achats : chaque en-tête porte son « ⇅ ».
       const colsEtat = [
         { key: 'label', label: 'Article', asc: true, val: r => r.label || '' }, { key: 'location', label: 'Emplacement', asc: true, val: r => r.location || '' },
-        { key: 'qty', label: 'En stock', r: true, val: r => r.qty }, { key: 'min', label: 'Seuil', r: true, val: r => Number(r.minStock) || 0 },
+        ...(dep ? [{ key: 'dep', label: C.nomDepot(data, dep), r: true, val: r => qDep.get(r.itemId) || 0 }] : []), { key: 'qty', label: dep ? 'Tous dépôts' : 'En stock', r: true, val: r => r.qty }, { key: 'min', label: 'Seuil', r: true, val: r => Number(r.minStock) || 0 },
         { key: 'cmp', label: 'Coût moyen', r: true, info: 'stk.cmp', val: r => r.cmp }, { key: 'value', label: 'Valeur', r: true, val: r => Math.max(0, r.value) },
         { key: 'price', label: 'Prix de vente', r: true, val: r => Number(r.unitPrice) || 0 }];
       const pageEtat = paginate(applySort(rows, colsEtat, s.etat.sort), s.etat);
@@ -1484,18 +1525,20 @@
           <div class="filters">
             <input type="search" id="st-q" placeholder="Rechercher un article…" value="${h(s.q)}">
             <select id="st-only"><option value="">Tous les articles</option><option value="positif" ${s.only === 'positif' ? 'selected' : ''}>En stock seulement</option><option value="alerte" ${s.only === 'alerte' ? 'selected' : ''}>À surveiller</option></select>
+            ${deps.length > 1 ? `<select id="st-depot" aria-label="Dépôt"><option value="">Tous les dépôts</option>${deps.map(d => `<option value="${h(d.id)}" ${d.id === dep ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select>` : ''}
             <span class="small muted">${rows.length} sur ${t.count}</span>
           </div>
           ${rows.length ? `<div class="scroll-x"><table class="list compact"><thead>${sortHead(colsEtat, s.etat.sort)}</thead><tbody>
             ${pageEtat.rows.map(r => `<tr class="clickable ${r.negative ? 'row-warn' : ''}" data-iid="${h(r.itemId)}" title="Ouvrir la fiche de l'article">
               <td><strong>${h(r.label)}</strong>${r.negative ? '<div class="small warn-text">stock négatif : une entrée manque</div>' : r.low ? '<div class="small warn-text">sous le seuil d\'alerte</div>' : ''}</td>
               <td>${h(r.location) || '<span class="muted">—</span>'}</td>
+              ${dep ? `<td class="r nw"><strong>${pct(qDep.get(r.itemId) || 0)}</strong>${r.unit ? ' ' + h(C.uniteAccordee(qDep.get(r.itemId) || 0, r.unit)) : ''}</td>` : ''}
               <td class="r nw">${qtyCell(r)}</td>
               <td class="r nw">${r.minStock ? pct(r.minStock) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${C.money(r.cmp, cur)}</td>
               <td class="r nw"><strong>${C.money(Math.max(0, r.value), cur)}</strong></td>
               <td class="r nw">${Number(r.unitPrice) > 0 ? C.money(r.unitPrice, cur) : '<span class="muted" title="Pas de prix de vente fixé">—</span>'}</td></tr>`).join('')}
-            <tr class="total-row"><td colspan="5"><strong>Total</strong></td>
+            <tr class="total-row"><td colspan="${dep ? 6 : 5}"><strong>Total</strong></td>
               <td class="r"><strong>${C.money(C.round3(rows.reduce((a, r) => a + Math.max(0, r.value), 0)), cur)}</strong></td><td></td></tr>
           </tbody></table></div>${pagerBar(pageEtat.pg, { noun: 'article' })}
           <p class="small muted mt">Valorisation au <b>coût moyen pondéré</b> : à chaque entrée, le coût unitaire moyen est recalculé sur tout le stock. <em>À VÉRIFIER avec ton comptable : la méthode retenue pour tes comptes annuels.</em></p>`
@@ -1503,6 +1546,7 @@
         </div>`;
       $('#st-q').oninput = e => { s.q = e.target.value; s.etat.page = 1; sansPerdreLaFrappe(e.target, drawState); };
       $('#st-only').onchange = e => { s.only = e.target.value; s.etat.page = 1; drawState(); };
+      if ($('#st-depot')) $('#st-depot').onchange = e => { s.depot = e.target.value; s.etat.page = 1; drawState(); };
       bindPager($('#st-body'), s.etat, () => drawState(), '#st-body');
       bindSort($('#st-body'), key => { s.etat.sort = toggleSort(s.etat.sort, key, colsEtat); s.etat.page = 1; drawState(); });
       $$('#st-body tr[data-iid]').forEach(tr => tr.onclick = () => navigate('#/article/' + tr.dataset.iid));
@@ -1659,11 +1703,50 @@
       };
     }
 
+    // (1.388.29, ENTACHATS-14) Un article suivi PAR LOT : l'écart d'inventaire va au lot choisi (le conseillé par défaut,
+    // celui qui périme le plus tôt) ; sans lui, il tombait « sans lot » et la fiche montrait un lot négatif.
+    s.lotsInv = s.lotsInv || {};
+    const lotsDeLArticle = itemId => { const c = (data.catalog || []).find(x => x.id === itemId); return c && c.tracked && c.parLot ? C.stockParLot(data, itemId, s.countDate).filter(x => x.lot) : null; };
+    const lotInv = itemId => {
+      const lots = lotsDeLArticle(itemId); if (!lots) return '';
+      const choisi = s.lotsInv[itemId];
+      if (choisi != null && (choisi === '' || lots.some(x => x.lot === choisi))) return choisi;
+      const c = C.lotConseille(data, itemId, s.countDate); return c ? c.lot : (lots[0] ? lots[0].lot : '');
+    };
+    const lotsInvHtml = itemId => {
+      const lots = lotsDeLArticle(itemId); if (!lots || !lots.length) return '';
+      const v = lotInv(itemId);
+      return `<div class="small"><label>Lot de l'écart <select class="inv-lot" data-iid="${h(itemId)}" aria-label="Lot de l'écart">${lots.map(x => `<option value="${h(x.lot)}" ${x.lot === v ? 'selected' : ''}>${h(x.lot)} — ${pct(x.qty)}${x.peremption ? `, périme le ${C.fmtDate(x.peremption)}` : ''}</option>`).join('')}<option value="" ${v === '' ? 'selected' : ''}>Sans lot</option></select></label></div>`;
+    };
+    // (1.388.29, ENTACHATS-15) Les inventaires passés se relisent et s'annulent. Depuis cette version ils portent un
+    // identifiant commun ; ceux d'avant se regroupent par date et dépôt, et leur effet en dinars n'est pas connu (« — »).
+    const inventairesPasses = () => {
+      const g = new Map();
+      (data.stockAdjustments || []).filter(a => a.source === 'inventaire').forEach(a => {
+        const k = a.inventaireId || `ancien|${a.date}|${a.depotId || ''}`;
+        if (!g.has(k)) g.set(k, { cle: k, date: a.date, depotId: a.depotId || '', ids: [], valeur: 0, ancien: !a.inventaireId });
+        const x = g.get(k); x.ids.push(a.id); x.valeur = C.round3(x.valeur + (Number(a.valeurInventaire) || 0));
+      });
+      return [...g.values()].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+    };
+    const inventairesPassesHtml = () => {
+      const tous = inventairesPasses(); if (!tous.length) return '';
+      s.invPasses = s.invPasses || { page: 1 };
+      const pg = paginate(tous, s.invPasses), cur = company().currency, plusieurs = C.depotsDe(data).length > 1;
+      return `<div class="panel" id="inv-passes"><h2>Inventaires passés</h2>
+        <div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th>${plusieurs ? '<th>Dépôt</th>' : ''}<th class="r">Écarts</th><th class="r">Effet sur la valeur</th><th></th></tr></thead><tbody>
+        ${pg.rows.map(x => `<tr><td class="nw">${C.fmtDate(x.date)}</td>${plusieurs ? `<td>${h(C.nomDepot(data, x.depotId))}</td>` : ''}
+          <td class="r nw">${pl(x.ids.length, 'écart')}</td>
+          <td class="r nw">${x.ancien ? '<span class="muted" title="Enregistré avant que SkanFact retienne la valeur de chaque écart">—</span>' : moneySigne(x.valeur, cur)}</td>
+          <td class="r nw"><button type="button" class="btn btn-sm" data-inv-annuler="${h(x.cle)}">Annuler cet inventaire</button></td></tr>`).join('')}
+        </tbody></table></div>${pagerBar(pg.pg, { noun: 'inventaire' })}</div>`;
+    };
     function drawInventory() {
       const { rows } = etatInventaire();
       // Paginé : le comptage d'un article d'une autre page reste dans `s.counts`, et les écarts se
       // calculent sur TOUS les articles (`etatInventaire`), pas sur la page affichée.
-      const invPage = paginate(rows, s.inv);
+      const qInv = String(s.invQ || '').trim();
+      const invPage = paginate(qInv ? rows.filter(r => C.correspondRecherche(r.label || '', qInv)) : rows, s.inv);
       $('#st-body').innerHTML = `
         ${s.dernierInventaire ? `<div class="cf-carte" id="inv-fait"><p><b>Inventaire du ${C.fmtDate(s.dernierInventaire.date)} enregistré</b> : ${pl(s.dernierInventaire.comptes, 'article compté', 'articles comptés')}, ${pl(s.dernierInventaire.ecarts, 'écart')} pour ${C.money(s.dernierInventaire.valeur, company().currency)} au coût moyen.
           ${peutEcrireAuCabinet() ? 'La valeur du stock a changé : c\'est ce que ton cabinet passe en variation de stock à la clôture.' : ''}</p>
@@ -1674,12 +1757,13 @@
           <div class="filters">
             <label class="small">${lbl('Date du comptage', 'stk.countDate')} ${dateFieldHtml('', 'countDate', s.countDate, {})}</label>
             ${invDepot() ? `<label class="small">${lbl('Dépôt compté', 'dep.depots')} <select id="inv-depot">${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === invDepot() ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
+            <input type="search" id="inv-q" placeholder="Rechercher un article…" value="${h(s.invQ || '')}" aria-label="Rechercher un article à compter">
             <span class="small muted" id="inv-compte"></span>
           </div>
           <div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Article</th><th class="r">Stock théorique</th><th class="r">Compté</th><th class="r">Écart</th><th class="r">Valeur de l'écart</th></tr></thead><tbody>
             ${invPage.rows.map(r => `<tr data-ligne="${h(r.itemId)}">
-              <td><strong>${h(r.label)}</strong>${r.unit ? ` <span class="muted">(${h(r.unit)})</span>` : ''}</td>
+              <td><strong>${h(r.label)}</strong>${r.unit ? ` <span class="muted">(${h(r.unit)})</span>` : ''}${lotsInvHtml(r.itemId)}</td>
               <td class="r nw">${pct(r.book)}</td>
               <td class="r"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num inv-in" data-iid="${h(r.itemId)}" value="${r.counted == null ? '' : h(frChiffre(r.counted))}" placeholder="—" style="width:90px" aria-label="Compté : ${h(r.label)}"></td>
               <td class="r nw" data-ecart></td><td class="r nw" data-valeur></td></tr>`).join('')}
@@ -1691,6 +1775,7 @@
           </div>
           <p class="small muted mt">Rien n'est modifié tant que tu ne cliques pas : le comptage reste à l'écran, et c'est toi qui décides de le passer en mouvements d'inventaire.</p>
         </div>`;
+      $('#st-body').insertAdjacentHTML('beforeend', inventairesPassesHtml());
       bindDateFields($('#st-body'));
       brancherEtatPourLeComptable();
       const hid = $('#st-body input[name=countDate]');
@@ -1703,6 +1788,8 @@
       };
       majInventaire();
       $$('#st-body .inv-in').forEach(el => el.oninput = () => { s.counts[el.dataset.iid] = chiffreLisible(el) ? lireMontant(el.value) : ''; majInventaire(); });
+      $$('#st-body .inv-lot').forEach(el => { el.onchange = () => { s.lotsInv[el.dataset.iid] = el.value; }; });
+      if ($('#inv-q')) $('#inv-q').oninput = e => { s.invQ = e.target.value; s.inv.page = 1; sansPerdreLaFrappe(e.target, drawInventory); };
       // (1.387.64, ENTACHATS-15) Effacer un comptage d'une centaine de lignes se faisait d'un toucher, sans retour : il laisse
       // désormais « Annuler » sous la main (ce qui se répare laisse un Annuler, 7.12.0) et dit combien de lignes il efface.
       $('#inv-clear').onclick = () => {
@@ -1723,6 +1810,22 @@
         ecrireAuComptable(`Bonjour, j'ai fait l'inventaire du stock au ${C.fmtDate(x.date)} : ${pl(x.comptes, 'article compté', 'articles comptés')}, ${pl(x.ecarts, 'écart')}, ${effet}.${lignes}${lignes ? '\n' : ' '}Les mouvements d'inventaire sont enregistrés dans SkanFact${e ? `, et ${texteEtatDuStock(e)}` : '.'}`);
       };
       bindPager($('#st-body'), s.inv, () => drawInventory(), '#st-body');
+      if ($('#inv-passes')) bindPager($('#inv-passes'), s.invPasses, () => drawInventory(), '#inv-passes');
+      $$('#st-body [data-inv-annuler]').forEach(b => b.onclick = async () => {
+        const x = inventairesPasses().find(y => y.cle === b.dataset.invAnnuler); if (!x) return;
+        if (closedBlock(x.date, 'Cet inventaire')) return;
+        const dep = x.depotId && C.depotsDe(data).length > 1 ? ` (${C.nomDepot(data, x.depotId)})` : '';
+        if (!await confirmDialog(`Annuler l'inventaire du ${C.fmtDate(x.date)}${dep} ? ${x.ids.length > 1 ? `Ses ${pl(x.ids.length, 'écart')} sont retirés` : 'Son écart est retiré'} : le stock revient à ce qu'il était avant le comptage.`, 'Annuler l\'inventaire', false, { titre: 'Annuler cet inventaire ?' })) return;
+        const retires = data.stockAdjustments.filter(a => x.ids.includes(a.id));
+        x.ids.forEach(id => forget('stockAdjustments', id, `Inventaire du ${C.fmtDate(x.date)}`));
+        data.stockAdjustments = data.stockAdjustments.filter(a => !x.ids.includes(a.id));
+        s.dernierInventaire = null; save(true); draw();
+        toastUndo(`Inventaire du ${C.fmtDate(x.date)} annulé : ${pl(retires.length, 'écart')} retiré${sPl(retires.length)}.`, () => {
+          // De nouveaux identifiants : les anciens sont marqués supprimés (trackDeletion) et ne reviendraient pas d'un autre poste.
+          retires.forEach(a => data.stockAdjustments.push({ ...a, id: C.uid() }));
+          save(true); draw();
+        });
+      });
       $('#inv-apply').onclick = async () => {
         // Le résumé se lit AVANT les mouvements : après eux, le stock compté et le stock théorique sont les mêmes.
         const { gaps, counted, value } = etatInventaire();
@@ -1731,7 +1834,7 @@
         // (1.357.5, bout en bout joué à la souris : la farine comptée en fin de mois) La question dit CE QUI change et COMBIEN,
         // article par article (le dernier écran avant le geste récapitule), et ce que ça fait : ce qui manque a été utilisé
         // ou perdu, et sa valeur compte dans le coût du mois. Son bouton n'est pas rouge : le geste se corrige, il ne détruit rien.
-        const lignesInv = gaps.slice(0, 6).map(r => `${r.label} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${C.uniteAccordee(Math.max(r.book, r.counted), r.unit)}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen`);
+        const lignesInv = gaps.slice(0, 6).map(r => `${r.label}${lotInv(r.itemId) ? ` (lot ${lotInv(r.itemId)})` : ''} : ${pct(r.book)} → ${pct(r.counted)}${r.unit ? ` ${C.uniteAccordee(Math.max(r.book, r.counted), r.unit)}` : ''} (${qteSignee(r.gap)}), ${moneySigne(r.value, company().currency)} au coût moyen`);
         const resteInv = gaps.length > 6 ? `\n… et ${pl(gaps.length - 6, 'autre article', 'autres articles')}.` : '';
         const effetInv = [gaps.some(r => r.gap < 0) ? 'ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois' : '',
           gaps.some(r => r.gap > 0) ? 'ce qui est en plus revient dans le stock' : ''].filter(Boolean).join(' ; ');
@@ -1739,8 +1842,9 @@
         if (!await confirmDialog(`${depInv ? `Dépôt compté : ${C.nomDepot(data, depInv)}. Les autres dépôts ne bougent pas.\n\n` : ''}${lignesInv.join('\n')}${resteInv}\n\nLe stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.`, 'Enregistrer',
           false, { titre: `Enregistrer l'inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : ''} ?` })) return;
         if (closedBlock(s.countDate, 'Cet inventaire')) return;
+        const invId = C.uid(); // (1.388.29, ENTACHATS-15) un inventaire = un geste : il se relit et s'annule d'un coup
         gaps.forEach(r => data.stockAdjustments.push({ id: C.uid(), createdAt: Date.now(), date: s.countDate, itemId: r.itemId, qty: r.gap,
-          unitCost: '', source: 'inventaire', reference: '', ...(depInv ? { depotId: depInv } : {}), note: `Inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` · ${C.nomDepot(data, depInv)}` : ''}` }));
+          unitCost: '', source: 'inventaire', inventaireId: invId, valeurInventaire: r.value, reference: '', ...(depInv ? { depotId: depInv } : {}), ...(lotInv(r.itemId) ? { lot: lotInv(r.itemId) } : {}), note: `Inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` · ${C.nomDepot(data, depInv)}` : ''}` }));
         // (1.284.0, revue du Stock S6) Le résumé reste à l'écran : c'est lui que « Prévenir mon comptable » envoie.
         s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value,
           // (1.357.5) Les écarts eux-mêmes : le message au comptable les nomme (il n'a pas cet écran).
@@ -1910,6 +2014,7 @@
       if ($('#se-add')) $('#se-add').onclick = () => serialIntakeForm(null, () => draw());
       $('#st-war').onclick = () => navigate('#/garanties');
       // Les dépôts (brique 94) : le principal se renomme ; les autres s'ajoutent. Un dépôt qui a du stock ne se retire pas.
+      if ($('#st-transfert')) $('#st-transfert').onclick = () => transfertForm(null, () => draw());
       if ($('#st-depots')) $('#st-depots').onclick = () => {
         const lignes = C.depotsDe(data).map(d => ({ ...d }));
         modal(`<h2>Dépôts ${info('dep.depots')}</h2>
@@ -2076,30 +2181,7 @@
     bindBack('#/stock');
     $('#edit-item').onclick = () => catalogForm(item, () => render());
     $('#adj-item').onclick = () => adjustForm(item.id, () => render());
-    // Transférer d'un dépôt à l'autre (brique 94) : deux mouvements, sans coût ; ce que le dépôt n'a pas se refuse.
-    if ($('#transfert')) $('#transfert').onclick = () => {
-      const deps = C.depotsDe(data);
-      const opts = sel => deps.map(d => `<option value="${h(d.id)}" ${d.id === sel ? 'selected' : ''}>${h(d.nom)}</option>`).join('');
-      modal(`<h2>Transférer « ${h(item.label)} »</h2>
-        <form id="tr-form" class="grid-2" onsubmit="return false">
-          <label class="field">De<select name="de">${opts(deps[0].id)}</select></label>
-          <label class="field">Vers<select name="vers">${opts(deps[1].id)}</select></label>
-          <label class="field">Quantité${item.unit ? ` (${h(item.unit)})` : ''}<input type="text" inputmode="decimal" data-montant autocomplete="off" name="qty" class="num"></label>
-          ${dateFieldHtml('Date', 'date', C.today())}
-          <label class="field span-2">Note (optionnel)<input type="text" name="note" placeholder="Réassort du magasin"></label>
-        </form>
-        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="tr-ok">Transférer</button></div>`,
-      (root, fermer) => {
-        $('#tr-ok', root).onclick = () => {
-          const v = formValues($('#tr-form', root));
-          const r = C.transfertStock(data, { id: C.uid(), itemId: item.id, de: v.de, vers: v.vers, qty: v.qty, date: v.date || C.today(), note: String(v.note || '').trim() });
-          if (r.erreur) return toast(r.erreur, true);
-          data.stockAdjustments = data.stockAdjustments || [];
-          r.ajustements.forEach(a => data.stockAdjustments.push(a));
-          save(true); fermer(); toast(`Transféré : ${pct(Number(v.qty))} de ${C.nomDepot(data, v.de)} vers ${C.nomDepot(data, v.vers)}.`); render(true);
-        };
-      });
-    };
+    if ($('#transfert')) $('#transfert').onclick = () => transfertForm(item.id, () => render(true));
     function bindRm() { $$('#art-hist [data-rm]').forEach(b => b.onclick = () => retirerMouvementManuel(b.dataset.rm, item.label)); }
     drawHist();
     if ($('#art-commander')) $('#art-commander').onclick = () => ouvrirBonArticle(item.id);

@@ -126,6 +126,25 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await p.evaluate(() => { location.hash = '#/article/ciment'; });
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 100 sacs · Magasin de Sfax 58 sacs');
+    // (1.388.29, ENTACHATS-9) Transférer depuis la tête de Stock (l'article se choisit), puis lire l'état dépôt par dépôt.
+    await p.evaluate(() => { location.hash = '#/stock'; });
+    await p.locator('#st-transfert').click({ timeout: 15_000 });
+    const tf = p.locator('#modal-root .modal').last();
+    await expect.poll(() => tf.locator('h2').innerText().then(net), { timeout: 10_000 }).toBe('Transférer de la marchandise');
+    await tf.locator('[data-combo=itemId] .combo-btn').click();
+    await tf.locator('.combo-it').filter({ hasText: 'Ciment gris 50 kg' }).first().click();
+    await tf.locator('select[name=de]').selectOption({ label: 'Magasin de Sfax' });
+    await tf.locator('select[name=vers]').selectOption({ label: 'Magasin de Tunis' });
+    await tf.locator('input[name=qty]').fill('8');
+    await tf.locator('#tr-ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 10_000 }).toBe(0);
+    await p.locator('#st-tabs button[data-tab="etat"]').click();
+    await p.locator('#st-depot').selectOption({ label: 'Magasin de Sfax' });
+    await expect.poll(async () => net(await p.locator('#st-body tr[data-iid="ciment"]').innerText()), { timeout: 10_000 }).toContain('50');
+    await p.locator('#st-depot').selectOption({ label: 'Magasin de Tunis' });
+    await expect.poll(async () => net(await p.locator('#st-body tr[data-iid="ciment"]').innerText()), { timeout: 10_000 }).toContain('108');
+    await p.evaluate(() => { location.hash = '#/article/ciment'; });
+    await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Magasin de Tunis 108 sacs · Magasin de Sfax 50 sacs');
     // La ligne de la réception mène à la réception.
     const lienBR = p.locator('#view tr a', { hasText: /^BR-/ }).first();
     expect(await lienBR.getAttribute('href')).toBe('#/reception/r1');

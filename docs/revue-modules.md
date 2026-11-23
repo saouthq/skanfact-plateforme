@@ -6631,3 +6631,27 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   quels, décidés : la famille des visites (ENTSOCLE-12), la place du sélecteur d'entreprise (ENTSOCLE-16).
 - Tests : `barre` (G, F puis une lettre : on ne part pas), `reprendre` (la question d'une pièce sans client), `offre`
   (la phrase) ; trois preuves. Le retour au même endroit et la cloche n'ont pas encore de test dédié : à jouer à la souris dans la vérification finale.
+
+## 1.388.29 — Les achats (issue 17) : le prix d'achat jamais le prix de vente, « Changer la date », une date impossible refusée
+
+- **Un article sans coût ni achat arrive SANS prix** dans un achat (« prix d'achat » en invite, « prix à saisir » dans la
+  liste), jamais à son prix de vente ni à 0 ; l'enregistrement montre la case tant qu'elle est vide (ENTACHATS-19).
+- **Une date tapée qui tombe dans un mois clôturé propose « Changer la date »** (le curseur y retourne) avant « Voir les
+  clôtures » (ENTACHATS-17).
+- **Une date qui n'existe pas (31/02) reste écrite, marquée, et refusée** à l'enregistrement — dans les fenêtres comme dans
+  les éditeurs ; elle n'était plus remplacée en silence par l'ancienne date (X-3, jumeau de CABPORTEFEUILLE-19).
+- **Au téléphone, « Facture d'achat » reste à côté de « Dépense »** dans la tête des achats (ENTACHATS-16).
+- **Envoyer une commande à un fournisseur demande si elle est partie** : un lien d'e-mail ouvre la messagerie, il ne prouve
+  pas l'envoi ; « Pas encore » la laisse à envoyer (ENTACHATS-10).
+- **La liste des fournisseurs dit le délai que la facture appliquera** (« paie à 30 jours (par défaut) ») ; la fiche dit
+  « RIB ou IBAN » (ENTACHATS-18 ; Pays et SWIFT restent à décider).
+- **« Transférer… » depuis la page Stock** (même fenêtre que la fiche de l'article, l'article se choisit), et l'état du
+  stock se lit **dépôt par dépôt** (ENTACHATS-9).
+- **Un commerce, un restaurant ou un atelier** voient « Ton premier article » et « Ton premier achat » dans leurs premiers
+  pas (ENTACHATS-13).
+- **L'écart d'inventaire d'un article suivi par lot va au lot choisi** (le conseillé par défaut), jamais « sans lot »
+  (ENTACHATS-14).
+- **Les inventaires passés se relisent et s'annulent d'un coup** (avec « Annuler » pour revenir), la feuille d'inventaire
+  se cherche, et au téléphone « Enregistrer » reste au bas de l'écran (ENTACHATS-15).
+- Tests : `recette-alpha` (19, 17 + X-3, 16, 10), `liste-fournisseurs` (l'assertion « délai non précisé » retournée),
+  `depots`, `lots`, `stock-revue`, `premiers-pas` (nouveau parcours commerce) ; dix preuves.

@@ -274,7 +274,9 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 }
 @media (max-width: 760px) {
   /* Au téléphone, « Nouveau client » reste dans l'en-tête : la barre du bas n'a pas de « + » pour un client. */
-  .lc-tete #new { display: inline-flex; }
+  /* (1.388.29, ENTACHATS-16) Et la tête des achats : au téléphone, « Facture d'achat » reste à côté de « Dépense » (le
+     carton du fournisseur arrive au comptoir aussi). Même poids que la règle qui cache, posée après elle. */
+  .lc-tete #new, .la-tete #new { display: inline-flex; }
   /* Les clients en cartes (la maquette) ; le tableau et son pied restent à l'ordinateur. */
   .lc table.lc-table { display: none; }
   .lc .lc-cartes { display: grid; gap: 8px; }

@@ -176,6 +176,14 @@ describe('la revue du Stock', () => {
     expect(net(await p.locator('#inv-fait p').innerText())).toMatch(/^Inventaire du \d\d\/\d\d\/\d{4} enregistré : 1 article compté, 1 écart pour 90,000 DT au coût moyen\.$/);
     expect(await p.locator('#inv-prevenir').count()).toBe(0);
     await expect.poll(async () => (await surLeServeur('stockAdjustments')).filter((x) => x.source === 'inventaire').length, { timeout: 15_000 }).toBe(1);
+    // (1.388.29, ENTACHATS-15) L'inventaire se relit dans « Inventaires passés », et s'annule d'un coup (« Annuler » le rend).
+    await expect.poll(async () => net(await p.locator('#inv-passes').innerText().catch(() => '')), { timeout: 10_000 }).toContain('1 écart');
+    expect(net(await p.locator('#inv-passes').innerText())).toMatch(/90,000/);
+    await p.locator('#inv-passes [data-inv-annuler]').first().click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler l\'inventaire', exact: true }).click();
+    await expect.poll(async () => (await surLeServeur('stockAdjustments')).filter((x) => x.source === 'inventaire').length, { timeout: 15_000 }).toBe(0);
+    await p.locator('#toast-undo, #toast button').first().click();
+    await expect.poll(async () => (await surLeServeur('stockAdjustments')).filter((x) => x.source === 'inventaire').length, { timeout: 15_000 }).toBe(1);
 
     // Au téléphone : rien ne déborde de la fiche.
     await p.setViewportSize({ width: 390, height: 844 });
