@@ -514,9 +514,11 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
-  // Ce qui attend la décision : qui l'a remis, depuis quel appareil, quand, et quoi.
+  // Ce qui attend la décision : qui l'a remis, depuis quel appareil, quand, et quoi. La remise porte des changements de
+  // n'importe quelle partie du dossier, et la décision revient au propriétaire (03, D8) : lire et décider sont donc les
+  // gestes de ceux qui voient toute l'entreprise.
   ajouter({
-    methode: 'GET', chemin: '/entreprises/:entreprise/quarantaine', geste: 'socle.dossier.voir',
+    methode: 'GET', chemin: '/entreprises/:entreprise/quarantaine', geste: 'socle.dossier.tout',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const r = await tx.query(`select q.id, q.appareil_nom, u.nom utilisateur, q.recue_le, q.changements
@@ -536,7 +538,7 @@ export function routesV10(ctx: Contexte): Route<never>[] {
   // comme s'il arrivait maintenant, avec la révision que l'appareil avait vue : ce qui a changé depuis,
   // ou que le serveur refuse, est mis de côté et dit ; jamais deux versions fusionnées en une troisième).
   ajouter({
-    methode: 'POST', chemin: '/entreprises/:entreprise/quarantaine/:remise', geste: 'socle.dossier.modifier',
+    methode: 'POST', chemin: '/entreprises/:entreprise/quarantaine/:remise', geste: 'socle.dossier.tout',
     corps: z.object({ accepter: z.boolean() }),
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');

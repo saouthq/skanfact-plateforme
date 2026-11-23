@@ -6735,3 +6735,12 @@ Sur GitHub, la recette alpha (ENTACHATS-17) cliquait « Enregistrer les modifica
 ne se montre qu'une fois la date changée (un seul bouton principal), et la machine de GitHub est plus lente que la
 nôtre. Le test attend désormais le bouton, et retape la date tant qu'il ne s'est pas montré. Rien ne change dans
 l'application.
+
+## 1.388.36 — Les règles d'équipe, alignées (invitation du comptable, remises, réglages de l'exemple)
+
+Trois règles de l'équipe s'appliquent désormais partout de la même façon : le lien d'invitation d'un
+comptable se prend avec le compte de l'adresse invitée (comme l'invitation d'une personne de l'équipe) ;
+les remises d'un appareil se lisent et se décident par le propriétaire et l'administrateur ; et les
+réglages que SkanFact pose pour l'entreprise d'essai restent ceux de SkanFact. Connecté, un lien de
+comptable qui ne vaut plus le dit, au lieu d'ouvrir un tableau de bord vide. Tests : `mandats`,
+`quarantaine`, `droits-dossier`.

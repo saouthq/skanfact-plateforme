@@ -3699,8 +3699,8 @@ prouver "les réglages du dossier comptés comme des changements remis" $Q \
 prouver "une remise réécrite après coup" $Q \
   "  raise exception 'une remise en quarantaine ne se modifie pas et ne s''efface pas' using errcode = '42501';" "  return new;" \
   "$AQ1"
-prouver "une remise visible de tous" $Q \
-  "create policy visible on socle.quarantaine using (entreprise in (select socle.mes_entreprises()));" "create policy visible on socle.quarantaine using (true);" \
+prouver "une remise visible de tous" base/migrations/0224_invitations_et_remises.sql \
+  "using (entreprise in (select socle.mes_entreprises()) and socle.mes_roles(entreprise) && array['proprietaire', 'administrateur']::text[]);" "using (true);" \
   "$AQ2"
 prouver "l'entrée qui tait ce que l'appareil a remis" serveur/app.ts \
   "            const remis = await remisParCeJeton(ctx, jeton);" "            const remis = 0;" \
@@ -17773,11 +17773,11 @@ prouver 'une nouvelle invitation qui laisse valoir l'"'"'ancienne' 'base/migrati
   insert' \
   '  insert' \
   'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
-prouver 'le lien du comptable qui sert deux fois' 'base/migrations/0154_inviter_son_comptable.sql' \
+prouver 'le lien du comptable qui sert deux fois' 'base/migrations/0224_invitations_et_remises.sql' \
   'if not found or i.utilisee_le is not null or i.annulee_le' \
   'if not found or i.annulee_le' \
   'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
-prouver 'le lien du comptable qui vaut encore périmé' 'base/migrations/0154_inviter_son_comptable.sql' \
+prouver 'le lien du comptable qui vaut encore périmé' 'base/migrations/0224_invitations_et_remises.sql' \
   ' or i.expire_le <= p_maintenant then' \
   ' then' \
   'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
@@ -31892,6 +31892,23 @@ prouver $'l9-es9-les-etapes-montrees' web/public/v10/visite.js \
   $'    const nVu = avecChapitres ? n : p.etapes.filter(vaut).length;' \
   $'    const nVu = avecChapitres ? n : p.etapes.length; void vaut;' \
   $'la visite nomme un bouton par ce qui se voit et ne compte que les étapes montrées (ENTSOCLE-9)'
+
+# 1.388.36 — les règles d'équipe alignées.
+prouver "une remise lue par tous les rôles" base/migrations/0224_invitations_et_remises.sql \
+  " and socle.mes_roles(entreprise) && array['proprietaire', 'administrateur']::text[]);" ");" \
+  "les remises se voient et se décident par le propriétaire et l'administrateur, pas par un autre rôle"
+prouver "une remise décidée par tous les rôles" serveur/v10/routes.ts \
+  "chemin: '/entreprises/:entreprise/quarantaine/:remise', geste: 'socle.dossier.tout'" "chemin: '/entreprises/:entreprise/quarantaine/:remise', geste: 'socle.dossier.modifier'" \
+  "les remises se voient et se décident par le propriétaire et l'administrateur, pas par un autre rôle"
+prouver "le lien du comptable pris par une autre adresse" base/migrations/0224_invitations_et_remises.sql \
+  "if v_email is distinct from lower(btrim(i.email)) then" "if false then" \
+  "inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite"
+prouver "la marque de l'exemple écrite par un membre" serveur/v10/droits.ts \
+  "demo: R('socle.dossier.voir', 'socle.dossier.tout')" "demo: R('socle.dossier.voir', 'socle.dossier.voir')" \
+  "la marque de l'exemple : un membre ne la pose pas, et personne ne la pose sur une vraie entreprise depuis un poste"
+prouver "la marque de l'exemple posée sur une vraie entreprise" serveur/v10/dossier.ts \
+  "if (!e?.essai) throw new Refus('v10.exemple_reserve');" "void e;" \
+  "la marque de l'exemple : un membre ne la pose pas, et personne ne la pose sur une vraie entreprise depuis un poste"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

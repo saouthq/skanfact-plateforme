@@ -236,17 +236,22 @@ describe('le cabinet et ses mandats', () => {
     // Une première invitation, puis une seconde : la première ne vaut plus.
     const premiere = await inviter('ancien-comptable@exemple.tn');
     expect(premiere.statut, JSON.stringify(premiere.corps)).toBe(201);
-    const seconde = await inviter('  Comptable@Exemple.tn ');
+    // Le comptable a déjà son compte : l'invitation porte son adresse, tapée avec des majuscules et des espaces.
+    const cab = await cabinet();
+    const seconde = await inviter(`  ${cab.associe.email.toUpperCase()} `);
     expect(seconde.corps.perimetre).toEqual(['comptabilite', 'declarations', 'saisie_achats']);
     expect((await appeler('POST', '/invitations-comptable/apercu', undefined, { jeton: jetonDe(premiere.corps.lien) })).corps).toEqual({ valable: false });
     const jeton = jetonDe(seconde.corps.lien);
     expect((await appeler('POST', '/invitations-comptable/apercu', undefined, { jeton })).corps)
-      .toMatchObject({ valable: true, entreprise: 'Menuiserie Ben Salah', email: 'comptable@exemple.tn' });
-    expect(((await appeler('GET', `/entreprises/${cl.ent}/mandat/invitation`, cl.jeton)).corps.invitation as { email: string }).email).toBe('comptable@exemple.tn');
+      .toMatchObject({ valable: true, entreprise: 'Menuiserie Ben Salah', email: cab.associe.email });
+    expect(((await appeler('GET', `/entreprises/${cl.ent}/mandat/invitation`, cl.jeton)).corps.invitation as { email: string }).email).toBe(cab.associe.email);
     // Le comptable crée son cabinet ; un collaborateur ne reçoit pas le dossier, l'associé si : proposé, au périmètre choisi.
-    const cab = await cabinet();
     const revision = await cab.collaborateur('revision');
     expect((await appeler('POST', `/cabinets/${cab.id}/invitations-comptable/rejoindre`, revision.jeton, { jeton })).statut).toBe(403);
+    // L'associé d'un AUTRE cabinet, qui a eu le lien entre les mains, ne le prend pas : il est réservé à l'adresse invitée.
+    const intrus = await cabinet();
+    expect((await appeler('POST', `/cabinets/${intrus.id}/invitations-comptable/rejoindre`, intrus.associe.jeton, { jeton })).corps.motif).toMatch(/une autre adresse/);
+    expect(await portefeuille(intrus.id, intrus.associe)).toEqual([]);
     const r = await appeler('POST', `/cabinets/${cab.id}/invitations-comptable/rejoindre`, cab.associe.jeton, { jeton });
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);
     expect(r.corps).toMatchObject({ entreprise: cl.ent, statut: 'propose' });

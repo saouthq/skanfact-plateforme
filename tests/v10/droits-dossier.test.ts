@@ -130,6 +130,20 @@ describe('les droits geste par geste dans le dossier v10', () => {
     expect((await e.envoyer(e.membres.lecture?.jeton ?? '', [{ collection: 'clients', cle: 'c3', rang: 2, revision: null, contenu: { id: 'c3', name: 'X' } }])).statut).toBe(403);
   });
 
+  it('la marque de l\'exemple : un membre ne la pose pas, et personne ne la pose sur une vraie entreprise depuis un poste', async () => {
+    const e = await entreprise();
+    const demo = (v: unknown) => [{ collection: '_racine', cle: 'demo', rang: null, revision: null, contenu: v }];
+    const refus = await e.envoyer(e.membres.commercial?.jeton ?? '', demo(true));
+    expect(refus.statut).toBe(403);
+    expect(refus.corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer/);
+    const proprio = await e.envoyer(e.proprio.jeton, demo(true));
+    expect(proprio.statut).not.toBe(200);
+    expect(proprio.corps.motif).toMatch(/entreprise d'essai seulement/);
+    expect((await e.lire(e.proprio.jeton)).objets.some((o) => o.collection === '_racine' && o.cle === 'demo')).toBe(false);
+    // Retirer la marque (faux) reste permis à qui voit toute l'entreprise.
+    expect((await e.envoyer(e.proprio.jeton, demo(false))).statut).toBe(200);
+  });
+
   // (16 § 10.1, point 8) Cinq parties sans règle tombaient au propriétaire seul : la paie ne voyait aucun mois verrouillé, et
   // ses validations restaient sur son poste. Le pointage validé est de la paie ; les heures d'une affaire suivent l'affaire.
   it('le pointage validé par le gérant se lit et s\'écrit par la paie ; les heures d\'une affaire suivent l\'affaire', async () => {

@@ -171,4 +171,24 @@ describe('la quarantaine', () => {
     expect((await appeler('POST', '/quarantaine', karim, { entreprise: ent, changements })).statut).toBe(401);
     void session;
   });
+
+  it('les remises se voient et se décident par le propriétaire et l\'administrateur, pas par un autre rôle', async () => {
+    const { ent, bureau, utilisateur: moi } = await nadia();
+    const email = `commercial-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Karim', motDePasse: 'Un-bon-mot-de-passe' });
+    const commercial = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Portable de Karim', type: 'navigateur' } })).corps.jeton);
+    await appeler('POST', '/moi/code', commercial, { methode: 'application' });
+    const invitation = String((await appeler('POST', `/entreprises/${ent}/invitations`, bureau.jeton, { email, roles: ['commercial'] })).corps.jeton);
+    expect((await appeler('POST', '/invitations/accepter', commercial, { jeton: invitation })).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/quarantaine`, commercial)).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${ent}/quarantaine/00000000-0000-0000-0000-000000000000`, commercial, { accepter: false })).statut).toBe(403);
+    const u = String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0].id);
+    // Une remise en attente (posée par la base) : le propriétaire la lit, le commercial ne la voit pas.
+    await admin.query(`insert into socle.quarantaine (entreprise, session, appareil, appareil_nom, utilisateur, recue_le, changements)
+      select $1, socle.uuidv7(), a.id, 'Portable', $2, now(), '[]'::jsonb from socle.appareil a where a.utilisateur = $2 limit 1`, [ent, moi]);
+    const n = async (qui: string) => (await enTantQue(pool, qui, (tx) => tx.query('select count(*)::int n from socle.quarantaine where entreprise = $1', [ent]))).rows[0].n;
+    expect(await n(moi)).toBe(1);
+    expect(await n(u)).toBe(0);
+    expect((await appeler('GET', `/entreprises/${ent}/quarantaine`, bureau.jeton)).statut).toBe(200);
+  });
 });

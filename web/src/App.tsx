@@ -255,6 +255,8 @@ export function App() {
       if (r.statut !== 200) return;
       // Un lien qui ne vaut plus se dit, et s'oublie : il ne retient plus personne sur la porte du cabinet.
       if (!r.corps.valable) comptable.oublier();
+      // Connecté, le lien qui ne vaut plus se dit aussi : sans ce mot, le cabinet arrivait sur un tableau de bord vide.
+      if (!r.corps.valable && session.jeton()) setRefusInvitation(phrase('ecran.comptable.perimee'));
       setClient(r.corps);
       if (!r.corps.valable && !session.jeton()) setAccueilBrut((a) => (a.ecran === 'inscription' ? { ecran: 'connexion' } : a));
     }).catch(() => undefined);

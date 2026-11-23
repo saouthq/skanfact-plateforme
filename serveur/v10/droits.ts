@@ -79,7 +79,9 @@ export const LISTES: Record<string, Regle> = {
 };
 export const RACINE: Record<string, Regle> = {
   company: R('socle.accueil.voir', 'socle.fiche_societe.modifier'),
-  version: TECHNIQUE, counters: TECHNIQUE, deleted: TECHNIQUE, conflictArchive: TECHNIQUE, demo: TECHNIQUE, exemple: TECHNIQUE,
+  version: TECHNIQUE, counters: TECHNIQUE, deleted: TECHNIQUE, conflictArchive: TECHNIQUE,
+  // La marque de l'exemple : lue par tous (l'écran en dépend), écrite seulement par ceux qui voient toute l'entreprise.
+  demo: R('socle.dossier.voir', 'socle.dossier.tout'), exemple: R('socle.dossier.voir', 'socle.dossier.tout'),
   expenseCategories: ACHATS, fixedCategories: ACHATS, depotPrincipalNom: STOCK,
   payrollSettings: PAIE, vatCarryIn: COMPTA,
   joursValides: PAIE, pointageOuverts: PAIE,

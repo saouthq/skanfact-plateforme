@@ -250,6 +250,12 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
       throw new Refus('v10.pieces_a_la_racine');
     }
   }
+  // La marque de l'exemple (`demo`, `exemple`) est posée par le serveur qui verse l'exemple (exemple.ts), sur l'entreprise
+  // d'essai seulement : depuis le poste, elle ne se pose jamais sur une vraie entreprise.
+  if (roles && changements.some((c) => c.collection === '_racine' && (c.cle === 'demo' || c.cle === 'exemple') && c.contenu !== null && c.contenu !== false)) {
+    const e = (await tx.query('select essai from socle.entreprise where id = $1', [entreprise])).rows[0] as { essai: boolean } | undefined;
+    if (!e?.essai) throw new Refus('v10.exemple_reserve');
+  }
   // (1.273.0, audit G02) Une version écartée suit les droits de la donnée qu'elle copie (`kind`) : on n'écrit ni n'efface
   // la copie de ce qu'on ne lit pas, et une liste des versions écartées renvoyée par qui n'en voit qu'une part garde
   // celles qu'il ne voyait pas.
