@@ -46,3 +46,9 @@
 .lt-barre { margin-block-start: 8px; }
 tr[data-ecr], tr[data-gl-compte] { cursor: pointer; }
 tr[data-ecr]:hover td, tr[data-gl-compte]:hover td { background: var(--accent-soft, var(--info-soft)); }
+/* (issue 3, C5) L'invitation « Première fois sur cet écran ? » dans le coin bas droit, comme dans l'entreprise (ecrans.css) :
+   sous « Guide-moi », elle couvrait le premier écran. « Guide-moi » s'allume tant qu'elle est là. */
+.guide-appel.ga-coin { right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+.guide-appel.ga-coin .ga-fleche { display: none; }
+#guide-moi.guide-moi-signale { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 40%, transparent); }
+@media (max-width: 760px) { .guide-appel.ga-coin { left: 12px; right: 12px; width: auto; } }

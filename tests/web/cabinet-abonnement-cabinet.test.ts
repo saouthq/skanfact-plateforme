@@ -204,7 +204,7 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     await cliquer(p.locator('#new-d'));
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('#nd-gratuit').innerText().then(net).catch(() => ''), { timeout: 10_000 })
-      .toBe('Ce sera ton 1er dossier tenu sur 3 gratuits : il ne coûte rien.');
+      .toBe('Ce sera ton 1er dossier tenu sur 3 gratuits : il ne coûte rien. Au-delà, chaque dossier se paie 60 DT HT par an.');
     expect(await fenetre.locator('#nd-abonnement').count()).toBe(0);
     await cx.close();
   }, 120_000);

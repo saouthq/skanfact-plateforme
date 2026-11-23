@@ -82,6 +82,8 @@ describe('la fiche du dossier au Cabinet, à la souris', () => {
     const { associe, cab, menuiserie, hotel } = await unCabinet();
     const { p, erreurs } = await contexte(associe);
     await ouvrir(p, cab.id, menuiserie, '.fd-afs');
+    // (issue 3 C6) Un comptable seul ne lit pas « Personne ne suit encore ce dossier » : c'est lui qui le tient.
+    expect((await p.locator('.fd-cote').innerText()).replace(/\s+/g, ' ')).toContain('Tu tiens ce dossier.');
     // Août (en retard) et septembre (à déposer aujourd'hui) n'ont rien reçu : une seule ligne, un seul geste.
     const lignes = p.locator('.fd-afs > li');
     expect(await lignes.count()).toBe(1);

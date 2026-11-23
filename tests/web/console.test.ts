@@ -364,6 +364,16 @@ describe('la console de l\'équipe, à la souris', () => {
     }
   }, 90_000);
 
+  it('(issue 5, CONSOLE-8) une entreprise à l\'abonnement offert : le menu des gestes dit pourquoi paiement, prolongation et suspension ont disparu', async () => {
+    const ent = await entreprise('Librairie Offerte de la Console', 20);
+    await admin.query('update plateforme.abonnement set offert = true where entreprise = $1', [ent]);
+    const p = await ouvrir(await jetonConsole(direction), `#/clients/${ent}`);
+    await cliquer(p.locator('.c-menu > button'));
+    await expect.poll(() => p.locator('.c-menu-note').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/offert.*Retire l.offre/);
+    expect(await p.locator('.c-menu-liste button', { hasText: 'Prolonger l\'essai' }).count()).toBe(0);
+    await p.context().close();
+  }, 90_000);
+
   it('la fiche : prolonger un essai, avec l\'aperçu du serveur et un motif ; la base, l\'histoire et le journal le disent', async () => {
     const p = await ouvrir(await jetonConsole(direction), `#/clients/${essaiCalme}`);
     // Inscrite aujourd'hui : sa fiche dit son arrivée (0127) — le premier jour, cinq marches dans l'ordre, l'inscription

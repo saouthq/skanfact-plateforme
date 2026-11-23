@@ -482,6 +482,7 @@ declarerTextes({
   'console.ecran.fiche.inscrite': 'inscrite le {le}',
   'console.ecran.fiche.gestes': 'gestes',
   'console.ecran.fiche.gestes_aide': 'les gestes que ton rôle permet, aujourd\'hui, sur cet abonnement',
+  'console.ecran.fiche.gestes_offert': 'l\'abonnement est offert : ni échéance, ni paiement, ni suspension tant qu\'il l\'est. Retire l\'offre pour retrouver ces gestes',
   'console.ecran.fiche.sans_geste.cabinet': 'une entreprise tenue par un cabinet n\'a pas d\'abonnement à elle',
   'console.ecran.fiche.abonnement': 'l\'abonnement',
   'console.ecran.fiche.f.essai': 'essai jusqu\'au',

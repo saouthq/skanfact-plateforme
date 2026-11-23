@@ -167,19 +167,28 @@ describe('les propositions de visite, une par ouverture', () => {
 
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab}#/production`);
     await titre('Tableau de bord');
-    await appel.waitFor({ timeout: 15_000 });
-    expect(net(await appel.locator('#ga-t').innerText())).toBe('Première fois sur cet écran ?');
-    // (1.387.98, issue 6, CAB-16) Une fenêtre ouverte au clavier (aucun clic ne ferme l'invitation) passe seule : l'invitation s'efface.
+    // (issue 3, C5) Le premier écran d'un cabinet neuf porte déjà ses premiers pas : pas d'invitation par-dessus.
+    await p.locator('#view .cab-neuf').waitFor({ timeout: 15_000 });
+    expect(await seTait()).toBe(0);
+    // (1.387.98, issue 6, CAB-16) Une fenêtre ouverte au clavier passe seule.
     await p.locator('#pri-nouveau').press('Enter');
     await p.locator('#modal-root .modal').first().waitFor({ timeout: 10_000 });
-    expect(await appel.count()).toBe(0);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
-    await p.mouse.click(700, 600);
-    await expect.poll(() => appel.count(), { timeout: 5_000 }).toBe(0);
+    // Ailleurs, l'invitation se pose dans le coin bas droit (sous « Guide-moi », elle couvrait l'écran), et Échap la ferme.
     await aller('#/echeances');
     await titre('Échéances');
+    await appel.waitFor({ timeout: 15_000 });
+    expect(net(await appel.locator('#ga-t').innerText())).toBe('Première fois sur cet écran ?');
+    expect(await appel.getAttribute('class')).toContain('ga-coin');
+    await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await p.keyboard.press('Escape');
+    await expect.poll(() => appel.count(), { timeout: 5_000 }).toBe(0);
+    await aller('#/ecritures');
+    await titre('Écritures');
     expect(await seTait()).toBe(0);
+    await aller('#/echeances');
+    await titre('Échéances');
 
     await p.reload();
     await titre('Échéances');

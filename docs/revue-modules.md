@@ -6477,3 +6477,32 @@ Vu à l'écran, sur l'entreprise d'exemple à 1 440 px.
   `cabinet-paie-parcours`, `support`, `services-connectes` ; neuf preuves.
 - Cinq preuves anciennes reciblées sur le code du jour (leur ligne avait bougé avec les versions de la semaine) : le
   matricule de la fiche, le rapport d'une balance, le mois d'un modèle, la période validée d'un bien, la frise de la paie.
+
+## 1.388.23 — Le portefeuille dit ce qu'il sait, « Annuler » demande, la console ne crie plus pour rien (issues 3 et 5)
+
+- **Le tableau de bord n'invente plus un mois** (issue 3, C2). Des dossiers sans début de mission faisaient partir la
+  grille d'un mois deviné ; la phrase dit maintenant que leur début n'est pas précisé, et « Préciser le début… » ouvre la
+  question (un dossier, ou la liste de ceux qui en manquent).
+- **« Tu tiens ce dossier. »** (C6) Un comptable seul lisait « Personne ne suit encore ce dossier » sur ses propres
+  dossiers. La phrase suit le nombre de collaborateurs : seul, c'est toi qui le tiens.
+- **La TVA non précisée le dit** (C12) : « non précisée · comptée mensuelle, déclarée le 28 », et « Préciser… » ouvre la
+  fiche sur sa périodicité.
+- **Les « (À VÉRIFIER) » répétés partent des cartes** (C3, décidé) : la mention reste là où on décide (Réglages, liasse,
+  montants), pas sur chaque ligne.
+- **« Ajouter un client… » partout** (C9) : le menu, la palette, le bouton de la page, le titre de la fenêtre et les
+  premiers pas disent le même mot.
+- **L'abonnement dit le prix au-delà des dossiers gratuits** (C11), avant la saisie ; deux phrases sur « le comportement
+  d'avant » parlaient d'une version que le comptable n'a jamais vue.
+- **« Annuler » demande avant de jeter une saisie** (X-2) : huit fenêtres (nouveau dossier, liste collée, fichier,
+  changement, abonnement, guide, note de relance…) jetaient ce qu'on venait de taper sans question. La relance retouchée
+  aussi (X-1) ; dans la tournée, « Passer » continue et seul « Passer » continue.
+- **L'invitation « Première fois sur cet écran ? » dans le coin** (C5), comme dans l'entreprise : sous « Guide-moi »,
+  elle couvrait le premier écran ; « Guide-moi » s'allume tant qu'elle est là, Échap la ferme où que soit le curseur, et
+  un cabinet neuf (qui a déjà sa page d'accueil) n'en reçoit pas. Au téléphone, elle se pose au-dessus des onglets du bas
+  (les deux applications) : dessous, on ne pouvait pas la toucher.
+- **Console** : une entreprise qui n'a que des brouillons ce mois-ci n'est plus en alerte d'usage (CONSOLE-4) ; une
+  entreprise à l'abonnement offert dit pourquoi le paiement, la prolongation et la suspension ont disparu de son menu
+  (CONSOLE-8).
+- Tests : `cabinet-production`, `fiche-dossier-cabinet`, `cabinet-nom-dossier`, `cabinet-relances`,
+  `cabinet-abonnement-cabinet`, `visites-une-fois`, `console-clients`, `console`, `barre-cabinet`, `cabinet`,
+  `cabinet-entree-1373`, `cabinet-equipe` ; douze preuves.

@@ -948,7 +948,7 @@
       bravo: 'Ton client est dans le portefeuille',
       conclusion: 'Rien ne lui est réclamé : tu tiens ses livres ici. S\'il utilise SkanFact, il te confie lui-même son dossier avec le code de ton cabinet.',
       etapes: [
-        // (issue 12 CABPORTEFEUILLE-24) Le bouton s'appelle « Ajouter mes clients… » sur un portefeuille vide : la visite le lit.
+        // (issue 12 CABPORTEFEUILLE-24 ; issue 3 C9) La visite lit le nom du bouton (« Ajouter un client… », partout).
         { page: '#/dossiers', cible: '#new-d', cote: 'dessous', faire: 'clic', avant: () => { clientsAvant = reels().length; },
           titre: 'Nouveau client', texte: 'Plusieurs clients d\'un coup ? La fenêtre qui s\'ouvre propose <b>« Coller une liste de clients… »</b>, depuis un tableur.', action: 'Clique sur {bouton}.', essai: { clic: true } },
         { page: '#/dossiers', cible: '#f-name', cote: 'droite', faire: 'valeur', bouton: 'Suivant',

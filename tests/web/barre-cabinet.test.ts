@@ -229,6 +229,10 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#cl-prix').innerText().catch(() => ''), { timeout: 8_000 }).toMatch(/^Ce que ça coûte\. (\d+\u00a0gratuits?, )?(\d+\u00a0payants? : .* HT par an|Ces 4 dossiers entrent dans tes \d+ gratuits)/);
     expect(await p.evaluate(() => { const x = document.querySelector('#cl-prix'), t = document.querySelector('#cl-apercu table'); return !!x && !!t && x.getBoundingClientRect().top < t.getBoundingClientRect().top; })).toBe(true);
     await p.locator('#modal-root #no').click();
+    // (X-2) La liste collée se jette après une question : on la jette.
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText().catch(() => '')).toBe('Abandonner cette saisie ?');
+    await p.locator('#modal-root .modal').last().locator('#ok').click();
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     // (1.374.0 ; 1.387.84, CABPORTEFEUILLE-2) Une échéance se choisit par son nom, son jour et son mois : plus de
     // « nom@JJ-MM » à taper, plus d'identifiant à inventer. Ce qui est faux se refuse sur sa case, la saisie reste.
     await p.evaluate(() => { location.hash = '#/reglages'; });
@@ -866,7 +870,7 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await p.locator('#barre .barre-milieu').isVisible()).toBe(false);
     expect(await p.locator('#barre .tete-barre').isVisible()).toBe(true);
     await onglets.locator('[data-tel="creer"]').click();
-    expect(await p.locator('.sb-feuille .grille-creer b').allInnerTexts()).toEqual(expect.arrayContaining(['Écriture', 'Importer un relevé', 'Nouveau dossier']));
+    expect(await p.locator('.sb-feuille .grille-creer b').allInnerTexts()).toEqual(expect.arrayContaining(['Écriture', 'Importer un relevé', 'Ajouter un client…']));
     await p.locator('.sb-feuille-voile').click({ position: { x: 10, y: 10 } });
     await onglets.locator('[data-tel="plus"]').click();
     const plus = p.locator('.sb-plus');

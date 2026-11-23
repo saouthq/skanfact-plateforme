@@ -142,6 +142,13 @@ describe('les relances et les mois à valider, à la souris', () => {
     expect(corps).toContain('dans SkanFact');
     expect(corps).not.toMatch(/paquet|clôturez|provisoire/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-relances-2-mail.png') });
+    // (X-1) Un message retouché ne se jette plus sur « Annuler » : la question d'abord, et « Annuler » la garde.
+    await fen.locator('#ec-msg').fill(`${corps} Merci.`);
+    await fen.locator('#ec-rel-non').click();
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText().catch(() => '')).toBe('Abandonner cette saisie ?');
+    await p.locator('#modal-root .modal').last().locator('#no').click();
+    await expect.poll(() => fen.locator('#ec-msg').inputValue().catch(() => '')).toBe(`${corps} Merci.`);
+    await fen.locator('#ec-msg').fill(corps);
     await fen.getByRole('button', { name: 'Ouvrir ma messagerie e-mail', exact: true }).click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     // Le mail s'est ouvert dans la messagerie, adressé au client, son objet dedans.

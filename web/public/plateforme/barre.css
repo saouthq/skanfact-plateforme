@@ -398,6 +398,8 @@ body.mode-caisse .sb-rail, body.mode-caisse .sb-onglets { display: none !importa
   body.avec-barre .sb-onglets { position: fixed; left: 0; right: 0; bottom: 0; height: calc(84px + env(safe-area-inset-bottom, 0px)); padding: 0 6px calc(22px + env(safe-area-inset-bottom, 0px)); display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; z-index: 80; font-family: var(--sb-police);
     background: color-mix(in srgb, var(--sb-papier) 86%, transparent); backdrop-filter: blur(20px) saturate(1.6); -webkit-backdrop-filter: blur(20px) saturate(1.6); border-top: 1px solid var(--sb-trait); }
   body.avec-barre.sans-onglets .sb-onglets { display: none; }
+  /* L'invitation « Première fois sur cet écran ? » se pose au-dessus des onglets du bas, jamais dessous (les deux applications). */
+  body.avec-barre:not(.sans-onglets):not(.mode-caisse) .guide-appel.ga-coin { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
   .sb-onglet { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 0 0; border: 0; background: transparent; color: var(--sb-gris-2); font: 500 11px/1.3 var(--sb-police); cursor: pointer; min-height: 44px; text-decoration: none; min-width: 0; }
   .sb-onglet .nom { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sb-onglet .ic-boite { position: relative; display: flex; justify-content: center; width: 52px; height: 28px; align-items: center; border-radius: 99px; transition: background .2s; }

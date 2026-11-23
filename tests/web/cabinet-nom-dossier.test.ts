@@ -188,6 +188,11 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
     }, { timeout: 20_000 }).toBe(1);
     const second = p.locator('#modal-root .modal').last();
     await second.locator('#f-name').fill('Atelier du Nord');
+    // (X-2) « Annuler » après une frappe demande avant de jeter ; « Annuler » de la question garde la saisie.
+    await second.locator('#no').click();
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText().catch(() => '')).toBe('Abandonner cette saisie ?');
+    await p.locator('#modal-root .modal').last().locator('#no').click();
+    await expect.poll(() => second.locator('#f-name').inputValue().catch(() => '')).toBe('Atelier du Nord');
     await second.locator('#f-mat').fill(`${chiffres}B/A/M/000`);
     await second.locator('#ok').click();
     await expect.poll(async () => p.locator('#modal-root h2').last().innerText().catch(() => '')).toBe('Atelier Ennasr est déjà dans ton portefeuille');
@@ -200,6 +205,12 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
     await p.locator('#page-fd').waitFor({ timeout: 15_000 });
     await p.locator('#fd-hon').click();
     await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-fees');
+    await p.keyboard.press('Escape');
+    // (issue 3 C12) Une TVA non précisée le dit, et « Préciser… » ouvre la fiche sur sa périodicité.
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    expect((await p.locator('#page-fd').innerText()).replace(/\s+/g, ' ')).toContain('non précisée · comptée mensuelle, déclarée le 28');
+    await p.locator('#fd-tva').click();
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id)).toBe('f-tva');
     await p.keyboard.press('Escape');
     expect(erreurs).toEqual([]);
   }, 180_000);

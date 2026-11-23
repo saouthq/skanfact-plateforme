@@ -129,7 +129,7 @@ describe('l\'équipe du cabinet, à la souris', () => {
     // L'associé, lui, ouvre la fiche.
     await aller('#/dossiers');
     await p.locator('#new-d').click();
-    await expect.poll(() => fenetre.locator('h2').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Nouveau dossier client');
+    await expect.poll(() => fenetre.locator('h2').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Ajouter un client');
     await fenetre.locator('#no').click();
 
     // ── Son rôle se change ; retirée, elle n'ouvre plus le cabinet ─────────────────────────────────

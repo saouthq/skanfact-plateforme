@@ -391,7 +391,7 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faire
         </> : <>
           {cabinet ? <span>{maj(nombre((o.cabinet?.comptes.client ?? 0) + (o.cabinet?.comptes.tenu ?? 0), 'console.ecran.clients.cab.dossier', 'console.ecran.clients.cab.dossiers_n', 'console.ecran.clients.cab.aucun_dossier'))}</span>
             : tenu ? <span>{maj(dire('console.ecran.clients.tenu_cabinet'))}</span>
-              : <span className={o.usage === 0 ? 'c-cl-proche' : undefined}>{maj(nombre(o.usage, 'console.ecran.clients.piece_emise', 'console.ecran.clients.pieces_emises', 'console.ecran.clients.aucune_piece'))}</span>}
+              : <span className={o.usage === 0 && o.societes.every((s) => s.pieces === 0) ? 'c-cl-proche' : undefined}>{maj(nombre(o.usage, 'console.ecran.clients.piece_emise', 'console.ecran.clients.pieces_emises', 'console.ecran.clients.aucune_piece'))}</span>}
           <span className="c-sous">{maj(cabinet ? nombre(membres, 'console.ecran.clients.cab.collaborateur', 'console.ecran.clients.cab.collaborateurs')
             : nombre(membres, 'console.ecran.clients.membre', 'console.ecran.clients.membres', tenu ? 'console.ecran.clients.aucun_membre_tenu' : 'console.ecran.clients.aucun_membre'))}</span>
         </>}

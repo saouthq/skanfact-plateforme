@@ -31551,6 +31551,56 @@ prouver $'frontieres-la-frise-lit-le-trimestre-que-la-paie-pose' modules/personn
   $'    s.paieTriMois = null;' \
   $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 
+# 1.388.23 — le lot 0 (issues 3 et 5) : début de mission, « Tu tiens ce dossier », TVA non précisée, Annuler qui demande, l'invitation dans le coin, la console.
+prouver $'lot0-c2-le-debut-de-mission-se-precise' modules/socle/ecrans/cabinet/app-1.js \
+  $'${L.some(x => !x.d.from) ? \'<button type="button" class="btn btn-sm" id="tb-debut">Préciser le début…</button>\' : \'\'}' \
+  $'' \
+  $'sans aucun mois fini, la phrase dit pourquoi la grille n\'a pas de colonne, sans légende'
+prouver $'lot0-c6-un-comptable-seul-tient-son-dossier' modules/socle/ecrans/cabinet/app-1.js \
+  $'aPlusieurs() ? \'<span class="muted small">Personne ne suit encore ce dossier.</span>\' : \'<span class="muted small">Tu tiens ce dossier.</span>\'' \
+  $'\'<span class="muted small">Personne ne suit encore ce dossier.</span>\'' \
+  $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
+prouver $'lot0-c12-la-tva-non-precisee-le-dit' modules/socle/ecrans/cabinet/app-1.js \
+  $'`${esc(\'non précisée · comptée mensuelle, déclarée le 28\')}${dir ? \' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>\' : \'\'}`' \
+  $'`${esc(\'mensuelle · déclarée le 28\')}`' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'lot0-x2-annuler-demande-avant-de-jeter' modules/socle/ecrans/cabinet/app-2.js \
+  $'<div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>' \
+  $'<div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>' \
+  $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
+prouver $'lot0-x1-le-message-retouche-ne-se-jette-pas' modules/socle/ecrans/cabinet/app-2.js \
+  $'id="ec-rel-non" data-close>' \
+  $'id="ec-rel-non">' \
+  $'un mois vide se relance, un mois au brouillard se valide ; la relance part dans la messagerie et se note dans la fiche'
+prouver $'lot0-c11-le-prix-au-dela-des-gratuits' web/public/plateforme/abonnement-cabinet.js \
+  $'${r.prixHt ? ` Au-delà, chaque dossier se paie ${montant(r.prixHt)} HT par an.` : \'\'}' \
+  $'' \
+  $'Hédi : le premier dossier tenu dit qu\'il est gratuit, avant la saisie'
+prouver $'lot0-c5-l-invitation-dans-le-coin' modules/socle/ecrans/cabinet/app-2.js \
+  $'el.classList.add(\'ga-coin\'); bouton.classList.add(\'guide-moi-signale\');' \
+  $'bouton.classList.add(\'guide-moi-signale\');' \
+  $'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d\'un geste'
+prouver $'lot0-c5-pas-d-invitation-sur-le-cabinet-neuf' modules/socle/ecrans/cabinet/app-2.js \
+  $'if ($(\'#view .premiers-pas, #view .cd-prop, #view .cab-neuf\')) return;' \
+  $'if ($(\'#view .premiers-pas, #view .cd-prop\')) return;' \
+  $'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d\'un geste'
+prouver $'lot0-console4-les-brouillons-ne-sont-pas-une-alerte' web/console/src/ecrans/Clients.tsx \
+  $'o.usage === 0 && o.societes.every((s) => s.pieces === 0) ? \'c-cl-proche\'' \
+  $'o.usage === 0 ? \'c-cl-proche\'' \
+  $'(issue 5, CONSOLE-4) l\'usage du mois : une entreprise qui a des brouillons n\'est pas en alerte ; une qui n\'a rien créé l\'est'
+prouver $'lot0-console8-l-offert-dit-pourquoi' web/console/src/ecrans/Fiche.tsx \
+  $'{offert ? phrase(\'console.ecran.fiche.gestes_offert\') : gestes.length' \
+  $'{gestes.length' \
+  $'(issue 5, CONSOLE-8) une entreprise à l\'abonnement offert : le menu des gestes dit pourquoi paiement, prolongation et suspension ont disparu'
+prouver $'lot0-c5-l-invitation-au-dessus-des-onglets-du-bas' web/public/plateforme/barre.css \
+  $'.guide-appel.ga-coin { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }' \
+  $'.guide-appel.ga-coin { bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }' \
+  $'au téléphone : rien ne déborde, pas d\'avis « pensé pour un ordinateur » ; sans réseau, la relance attend'
+prouver $'lot0-c9-ajouter-un-client' modules/socle/ecrans/cabinet/app-1.js \
+  $'a.push({ titre: \'Ajouter un client…\', sous:' \
+  $'a.push({ titre: \'Nouveau dossier\', sous:' \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

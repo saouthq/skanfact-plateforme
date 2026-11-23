@@ -120,7 +120,7 @@ describe('l\'entrée d\'un comptable (1.373.0), à la souris', () => {
     await p.locator('#btn-creer, .btn-creer, button:has-text("Créer")').first().click();
     const menu = p.locator('[role=menu], .row-menu').last();
     await expect.poll(() => menu.innerText().then(net).catch(() => '')).toContain('Ouvrir le dossier d\'exemple');
-    await p.getByText('Nouveau dossier', { exact: true }).first().click();
+    await p.getByText('Ajouter un client…', { exact: true }).first().click();
     await p.locator('.modal input').first().waitFor({ timeout: 10_000 });
     expect(await p.locator('#nd-code').count()).toBe(0);
     await p.locator('.modal input').first().fill('Garage Ben Salah');

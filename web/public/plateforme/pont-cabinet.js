@@ -1173,7 +1173,7 @@
     // mène) ; Paramètres › Envois en est l'autre entrée (revue du mois d'un client, point 11).
     const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet),
       il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
-      Un client qui n'est pas sur SkanFact : « Nouveau client… », et tu tiens ses livres toi-même.</p>
+      Un client qui n'est pas sur SkanFact : « Ajouter un client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>
         <div class="empreinte-ligne"><span class="fingerprint" id="code-cabinet">${esc(code)}</span>
         <button type="button" class="btn btn-sm" data-copier-code>Copier</button></div></div>`;

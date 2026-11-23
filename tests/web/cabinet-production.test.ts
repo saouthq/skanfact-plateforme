@@ -176,15 +176,25 @@ describe('la production du cabinet, à la souris', () => {
   it('sans aucun mois fini, la phrase dit pourquoi la grille n\'a pas de colonne, sans légende', async () => {
     const associe = await personne('Hatem');
     const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ben Salah' })).corps.id);
-    await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Mansouri Informatique' });
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Mansouri Informatique' })).corps.entreprise);
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
     await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
     // (1.194.0) Le Tableau de bord le dit à la place de la grille, et nomme le dossier dont le mois se suit ailleurs.
     const sans = p.locator('#tb-sans-mois');
-    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Aucun mois fini à suivre pour l'instant\s+Le cabinet tient ces dossiers depuis \S+ : \S+ entrera dans la grille le 1er \S+\. Un mois entre dans la grille une fois terminé\. Le mois en cours se suit dans la comptabilité de chaque client\s:\sMansouri Informatique\./);
+    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Aucun mois fini à suivre pour l'instant\s+Le début de mission de ces dossiers n'est pas encore précisé : dis à partir de quand tu les tiens, et leurs mois entreront dans la grille\. Un mois entre dans la grille une fois terminé\. Le mois en cours se suit dans la comptabilité de chaque client\s:\sMansouri Informatique\./);
     expect(await p.locator('#tb-grille').count()).toBe(0);
     expect(await p.locator('.tb-leg').count()).toBe(0);
     expect(await p.locator('#tb-campagne').count()).toBe(0);
+    // (issue 3 C2) Sans début de mission, la phrase ne l'invente plus (le mois courant) : elle le demande, et donne le geste.
+    await p.locator('#tb-debut').click();
+    await expect.poll(() => p.locator('#modal-root h2').last().innerText().catch(() => '')).toBe('À partir de quand tiens-tu Mansouri Informatique ?');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
+    // Le début posé, la phrase dit depuis quand, et le geste n'a plus lieu d'être.
+    expect((await api('PUT', `/cabinets/${cabinet}/fiches/${ent}`, associe, { contenu: { from: new Date().toISOString().slice(0, 7) }, revision: null })).statut).toBeLessThan(300);
+    await p.reload();
+    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/Le cabinet tient ces dossiers depuis \S+ : \S+ entrera dans la grille le 1er \S+\./);
+    expect(await p.locator('#tb-debut').count()).toBe(0);
   }, 120_000);
 });

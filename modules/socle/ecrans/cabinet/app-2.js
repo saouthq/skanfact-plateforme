@@ -5027,7 +5027,7 @@
        <p class="muted small">La génération crée les écritures manquantes <strong>en brouillard</strong>, jusqu'à aujourd'hui. Relancer ne double rien : les mois déjà générés sont retenus.</p>
        <div class="modal-actions">
          ${abo ? '<button class="btn btn-danger" id="ab-sup">Supprimer</button>' : ''}
-         <button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+         <button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (layer, close) => {
         $('#no', layer).onclick = close;
         const ecrire = async liste => {
@@ -5878,7 +5878,7 @@
     const empty = { packs: [] };
     let change = () => false;
     modal(
-      `<h2>Nouveau dossier client</h2>
+      `<h2>Ajouter un client</h2>
        <p class="muted small">Ajoute un client même s'il n'utilise pas encore SkanFact ${info('d.manual')} : il compte dans ton portefeuille,
        et rien ne lui est réclamé tant qu'il n'a pas commencé.</p>
        ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
@@ -5886,7 +5886,7 @@
        ${S.codeAVenir && !(S.dossiers || []).some(d => !d.demo) ? `<p class="info-box small" id="nd-code"><b>Sept jours après ton premier vrai dossier, SkanFact te demandera de protéger ton compte</b> par un code sur ton téléphone : deux minutes, une seule fois. Tu peux le mettre en place dès maintenant, dans Réglages › Ton compte.</p>` : ''}
        <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
        ${dossierFields(empty)}
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>`,
       (layer, close) => {
         change = suivreSaisie(layer);
         $('#no', layer).onclick = close;
@@ -6001,7 +6001,7 @@
        <label class="field mt">${lbl(o.etiquette, o.bulle)}
          <textarea id="ct-liste" rows="9" placeholder="${esc(o.exemple)}"></textarea></label>
        <div id="ct-apercu" class="apercu-liste" aria-live="polite"></div>
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok" disabled>${esc(o.bouton)}</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok" disabled>${esc(o.bouton)}</button></div>`,
       (layer, close) => {
         change = suivreSaisie(layer);
         const champ = $('#ct-liste', layer), zone = $('#ct-apercu', layer), ok = $('#ok', layer);
@@ -6087,7 +6087,7 @@
        <label class="field mt">${lbl('Un client par ligne', 'd.liste')}
          <textarea id="cl-liste" rows="9" placeholder="Menuiserie Trabelsi SUARL ; 1122334A/M/P/000 ; contact@trabelsi.tn&#10;Pharmacie El Menzah&#10;Café des Jasmins"></textarea></label>
        <div id="cl-apercu" class="apercu-liste" aria-live="polite"></div>
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Ajouter ces clients</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ajouter ces clients</button></div>`,
       (layer, close) => {
         change = suivreSaisie(layer);
         brancherApercuListe($('#cl-liste', layer), $('#cl-apercu', layer), $('#ok', layer), peut);
@@ -6219,7 +6219,7 @@
           <p>Cette page réunit les clients dont il te manque un mois, avec le message déjà écrit : les mois
           manquants sont nommés dedans, et la relance est enregistrée pour que tu saches, lundi, qui tu as
           déjà relancé.</p>
-          <div class="modal-actions"><button class="btn btn-primary" id="rl-nd">Ajouter mes clients…</button>
+          <div class="modal-actions"><button class="btn btn-primary" id="rl-nd">Ajouter un client…</button>
           <button class="btn" id="rl-imp">Importer un paquet…</button></div></div>`;
       $('#rl-nd').onclick = () => newDossierForm();
       $('#rl-imp').onclick = () => doImport();
@@ -6373,7 +6373,7 @@
        <p class="muted small">Tu l'as appelé, croisé, ou relancé depuis ton téléphone : garde-en la trace ici.</p>
        <label class="field">${lbl('Moyen', 'r.via')}<select id="n-via">${K.RELANCE_WAYS.map(w => `<option value="${esc(w.id)}">${esc(w.label)}</option>`).join('')}</select></label>
        <label class="field mt">${lbl('Note', 'r.note')}<input type="text" id="n-note" placeholder="« promet d'envoyer avant vendredi »"></label>
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (layer, close) => {
         $('#no', layer).onclick = close;
         $('#ok', layer).onclick = async () => {
@@ -6407,7 +6407,7 @@
       view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
         <div class="panel"><h2>Aucun client pour l'instant</h2>
           <p>Le calendrier se remplit tout seul à partir de tes dossiers et de la périodicité de TVA que tu leur donnes.</p>
-          <div class="modal-actions"><button class="btn btn-primary" id="nd">Ajouter mes clients…</button></div></div>`;
+          <div class="modal-actions"><button class="btn btn-primary" id="nd">Ajouter un client…</button></div></div>`;
       $('#nd').onclick = () => newDossierForm();
       return;
     }
@@ -6941,6 +6941,7 @@
       copier: 'Le texte se copie : colle-le où tu veux ; la relance se note sur sa fiche.',
     };
     const BOUTON = { fil: 'Envoyer dans sa conversation', whatsapp: 'Ouvrir WhatsApp', mail: 'Ouvrir ma messagerie e-mail', copier: 'Copier le texte' };
+    let passer = false; // (X-1) « Passer » continue la tournée ; Échap ou un clic à côté l'arrêtent.
     modal(`<h2>${esc(o.titre || (mois.length ? `Relancer ${D.name}` : `Écrire à ${D.name}`))}</h2><p class="muted pc-m-sous">Choisis par où il part, relis le message, change ce que tu veux.</p>
       <div class="field"><span class="ec-lab">Par où</span><div class="pc-chips ec-par" role="group" aria-label="Par où">${CHEMINS.map(([k, t, s]) => `<button type="button" data-ec-par="${k}" aria-pressed="${k === par}"${k === 'fil' && !relie ? ' disabled' : ''}><b>${t}</b><small>${s}</small></button>`).join('')}</div></div>
       <label class="field" id="ec-mail-l"${par === 'mail' ? '' : ' hidden'}><span>Adresse e-mail</span><input type="email" id="ec-mail" value="${esc(D.email || '')}" placeholder="adresse@client.tn"></label>
@@ -6948,7 +6949,7 @@
       <label class="field" id="ec-pour-l"${par === 'fil' ? '' : ' hidden'}><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>` : ''}
       <div class="field"><span>Le message${api.modeles ? ` <button type="button" class="pc-lien" id="ec-modele">Partir d'un modèle…</button>` : ''}</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000" aria-label="Le message">${esc(texte)}</textarea></div>
       <p class="pc-note"><span id="ec-par-note">${NOTES[par]}</span>${mois.length ? ' Sa ligne dira « relancé aujourd\'hui ».' : ''} Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button>${relie && !tournee ? `<span id="ec-conv-l"${par === 'fil' ? '' : ' hidden'}> Un fichier à joindre ? <button type="button" class="pc-lien" id="ec-conv">Écrire plutôt dans la conversation</button></span>` : ''}</p>
-      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok" title="Ctrl+Entrée">${BOUTON[par]}</button></div>`,
+      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non" data-close>${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok" title="Ctrl+Entrée">${BOUTON[par]}</button></div>`,
     (layer, close) => {
       // Chaque chemin se note sur la fiche du dossier (la même liste que « Noter une relance faite… ») : la ligne des
       // Échéances, la vue « Pièces manquantes » et la fiche disent la même dernière relance. Sans mois attendu, un simple
@@ -6990,7 +6991,9 @@
         close();
         location.hash = `#/messages/${encodeURIComponent(D.id)}`;
       };
-      $('#ec-rel-non', layer).onclick = () => fini();
+      // (X-1) « Annuler » passe par la garde de la fenêtre : un message retouché ne se jette plus sans question.
+      layer.addEventListener('click', ev => { passer = ev.target instanceof Element && !!ev.target.closest('#ec-rel-non'); }, true);
+      layer.addEventListener('keydown', ev => { if (ev.key === 'Escape') passer = false; }, true);
       $('#ok', layer).onclick = async () => {
         const t = $('#ec-msg', layer).value.trim();
         if (!t) { toast('Écris le message avant de l\'envoyer.', 'error'); $('#ec-msg', layer).focus(); return; }
@@ -7024,7 +7027,7 @@
           fini(); await noter('conversation', 'Relance envoyée dans la conversation SkanFact');
         } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
       };
-    });
+    }, () => { if (tournee && passer) o.onDone(); });
   }
   // (1.185.0) Un dossier tout juste accepté (le pont l'a noté avant de recharger) : sa question, une fois.
   function proposerDebutMission() {
@@ -7973,7 +7976,7 @@
     const table = regBrouillon || ((S.settings || {}).regimes || []);
     box.innerHTML = !table.length
       ? `<div class="sa-vide">Aucun régime déclaré : le calendrier réclame la TVA mensuelle et la CNSS à tous tes
-         clients, comme avant. Déclare-les pour qu'un forfaitaire cesse de se voir réclamer une TVA qu'il ne dépose pas.</div>`
+         clients. Déclare-les pour qu'un forfaitaire cesse de se voir réclamer une TVA qu'il ne dépose pas.</div>`
       : `<div class="scroll-x"><table class="list compact sa-table"><thead><tr>
           <th class="nw">Nom du régime</th><th class="nw">TVA</th><th class="nw">CNSS</th>
           <th>Échéances annuelles</th><th></th></tr></thead>
@@ -8074,7 +8077,7 @@
        <p class="muted small">« base » = le montant que tu tapes. « taux » = un pourcentage de ce montant. « solde » = ce qu'il manque pour que la pièce tombe juste — une seule ligne peut le porter.</p>
        <div class="modal-actions">
          ${existe ? '<button class="btn btn-danger" id="g-sup">Supprimer ce guide</button>' : ''}
-         <button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+         <button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (layer, close) => {
         const corps = $('#g-lignes', layer);
         const relire = () => {
@@ -8268,7 +8271,7 @@
 
       ${panneauReg('pan-regimes', info('rg.regimes'))}
         <p class="small">Ce que chaque <strong>régime</strong> dépose, et quand. Tant que tu n'en déclares aucun, le
-        calendrier traite tous tes clients pareil — c'est le comportement d'avant, et il ne change pas tout seul.
+        calendrier traite tous tes clients pareil.
         Dès que tu déclares un régime, les dossiers qui le portent suivent ses règles. <em>À VÉRIFIER : les
         périodicités et les dates sont les TIENNES. SkanFact n'écrit aucune règle de droit.</em></p>
         <div id="sr-regimes"></div>
@@ -8932,7 +8935,7 @@
        <p class="muted small">Redemandé parce que ce fichier ouvre les comptabilités de tous tes clients : sans ça, n'importe qui passant devant ce poste déverrouillé repartirait avec.</p>
        <label class="field mt">${lbl('Mot de passe de ce fichier', 'b.pwFichier')}<span class="pw-wrap"><input type="password" id="p1" autocomplete="new-password"><button type="button" class="pw-eye" id="eye">Afficher</button></span></label>
        <label class="field mt">${lbl('Confirme', 'b.pwConfirme')}<input type="password" id="p2" autocomplete="new-password"></label>
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Enregistrer le fichier…</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer le fichier…</button></div>`,
       (layer, close) => {
         const p1 = $('#p1', layer), p2 = $('#p2', layer);
         $('#eye', layer).onclick = () => {
@@ -8991,7 +8994,7 @@
        <label class="field mt">${lbl('Nouveau mot de passe', 'b.pwNouveau')}<span class="pw-wrap"><input type="password" id="p1" autocomplete="new-password"><button type="button" class="pw-eye" id="eye">Afficher</button></span><span class="muted small ligne-reservee" id="str"></span></label>
        <label class="field mt">${lbl('Confirme', 'b.pwConfirme')}<input type="password" id="p2" autocomplete="new-password"></label>
        <div class="warn-box mt">Il n'y a toujours aucun moyen de le récupérer. Note le nouveau avant de valider.</div>
-       <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Changer</button></div>`,
+       <div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Changer</button></div>`,
       (layer, close) => {
         const p1 = $('#p1', layer), p2 = $('#p2', layer);
         p1.oninput = () => { $('#str', layer).textContent = strengthText(p1.value); };
@@ -9356,7 +9359,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       if (!String((S.cabinet || {}).name || '').trim()) { await runSetup({ sansPorte: true }); render(); }
       lancerVisite(visiteParId('premiers-pas'));
     } else if (id === 'rester') {
-      toast('Bonne exploration ! « Effacer l\'exemple », sur la page Dossiers, retire les dossiers fictifs.');
+      toast('Bonne exploration ! « Retirer l\'exemple », sur le bandeau du dossier d\'exemple ou dans les Réglages, le retire.');
     }
   }
   const navigate = hash => vers(hash);
@@ -9590,7 +9593,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (visiteProposeeIci && !reprise) return;
     // Une page vide qui porte « Tes premiers pas » est déjà une invitation.
     // (1.194.0) Une proposition de client qui attend (`.cd-prop`) passe avant : l'invitation couvrait son « Accepter ».
-    if ($('#view .premiers-pas, #view .cd-prop')) return;
+    if ($('#view .premiers-pas, #view .cd-prop, #view .cab-neuf')) return;
     const bouton = $('#guide-moi');
     // Un écran asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = cle; return; }
@@ -9625,18 +9628,17 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const placer = () => {
       const r = bouton.getBoundingClientRect();
       if (!r.width || !document.body.contains(bouton)) { fermer(); return; }
-      const w = el.offsetWidth;
-      const gauche = Math.max(12, Math.min(window.innerWidth - w - 12, r.right - w));
-      el.style.top = Math.round(r.bottom + 10) + 'px';
-      el.style.left = Math.round(gauche) + 'px';
-      el.style.setProperty('--ga-fleche', Math.round(Math.min(w - 22, Math.max(14, r.left + r.width / 2 - gauche))) + 'px');
+      // (issue 3, C5) Dans le coin bas droit, comme dans l'entreprise : sous « Guide-moi », elle couvrait le premier écran.
+      // « Guide-moi » s'allume tant qu'elle est là : elle dit toujours où se trouve la visite.
+      el.classList.add('ga-coin'); bouton.classList.add('guide-moi-signale');
     };
     // Le premier geste ailleurs la referme : on s'est mis au travail.
     const dehors = e => { if (!el.contains(e.target)) fermer(); };
-    const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
+    const clavier = e => { if (e.key !== 'Escape' || document.querySelector('#modal-root > *')) return; const dedans = el.contains(document.activeElement); e.stopPropagation(); fermer(); if (dedans) bouton.focus(); };
     const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4 || Math.abs(window.scrollY - departFenetre) > 4) fermer(); };
     function fermer() {
       el.remove();
+      bouton.classList.remove('guide-moi-signale');
       document.removeEventListener('mousedown', dehors, true);
       document.removeEventListener('keydown', clavier, true);
       window.removeEventListener('resize', placer);
@@ -9982,7 +9984,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     // Chaque entrée dit ce qu'elle EST (U-07) : un réglage étiqueté « action » faisait croire que
     // taper « tva » lançait quelque chose.
     const actions = [
-      { kind: 'action', main: 'Nouveau dossier client…', go: () => newDossierForm() },
+      { kind: 'action', main: 'Ajouter un client…', go: () => newDossierForm() },
       { kind: 'page', main: 'Relances', go: () => { location.hash = '#/relances'; } },
       { kind: 'page', main: 'Échéances', go: () => { location.hash = '#/echeances'; } },
       { kind: 'page', main: 'Écritures — exporter un mois', text: 'export exporter regrouper cabinet', go: () => { location.hash = '#/ecritures'; } },

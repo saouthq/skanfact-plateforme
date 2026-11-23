@@ -164,6 +164,31 @@ describe('la liste des clients, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('(issue 5, CONSOLE-4) l\'usage du mois : une entreprise qui a des brouillons n\'est pas en alerte ; une qui n\'a rien créé l\'est', async () => {
+    const ent = String((await admin.query('select id from socle.entreprise where raison_sociale = $1', [`${MARQUE} 08`])).rows[0].id);
+    const proprio = String((await admin.query('select utilisateur from socle.membre where entreprise = $1 limit 1', [ent])).rows[0].utilisateur);
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    await admin.query(`insert into ventes.piece (entreprise, type, statut, tiers, date_piece, cree_par) values ($1, 'facture', 'brouillon', gen_random_uuid(), current_date, $2)`, [ent, proprio]);
+    await admin.query('commit');
+    // Les déclencheurs étaient coupés : on refait le compte, comme une restauration.
+    await admin.query('select socle.recompter_pieces($1)', [ent]);
+    const usage = async (nom: string) => {
+      const p = await ouvrir(jD, `#/clients?q=${encodeURIComponent(nom)}`);
+      const cellule = ligne(p, nom).locator('td.c-cl-usage > span').first();
+      const r = { texte: net(await cellule.innerText()), alerte: ((await cellule.getAttribute('class')) || '').includes('c-cl-proche') };
+      await fermer(p);
+      return r;
+    };
+    // Des brouillons : elle a servi, aucune pièce émise ce mois-ci n'est pas une alerte.
+    const brouillons = await usage(`${MARQUE} 08`);
+    expect(brouillons.texte).toMatch(/aucune pièce émise/i);
+    expect(brouillons.alerte).toBe(false);
+    // Rien créé du tout : l'alerte reste.
+    expect((await usage(`${MARQUE} 10`)).alerte).toBe(true);
+    expect(erreurs).toEqual([]);
+  }, 90_000);
+
   it('« Pièces émises » d\'une entreprise née ce mois-ci dit depuis quand elle compte ; née avant, le mois d\'avant (1.76.0)', async () => {
     const p = await ouvrir(jS, recherche);
     // Née ce mois-ci : le mois d'avant n'existe pas pour elle.

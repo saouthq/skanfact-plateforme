@@ -180,7 +180,7 @@ describe('le Cabinet, à la souris', () => {
     // (issue 12 CABPORTEFEUILLE-24) Sur un portefeuille vide, la visite nomme le bouton tel que l'écran l'écrit.
     await p.evaluate(() => { location.hash = '#/guide'; });
     await p.locator('button[data-visite="ajouter-client"]').first().click();
-    await expect.poll(async () => (await p.locator('#visite-bulle').innerText().catch(() => '')).replace(/\s+/g, ' '), { timeout: 15_000 }).toContain('Clique sur « Ajouter mes clients… »');
+    await expect.poll(async () => (await p.locator('#visite-bulle').innerText().catch(() => '')).replace(/\s+/g, ' '), { timeout: 15_000 }).toContain('Clique sur « Ajouter un client… »');
     // La visite se met en pause par sa croix ; sa bulle ne reste pas sur la suite du parcours.
     await p.locator('#visite-bulle .vb-fermer').click();
     await expect.poll(() => p.locator('#visite-bulle').isVisible().catch(() => false), { timeout: 5_000 }).toBe(false);

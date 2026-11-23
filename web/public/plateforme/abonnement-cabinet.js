@@ -385,7 +385,7 @@
   /** @param {Lu['prochainDossier'] | null | undefined} d @param {Lu['regles'] | null | undefined} r */
   function gratuit(d, r) {
     if (!d || d.payant || !r || typeof r.gratuits !== 'number' || d.rang > r.gratuits) return '';
-    return `Ce sera ton ${d.rang === 1 ? '1er' : `${d.rang}e`} dossier tenu sur ${r.gratuits} gratuits : il ne coûte rien.`;
+    return `Ce sera ton ${d.rang === 1 ? '1er' : `${d.rang}e`} dossier tenu sur ${r.gratuits} gratuits : il ne coûte rien.${r.prixHt ? ` Au-delà, chaque dossier se paie ${montant(r.prixHt)} HT par an.` : ''}`;
   }
 
   // (1.374.0) Plusieurs dossiers d'un coup (une liste collée) : la même annonce, comptée. La fenêtre d'UN dossier disait

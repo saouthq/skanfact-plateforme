@@ -806,7 +806,7 @@ export const nomDuGeste = (g: Geste, etat: Etat) => titre(`console.ecran.geste.$
 export const libelleDuGeste = (g: Geste, etat: Etat) => `${nomDuGeste(g, etat)}…`;
 // `reserve` : ce que ce rôle ne fait pas ici, sous le dernier choix (comme le menu d'une ligne de la liste).
 // `appel` : noter un appel, le même choix que dans le menu « … » de la liste (issue 5, CONSOLE-10), avant ce qui détruit.
-function MenuGestes({ gestes, etat, choisir, raison, reserve, appel }: { gestes: Geste[]; etat: Etat; choisir: (g: Geste) => void; raison: string | null; reserve: string | null; appel?: (() => void) | undefined }) {
+function MenuGestes({ gestes, etat, choisir, raison, reserve, appel, offert }: { gestes: Geste[]; etat: Etat; choisir: (g: Geste) => void; raison: string | null; reserve: string | null; appel?: (() => void) | undefined; offert: boolean }) {
   const [ouvert, setOuvert] = useState(false);
   const zone = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -836,7 +836,7 @@ function MenuGestes({ gestes, etat, choisir, raison, reserve, appel }: { gestes:
       </button>
       {ouvert ? (
         <div className="c-menu-liste" {...parcourirMenu}>
-          <p className="c-menu-note">{gestes.length ? phrase('console.ecran.fiche.gestes_aide') : raison}</p>
+          <p className="c-menu-note">{offert ? phrase('console.ecran.fiche.gestes_offert') : gestes.length ? phrase('console.ecran.fiche.gestes_aide') : raison}</p>
           {/* Ce qui détruit en dernier, en rouge, après un trait (la maquette). */}
           {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).filter((g) => !DETRUIT.has(g)).map((g) => (
             <button key={g} type="button" onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
@@ -972,7 +972,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
         </div>
         <div className="c-entete-actions">
           {f.membres.length ? <Bouton onClick={() => setEcrireA(true)}>{titre('console.ecran.fiche.ecrire_court')}</Bouton> : null}
-          <MenuGestes gestes={f.gestes} etat={f.etat} choisir={setGeste} raison={raisonSansGeste} reserve={f.faits.tenuParCabinet ? null : reserve} appel={f.faits.tenuParCabinet ? undefined : () => setAppel(true)} />
+          <MenuGestes gestes={f.gestes} etat={f.etat} offert={f.faits.offert} choisir={setGeste} raison={raisonSansGeste} reserve={f.faits.tenuParCabinet ? null : reserve} appel={f.faits.tenuParCabinet ? undefined : () => setAppel(true)} />
         </div>
       </header>
 
