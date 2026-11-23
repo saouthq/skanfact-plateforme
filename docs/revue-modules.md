@@ -6751,3 +6751,10 @@ Dans les Réglages du Cabinet, la fiche du cabinet (adresse, téléphone), les j
 relance, les régimes, les guides et la méthode de révision valent pour tous les dossiers : comme le nom,
 seul un associé les change. Un collaborateur enregistre toujours le reste (ses modèles de banque, sa
 grille, son thème) ; un refus nomme ce qui ne lui revient pas. Test : `fiche`.
+
+## 1.388.38 — La recette alpha, patiente jusqu'au bout
+
+Sur GitHub, après la date retapée, la page de l'achat se redessinait encore (le dossier relu arrivait
+après) et remettait la date rangée : « Enregistrer les modifications » repartait sous le clic. Le test
+refait désormais le geste entier (retaper la date, puis cliquer) jusqu'à ce que la question « Période
+clôturée » s'ouvre. Rien ne change dans l'application.

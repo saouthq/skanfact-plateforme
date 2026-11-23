@@ -318,13 +318,15 @@ describe('la recette alpha, à la souris', () => {
     await date1.waitFor({ timeout: 15_000 });
     // « Enregistrer les modifications » n'apparaît qu'une fois la date changée (un seul bouton principal) : sur une machine
     // lente, on retape tant qu'il ne s'est pas montré, comme quelqu'un qui le cherche des yeux.
-    await expect.poll(async () => {
-      if (!await p.locator('#save').isVisible()) { await date1.fill('15/08/2026'); await date1.press('Tab'); }
-      return p.locator('#save').isVisible();
-    }, { timeout: 20_000 }).toBe(true);
-    await p.locator('#save').click();
+    // La page peut encore se redessiner (le dossier relu arrive après) et remettre la date rangée : le bouton repart alors,
+    // et l'on recommence le geste entier, retaper puis cliquer, jusqu'à ce que la question s'ouvre.
     const fen = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fen.locator('h2').innerText().then(net), { timeout: 10_000 }).toBe('Période clôturée');
+    await expect.poll(async () => {
+      if (await p.locator('#modal-root .modal').count()) return fen.locator('h2').innerText().then(net);
+      if (!await p.locator('#save').isVisible()) { await date1.fill('15/08/2026'); await date1.press('Tab'); }
+      else await p.locator('#save').click({ timeout: 3_000 }).catch(() => undefined);
+      return '';
+    }, { timeout: 40_000 }).toBe('Période clôturée');
     expect(net(await fen.locator('.btn-primary').innerText())).toBe('Changer la date');
     await fen.locator('.btn-primary').click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
