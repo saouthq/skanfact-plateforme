@@ -6985,3 +6985,17 @@ la boulangerie). Dans la barre, ils suivent le commerce. Test `tests/moteur/meti
 preuve.
 
 MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; non touché.
+
+## 1.388.55 — La fiscalité dit ce qu'elle applique (rapport #17 : FISC-5, FISC-7, FISC-8, FISC-9)
+
+- **FISC-5** — Paramètres › Seuil de retenue : la case vide dit le seuil réellement appliqué (« règle commune :
+  1 000,000 DT »), et la bulle explique ce que le champ fait vraiment (prévenir, pas retirer). Elle disait « aucun
+  seuil » et « SkanFact ne retire jamais la retenue » pendant que chaque facture sous 1 000 DT la retirait.
+- **FISC-7** — « Sous 1 000,000 DT TTC hors timbre (999,600 DT) : pas de retenue » : la phrase nomme le montant
+  comparé, sous un total TTC de 1 000,600 qui contient le timbre.
+- **FISC-8** — L'imprimé écrit « FODEC 1 % sur 900,000 », la base remisée des seules lignes qui la portent
+  (`computeTotals` rend `fodecBase`). La case FODEC de la ligne restait déjà cochée sur la pièce émise (1.388.42).
+- **FISC-9** — Le prix TTC d'un article « produit fabriqué » compte la FODEC (250 + 2,500 + TVA = 300,475), dans les
+  deux sens ; l'ajout d'une ligne le dit « produit fabriqué » ou « marchandise », plus « prestation ».
+- Restent à la décision d'un expert : FISC-3 (FODEC à l'export), FISC-4 (le seuil des deux côtés), FISC-6 (vente en
+  suspension de TVA : une fonction à concevoir avec lui, mention légale et attestation).

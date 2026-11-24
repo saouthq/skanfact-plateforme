@@ -28155,7 +28155,7 @@ prouver 'acompte 1.356.5 g : la fenêtre de solde ajoute le timbre une seconde f
 ' \
   "$PS13565"
 prouver 'acompte 1.356.5 h : « Avant d'\''émettre » promet la retenue au paiement' 'modules/socle/ecrans/entreprise/app-1.js' \
-  'TTC : pas de retenue sur la facture. Réglée avec d\'\''autres d\'\''un seul paiement de ce montant ou plus, la retenue peut s\'\''appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`' 'TTC : pas de retenue sur la facture ; elle se fera au paiement si le client en règle plusieurs pour ce montant ou plus`' \
+  ') : pas de retenue sur la facture. Réglée avec d\'\''autres d\'\''un seul paiement de ce montant ou plus, la retenue peut s\'\''appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`' ') : pas de retenue sur la facture ; elle se fera au paiement si le client en règle plusieurs pour ce montant ou plus`' \
   "$PS13565"
 prouver 'acompte 1.356.5 j : « Facturé : » tait l'\''acompte du devis' 'modules/socle/ecrans/entreprise/app-1.js' \
   'piecesFactureesDuDevis(issuedDeposits, dejaFacture, '\''en brouillon'\'')' 'dejaFacture.map(f => h(f.number || '\''brouillon'\'')).join('\'', '\'')' \
@@ -32028,6 +32028,21 @@ prouver "la feuille du téléphone sans prix TTC" modules/socle/ecrans/entrepris
 prouver "la boulangère sans son métier" modules/socle/moteur/core-1.js \
   "    boulangerie: ['achats', 'stock', 'pieces', 'paie', 'caisse'], // revendeurs livrés, et du personnel" "" \
   'chacun a son catalogue, sans prix de produit inventé ni taux, et ses modules'
+prouver "le seuil dit hors timbre" modules/socle/ecrans/entreprise/app-1.js \
+  'TTC hors timbre (${C.money(C.round3((t.totalTTC || 0) - (t.stamp || 0)), doc.currency || co.currency)}) : pas de retenue' 'TTC : pas de retenue' \
+  $'le devis respecte le seuil, l\'acompte s\'annonce comme il naîtra, et le message dit le montant de la facture'
+prouver "les Paramètres disent aucun seuil" modules/socle/ecrans/entreprise/app-2.js \
+  "(bridge.seuilRetenue && Number(bridge.seuilRetenue()) > 0) ?" "false ?" \
+  $'le devis respecte le seuil, l\'acompte s\'annonce comme il naîtra, et le message dit le montant de la facture'
+prouver "le TTC du fabriqué sans FODEC" modules/socle/ecrans/entreprise/app-1.js \
+  "const tauxFabrique = () => (caseFabrique &&" "const tauxFabrique = () => (false &&" \
+  $'Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe'
+prouver "le fabriqué dit prestation" modules/socle/ecrans/entreprise/app-1.js \
+  "({ produits: 'produit fabriqué', marchandises: 'marchandise' })[C.natureDeLArticle(c)] || 'prestation'" "'prestation'" \
+  $'Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe'
+prouver "la FODEC imprimée sans sa base" modules/socle/moteur/core-2.js \
+  $'${t.fodecBase ? ` <span class="dim">${L.on} ${fmt(t.fodecBase)}</span>` : \'\'}' "" \
+  'la base remisée des seules lignes qui la portent'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

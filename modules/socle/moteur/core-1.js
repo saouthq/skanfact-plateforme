@@ -1627,7 +1627,7 @@
     // TVA par taux, appliquée après remise globale (remise répartie proportionnellement)
     const factor = discountable > 0 ? (discountable - remiseCalculee) / discountable : 1;
     const vatByRate = {};
-    let fodec = 0;
+    let fodec = 0, fodecBase = 0;   // fodecBase (FISC-8) : la base remisée des lignes qui portent la FODEC, que l'imprimé dit
     // (plateforme, 1.275.0, audit du 04/11/2026, G04) La règle de calcul de la pièce (`calcul`, gardée avec elle, la même
     // que le serveur : moteur/piece.ts, `repartir`). Absente : celle de la v10 (la remise arrondie ligne à ligne, la TVA
     // d'un taux arrondie à chaque ligne ajoutée), pour qu'une pièce d'avant se relise au millime où elle a été émise. 2 :
@@ -1664,7 +1664,7 @@
         if (l.titre) return;
         const remisee = rd(l.noDiscount || discountable <= 0 ? l.ht : regle2 ? partRepartie(l.ht) : l.ht * factor);
         const f = l.fodec === true && tauxFodec ? rd(remisee * tauxFodec / 100) : 0;
-        if (f) fodec = rd(fodec + f);
+        if (f) { fodec = rd(fodec + f); fodecBase = rd(fodecBase + remisee); }
         const base = rd(remisee + f);
         vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
         vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
@@ -1718,7 +1718,7 @@
     // Le timbre en DINARS, tel que la loi le fixe : c'est lui qui se déclare et qui va au 4368. Converti
     // aller-retour par la devise (1 / 3,35 = 0,30 € ; 0,30 × 3,35 = 1,005), il était déclaré 1,002 DT.
     const stampBase = stampApplies ? round3(timbreDu) : 0;
-    return { lines, totalHT, discountRate, discount, netHT, vatByRate, totalVAT, fodec, stamp, stampBase, totalTTC, withholdingRate, withholding, netToPay, sousLeSeuil };
+    return { lines, totalHT, discountRate, discount, netHT, vatByRate, totalVAT, fodec, fodecBase, stamp, stampBase, totalTTC, withholdingRate, withholding, netToPay, sousLeSeuil };
   }
 
   // ---------- le lot de calcul (10.14.0, saturation) ----------

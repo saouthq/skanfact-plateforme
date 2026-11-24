@@ -6548,7 +6548,7 @@
         <table class="totals">
           <tr><td>${L.subtotal}</td><td class="r num">${fmt(t.totalHT)}</td></tr>
           ${t.discount ? `<tr><td>${L.discount} ${pct(t.discountRate)}${pc}</td><td class="r num">− ${fmt(t.discount)}</td></tr><tr><td>${L.netHT}</td><td class="r num">${fmt(t.netHT)}</td></tr>` : ''}
-          ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)}${pc}</td><td class="r num">${fmt(t.fodec)}</td></tr>` : ''}
+          ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)}${pc}${t.fodecBase ? ` <span class="dim">${L.on} ${fmt(t.fodecBase)}</span>` : ''}</td><td class="r num">${fmt(t.fodec)}</td></tr>` : ''}
           ${vatRows}
           ${t.stamp ? `<tr><td>${L.stamp}</td><td class="r num">${fmt(t.stamp)}</td></tr>` : ''}
           ${t.withholding ? `<tr class="sub"><td>${L.totalTTC}</td><td class="r num">${fmt(t.totalTTC)}</td></tr><tr><td>${L.withholding} ${pct(t.withholdingRate)}${pc}</td><td class="r num">− ${fmt(t.withholding)}</td></tr>` : ''}

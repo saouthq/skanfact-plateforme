@@ -7306,7 +7306,7 @@
           ${/* 10.12.0 — « 0 » affiché dans le champ se lisait « un seuil de zéro dinar », c'est-à-dire
                toutes les factures : c'est l'inverse de ce qu'il veut dire (aucun seuil, 9.1.1). Le champ
                reste vide et le dit ; il porte son unité, comme le timbre juste à côté (9.4.8). */''}
-          ${field(lbl(`Seuil de retenue à la source (${C.normCurrency(c.currency)})`, 'doc.withholdingThreshold'), 'withholdingThreshold', Number(c.withholdingThreshold) > 0 ? c.withholdingThreshold : '', 'number', 'step="0.001" min="0" class="num" placeholder="aucun seuil"')}
+          ${field(lbl(`Seuil de retenue à la source (${C.normCurrency(c.currency)})`, 'doc.withholdingThreshold'), 'withholdingThreshold', Number(c.withholdingThreshold) > 0 ? c.withholdingThreshold : '', 'number', `step="0.001" min="0" class="num" placeholder="${(bridge.seuilRetenue && Number(bridge.seuilRetenue()) > 0) ? h(`règle commune : ${C.money(Number(bridge.seuilRetenue()), c.currency)}`) : 'aucun seuil'}"`)}
           <!-- La devise était le SEUL champ libre d'un réglage à liste fermée : l'éditeur de
                document et la fiche client offrent les sept codes dans une liste depuis la 2.4.0,
                et ici on tapait ce qu'on voulait. « Dinar », « TND », « dt » : decimalsFor ne

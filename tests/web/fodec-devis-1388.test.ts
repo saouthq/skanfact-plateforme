@@ -127,6 +127,27 @@ describe('1.388.42 (FISC-1) : la FODEC d\'un produit fabriqué suit le devis jus
       .toBe('Se déclarent aussi : timbres des factures de la période 1,000 DT · FODEC collectée 25,000 DT · retenues que tu as opérées 0,000 DT, à reverser. Les retenues subies (0,000 DT) ne se versent pas : elles s\'imputent sur ton impôt, avec leurs attestations. À VÉRIFIER avec ton comptable.');
     await p.screenshot({ path: path.join(PHOTOS, 'fodec-devis-1388-tva.png'), fullPage: true });
 
+    // (FISC-8) Émise, la facture garde sa case FODEC cochée (en lecture seule) sur la ligne qui la porte.
+    const emise = (await objets()).find((o) => o.collection === 'documents' && o.contenu.type === 'facture');
+    await aller(`#/doc/${emise?.contenu.id}`);
+    await expect.poll(async () => p.locator('#lines tr[data-i] [data-fodec]:checked').count(), { timeout: 15_000 }).toBe(1);
+
+    // 4. (FISC-9) Le catalogue : le TTC d'un produit fabriqué compte la FODEC (250 + 2,500 + 19 % de 252,500 = 300,475),
+    // et l'ajout d'une ligne le dit « produit fabriqué », pas « prestation ».
+    await aller('#/catalogue');
+    await p.locator('#view table.list tbody tr', { hasText: 'Poutrelle' }).first().click({ timeout: 20_000 });
+    await p.locator('#cat-ttc').waitFor({ timeout: 10_000 });
+    await expect.poll(async () => net(await p.locator('#cat-ttc').inputValue()), { timeout: 10_000 }).toBe('300,475');
+    await p.locator('#cat-ttc').fill('300,475');
+    await p.locator('#cat-ttc').dispatchEvent('input');
+    await expect.poll(async () => net(await p.locator('#kf input[name=unitPrice]').inputValue())).toBe('250,000');
+    await p.keyboard.press('Escape');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: /Abandonner|Fermer/ }).click({ timeout: 3_000 }).catch(() => undefined);
+    await aller('#/doc/new/facture');
+    await p.locator('#ed-ajout').click();
+    await p.keyboard.type('Poutrelle');
+    await expect.poll(async () => net(await p.locator('.aj-pop').innerText().catch(() => '')), { timeout: 10_000 }).toContain('produit fabriqué');
+
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

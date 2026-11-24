@@ -8642,7 +8642,7 @@
         // (1.358.2) Sous le seuil ne dit quelque chose que si le client a une retenue : sans elle (« Retenue aucune »), la phrase
         // donnait une fausse raison — un avoir de 595 DT sur une facture de 3 571 DT se disait « comme sur sa facture ».
         if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur l\'avoir${doc.creditOf ? ', comme sur sa facture' : ''}`, '']);
-        else if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && !isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
+        else if (t.sousLeSeuil && Number(t.withholdingRate) > 0 && !isAv) points.push([true, `Sous ${C.money(Number(doc.seuilRetenue ?? co.seuilRetenue) || 0, co.currency)} TTC hors timbre (${C.money(C.round3((t.totalTTC || 0) - (t.stamp || 0)), doc.currency || co.currency)}) : pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé`, '']);
       }
       if (isQ) {
         const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), co);
@@ -10239,7 +10239,7 @@
             ${montres.map((c, i) => {
               const pr = C.prixArticlePour(data, c, doc.clientId, doc.date, 1);
               const v = ventes.get(c.id);
-              const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : 'prestation', palierDuChoix(c), v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
+              const sous = [c.code ? h(c.code) : '', c.unit ? h(c.unit) : '', pr.source === 'liste' ? `prix du client${pr.liste ? ` (${h(pr.liste)})` : ''}` : pr.source === 'palier' ? 'prix au palier' : c.tracked ? '' : ({ produits: 'produit fabriqué', marchandises: 'marchandise' })[C.natureDeLArticle(c)] || 'prestation', palierDuChoix(c), v ? `la dernière fois : ${C.money(v.pu, null, C.decimalsFor(v.cur))}` : ''].filter(Boolean).join(' · ');
               return `<button type="button" class="aj-o${i === selA ? ' sel' : ''}" data-aj="${i}"><span class="aj-n"><b>${h(c.label)}</b><small>${sous}</small></span>${c.tracked ? `<span class="aj-st ${C.stockOf(data, c.id).qty > 0 ? 'ok' : 'alerte'}">en stock : ${pct(C.stockOf(data, c.id).qty)}</span>` : '<span></span>'}<span class="aj-p">${prixAffiche(c)} <small>HT</small></span></button>`;
             }).join('')}
             ${brut ? `${creerA ? `<button type="button" class="aj-o aj-cr${selA === montres.length ? ' sel' : ''}" data-aj-cr>${lfIc('ajout', 15, 2.4)}<b>Créer ${h(mc.le)} « ${h(brut)} »…</b></button>` : ''}
@@ -13127,13 +13127,26 @@
         // (1.356.0) Un prix recalculé s'écrit avec les décimales de la devise, comme celui qu'on tape : « 0.2 » à côté de
         // « 0.200 » (la TVA passée à 0 %), « 0.84 » pour un croissant à 1 DT TTC.
         const enChamp = n => frMontant(n);
+        // (FISC-9) Un produit fabriqué porte la FODEC sur la facture : son TTC la compte aussi, au taux du jour.
+        const caseFabrique = $('input[name=fodec]', root);
+        const tauxFabrique = () => (caseFabrique && caseFabrique.checked && company().fodec === true && bridge.tauxFodec) ? (Number(bridge.tauxFodec()) || 0) : 0;
+        const ttcDe = ht => { const f = tauxFabrique(); return C.computeTotals({ type: 'facture', applyStamp: false, ...(f ? { fodecRate: f } : {}), lines: [{ ...C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company()), ...(f ? { fodec: true } : {}) }] }, company()).totalTTC; };
         const majTtc = () => {
           const ht = lireMontant(champHt.value);
-          champTtc.value = ht > 0 ? enChamp(C.computeTotals({ type: 'facture', applyStamp: false, lines: [C.ligneDePanier({ unitPrice: ht, vatRate: Number(champTva.value) || 0 }, company())] }, company()).totalTTC) : '';
+          champTtc.value = ht > 0 ? enChamp(ttcDe(ht)) : '';
         };
         const majHt = dire => {
           const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value.trim() === '' ? '' : lireMontant(champTtc.value), tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
           if (!r.ok) return;
+          const f = tauxFabrique();
+          if (f) {
+            // Le HT dont le TTC, FODEC comprise, retombe sur le prix tapé ; sinon le plus proche (au millime près autour).
+            const vise = lireMontant(champTtc.value), pas = Math.pow(10, -C.decimalsFor(company().currency));
+            const depart = C.round3(vise / ((1 + f / 100) * (1 + (Number(champTva.value) || 0) / 100)));
+            let mieux = depart;
+            for (let k = -3; k <= 3; k++) { const ht = C.round3(depart + k * pas); if (Math.abs(ttcDe(ht) - vise) < Math.abs(ttcDe(mieux) - vise)) mieux = ht; }
+            r.ht = mieux; r.ttc = ttcDe(mieux); r.exact = Math.abs(r.ttc - vise) < pas / 2;
+          }
           champHt.value = enChamp(r.ht);
           if (dire && !r.exact) {
             ecartTtc = `Le prix TTC devient ${C.money(r.ttc, company().currency)} : aucun prix HT au millime ne donne exactement ${C.money(lireMontant(champTtc.value), company().currency)} TTC à ${pct(r.tva)} %. C'est ${C.money(r.ttc, company().currency)} qui s'imprimera sur la facture.`;
@@ -13146,6 +13159,7 @@
         champTtc.addEventListener('change', () => { if (tapeTtc) majHt(true); });
         $('#kf', root).addEventListener('input', e => { if (e.target === champHt || e.target === e.currentTarget) { tapeTtc = false; ecartTtc = ''; majTtc(); hint(); } });
         champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });
+        if (caseFabrique) caseFabrique.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });
         // Suivre par lot implique de suivre le stock (brique 97), comme le numéro de série : la case se coche.
         $('input[name=parLot]', root).onchange = e => {
           const cs = $('input[name=tracked]', root);

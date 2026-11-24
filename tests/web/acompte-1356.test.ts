@@ -133,6 +133,8 @@ describe('bout en bout 1.356.5 : le devis de l\'hôtel, son acompte et son solde
     // « Avant d'émettre » ne promet plus un geste qui n'existe pas (« elle se fera au paiement ») : rien ne calcule une retenue
     // sur un paiement groupé, et l'écran le dit.
     await expect.poll(async () => net(await p.locator('#ed-avant').innerText().catch(() => ''))).toContain('pas de retenue sur la facture. Réglée avec d\'autres d\'un seul paiement de ce montant ou plus, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable, SkanFact ne la calcule pas sur un paiement groupé');
+    // (FISC-7) Le seuil se lit hors timbre, et la phrase le dit avec le montant comparé, sous un net qui le contient.
+    expect(net(await p.locator('#ed-avant').innerText())).toContain('TTC hors timbre (385,560 DT) : pas de retenue sur la facture');
     await p.screenshot({ path: path.join(PHOTOS, 'acompte-1356-2-facture.png') });
     // 5. L'acompte émis, le devis annonce LA FACTURE DE SOLDE : l'acompte déduit (son TTC hors timbre), le timbre du solde,
     //    et pas de retenue — le solde est sous le seuil. Avant, l'encadré annonçait encore la facture entière (1 273,348).
@@ -177,6 +179,10 @@ describe('bout en bout 1.356.5 : le devis de l\'hôtel, son acompte et son solde
     expect(await p.locator('#ed-geste .nw', { hasText: numAcompte }).count()).toBe(1);
     expect(await p.locator('#bill-list #deposit').count()).toBe(0);
     expect(await p.locator('#bill-list #convert').count()).toBe(1);
+    // (FISC-5) Les Paramètres disent le seuil que la règle commune applique, au lieu de « aucun seuil ».
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await expect.poll(async () => net(String(await p.locator('input[name=withholdingThreshold]').getAttribute('placeholder').catch(() => ''))), { timeout: 20_000 })
+      .toBe('règle commune : 1 000,000 DT');
     noter('fin', { erreurs });
     expect(erreurs).toEqual([]);
     await cx.close();
