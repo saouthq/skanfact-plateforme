@@ -8696,7 +8696,12 @@
     const tard = retardsConnus().get(dossier.name) || [];
     return MOIS_CD.map((nom, i) => {
       const m = `${an}-${String(i + 1).padStart(2, '0')}`;
+      // (1.388.59 ; issue 20, SOCIAL-7) Un mois hors des dates de l'exercice (un premier exercice qui commence le 1er avril)
+      // n'est pas « à saisir » ; un exercice clos ne réclame plus rien.
+      const ex = (s.livre && s.livre.exercice) || {};
+      if ((ex.du && m < String(ex.du).slice(0, 7)) || (ex.au && m > String(ex.au).slice(0, 7))) return { m, nom, ton: 'vide', dit: 'hors exercice' };
       const [cl, mot, enRetard] = etatMoisFd(dossier, m, L, tard, mc);
+      if (ex.clos && cl !== 'fait' && cl !== 'pret') return { m, nom, ton: 'vide', dit: 'clos' };
       let ton = '', dit = mot;
       if (cl === 'fait') ton = 'ok';
       else if (enRetard) { ton = 'rouge'; dit = 'en retard'; }
@@ -10673,6 +10678,11 @@
     <p class="small muted mb" id="li-regle"><b>À VÉRIFIER</b> avec ton client et l'administration : les rubriques suivent
       l'usage, la présentation exacte n'est validée par personne ici, et <b>aucun taux d'impôt n'est écrit dans SkanFact</b>.
       Un montant souligné s'ouvre sur les comptes qui l'ont rempli.</p>
+    ${/* (1.388.59 ; issue 20, SOCIAL-5) Ce que cet onglet ne produit pas, pour qu'un titre « Liasse » ne laisse pas croire
+          qu'elle est complète : le dépôt sur TEJ demande aussi les flux de trésorerie, les notes et les fichiers XML. */''}
+    <p class="small muted mb" id="li-manque">Pour le dépôt sur TEJ, il manque encore ici : <b>l'état des flux de trésorerie</b>,
+      <b>les notes aux états financiers</b> et <b>les fichiers XML</b> du dépôt. Ils se préparent ailleurs ; l'export CSV et le PDF
+      portent le bilan, le résultat et le résultat fiscal.</p>
     ${li.equilibre && li.coherent
     ? '<p class="small ligne-ok mb" id="li-juste"><span aria-hidden="true">✓</span> Actif = passif, et le résultat du bilan est celui de l\'état de résultat.</p>'
     : `<div class="warn-box mb"><b>La liasse ne tombe pas juste.</b>

@@ -7068,3 +7068,28 @@ MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; no
   Échap, le curseur revient sur « Gestes » ; « Ce que chaque rôle ouvre » dit « sans son accord ».
 - Tests : `gestes-0111`, `abonnement-textes`, `offre-compte` (le paiement d'un dinar, l'avertissement, la liste, la
   résiliation, le curseur), `console` (API et souris) ; neuf preuves.
+
+## 1.388.59 — Paie, clôture et liasse disent ce qu'elles font (rapport #20 : SOCIAL-2 → SOCIAL-9)
+
+SOCIAL-1 (l'indemnité de congés non pris sur un mois complet, et posée sur le dernier bulletin) était déjà corrigé en
+1.388.43 ; le rapport portait sur la 1.388.33.
+
+- **SOCIAL-6** — Dans l'application de l'entreprise, une absence non payée posée sur un mois dont le bulletin est déjà
+  payé, validé par le cabinet ou dans une période clôturée ne se dit plus « retirée du salaire » : la fenêtre prévient
+  avant de la poser (« son bulletin de septembre 2026 est déjà payé : il ne change pas ; la retenue est à régulariser sur
+  un prochain bulletin »), et les deux listes d'absences disent « pas retenue : à régulariser », comme au Cabinet.
+  *Reste* : la régularisation elle-même se pose à la main (une retenue sur un mois ouvert) ; elle n'est pas proposée.
+- **SOCIAL-9** — « 3 en poste · 1 sorti » : un salarié dont la sortie est passée ne compte plus « en poste ».
+- **SOCIAL-8** — Le départ d'un CDI ne propose plus de « le renouveler » ; les documents d'un salarié déjà parti (solde de
+  tout compte compris) se datent de son dernier jour, comme son certificat de travail.
+- **SOCIAL-7** — La frise des mois d'un exercice dit « hors exercice » avant son premier jour et après son dernier, et
+  « clos » sur un exercice clôturé, au lieu de « à saisir ».
+- **SOCIAL-5** — La Liasse dit ce qu'elle ne produit pas encore pour le dépôt sur TEJ : l'état des flux de trésorerie, les
+  notes et les fichiers XML.
+- **SOCIAL-4** — La case « imposable » d'une prime dit, au survol, qu'elle retire la ligne de la CNSS, de l'impôt, de la
+  TFP et du FOPROLOS (À VÉRIFIER : ces assiettes ne se recouvrent pas toujours). L'avantage en nature reste à concevoir.
+- **SOCIAL-2** — Au Cabinet aussi, le brut proratisé d'une entrée ou d'une sortie porte « À VÉRIFIER » sur sa méthode
+  (jours ouvrables, calendaires ou trentièmes). La méthode elle-même attend l'avis d'un expert-comptable.
+- **À faire vérifier par un expert** (rien changé) : SOCIAL-3 (une prime non mensuelle imposée par différence plutôt qu'en
+  multipliant le mois par douze), l'assiette exacte de SOCIAL-4, la méthode de SOCIAL-2, l'IRPP au SMIG.
+- Tests : `paie-cloture-1388-59` ; parcours de paie, de saisie et de liasse relancés ; six preuves.

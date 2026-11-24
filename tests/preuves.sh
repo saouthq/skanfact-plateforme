@@ -32109,6 +32109,24 @@ prouver "la pastille suspendue renvoie à une facture" web/public/plateforme/abo
 prouver "la fiche d'un cabinet ignore l'entreprise SkanFact absente" serveur/console/routes.ts \
   'abonnement, sansEditeur } };' 'abonnement } };' \
   $'la liste compte ce que la fiche montre ; un dossier s\'y dit comme dans la liste des clients ; la fiche du client nomme son cabinet'
+prouver "l'absence sur un mois payé se dit retirée" modules/personnel/ecrans/entreprise/paie.js \
+  'const effetNonPayee = l => (bulletinTenuDe(l.employeeId, l.from) ?' 'const effetNonPayee = l => (false ?' \
+  'une absence sur un mois déjà payé se dit « à régulariser », avant de la poser et dans les deux listes'
+prouver "le salarié sorti compté en poste" modules/personnel/ecrans/cabinet/paie.js \
+  'enPoste = (L.salaries || []).filter(x => !sorti(x))' 'enPoste = (L.salaries || []).filter(x => x.actif)' \
+  'la liste des salariés ne compte pas deux fois un salarié sorti resté actif'
+prouver "le CDI qu'on propose de renouveler" modules/personnel/ecrans/cabinet/paie.js \
+  $'x.contrat === \'cdi\' || !x.contrat ? `fin de son CDI' 'false ? `fin de son CDI' \
+  $'le départ d\'un CDI ne propose pas de le renouveler, et son solde se date de sa sortie'
+prouver "la frise réclame les mois hors exercice" modules/socle/ecrans/cabinet/app-1.js \
+  $'return { m, nom, ton: \'vide\', dit: \'hors exercice\' };' 'void 0;' \
+  'la frise dit « hors exercice » et « clos » au lieu de « à saisir »'
+prouver "la frise réclame un exercice clos" modules/socle/ecrans/cabinet/app-1.js \
+  $'if (ex.clos && cl !== \'fait\' && cl !== \'pret\') return { m, nom, ton: \'vide\', dit: \'clos\' };' '' \
+  'la frise dit « hors exercice » et « clos » au lieu de « à saisir »'
+prouver "la liasse se dit complète" modules/socle/ecrans/cabinet/app-1.js \
+  '<p class="small muted mb" id="li-manque">' '<p class="small muted mb" id="li-tout">' \
+  $'la liasse dit qu\'il manque les flux de trésorerie, les notes et les fichiers XML'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

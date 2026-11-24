@@ -723,7 +723,7 @@
             ${primes.map((x, i) => `<tr data-i="${i}">
               <td><input type="text" data-p="label" value="${h(x.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
               <td style="width:110px"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num montant" data-p="amount" value="${h(frChiffre(x.amount || ''))}" placeholder="0,000" aria-label="Prime ${i + 1} : montant du mois (${h(C.normCurrency(company().currency))})"></td>
-              <td style="width:110px"><label class="check small"><input type="checkbox" data-p="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>
+              <td style="width:110px"><label class="check small" title="Décochée, la ligne sort de la CNSS, de l’impôt, de la TFP et du FOPROLOS. À VÉRIFIER avec le comptable : ces assiettes ne se recouvrent pas toujours."><input type="checkbox" data-p="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>
               <td style="width:130px"><label class="check small" title="Au prorata des jours payés du mois : 19,5 jours sur 26 en donnent les 19,5 vingt-sixièmes"><input type="checkbox" data-p="parJour" ${x.parJour ? 'checked' : ''}> au jour</label></td>
               <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-px="${i}" aria-label="Retirer la prime ${i + 1}">✕</button></td></tr>`).join('')}
           </tbody></table>` : '<p class="small muted">Aucune prime chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin la reprendra.</p>';
@@ -914,7 +914,7 @@
             ${list.map((x, i) => `<tr data-i="${i}">
               <td><input type="text" data-f="label" value="${h(x.label || '')}" placeholder="${kind === 'bon' ? 'Prime de rendement' : 'Avance sur salaire'}">${kind === 'bon' && x.parJour ? `<div class="small muted" data-pj="${i}">au jour : ${pct(x.jours)} j payé${sPl(x.jours)} sur ${pct(x.sur)} · ${C.money(x.mensuel, cur)} pour un mois plein</div>` : ''}</td>
               <td style="width:130px"><input type="text" inputmode="decimal" data-montant autocomplete="off" class="num" data-f="amount" value="${h(C.money(Number(x.amount) || 0, null, 3))}" aria-label="Montant (${h(C.normCurrency(company().currency))})"></td>
-              ${kind === 'bon' ? `<td style="width:110px"><label class="check small"><input type="checkbox" data-f="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
+              ${kind === 'bon' ? `<td style="width:110px"><label class="check small" title="Décochée, la ligne sort de la CNSS, de l’impôt, de la TFP et du FOPROLOS. À VÉRIFIER avec le comptable : ces assiettes ne se recouvrent pas toujours."><input type="checkbox" data-f="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
               <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-x="${i}">✕</button></td></tr>`).join('')}
           </tbody></table>` : `<p class="small muted bf-vide">${kind === 'bon' ? 'Aucune prime ce mois-ci.' : 'Aucune retenue ce mois-ci.'}</p>`;
           $$('[data-f]', $(sel, root)).forEach(el => el.oninput = el.onchange = () => {
@@ -1426,6 +1426,16 @@
     if (bal) return t(['Son solde de congés', j(bal.remaining)], ['Cette absence', 'n\'y touche pas'], ['Son solde après', j(bal.remaining)]);
     return '';
   }
+  // (1.388.59 ; issue 20, SOCIAL-6) Une absence non payée sur un mois dont le bulletin est déjà payé, validé ou clôturé ne
+  // retire rien : ce bulletin ne se refait pas. On le dit avant de la poser et dans les listes (« pas retenue : à
+  // régulariser »), comme au Cabinet (CABPAIE-1), au lieu d'annoncer « retirée du salaire ».
+  function bulletinTenuDe(empId, from) {
+    const y = Number(String(from || '').slice(0, 4)), m = Number(String(from || '').slice(5, 7));
+    if (!empId || !y || !m) return null;
+    const b = (data.payslips || []).find(p => p.employeeId === empId && Number(p.year) === y && Number(p.month) === m);
+    return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ? b : null;
+  }
+  const effetNonPayee = l => (bulletinTenuDe(l.employeeId, l.from) ? '<span class="warn-text" data-lv-regul>pas retenue : à régulariser</span>' : '<span class="warn-text">retirée du salaire</span>');
   const libellePoser = k => (k === 'conges' ? 'Poser le congé' : k === 'maladie' ? 'Poser l\'arrêt maladie' : 'Poser l\'absence');
 
   function leaveForm(leave, employeeId, done, jour) {
@@ -1471,7 +1481,7 @@
           const bal = v.employeeId ? C.leaveBalance(data, v.employeeId, Number((v.from || C.today()).slice(0, 4))) : null;
           $('#lf-hint', root).innerHTML = `<span class="small ${days ? 'muted' : 'warn-text'}">`
             + (days ? `<b>${pct(days)} jour${sPl(days)} ouvrable${sPl(days)}</b>, dimanches exclus. ` : 'Aucun jour ouvrable dans cette période — vérifie les dates. ')
-            + (paid ? 'Payée : le salaire du mois n\'est pas réduit.' : 'Non payée : retenue sur le brut du mois.')
+            + (paid ? 'Payée : le salaire du mois n\'est pas réduit.' : (b => b ? `Non payée, mais son bulletin de ${h(`${MONTHS_LONG[Number(b.month) - 1]} ${b.year}`)} est déjà ${b.paidDate ? 'payé' : b.valideLe ? 'validé par ton cabinet' : 'dans une période clôturée'} : il ne change pas. La retenue est à régulariser sur un prochain bulletin (une retenue « Absence du … »). ` : 'Non payée : retenue sur le brut du mois.')(bulletinTenuDe(v.employeeId, v.from)))
             + (bal && v.kind === 'conges' ? soldeApresConge(bal.remaining, days, leave, v) : days ? effetAbsence(employeeById(v.employeeId), days, paid, v, bal) : '')
             + '</span>'
             + (() => { const r = v.employeeId ? manqueEquipe(v.employeeId, v.from, v.to) : null; return r ? `<span class="small warn-text lf-min" role="status">${lfIc('alerte', 13, 2)} ${h(manqueDit(r))} Tu peux le poser quand même.</span>` : ''; })();
@@ -4631,7 +4641,7 @@
               return `<tr class="clickable" data-lv="${h(l.id)}" title="Modifier cette absence"><td><strong>${h(e.name || '')}</strong></td><td>${h(l.kindLabel)}</td>
                 <td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td>
                 <td class="r nw">${pct(l.days)}</td>
-                <td>${l.statut === 'demande' ? '<span class="statut attire">demandée</span>' : l.statut === 'refuse' ? `<span class="statut">refusée${l.reponduLe ? ` le ${C.fmtDate(l.reponduLe)}` : ''}</span>${l.raisonRefus ? `<small class="muted"> ${h(l.raisonRefus)}</small>` : ''}` : l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
+                <td>${l.statut === 'demande' ? '<span class="statut attire">demandée</span>' : l.statut === 'refuse' ? `<span class="statut">refusée${l.reponduLe ? ` le ${C.fmtDate(l.reponduLe)}` : ''}</span>${l.raisonRefus ? `<small class="muted"> ${h(l.raisonRefus)}</small>` : ''}` : l.paid ? '<span class="ok-text">payée</span>' : effetNonPayee(l)}</td>
                 <td>${h(l.note || '')}</td></tr>`;
             }).join('')}
           </tbody></table></div>`
@@ -5533,7 +5543,7 @@
     const pointesAn = og !== 'conges' ? [] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].flatMap(mm => C.pointageEnregistre(data, e.id, Number(year), mm)
       ? C.pointageDuMois(data, e, Number(year), mm).jours.filter(j => j.code === 'A' && j.source === 'pointe').map(j => `${year}-${String(mm).padStart(2, '0')}-${String(j.jour).padStart(2, '0')}`) : []);
     const corps = og === 'conges' ? `<div class="pa-kv"><span>Acquis en ${h(year)}</span><b>${pct(b.acquired)} jour${sPl(b.acquired)}</b><span>Pris</span><b>${pct(b.taken)} jour${sPl(b.taken)}</b><span>Il lui reste</span><b class="${b.remaining < 0 ? 'warn-text' : ''}">${pct(b.remaining)} jour${sPl(b.remaining)}</b></div>
-        ${lvs.length ? (P => `<table class="list compact pa-liste"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th></tr></thead><tbody>${P.rows.map(l => `<tr class="clickable" data-lv="${h(l.id)}"><td>${h(l.kindLabel)}${(l.attachments || []).length ? ` <span class="small muted" title="${h(l.attachments.map(a => a.name).join(', '))}">· ${lfIc('piece', 12)} ${pl(l.attachments.length, 'fichier')}</span>` : l.kind === 'maladie' && !l.certificatLe ? ' <span class="statut attire">certificat ?</span>' : ''}</td><td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r">${pct(l.days)}</td><td>${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td></tr>`).join('')}</tbody></table>${P.bar}`)(pag(lvs, 'absence'))
+        ${lvs.length ? (P => `<table class="list compact pa-liste"><thead><tr><th>Nature</th><th>Du</th><th>Au</th><th class="r">Jours</th><th>Effet</th></tr></thead><tbody>${P.rows.map(l => `<tr class="clickable" data-lv="${h(l.id)}"><td>${h(l.kindLabel)}${(l.attachments || []).length ? ` <span class="small muted" title="${h(l.attachments.map(a => a.name).join(', '))}">· ${lfIc('piece', 12)} ${pl(l.attachments.length, 'fichier')}</span>` : l.kind === 'maladie' && !l.certificatLe ? ' <span class="statut attire">certificat ?</span>' : ''}</td><td class="nw">${C.fmtDate(l.from)}</td><td class="nw">${C.fmtDate(l.to)}</td><td class="r">${pct(l.days)}</td><td>${l.paid ? '<span class="ok-text">payée</span>' : effetNonPayee(l)}</td></tr>`).join('')}</tbody></table>${P.bar}`)(pag(lvs, 'absence'))
           : `<div class="empty">Aucun congé ni absence ${pointesAn.length ? 'saisi' : ''} en ${h(year)}.</div>`}${pointesAn.length ? `<p class="small muted" id="fs-pointes">Au pointage de ${h(year)} : ${pl(pointesAn.length, 'jour')} d'absence non payée (${h(pointesAn.slice(0, 6).map(d => C.fmtDate(d).slice(0, 5)).join(', '))}${pointesAn.length > 6 ? '…' : ''}) ; ${pointesAn.length > 1 ? 'ils se retirent du bulletin de leur mois' : 'il se retire du bulletin de son mois'}.</p>` : ''}<div class="pa-pied-o"><button type="button" class="btn btn-sm" id="add-lv">${lfIc('croix', 14, 2.4)} Un congé ou une absence</button></div>`
       : og === 'avances' ? (avs.length ? `${ouvertes.length ? `<ul class="pa-av-l" id="fs-av-cours">${ouvertes.map(x => avanceLigneHtml(x, cur)).join('')}</ul>` : ''}${avs.some(x => x.done) ? `<table class="list compact pa-liste"><thead><tr><th>Soldée${avs.filter(x => x.done).length > 1 ? 's' : ''} · versée le</th><th class="r">Avancé</th><th class="r">Il reste</th></tr></thead><tbody>${avs.filter(x => x.done).map(x => `<tr class="clickable" data-av="${h(x.id)}"><td class="nw">${C.fmtDate(x.date)}</td><td class="r nw">${C.money(x.amount, cur)}</td><td class="r nw">${x.done ? '<span class="ok-text">soldée</span>' : `<b>${C.money(x.remaining, cur)}</b>`}</td></tr>`).join('')}</tbody></table>` : ''}${ouvertes.length ? `<p class="small muted pa-note">${C.money(C.round3(ouvertes.reduce((a2, x) => a2 + x.remaining, 0)), cur)} se retiennent d'eux-mêmes sur les prochains bulletins.</p>` : ''}`
           : '<div class="empty">Aucune avance ni aucun prêt. Une avance se retient toute seule, mois après mois, sur ses bulletins.</div>')

@@ -122,7 +122,7 @@
       <span class="cp-pa-g">${fin.map(x => `<button type="button" class="btn btn-sm" data-pa-depart="${esc(x.id)}">Préparer son départ</button><button type="button" class="btn btn-sm" data-pa-docs="${esc(x.id)}">Ses documents de sortie…</button>${peutMeRappeler(dossier) ? `<button type="button" class="btn btn-sm" data-pa-me-rappeler="${esc(x.id)}" data-le="${esc(rappelAvantSortie(x.sortie))}">Me le rappeler le ${esc(fmtJour(rappelAvantSortie(x.sortie)).slice(0, 5))}</button>` : ''}`).join('')}</span></div>` : ''; })()}
     ${departSal ? paieDepart(dossier, L, departSal, P) : ''}
     <div class="panel mt" id="pa-salaries"><div class="cp-pa-titre-l"><h2>Les salariés ${info('pa.salaries')}</h2>${(() => {
-      const enPoste = (L.salaries || []).filter(x => x.actif), finit = enPoste.filter(x => x.sortie && x.sortie >= aujourdhuiPaie()), sortis = (L.salaries || []).filter(x => !x.actif || (x.sortie && x.sortie < aujourdhuiPaie()));
+      const sorti = x => !x.actif || (x.sortie && x.sortie < aujourdhuiPaie()), enPoste = (L.salaries || []).filter(x => !sorti(x)), finit = enPoste.filter(x => x.sortie && x.sortie >= aujourdhuiPaie()), sortis = (L.salaries || []).filter(sorti);
       return `<span class="small muted" id="pa-sal-resume">${esc(pl(enPoste.length, 'en poste', 'en poste'))} · ${finit.length ? esc(pl(finit.length, 'contrat qui finit', 'contrats qui finissent')) : 'aucun contrat qui finit'} · ${sortis.length ? esc(pl(sortis.length, 'sorti', 'sortis')) : 'aucun sorti'}</span>`; })()}${P.mode === 'cabinet' || P.mode === 'tenue' ? '<button type="button" class="btn btn-sm" id="pa-salarie">+ Un salarié…</button>' : `<span class="small muted">${esc(P.client)} les déclare dans SkanFact.</span>`}</div>
         ${regimesDuDossier(dossier, L)}
         ${(L.salaries || []).length
@@ -1864,7 +1864,7 @@
     const ligne = (t, sous, v) => `<tr><td>${t}<div class="small muted">${sous}</div></td><td class="r nw">${v}</td></tr>`;
     const envoyer = api.messagerie && !dossier.manual && P.mode !== 'cabinet';
     return `<section class="panel mt" id="pa-depart" aria-label="Le départ ${esc(deNom(x.nom))}">
-      <div class="cp-pa-volet-t"><div><b>Le départ ${esc(deNom(x.nom))}, le ${esc(fmtJour(x.sortie))}</b><small class="muted">${esc(KC.contractLabel(x.contrat).split(' —')[0])} qui arrive à son terme · le projet se prépare avec ${esc(P.client)} : le renouveler, ou le laisser finir</small></div>
+      <div class="cp-pa-volet-t"><div><b>Le départ ${esc(deNom(x.nom))}, le ${esc(fmtJour(x.sortie))}</b><small class="muted">${x.contrat === 'cdi' || !x.contrat ? `fin de son CDI · le départ se prépare avec ${esc(P.client)} : son dernier bulletin, son solde et ses documents` : `${esc(KC.contractLabel(x.contrat).split(' —')[0])} qui arrive à son terme · le projet se prépare avec ${esc(P.client)} : le renouveler, ou le laisser finir`}</small></div>
         <button type="button" class="btn btn-sm btn-ghost" id="pa-depart-x" aria-label="Fermer le départ">✕</button></div>
       <div class="cp-pa-grille avec-volet">
         <div><h4>Son dernier bulletin, ${esc(KC.moisPaie(mois))} ${esc(an)} <span class="muted small">· À VÉRIFIER : la règle des congés et l'indemnité de fin de contrat</span></h4>
@@ -2280,7 +2280,8 @@
     const data = { ...api.paieDuDossierV10(dossier.id), payrollSettings: reglagesPaie(dossier, L) };
     const e = (data.employees || []).find(y => y.id === x.id);
     if (!e) return toast('Ce salarié n\'est plus dans la paie du dossier : recharge la page.', 'error');
-    const jour = K.today();
+    // (1.388.59, SOCIAL-8) Un salarié déjà sorti : ses documents se datent de son dernier jour, comme son certificat.
+    const jour = x.sortie && x.sortie < K.today() ? x.sortie : K.today();
     const lignes = KC.lignesDuSolde(data, e.id, jour);
     const ic = KC.indemniteConges(data, e.id, jour);
     const resteAvances = KC.round3(KC.advancesOf(data, e.id).filter(a => !a.done).reduce((t, a) => t + a.remaining, 0));
@@ -2647,7 +2648,7 @@
         zone.innerHTML = primesFiche.length ? `<table class="lines-edit"><tbody>${primesFiche.map((p, i) => `<tr data-i="${i}">
             <td><input type="text" data-fp="label" value="${esc(p.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
             <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-fp="amount" placeholder="0,000" value="${esc(Number(p.amount) ? montantChamp(p.amount) : '')}" aria-label="Prime ${i + 1} : montant du mois (DT)"></td>
-            <td style="width:110px"><label class="check small"><input type="checkbox" data-fp="taxable" ${p.taxable !== false ? 'checked' : ''}> imposable</label></td>
+            <td style="width:110px"><label class="check small" title="Décochée, la ligne sort de la CNSS, de l’impôt, de la TFP et du FOPROLOS. À VÉRIFIER avec le comptable : ces assiettes ne se recouvrent pas toujours."><input type="checkbox" data-fp="taxable" ${p.taxable !== false ? 'checked' : ''}> imposable</label></td>
             <td style="width:110px"><label class="check small" title="Au prorata des jours payés du mois : 24 jours sur 26 en donnent les 24 vingt-sixièmes"><input type="checkbox" data-fp="parJour" ${p.parJour ? 'checked' : ''}> au jour</label></td>
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-fpx="${i}" aria-label="Retirer la prime ${i + 1}" title="Retirer cette prime">✕</button></td></tr>`).join('')}</tbody></table>`
           : '<p class="small muted">Aucune prime de chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin nouveau la reprendra.</p>';
@@ -2937,7 +2938,7 @@
         zone.innerHTML = liste.length ? `<table class="lines-edit"><tbody>${liste.map((x, i) => `<tr data-i="${i}">
             <td><input type="text" data-l="label" value="${esc(x.label || '')}" placeholder="${sorte === 'prime' ? 'Prime de rendement' : 'Remboursement d\'avance'}" aria-label="${sorte === 'prime' ? 'Nom de la prime' : 'Nom de la retenue'}">${sorte === 'prime' && x.parJour ? `<div class="small muted" data-pj>${esc(noteAuJour(x))}</div>` : ''}</td>
             <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-l="amount" placeholder="0,000" value="${esc(montantChamp(x.amount))}" aria-label="Montant (DT)"></td>
-            ${sorte === 'prime' ? `<td style="width:110px"><label class="check small"><input type="checkbox" data-l="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
+            ${sorte === 'prime' ? `<td style="width:110px"><label class="check small" title="Décochée, la ligne sort de la CNSS, de l’impôt, de la TFP et du FOPROLOS. À VÉRIFIER avec le comptable : ces assiettes ne se recouvrent pas toujours."><input type="checkbox" data-l="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-retirer="${i}" aria-label="Retirer cette ligne" title="Retirer cette ligne">✕</button></td></tr>`).join('')}</tbody></table>`
           : `<p class="small muted">${sorte === 'prime' ? 'Aucune prime ce mois-ci.' : 'Aucune retenue ce mois-ci.'}</p>`;
         $$('[data-l]', zone).forEach(el => { el.oninput = el.onchange = () => {
@@ -3000,7 +3001,7 @@
       const direLeMois = v => {
         const note = $('#bf-mois-note', rootModal);
         const lignes = [];
-        if (v.prorata) lignes.push(`Brut proratisé : ${v.prorata.motif || 'une entrée ou une sortie dans le mois'}, ${joursFr(v.prorata.jours)} jours sur ${joursFr(v.prorata.sur)} (${money(v.prorata.brutFiche)} pour un mois plein).`);
+        if (v.prorata) lignes.push(`Brut proratisé : ${v.prorata.motif || 'une entrée ou une sortie dans le mois'}, ${joursFr(v.prorata.jours)} jours sur ${joursFr(v.prorata.sur)} (${money(v.prorata.brutFiche)} pour un mois plein). À VÉRIFIER avec le dossier : la méthode du prorata (jours ouvrables, calendaires ou trentièmes).`);
         if (!b && KC.pointageEnregistre(donnees, v.salarieId, Number(s.annee), v.mois)) lignes.push(`Le mois est pointé : ${(v.primes || []).some(x => x.hs) ? 'l\'absence et les heures supplémentaires viennent' : 'l\'absence vient'} de sa grille.`);
         note.hidden = !lignes.length;
         note.textContent = lignes.join(' ');
