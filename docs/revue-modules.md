@@ -6974,3 +6974,14 @@ toucherait une centaine de tables et ne se défait pas ; on les **classe**.
 - **MET1-7** — Au téléphone, la feuille d'une ligne montre et accepte le prix TTC (le prix du rayon), et le total de la
   ligne se redit en TTC.
 - Tests : `metiers-1388`, `telephone-commercant`, `caisse-premier-article` (retourné vers la règle) ; quatre preuves.
+
+## 1.388.54 — L'épicier et la boulangère ont leur métier (rapport #21 : MET1-10)
+
+L'assistant gagne « Alimentation et épicerie » et « Boulangerie et pâtisserie ». L'épicier recevait « Installation /
+mise en service » ; la boulangère n'avait que « Autre activité », sans catalogue ni module. Chacun reçoit un catalogue
+de son métier dont les produits restent « prix à fixer » (aucun prix de produit deviné, aucun taux écrit : la TVA suit
+le régime — À VÉRIFIER avec le comptable), et ses modules proposés : achats, stock, bons de livraison (et la paie pour
+la boulangerie). Dans la barre, ils suivent le commerce. Test `tests/moteur/metiers-alimentation-1388.test.ts`, une
+preuve.
+
+MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; non touché.

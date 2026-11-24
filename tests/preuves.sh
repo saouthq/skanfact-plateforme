@@ -32025,6 +32025,9 @@ prouver "un bon en préparation se dit à facturer" modules/socle/ecrans/entrepr
 prouver "la feuille du téléphone sans prix TTC" modules/socle/ecrans/entreprise/app-1.js \
   "if (r.ok) brouillon.unitPrice = r.ht;" "if (false) brouillon.unitPrice = r.ht;" \
   'MET1-7 : au téléphone, la ligne se tape au prix du rayon (TTC) et dit son total TTC'
+prouver "la boulangère sans son métier" modules/socle/moteur/core-1.js \
+  "    boulangerie: ['achats', 'stock', 'pieces', 'paie', 'caisse'], // revendeurs livrés, et du personnel" "" \
+  'chacun a son catalogue, sans prix de produit inventé ni taux, et ses modules'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

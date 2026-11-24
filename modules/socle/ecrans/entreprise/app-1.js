@@ -3116,7 +3116,7 @@
   // (plateforme/barre.js). Le rôle retire ce qui n'est pas à lui (pageCachee) : le caissier n'a que sa caisse, le
   // commercial la vente. Une page n'a qu'UN lien dans la barre (l'accueil d'un rôle, les lecteurs d'écran, les tests
   // lisent la liste des liens) ; épinglée, elle n'est plus dans son volet qu'un bouton qui y mène.
-  const METIER_DE = { commerce: 'commerce', automobile: 'commerce', restauration: 'restauration', batiment: 'batiment', artisanat: 'batiment',
+  const METIER_DE = { commerce: 'commerce', automobile: 'commerce', alimentation: 'commerce', boulangerie: 'commerce', restauration: 'restauration', batiment: 'batiment', artisanat: 'batiment',
     architecture: 'batiment', sante: 'sante', beaute: 'sante' };
   const METIERS = {
     commerce: { quotidien: ['caisse', 'factures', 'achats', 'stock'], onglets: ['caisse', 'achats'], creer: ['vente', 'facture', 'photo', 'article'] },

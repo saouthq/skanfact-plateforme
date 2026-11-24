@@ -38,6 +38,8 @@
     batiment: 'M4 15a8 8 0 0 1 16 0 M2 15h20v3H2z M12 7v4',
     conseil: 'M9 18h6 M10 21h4 M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z',
     commerce: 'M6 8h12l-1 12H7z M9 8V6a3 3 0 0 1 6 0v2',
+    alimentation: 'M3 6h2l2.5 10h11L21 9H6.5 M9 20a1 1 0 1 0 0.01 0 M17 20a1 1 0 1 0 0.01 0',
+    boulangerie: 'M4 14c0-5 4-8 8-8s8 3 8 8v3H4z M8 10l1.5 3 M12 9v4 M16 10l-1.5 3',
     sante: 'M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z',
     artisanat: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8 9.5 8z',
     restauration: 'M5 8h12v5a6 6 0 0 1-12 0z M17 9h2a2 2 0 0 1 0 4h-2 M8 3v3 M12 3v3',
@@ -57,7 +59,7 @@
   // L'unité d'un article, dite comme on la lit sur un prix (« 250,000 DT par mois ») ; une unité inconnue, telle quelle.
   /** @type {Record<string, string>} */
   const UNITES = { u: 'l’unité', h: 'l’heure', mois: 'par mois', forfait: 'au forfait', jour: 'la journée', séance: 'la séance', lot: 'le lot',
-    km: 'le km', 'm²': 'le m²', couvert: 'le couvert', course: 'la course', bulletin: 'le bulletin' };
+    km: 'le km', kg: 'le kilo', 'm²': 'le m²', couvert: 'le couvert', course: 'la course', bulletin: 'le bulletin' };
 
   // Les étapes : le fil du haut (ton compte → ton entreprise → ton activité) et ce que chacune demande.
   const COORDONNEES = { id: 'coordonnees', fil: 1, puce: 'Ton entreprise · 2 sur 2', titre: 'Où te joindre ?' };

@@ -202,6 +202,25 @@
       ]
     },
     {
+      // (MET1-10) L'épicier et la boulangère n'avaient pas leur métier : l'un recevait « Installation / mise en
+      // service », l'autre « Autre activité », sans catalogue ni module. Les prix restent à fixer (aucun prix de
+      // produit n'est deviné) et aucun taux n'est écrit ici : la TVA suit le régime — À VÉRIFIER avec le comptable.
+      id: 'alimentation', label: 'Alimentation et épicerie', tagline: 'Épicerie · Supérette · Produits frais', comptant: true,
+      catalog: [
+        ['Article d\'épicerie', 'Désignation du produit vendu', 0, 'u'],
+        ['Produit au poids', 'Prix au kilo', 0, 'kg'],
+        ['Livraison à domicile', '', 3, 'u']
+      ]
+    },
+    {
+      id: 'boulangerie', label: 'Boulangerie et pâtisserie', tagline: 'Pain · Viennoiseries · Gâteaux', comptant: true,
+      catalog: [
+        ['Pain', 'Baguette, pain de mie…', 0, 'u'],
+        ['Viennoiserie', 'Croissant, pain au chocolat…', 0, 'u'],
+        ['Gâteau sur commande', 'Selon le nombre de parts', 0, 'u']
+      ]
+    },
+    {
       // `regime` est une PROPOSITION, pas une règle : l'assistant la présélectionne et l'utilisateur
       // reste libre d'en choisir une autre. Les actes médicaux et paramédicaux sont exonérés de TVA
       // en Tunisie — À VÉRIFIER avec le comptable, comme tout le reste de la fiscalité ici.
@@ -921,6 +940,8 @@
   // plus tard, alors que ce sont les deux modules de son quotidien.
   const MODULES_PAR_ACTIVITE = {
     commerce: ['achats', 'stock', 'pilotage', 'caisse'],
+    alimentation: ['achats', 'stock', 'pieces', 'caisse'],     // bons de livraison aux clients à crédit
+    boulangerie: ['achats', 'stock', 'pieces', 'paie', 'caisse'], // revendeurs livrés, et du personnel
     artisanat: ['achats', 'stock', 'pieces'],
     batiment: ['achats', 'pieces', 'pilotage'],
     informatique: ['achats', 'pieces'],
