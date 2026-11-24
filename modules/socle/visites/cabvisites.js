@@ -1628,7 +1628,7 @@
         { cible: '#modal-root #eq-ok', cote: 'dessus', faire: 'clic',
           titre: 'Inviter', texte: 'L\'invitation est prête : un lien, valable sept jours, une fois.', action: 'Clique sur <b>« Inviter »</b>.', fait: () => !!document.querySelector('#modal-root #eq-lien'), essai: { clic: true } },
         { cible: '#modal-root #eq-lien', cote: 'dessus', faire: 'clic', fait: () => aucuneFenetre(),
-          titre: 'Le lien à transmettre', texte: 'Si la fenêtre dit « Invitation partie », SkanFact lui a envoyé ce lien par e-mail : il est ici en secours. Sinon, copie-le et envoie-le-lui (courriel, WhatsApp).', action: 'Clique sur <b>« Fermer »</b>.' }
+          titre: 'Le lien à transmettre', texte: 'Si la fenêtre dit « L\'invitation est partie », SkanFact lui a envoyé ce lien par e-mail : il est ici en secours. Sinon, copie-le, ou envoie-le par WhatsApp ou par e-mail d\'un clic.', action: 'Clique sur <b>« Fermer »</b>.' }
       ]
     });
 

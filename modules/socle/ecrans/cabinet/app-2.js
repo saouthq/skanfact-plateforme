@@ -7491,7 +7491,7 @@
     const role = c ? c.role : 'saisie';
     modal(`<h2>${c ? 'Le rôle de ' + esc(c.nom) : 'Inviter un collaborateur'}</h2>
       ${c ? '' : `<label class="field obligatoire">${lbl('Son adresse e-mail', 'eq.email')}
-        <input type="email" id="eq-email" placeholder="amine@cabinet.tn" autocomplete="off"></label>`}
+        <input type="email" id="eq-email" autocomplete="off"></label>`}
       <label class="field">${lbl('Rôle', 'eq.role')}<select id="eq-role">
         ${K.ROLES_COLLAB.map(r => `<option value="${r}" ${role === r ? 'selected' : ''}>${esc(K.LIBELLE_ROLE[r])}</option>`).join('')}
       </select></label>
@@ -7520,11 +7520,21 @@
           equipe = await api.collaborateurs();
           close(); dessinerEquipe(document, true);
           // (plateforme, 0119) Avec un relais d'e-mails, l'invitation est déjà partie : le lien reste ici en secours.
-          modal(`<h2>${inv.courriel ? 'Invitation partie' : 'Invitation prête'}</h2>
-            <p>${inv.courriel ? `Un e-mail est parti à <b>${esc(email)}</b> avec le lien.` : `Envoie ce lien à <b>${esc(email)}</b> (par mail, par exemple).`} Il l'ouvre, se connecte avec cette adresse — ou crée son compte
-            avec elle — et rejoint le cabinet. Le lien vaut jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(inv.expire))))}, une seule fois.${inv.courriel ? ' Le voici aussi, s\'il ne trouve pas l\'e-mail :' : ''}</p>
-            <p><input type="text" id="eq-lien" readonly value="${esc(inv.lien)}" style="width:100%"></p>
-            <div class="modal-actions"><button class="btn" id="eq-copier">Copier le lien</button><button class="btn btn-primary" data-close>Fermer</button></div>`,
+          // (issue 18, ENT2-10) La même fenêtre que celle de l'entreprise : le geste principal est de copier le lien, et il
+          // part aussi par WhatsApp ou par la messagerie, le message déjà écrit ; « Fermer » n'est qu'une sortie.
+          const nomCab = (S.cabinet && S.cabinet.name) || 'le cabinet';
+          const jusquau = fmtJour(KC.jourDeLInstant(Date.parse(inv.expire)));
+          const texte = `Bonjour,\n\nJe t'invite à rejoindre ${nomCab} sur SkanFact. Ouvre ce lien, puis connecte-toi avec cette adresse (${email}) — ou crée ton compte avec elle :\n\n${inv.lien}\n\nLe lien vaut jusqu'au ${jusquau}, une seule fois.`;
+          const objet = `Invitation à rejoindre ${nomCab} sur SkanFact`;
+          modal(`<h2>${inv.courriel ? 'L\'invitation est partie' : 'L\'invitation est prête'}</h2>
+            <p>${inv.courriel ? `Un e-mail est parti à <b>${esc(email)}</b> avec le lien.` : `Envoie ce lien à <b>${esc(email)}</b>.`} Il l'ouvre, se connecte avec cette adresse — ou crée son compte
+            avec elle — et rejoint ${esc(nomCab)}. Le lien vaut jusqu'au <b>${esc(jusquau)}</b>, une seule fois.${inv.courriel ? ' Le voici aussi, s\'il ne trouve pas l\'e-mail :' : ''}</p>
+            <div style="display:flex;gap:8px;margin:14px 0 10px"><input type="text" id="eq-lien" readonly value="${esc(inv.lien)}" aria-label="Le lien d'invitation" style="flex:1 1 auto;min-width:0"><button class="btn btn-primary" id="eq-copier">Copier le lien</button></div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+              <a class="btn" id="eq-whatsapp" href="https://wa.me/?text=${encodeURIComponent(texte)}" target="_blank" rel="noopener" style="text-decoration:none">Envoyer par WhatsApp</a>
+              <a class="btn" id="eq-mail" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(texte)}" style="text-decoration:none">Envoyer par e-mail</a>
+            </div>
+            <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`,
           (c2) => {
             $('#eq-copier', c2).onclick = async () => {
               try { await navigator.clipboard.writeText(inv.lien); toast('Lien copié.'); }

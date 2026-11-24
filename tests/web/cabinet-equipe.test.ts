@@ -90,6 +90,10 @@ describe('l\'équipe du cabinet, à la souris', () => {
     await fenetre.locator('#eq-ok').click();
     await p.locator('#eq-lien').waitFor({ timeout: 15_000 });
     const lien = await p.locator('#eq-lien').inputValue();
+    // (issue 18, ENT2-10) La même fenêtre que celle de l'entreprise : « Copier le lien » en geste principal, WhatsApp et e-mail.
+    expect(await p.locator('#eq-copier').getAttribute('class')).toContain('btn-primary');
+    expect(await p.locator('#eq-whatsapp').getAttribute('href')).toContain('https://wa.me/?text=');
+    expect(await p.locator('#eq-mail').getAttribute('href')).toMatch(/^mailto:/);
     expect(lien).toMatch(new RegExp(`^${serveur.adresse.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/\\?invitation=`));
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-equipe-1-lien.png') });
     await fenetre.getByRole('button', { name: 'Fermer', exact: true }).click();
@@ -180,7 +184,7 @@ describe('l\'équipe du cabinet, à la souris', () => {
     await p.waitForTimeout(1_000);
     await p.locator('#modal-root #eq-ok').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Le lien à transmettre/);
-    expect(await bulle.innerText()).toMatch(/Si la fenêtre dit «\sInvitation partie\s»/);
+    expect(await bulle.innerText()).toMatch(/Si la fenêtre dit «\sL.invitation est partie\s»/);
     await p.waitForTimeout(1_000);
     await p.locator('#modal-root [data-close]').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Ton invitation est prête/);

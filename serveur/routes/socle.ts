@@ -420,9 +420,13 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const invitations = (await tx.query(`select id, email, roles, expire_le, courriel, courriel_le from socle.invitation
         where entreprise = $1 and acceptee_le is null and annulee_le is null and expire_le > $2 order by cree_le limit $3`, [params.entreprise, maintenant(), LIMITE_MAX])).rows as { id: string; email: string; roles: string[]; expire_le: Date; courriel: string | null; courriel_le: Date | null }[];
       const r = (await tx.query('select socle.moi() moi, socle.roles_donnables($1) donnables', [params.entreprise])).rows[0] as { moi: string; donnables: string[] };
+      // (issue 18, ENT2-4) La propriété cédée qui attend l'accord (le propriétaire et la personne désignée la voient seuls).
+      const transfert = (await tx.query(`select id, vers, demande_le from socle.transfert_propriete
+        where entreprise = $1 and accepte_le is null and annule_le is null limit 1`, [params.entreprise])).rows[0] as { id: string; vers: string; demande_le: Date } | undefined;
       return {
         corps: {
           membres, moi: r.moi, donnables: r.donnables,
+          transfert: transfert ? { id: transfert.id, vers: transfert.vers, demande: transfert.demande_le.toISOString() } : null,
           // Ce que son e-mail est devenu (0124 ; 0138 : « sans réponse » au-delà de dix minutes sans réponse du relais).
           invitations: invitations.map((i) => ({ id: i.id, email: i.email, roles: i.roles, expire: i.expire_le.toISOString(), courriel: etatVu(i.courriel, i.courriel_le, maintenant()) })),
         },
@@ -535,6 +539,19 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!tx) throw new Error('transaction attendue');
       const id = (await tx.query('select socle.demander_transfert($1, $2) id', [params.entreprise, corps.vers])).rows[0].id;
       return { statut: 201, corps: { id } };
+    },
+  });
+
+  // (issue 18, ENT2-4) Ce que la personne a à accepter : la propriété qu'on lui cède, lue dans « Ton compte » (le
+  // transfert attendait sans qu'aucun écran ne le montre, donc sans que personne puisse l'accepter).
+  ajouter({
+    methode: 'GET', chemin: '/moi/transferts', geste: 'compte.transfert.accepter',
+    traiter: async ({ qui }, tx) => {
+      if (!qui || !tx) throw new Error('session attendue');
+      const r = await tx.query(`select t.id, t.entreprise, e.raison_sociale, t.demande_le from socle.transfert_propriete t
+        join socle.entreprise e on e.id = t.entreprise
+        where t.vers = $1 and t.accepte_le is null and t.annule_le is null order by t.demande_le limit 20`, [qui.utilisateur]);
+      return { corps: { transferts: (r.rows as { id: string; entreprise: string; raison_sociale: string; demande_le: Date }[]).map((t) => ({ id: t.id, entreprise: t.entreprise, nom: t.raison_sociale, demande: t.demande_le.toISOString() })) } };
     },
   });
 

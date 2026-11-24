@@ -125,6 +125,9 @@
   async function dessiner(el, outils) {
     /** @type {any} */ let moi;
     try { moi = await outils.appel('GET', '/moi'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    // (issue 18, ENT2-4) La propriété qu'on lui cède attend ici son accord ; une panne de cette lecture ne cache pas le reste.
+    /** @type {{ id: string, entreprise: string, nom: string, demande: string }[]} */ let cedes = [];
+    try { cedes = (await outils.appel('GET', '/moi/transferts')).transferts || []; } catch { /* rien à accepter ici */ }
     const c = moi.compte || {};
     // Le code de connexion (0081) : « sms », « application », ou rien (l'e-mail par défaut, quand ce serveur en envoie ;
     // le mot de passe seul sinon).
@@ -176,6 +179,12 @@
         : 'Ce serveur n\'envoie pas encore d\'e-mails : tu pourras la vérifier dès qu\'il le pourra.';
 
     el.innerHTML = `<div class="cpt">
+      ${cedes.map((t) => `<section class="cpt-carte cpt-recommande" data-transfert="${esc(t.id)}"><div class="cpt-ligne">
+        <div class="cpt-quoi"><span class="cpt-etiquette">La propriété t'est cédée</span>
+          <div class="cpt-valeur"><strong>${esc(t.nom || 'Une entreprise')}</strong></div>
+          <p class="small muted">Accepte-la, et tu deviens propriétaire : l'abonnement, le comptable et l'équipe passent à toi. L'ancien propriétaire reste administrateur.</p></div>
+        <button type="button" class="btn btn-primary" data-accepter-transfert="${esc(t.id)}">Accepter la propriété</button>
+      </div></section>`).join('')}
       <section class="cpt-carte"><div class="cpt-ligne">
         <div class="cpt-quoi"><span class="cpt-etiquette">Ton nom</span>
           <div class="cpt-valeur"><strong id="cpt-nom">${esc(moi.nom || '')}</strong></div>
@@ -203,13 +212,26 @@
       ${actif ? `<div class="cpt-pied"><span class="small">Si ${methode === 'sms' ? 'ton mobile n\'est pas là' : 'tu perds ton téléphone'} : <b id="cpt-restants">${pl(c.codesSecours || 0, 'code de secours', 'codes de secours')}</b> ${(c.codesSecours || 0) > 1 ? 'restants' : 'restant'}</span>
         <span class="cpt-boutons"><button type="button" class="btn btn-sm" id="cpt-secours">Nouveaux codes de secours…</button></span></div>` : ''}
       </section>
-      <section class="cpt-carte cpt-discret"><div class="cpt-ligne">
+      <section class="cpt-carte cpt-discret" id="cpt-nouvel-appareil"><div class="cpt-ligne">
         <span class="cpt-ico">${dessin('enveloppe')}</span>
         <div class="cpt-quoi"><b>${appareil[0]}</b><p class="small muted">${appareil[1]}</p></div>
+      </div></section>
+      <section class="cpt-carte cpt-discret" id="cpt-partir"><div class="cpt-ligne">
+        <div class="cpt-quoi"><b>Quitter, céder, supprimer</b>
+          <p class="small muted">Quitter une entreprise ou un cabinet : son propriétaire te retire de l'équipe (L'équipe › Actions › « Retirer de l'équipe »). Céder la propriété de ton entreprise : L'équipe › Actions sur la personne › « Lui céder la propriété » ; elle l'accepte ici, dans son compte. Supprimer ton compte : écris au support (Aide › Écrire au support) ; l'équipe de SkanFact l'efface après avoir vérifié que la demande vient de toi.</p></div>
       </div></section>
     </div>`;
 
     const $ = (/** @type {string} */ q) => /** @type {HTMLElement} */ (el.querySelector(q));
+    el.querySelectorAll('[data-accepter-transfert]').forEach((b) => {
+      const bouton = /** @type {HTMLElement} */ (b);
+      bouton.onclick = async () => {
+        bouton.setAttribute('disabled', '');
+        try { await outils.appel('POST', `/transferts/${encodeURIComponent(String(bouton.dataset.accepterTransfert))}/accepter`); } catch (x) { bouton.removeAttribute('disabled'); bouton.closest('section')?.insertAdjacentHTML('beforeend', `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`); return; }
+        outils.toast('C\'est fait : tu es le propriétaire.');
+        redessiner();
+      };
+    });
     $('#cpt-adresse').onclick = () => changerAdresse(outils, relais, moi.email, redessiner);
     if ($('#cpt-verifier')) $('#cpt-verifier').onclick = () => verifierAdresse(outils, moi.email, redessiner);
     $('#cpt-mdp').onclick = () => changerMotDePasse(outils, c.motDePasseMin || 10, redessiner);

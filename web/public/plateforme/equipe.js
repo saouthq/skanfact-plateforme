@@ -60,7 +60,7 @@
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
     const { esc, jour, pl } = aides();
-    /** @type {{ membres: Membre[], moi: string, donnables: string[], invitations: Invitation[] }} */
+    /** @type {{ membres: Membre[], moi: string, donnables: string[], invitations: Invitation[], transfert?: { id: string, vers: string, demande: string } | null }} */
     let eq;
     try { eq = await o.appel('GET', '/equipe'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="eqp-relire">Réessayer</button>`;
@@ -77,6 +77,9 @@
     // Ce qu'on ne change pas ici : sa propre ligne (D6), et celle du propriétaire (la propriété se transfère).
     /** @param {Membre} m */
     const modifiable = (m) => m.utilisateur !== eq.moi && !m.roles.includes('proprietaire');
+    // (issue 18, ENT2-4) Le propriétaire cède la propriété à un membre ; elle attend son accord (03 D4), et se dit ici.
+    const suisProprietaire = eq.membres.some((m) => m.utilisateur === eq.moi && m.roles.includes('proprietaire'));
+    const cede = eq.transfert ? eq.membres.find((m) => m.utilisateur === eq.transfert?.vers) : null;
 
     const ligneMembre = (/** @type {Membre} */ m) => `<li class="eqp-ligne">
         <span class="eqp-avatar" aria-hidden="true">${esc(nomDe(m).slice(0, 1).toUpperCase())}</span>
@@ -107,6 +110,9 @@
           : 'Chacun entre avec son propre compte, et chaque geste porte le nom de qui l\'a fait. Ce que chacun voit et fait dépend de ses rôles ; avec plusieurs rôles, il a tout ce que chacun ouvre.'}</p>
         <button type="button" class="btn btn-primary" id="eqp-inviter">Inviter quelqu'un…</button>
       </div>
+      ${eq.transfert && cede ? `<p class="small eqp-transfert" id="eqp-transfert" role="status">${eq.transfert.vers === eq.moi
+        ? `La propriété de ${esc(nomEntreprise)} t'est cédée : accepte-la depuis Paramètres › Ton compte.`
+        : `La propriété est cédée à ${esc(nomDe(cede))} depuis le ${esc(jour(eq.transfert.demande))} : elle attend son accord, dans son compte. D'ici là, rien ne change.`}</p>` : ''}
       <h3 class="eqp-titre">${pl(eq.membres.length, 'personne')} dans l'équipe</h3>
       <ul class="eqp-liste" id="eqp-membres">${eq.membres.map(ligneMembre).join('')}</ul>
       ${eq.invitations.length ? `<h3 class="eqp-titre">${eq.invitations.length > 1 ? 'Invitations qui attendent' : 'Une invitation qui attend'}</h3>
@@ -121,6 +127,7 @@
         if (!m || !modifiable(m)) return [];
         return [
           { icon: 'modifier', label: 'Changer ses rôles…', hint: 'Ce qu\'il voit et fait dans l\'entreprise', run: () => changerRoles(o, m, eq.donnables, redessiner) },
+          ...(suisProprietaire ? [{ icon: 'client', label: 'Lui céder la propriété…', hint: 'Il devient propriétaire quand il accepte ; toi, administrateur', run: () => { void ceder(o, m, nomEntreprise, redessiner); } }] : []),
           { sep: true },
           { icon: 'supprimer', label: 'Retirer de l\'équipe…', hint: 'Il n\'ouvre plus l\'entreprise ; ce qu\'il a fait garde son nom', danger: true, run: () => { void retirer(o, m, nomEntreprise, redessiner); } },
         ];
@@ -252,6 +259,17 @@
     if (!ok) return;
     try { await o.appel('DELETE', `/membres/${encodeURIComponent(m.id)}`); } catch (x) { o.toast(x instanceof Error ? x.message : String(x), true); return; }
     o.toast(`${nomDe(m)} ne fait plus partie de l'équipe.`);
+    fini();
+  }
+
+  // ── Céder la propriété (issue 18, ENT2-4 ; 03 D4) : on ne retire pas le dernier propriétaire, on transfère, et le
+  // nouveau propriétaire accepte. Le serveur avait le geste ; aucun écran ne le portait.
+  /** @param {Outils} o @param {Membre} m @param {string} nomEntreprise @param {() => void} fini */
+  async function ceder(o, m, nomEntreprise, fini) {
+    const ok = await o.confirmDialog(`Céder la propriété de ${nomEntreprise} à ${nomDe(m)} ?\n\nRien ne change tant qu'il n'a pas accepté, depuis son compte (Paramètres › Ton compte). Une fois accepté, il devient propriétaire (l'abonnement, le comptable, l'équipe) et toi administrateur : tu gardes l'accès à tout, sauf ce qui n'est qu'au propriétaire.`, 'Lui céder la propriété', true);
+    if (!ok) return;
+    try { await o.appel('POST', '/transfert', { vers: m.utilisateur }); } catch (x) { o.toast(x instanceof Error ? x.message : String(x), true); return; }
+    o.toast(`C'est demandé : ${nomDe(m)} doit accepter depuis son compte.`);
     fini();
   }
 

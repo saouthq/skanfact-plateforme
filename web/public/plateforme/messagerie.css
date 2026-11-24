@@ -46,9 +46,11 @@
 .cpt-page { display: grid; gap: 18px; width: 100%; max-width: none; margin-inline: 0; box-sizing: border-box; }
 .cpt-tete h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
 .cpt-tete span { font-size: 13px; color: var(--sb-gris); }
-.cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+/* (issue 18, ENT2-9) Sous « Mon comptable » seulement : « .cpt » est aussi la racine de Ton compte (compte.js), qui
+   passait sur deux colonnes à l'ordinateur et laissait des trous. */
+.cpt-page .cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
 .cpt-gauche, .cpt-droite { display: grid; gap: 16px; min-width: 0; }
-.cpt-carte { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); }
+.cpt-page .cpt-carte { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); }
 .cpt-bloc { padding: 16px 18px; display: grid; gap: 12px; margin: 0; }
 .cpt-bloc-t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .cpt-bloc-t h3 { margin: 0; font-size: 14.5px; }
@@ -100,7 +102,7 @@
 .cpt-rg { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 .cpt-page [role=alert]:empty, .cpt-page [role=status]:empty { display: none; }
 .cpt-page [role=alert] { margin: 0; color: var(--sb-rouge-texte); }
-@media (max-width: 1120px) { .cpt { grid-template-columns: 1fr; } }
+@media (max-width: 1120px) { .cpt-page .cpt { grid-template-columns: 1fr; } }
 @media (max-width: 760px) {
   /* Au téléphone, la promesse tient en trois lignes : le formulaire monte sous le pouce. */
   .cpt-hero { padding: 16px; gap: 10px; }

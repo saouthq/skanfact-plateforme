@@ -7024,3 +7024,23 @@ MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; no
   table classée pour l'export complet, geste au journal, types de la base.
 - Tests : `equipe-entreprise`, `hors-ligne-limites`, `entree`, `cabinet-entree-1373`, `export-complet`, `quarantaine`,
   `appareils` ; dix preuves. Restent ENT2-4 (partir, céder la propriété), ENT2-9 et ENT2-10, au lot suivant.
+
+## 1.388.57 — Partir, céder la propriété, et deux finitions (rapport #18 : ENT2-4, ENT2-9, ENT2-10)
+
+- **ENT2-4** — Le serveur savait transférer la propriété (03 D4 : on ne retire pas le dernier propriétaire, on
+  transfère, et le nouveau propriétaire accepte) ; aucun écran ne le portait. Le propriétaire a maintenant, dans
+  L'équipe, « Lui céder la propriété… » sur la ligne d'un membre ; la demande se dit sous l'équipe tant qu'elle attend.
+  La personne désignée la trouve dans Paramètres › Ton compte (« La propriété t'est cédée », nouvelle lecture
+  `GET /moi/transferts`) et l'accepte : elle devient propriétaire, l'ancien administrateur. Ton compte dit aussi, dans
+  les deux applications, comment quitter une entreprise ou un cabinet, céder sa propriété, et faire supprimer son
+  compte (par le support, qui vérifie que la demande vient de la personne).
+- **ENT2-9** — Ton compte à l'ordinateur : la feuille de « Mon comptable » donnait le nom `.cpt` à sa mise en page en
+  deux colonnes, et elle s'appliquait aussi à Ton compte (et aux petits compteurs de certains boutons). Ses règles sont
+  rangées sous `.cpt-page` : les cartes s'empilent sans trous. Le bandeau du poste (remises, hors ligne) suit le thème
+  sombre.
+- **ENT2-10** — La fenêtre d'invitation du Cabinet est celle de l'entreprise : « Copier le lien » en geste principal,
+  « Envoyer par WhatsApp » et « Envoyer par e-mail » avec le message déjà écrit, « Fermer » en simple sortie ; la case de
+  l'adresse n'a plus d'exemple pré-rempli. La visite « Travailler à plusieurs » suit le nouveau titre.
+- Tests : `equipe-entreprise` (nouveau parcours « céder la propriété »), `cabinet-equipe` ; quatre preuves. Reste
+  à concevoir : annuler une cession en attente (une nouvelle demande remplace l'ancienne aujourd'hui) et quitter
+  soi-même une équipe sans passer par le propriétaire.

@@ -32073,6 +32073,18 @@ prouver "l'appareil retiré dit « session fermée »" web/src/ecrans/Connexion.
 prouver "le bandeau des remises compte les changements" web/public/plateforme/pont.js \
   "'Un appareil retiré a remis un enregistrement'" "'Un appareil retiré a remis'" \
   $'le portable retiré remet ce qu\'il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
+prouver "céder absent de L'équipe" web/public/plateforme/equipe.js \
+  "...(suisProprietaire ? [{ icon: 'client', label: 'Lui céder la propriété…'" "...(false ? [{ icon: 'client', label: 'Lui céder la propriété…'" \
+  $'céder la propriété : demandée depuis L\'équipe, acceptée depuis Ton compte'
+prouver "la propriété cédée invisible dans Ton compte" web/public/plateforme/compte.js \
+  "try { cedes = (await outils.appel('GET', '/moi/transferts')).transferts || []; }" "try { cedes = []; }" \
+  $'céder la propriété : demandée depuis L\'équipe, acceptée depuis Ton compte'
+prouver "Ton compte sur deux colonnes" web/public/plateforme/messagerie.css \
+  ".cpt-page .cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px;" ".cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px;" \
+  $'céder la propriété : demandée depuis L\'équipe, acceptée depuis Ton compte'
+prouver "la fenêtre d'invitation du Cabinet sans geste principal" modules/socle/ecrans/cabinet/app-2.js \
+  '<button class="btn btn-primary" id="eq-copier">Copier le lien</button>' '<button class="btn" id="eq-copier">Copier le lien</button>' \
+  $'inviter par l\'adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

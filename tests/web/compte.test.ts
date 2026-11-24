@@ -107,7 +107,7 @@ describe('ton compte, à la souris', () => {
     expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('courriel');
     expect(await p.locator('#cpt-code').getByRole('button', { name: 'Recevoir par SMS…', exact: true }).count()).toBe(1);
     expect(await p.locator('#cpt-code').getByRole('button', { name: 'Utiliser une application…', exact: true }).count()).toBe(1);
-    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil se vérifie par e-mail');
+    expect(await p.locator('#cpt-nouvel-appareil').innerText()).toContain('Un nouvel appareil se vérifie par e-mail');
     await p.screenshot({ path: path.join(PHOTOS, 'compte-1-entreprise.png') });
 
     // (issue 4, ENTREE-15) Le nom se change ici ; un nom d'une lettre se refuse sur sa case, la fenêtre reste.
@@ -174,7 +174,7 @@ describe('ton compte, à la souris', () => {
     await expect.poll(() => p.locator('#cpt-etat').innerText(), { timeout: 15_000 }).toBe('Par application');
     expect(await p.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
     expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('application');
-    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil demande le code de ton application');
+    expect(await p.locator('#cpt-nouvel-appareil').innerText()).toContain('Un nouvel appareil demande le code de ton application');
 
     // De nouveaux codes de secours : le code du moment d'abord ; les dix nouveaux se montrent une fois.
     await p.getByRole('button', { name: 'Nouveaux codes de secours…', exact: true }).click();
@@ -372,7 +372,7 @@ describe('ton compte, à la souris', () => {
     await expect.poll(() => p.locator('#toast').innerText()).toBe('C\'est fait : ton code arrivera par SMS sur chaque nouvel appareil.');
     expect(await p.locator('#cpt-telephone').innerText()).toBe('+216 \u2022\u2022 \u2022\u2022\u2022 456');
     expect(await p.locator('.cpt-option.cpt-choisi').getAttribute('data-methode')).toBe('sms');
-    expect(await p.locator('.cpt-discret').innerText()).toContain('Un nouvel appareil demande le code reçu par SMS');
+    expect(await p.locator('#cpt-nouvel-appareil').innerText()).toContain('Un nouvel appareil demande le code reçu par SMS');
     await p.screenshot({ path: path.join(PHOTOS, 'compte-4-sms.png') });
     // Au téléphone : la carte se lit sans défiler de côté, chaque geste sous sa ligne.
     await p.setViewportSize({ width: 390, height: 844 });

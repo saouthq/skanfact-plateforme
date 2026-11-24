@@ -199,7 +199,8 @@
     justify-content: center; flex-wrap: wrap; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #fff4e0; color: #5b3a00;
     border-bottom: 1px solid #f0c77a; } #poste-bandeau[hidden] { display: none; }
     #poste-bandeau.discret { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } #poste-bandeau.revenu { background: #e6f5f3; color: #0b5f57; border-color: #9fd9d1; }
-    #poste-bandeau button { font: inherit; padding: 2px 10px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }`;
+    #poste-bandeau button { font: inherit; padding: 2px 10px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }
+    body.dark #poste-bandeau { background: #3a2a0c; color: #ffd796; border-color: #6b4d17; } body.dark #poste-bandeau.revenu { background: #0d3532; color: #9fe3d8; border-color: #1f5f58; }`; // (issue 18, ENT2-9) le bandeau suit le thème sombre
   document.head.appendChild(style);
   /** @type {HTMLElement | null} */ let bandeau = null;
   // Sa hauteur, pour les pages qui tiennent tout l'écran (la caisse tactile, caisse.css) : elles se poussent dessous, et

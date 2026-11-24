@@ -221,4 +221,41 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 240_000);
 
+  // (issue 18, ENT2-4) Partir : la propriétaire cède la propriété depuis L'équipe ; rien ne change tant que l'autre n'a pas
+  // accepté, depuis Ton compte ; acceptée, les rôles s'échangent. Et Ton compte dit comment quitter ou supprimer son compte.
+  it('céder la propriété : demandée depuis L\'équipe, acceptée depuis Ton compte', async () => {
+    const nadia = await personne('Nadia');
+    const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Droguerie de l\'essai' })).corps.id);
+    const karim = await personne('Karim');
+    const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia.jeton, { email: karim.email, roles: ['administrateur'] })).corps.jeton);
+    expect((await api('POST', '/invitations/accepter', karim.jeton, { jeton: inv })).statut).toBe(200);
+    const roles = async () => ((await api('GET', `/entreprises/${ent}/equipe`, nadia.jeton)).corps.membres as { nom: string; roles: string[] }[]).map((m) => [m.nom, [...m.roles].sort()]);
+
+    const p = await page(nadia.jeton);
+    await parametres(p, ent);
+    await p.locator('#set-tabs [data-tab="equipe"]').click();
+    await p.locator('#eqp-inviter').waitFor({ timeout: 15_000 });
+    await p.locator('#eqp-membres [data-rowmenu]').first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Lui céder la propriété' }).click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Lui céder la propriété', exact: true }).click();
+    await expect.poll(async () => aplatir(await p.locator('#eqp-transfert').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^La propriété est cédée à Karim depuis le .*elle attend son accord/);
+    expect(await roles()).toEqual([['Karim', ['administrateur']], ['Nadia', ['proprietaire']]]);
+
+    const k = await page(karim.jeton);
+    await parametres(k, ent);
+    await k.locator('#set-tabs [data-tab="compte"]').click();
+    const accepter = k.getByRole('button', { name: 'Accepter la propriété', exact: true });
+    await accepter.waitFor({ timeout: 15_000 });
+    expect(aplatir(await k.locator('#cpt-partir').innerText())).toContain('Supprimer ton compte : écris au support');
+    // (issue 18, ENT2-9) À 1440, les cartes de Ton compte s'empilent en une colonne (la feuille de « Mon comptable » les
+    // mettait sur deux, avec des trous) : toutes partent du même bord.
+    expect(new Set(await k.locator('#compte-panel .cpt > section').evaluateAll((l) => l.map((e) => Math.round(e.getBoundingClientRect().left)))).size).toBe(1);
+    await k.screenshot({ path: path.join(PHOTOS, 'equipe-entreprise-5-ceder.png') });
+    await accepter.click();
+    await expect.poll(roles, { timeout: 15_000 }).toEqual([['Karim', ['administrateur', 'proprietaire']], ['Nadia', ['administrateur']]]);
+    await expect.poll(() => k.getByRole('button', { name: 'Accepter la propriété', exact: true }).count(), { timeout: 10_000 }).toBe(0);
+    expect(erreurs).toEqual([]);
+    await p.context().close(); await k.context().close();
+  }, 180_000);
+
 });
