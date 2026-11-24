@@ -10151,6 +10151,26 @@
       }
       // ── La barre d'ajout (Ctrl L) : un article du catalogue au prix du client, un code-barres, ou une ligne libre ──
       const ajout = $('#ed-ajout');
+      // (audit #30, MET1-1) La douchette lit les codes à la suite : chaque lecture ajoute son article (+1 sur la dernière ligne
+      // s'il y est déjà, le palier suivant la quantité) et le curseur RESTE dans la barre — sinon le code suivant s'écrivait
+      // dans la quantité de la ligne d'avant (6 190 000 000 201 unités).
+      function ajouterParCode(it) {
+        const d = doc.lines[doc.lines.length - 1];
+        if (d && d.itemId === it.id && Number.isFinite(Number(d.qty))) {
+          const auto = q => C.prixDuCatalogue(C.prixArticlePour(data, it, doc.clientId, doc.date, q).prix, doc, company());
+          const avant = Number(d.qty);
+          d.qty = avant + 1;
+          const pu = d.prixManuel ? null : auto(d.qty);
+          if (pu !== null && pu !== '' && Number(auto(avant)) === Number(d.unitPrice)) d.unitPrice = pu;
+          touch(); drawLines();
+        } else {
+          const prix = C.prixArticlePour(data, it, doc.clientId, doc.date, 1);
+          doc.lines.push({ qty: 1, ...depuisCatalogue(it) });
+          if (prix.source === 'palier') delete doc.lines[doc.lines.length - 1].prixManuel;
+          touch(); drawLines();
+        }
+        if (ajout) ajout.focus();
+      }
       function ajouterArticle(it) {
         if (!it) return;
         const prix = C.prixArticlePour(data, it, doc.clientId, doc.date, 1);
@@ -10224,7 +10244,7 @@
             // (1.357.1) Entrée sur « Créer … » (choisi à la flèche) crée l'article, comme le clic : elle ajoutait une ligne libre.
             if (!parCode && creerA && selA === montres.length) { creerDepuisBarre(brut); return; }
             ajout.value = ''; fermerA();
-            if (c && (parCode || selA < montres.length)) ajouterArticle(c); else ajouterLibre(brut);
+            if (parCode) ajouterParCode(parCode); else if (c && selA < montres.length) ajouterArticle(c); else ajouterLibre(brut);
           } else if (e.key === 'Escape') { ajout.value = ''; fermerA(); }   // la bulle a déjà pris le premier Échap : le second vide la barre
         };
       }

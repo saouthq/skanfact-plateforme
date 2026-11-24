@@ -6914,3 +6914,15 @@ Désormais :
   dossiers que le cabinet tient pour ses clients n'y sont pas : ce ne sont pas les entreprises de la personne.
 
 Testé à la souris (`tests/web/entree-cabinet-1388.test.ts`, aller et retour) ; deux preuves.
+
+## 1.388.49 — La douchette lit les codes à la suite (audit #30, MET1-1)
+
+Dans une facture, la barre d'ajout promettait « la douchette tape dans la barre d'ajout ». Mais après le premier code lu,
+le curseur sautait dans la quantité de la ligne ajoutée : le code suivant s'y écrivait, et la ligne valait des milliards
+d'unités. Le second article n'était jamais ajouté ; seule l'émission arrêtait la pièce.
+
+Désormais, un code-barres lu ajoute son article et le curseur reste dans la barre d'ajout. Le même article lu deux fois de
+suite fait +1 sur sa ligne (le prix par quantité suit). Un article choisi dans la liste, lui, garde le curseur dans sa
+quantité, comme avant.
+
+Testé à la souris (`tests/web/douchette-1388.test.ts`, trois lectures à la suite) ; deux preuves.
