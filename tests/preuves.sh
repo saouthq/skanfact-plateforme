@@ -31951,6 +31951,17 @@ prouver $'l\'indemnite comptee deux fois au solde' modules/personnel/moteur/comp
   "      surBulletin(data, employeeId)" "      false" \
   $'SOCIAL-1 : le bulletin du mois de départ porte l\'indemnité (soumise comme un salaire), et le solde ne la compte pas deux fois'
 
+# 1.388.44 — MET2-1 : les acomptes successifs d'un devis se voient entre eux.
+prouver "le second acompte au-dela du devis" modules/socle/ecrans/entreprise/app-1.js \
+  "const ok = p > 0 && p < restePct;" "const ok = p > 0 && p < 100;" \
+  "Fathi demande un second acompte : la fenêtre dit les 30 % déjà facturés, refuse 80 %, et annonce le solde après les deux"
+prouver "le solde annonce sans les acomptes d'avant" modules/socle/ecrans/entreprise/app-1.js \
+  "C.settlementLines(doc, [...avant, acompte])" "C.settlementLines(doc, [acompte])" \
+  "Fathi demande un second acompte : la fenêtre dit les 30 % déjà facturés, refuse 80 %, et annonce le solde après les deux"
+prouver "la fenetre d'acompte muette sur le deja facture" modules/socle/ecrans/entreprise/app-1.js \
+  "const avant = [...acEmis, ...acBrouillons];" "const avant = [];" \
+  "Fathi demande un second acompte : la fenêtre dit les 30 % déjà facturés, refuse 80 %, et annonce le solde après les deux"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

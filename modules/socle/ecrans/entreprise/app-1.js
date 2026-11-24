@@ -8843,10 +8843,15 @@
           const solde = pdq.acomptes.length > 0;
           const tf = C.computeTotals(solde ? invoiceFromQuote(doc, C.settlementLines(doc, pdq.acomptes), doc.discountRate) : invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
           // Ce que les acomptes ôtent au devis, en TTC : la ligne qui fait tomber le compte juste (devis − acomptes + timbre − retenue).
-          const deduit = solde ? C.round3(t.totalTTC - (tf.totalTTC - (Number(tf.stamp) || 0))) : 0;
+          // (audit #30, MET2-7) Le montant que les acomptes ont VRAIMENT facturé (hors timbre), pas la différence : celle-ci
+          // portait l'arrondi de TVA des deux pièces, et le client lisait un acompte déduit d'un millime qui n'existe sur
+          // aucune facture. L'arrondi, s'il reste, se dit pour ce qu'il est.
+          const deduit = solde ? C.round3(pdq.acomptes.reduce((x, a) => { const ta = C.computeTotals(a, company()); return x + (Number(ta.totalTTC) || 0) - (Number(ta.stamp) || 0); }, 0)) : 0;
+          const arrondi = solde ? C.round3((tf.totalTTC - (Number(tf.stamp) || 0)) - (t.totalTTC - deduit)) : 0;
           if (!tf.stamp && !tf.withholding && !deduit) return '';
           return `<div class="ed-si-facture"><span class="k">${solde ? 'La facture de solde' : 'Si le devis devient une facture'}</span><table>
             ${deduit ? `<tr><td>${pdq.acomptes.length > 1 ? 'Acomptes déduits' : `Acompte ${h(pdq.acomptes[0].number || '')} déduit`}</td><td>− ${nu(deduit)}</td></tr>` : ''}
+            ${Math.abs(arrondi) > 0.0005 ? `<tr id="ed-si-arrondi"><td>Arrondi de la TVA (deux pièces)</td><td>${arrondi < 0 ? '−' : '+'} ${nu(Math.abs(arrondi))}</td></tr>` : ''}
             ${tf.stamp ? `<tr><td>Timbre fiscal</td><td>+ ${nu(tf.stamp)}</td></tr>` : ''}
             ${tf.withholding ? `<tr><td>Retenue ${pct(tf.withholdingRate)} % du client</td><td>${tf.withholding < 0 ? '+' : '−'} ${nu(Math.abs(tf.withholding))}</td></tr>` : ''}
             <tr class="trait"><td>Le client paiera</td><td>${nu(tf.netToPay)}</td></tr></table></div>`;
@@ -9476,14 +9481,26 @@
       // seulement une fois le brouillon créé. Les deux modes vivent dans la même fenêtre, et le TTC
       // obtenu s'affiche en direct — l'écart d'arrondi se voit AVANT, pas après.
       const ttcDevis = C.computeTotals(doc, company()).totalTTC;
+      // (audit #30, MET2-1) Les acomptes déjà faits sur ce devis, émis OU en brouillon (E-03) : la fenêtre partait de zéro à
+      // chaque fois — un second acompte de 80 % après 30 % passait sans un mot (110 % du devis), et le solde annoncé ne
+      // retranchait que le nouvel acompte. Ce qui reste se compte en TTC hors timbre, comme l'acompte se demande.
+      const { acomptes: acEmis, brouillons: acBrouillons } = piecesDuDevis(doc.id);
+      const avant = [...acEmis, ...acBrouillons];
+      const horsTimbre = d => { const t = C.computeTotals(d, company()); return C.round3((Number(t.totalTTC) || 0) - (Number(t.stamp) || 0)); };
+      const dejaTtc = C.round3(avant.reduce((x, d) => x + horsTimbre(d), 0));
+      const resteTtc = C.round3(ttcDevis - dejaTtc);
+      const dejaPct = ttcDevis > 0 ? C.round3((dejaTtc / ttcDevis) * 100) : 0;
+      const restePct = C.round3(100 - dejaPct);
+      const pctDepart = avant.length ? Math.max(0, Math.min(30, Math.floor(restePct) - 1)) : 30;
+      const dejaDit = avant.length ? `<p class="small" id="dp-deja"><b>Déjà facturé en acompte : ${pct(dejaPct)} %</b> (${h(C.money(dejaTtc, cur))}, ${avant.map(nomDePiece).map(h).join(', ')}). Il reste ${pct(restePct)} % du devis (${h(C.money(resteTtc, cur))}) à facturer.</p>` : '';
       // (1.307.0, maquette « Facture d'acompte ») En pourcentage ou en dinars, d'un clic (30, 40, 50 %) ; l'acompte et le solde
       // côte à côte, tels qu'ils naîtront ; les deux timbres dits avant. Le calcul est celui d'avant (ACP-01, rapport QA E-02).
       const deviseDit = cur === 'DT' || cur === 'TND' ? 'dinars' : h(cur);
-      modal(`<h2>Facture d'acompte · ${h(doc.number)}</h2><p class="small muted">Une part du devis (${C.money(ttcDevis, cur)} TTC). La facture de solde déduira cet acompte : rien n'est facturé deux fois.</p>
+      modal(`<h2>Facture d'acompte · ${h(doc.number)}</h2><p class="small muted">Une part du devis (${C.money(ttcDevis, cur)} TTC). La facture de solde déduira ${avant.length ? 'les acomptes' : 'cet acompte'} : rien n'est facturé deux fois.</p>${dejaDit}
         <form id="df" class="ac-f" data-devise="${h(cur)}">
           <input type="hidden" name="mode" value="pct">
           <div class="choix-t" role="group" aria-label="Exprimé en"><button type="button" data-ac="pct" class="on" aria-pressed="true">En pourcentage</button><button type="button" data-ac="dt" aria-pressed="false">En ${deviseDit} TTC</button></div>
-          <div class="ac-g" id="dp-pct"><label class="field">${lbl('Pourcentage du devis', 'ed.depositPct')}<span class="in-u"><input type="text" inputmode="decimal" data-montant autocomplete="off" name="percent" value="30" class="num grand"><small>%</small></span></label>
+          <div class="ac-g" id="dp-pct"><label class="field">${lbl('Pourcentage du devis', 'ed.depositPct')}<span class="in-u"><input type="text" inputmode="decimal" data-montant autocomplete="off" name="percent" value="${pctDepart}" class="num grand"><small>%</small></span></label>
             <div class="choix-t ac-vite" role="group" aria-label="Pourcentages courants">${[30, 40, 50].map(x => `<button type="button" data-acp="${x}" class="${x === 30 ? 'on' : ''}">${x} %</button>`).join('')}</div></div>
           <div class="ac-g" id="dp-dt" hidden><label class="field">${lbl(`Montant TTC (${h(cur)})`, 'ed.depositAmount')}<span class="in-u"><input type="text" inputmode="decimal" data-montant autocomplete="off" name="montant" value="${h(frMontant(C.arrondiDevise(cur)(ttcDevis * 0.3), cur))}" class="num montant grand"><small>${h(cur)}</small></span></label></div>
           <div id="dp-apercu" aria-live="polite"></div>
@@ -9498,36 +9515,43 @@
           if (v.mode === 'dt') {
             const m = C.arrondiDevise(cur)(Number(v.montant) || 0);
             const p = ttcDevis > 0 ? C.round3((m / ttcDevis) * 100) : 0;
-            const ok = m > 0 && m < ttcDevis;
+            const ok = m > 0 && m < resteTtc;
             return { ok, pct: p, montant: m, lignes: ok ? C.depositLinesMontant(doc, m, company()) : [], champ: 'montant' };
           }
           const p = C.round3(Number(v.percent));
-          const ok = p > 0 && p < 100;
+          const ok = p > 0 && p < restePct;
           return { ok, pct: p, montant: null, lignes: ok ? C.depositLines(doc, p, company()) : [], champ: 'percent' };
         };
+        const refusAcompte = avant.length
+          ? (resteTtc > 0.0005 ? `Il reste ${pct(restePct)} % du devis à facturer (${C.money(resteTtc, cur)}) : l'acompte doit être plus petit, et le reste se facture par la facture de solde.` : 'Les acomptes déjà faits couvrent tout le devis : il ne reste rien à facturer en acompte.')
+          : `Entre 0 et 100 % de son total TTC (${C.money(ttcDevis, cur)}).`;
         // Une seule facture du devis entier : ce que le client paierait sans acompte (pour dire ce que coûte le second timbre).
         const toutEnUne = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
         const apercu = () => {
           const q = demande();
           const el = $('#dp-apercu', root);
-          if (!q.ok) { el.innerHTML = `<div class="bandeau rouge">${lfIc('aide', 18)}<span class="txt"><b>Un acompte est une part du devis</b><span>Entre 0 et 100 % de son total TTC (${h(C.money(ttcDevis, cur))}).</span></span></div>`; return; }
+          if (!q.ok) { el.innerHTML = `<div class="bandeau rouge">${lfIc('aide', 18)}<span class="txt"><b>Un acompte est une part du devis</b><span>${h(refusAcompte)}</span></span></div>`; return; }
           // Les DEUX factures telles qu'elles naîtront, par le MÊME constructeur que « Créer le
           // brouillon » et que « Facture de solde » (rapport QA E-02). Le solde se calculait à la main,
           // « total du devis − acompte » : il retranchait le timbre de l'acompte et oubliait celui du
           // solde, deux dinars de moins que la vraie facture — le chiffre qu'on annonce au client au
           // téléphone. Et un client exonéré de timbre n'en a sur aucune des deux.
           const acompte = invoiceFromQuote(doc, q.lignes, 0);
-          const solde = invoiceFromQuote(doc, C.settlementLines(doc, [acompte]), doc.discountRate);
+          const solde = invoiceFromQuote(doc, C.settlementLines(doc, [...avant, acompte]), doc.discountRate);
           const ta = C.computeTotals(acompte, company()), ts = C.computeTotals(solde, company());
+          const dejaNet = C.round3(avant.reduce((x, d) => x + (Number(C.computeTotals(d, company()).netToPay) || 0), 0));
           const detail = t => detailAPayer(t, cur);
-          const deDeux = C.round3(ta.netToPay + ts.netToPay - toutEnUne.netToPay);
+          const deDeux = C.round3(dejaNet + ta.netToPay + ts.netToPay - toutEnUne.netToPay);
+          const nFact = avant.length + 2, enLettres = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six'][nFact] || String(nFact);
           // L'écart se dit par ce qui le fait : un second timbre, et — quand chaque facture tombe sous le seuil que le devis
           // entier dépasse — la retenue qu'aucune des deux ne porte (réglées d'un seul paiement, elle peut s'appliquer : À VÉRIFIER,
           // et SkanFact ne la calcule pas sur un paiement groupé — l'avant-émission le dit pareil).
           const timbreEnPlus = C.round3((Number(ta.stamp) || 0) + (Number(ts.stamp) || 0) - (Number(toutEnUne.stamp) || 0));
           const retenueEnMoins = C.round3((Number(toutEnUne.withholding) || 0) - (Number(ta.withholding) || 0) - (Number(ts.withholding) || 0));
           const sousSeuil = [ta, ts].filter(t => !(Number(t.withholding) > 0)).length;
-          const note = retenueEnMoins > 0.0005
+          const note = avant.length
+            ? `${enLettres} factures, donc ${nFact} timbres : le client paiera ${C.money(C.round3(dejaNet + ta.netToPay + ts.netToPay), cur)} en tout, ${C.money(Math.abs(deDeux), cur)} de ${deDeux > 0 ? 'plus' : 'moins'} qu'en une seule facture.`
+            : retenueEnMoins > 0.0005
             ? `Deux factures${timbreEnPlus > 0.0005 ? ', deux timbres,' : ''} et ${sousSeuil > 1 ? 'aucune retenue sur elles : chacune est sous le seuil' : 'pas de retenue sur l\'une : elle est sous le seuil'} (${C.money(retenueEnMoins, cur)} ; réglées d\'un seul paiement, la retenue peut s\'appliquer : À VÉRIFIER avec ton comptable). Ensemble, elles font ${C.money(C.round3(ta.netToPay + ts.netToPay), cur)} à payer, ${C.money(Math.abs(deDeux), cur)} de ${deDeux > 0 ? 'plus' : 'moins'} qu'une seule facture.`
             : `Deux factures, donc deux timbres : le client paiera ${C.money(C.round3(ta.netToPay + ts.netToPay), cur)} en tout, ${C.money(Math.abs(deDeux), cur)} de ${deDeux > 0 ? 'plus' : 'moins'} qu'en une seule facture.`;
           el.innerHTML = `<div class="ac-2"><div><span>L'acompte · ${pct(q.pct)} %</span><b id="dp-acompte">${h(C.money(ta.netToPay, cur))}</b><small>à payer · ${h(detail(ta))}</small></div>
@@ -9553,7 +9577,7 @@
         apercu();
         $('#ok', root).onclick = () => {
           const q = demande();
-          if (!q.ok) return refus($('[name=' + q.champ + ']', f), 'Un acompte est une part du devis : entre 0 et 100 % de son total TTC.');
+          if (!q.ok) return refus($('[name=' + q.champ + ']', f), avant.length ? refusAcompte : 'Un acompte est une part du devis : entre 0 et 100 % de son total TTC.');
           const inv = invoiceFromQuote(doc, q.lignes, 0);
           inv.deposit = { percent: q.pct, quoteId: doc.id, quoteNumber: doc.number, ...(q.montant ? { montant: q.montant } : {}) };
           inv.fromQuoteId = doc.id; inv.fromQuoteNumber = doc.number;
@@ -10636,6 +10660,11 @@
       `Ce devis a déjà donné ${totales.map(nomDePiece).join(', ')}.\n\nUne facture de solde de plus facturerait une seconde fois ce qui reste à payer.`,
       'Créer quand même', true, { titre: 'Une seconde facture de solde ?' })) return;
     const inv = invoiceFromQuote(q, C.settlementLines(q, acomptes), q.discountRate);
+    // (audit #30, MET2-1) Des acomptes qui dépassent le devis feraient un « solde » négatif : on le dit, on ne le propose pas.
+    if (C.computeTotals(inv, company()).totalHT < -0.0005) {
+      const cur0 = docCur(q), tq0 = C.computeTotals(q, company());
+      return infoDialog('Les acomptes dépassent le devis', `Les acomptes ${acomptes.map(nomDePiece).join(', ')} facturent plus que le devis ${q.number} (${C.money(tq0.totalTTC, cur0)} TTC) : une facture de solde serait négative.\n\nCorrige d'abord par un avoir sur le dernier acompte (ouvre-le, puis « Corriger par un avoir… »).`);
+    }
     inv.settles = { quoteId: q.id, quoteNumber: q.number, depositIds: acomptes.map(d => d.id) }; inv.fromQuoteId = q.id; inv.fromQuoteNumber = q.number;
     inv.subject = `Solde — ${q.subject || q.number}`;
     // (1.307.0, maquette « Facture de solde ») Avant le brouillon, ce qu'il facture : le devis, les acomptes déduits et le

@@ -6836,3 +6836,21 @@ Désormais :
 
 À VÉRIFIER avec un comptable : le diviseur (jours ouvrables du mois) retenu pour le salaire d'un jour.
 Testé (`tests/moteur/paie-documents-personnel.test.ts`, `tests/web/cabinet-documents-personnel.test.ts`) ; trois preuves.
+
+## 1.388.44 — Les acomptes successifs d'un devis se voient entre eux (audit #30, MET2-1 et MET2-7)
+
+Un entrepreneur qui facture son chantier par acomptes successifs (en attendant les situations de travaux) demandait un
+second acompte : la fenêtre repartait de zéro. 30 % puis 80 % passaient sans un mot (110 % du devis facturé), le solde
+annoncé ne retranchait que le dernier acompte, et la « facture de solde » proposée ensuite était négative.
+
+Désormais :
+- la fenêtre « Facture d'acompte » dit ce qui est déjà facturé en acompte (émis ou en brouillon) et ce qui reste : « Déjà
+  facturé en acompte : 30 % (357,000 DT, FAC-2026-001). Il reste 70 % du devis (833,000 DT) à facturer. » ;
+- un acompte qui dépasse ce qui reste est refusé, avec ce qui reste ; le pourcentage proposé tient dans ce qui reste ;
+- le solde annoncé retranche tous les acomptes, et la note compte toutes les factures (« Trois factures, donc 3 timbres ») ;
+- des acomptes qui dépassent déjà le devis (données d'avant) : « Facture de solde » ne propose plus un solde négatif, elle dit
+  de corriger le dernier acompte par un avoir ;
+- (MET2-7) la carte « La facture de solde » déduit le montant que les acomptes ont vraiment facturé, et l'écart d'arrondi de
+  TVA entre les pièces, s'il reste, se dit sur sa propre ligne (« Arrondi de la TVA (deux pièces) »).
+
+Testé à la souris (`tests/web/acomptes-1388.test.ts`) ; trois preuves.
