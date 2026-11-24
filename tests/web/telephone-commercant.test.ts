@@ -119,7 +119,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
   const rect = (p: Page, sel: string) => p.locator(sel).first().evaluate((el) => { const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, width: r.width, height: r.height }; });
 
   it('les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l\'ordinateur, un tableau', async () => {
-    const c = await commercante({ factures: 2 });
+    const c = await commercante({ factures: 2, pieces: true });
     const { cx, p, erreurs } = await ouvrir(c, '#/factures', TELEPHONE);
     await p.locator('table.list tbody tr').first().waitFor();
     // Chaque carte : le numéro qui la nomme, puis « Net à payer » et « Reste » sous leur titre, dans l'écran.
@@ -182,6 +182,18 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('[data-stat=encaisser]').isVisible()).toBe(true);
     expect(await p.locator('#view .a-der').isVisible()).toBe(false);
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // (1.139.0, UX 3) Une carte qui n'a pas sa grille à elle (les devis ; celle des factures en a une depuis la 1.388.26) :
+    // les montants d'abord, juste sous ce qui nomme la ligne, puis le client, puis le reste.
+    await aller(p, '#/devis', /Devis/);
+    await p.locator('table.list > tbody > tr:not(.mois)').first().waitFor();
+    const etages = await p.locator('table.list > tbody > tr:not(.mois)').first().evaluate((tr) => {
+      const haut = (sel: string) => [...tr.querySelectorAll<HTMLElement>(sel)].filter((x) => x.offsetParent !== null).map((x) => Math.round(x.getBoundingClientRect().top));
+      return { montants: haut(':scope > td.r:not([data-tel="titre"])'), tiers: haut(':scope > td[data-tel-tiers="oui"]'),
+        reste: haut(':scope > td:not(.r):not([data-tel="titre"]):not(.row-actions):not([data-tel-tiers="oui"])') };
+    });
+    expect(etages.montants.length && etages.tiers.length && etages.reste.length, JSON.stringify(etages)).toBeTruthy();
+    expect(Math.max(...etages.montants), JSON.stringify(etages)).toBeLessThanOrEqual(Math.min(...etages.tiers));
+    expect(Math.max(...etages.tiers), JSON.stringify(etages)).toBeLessThanOrEqual(Math.min(...etages.reste));
     expect(erreurs).toEqual([]);
     await cx.close();
 

@@ -18568,7 +18568,7 @@ prouver 'le champ refusé dont l'\''aide dit le contraire du refus' web/src/comp
   '« Ton entreprise » : le curseur'
 prouver 'le refus en bas de l'\''écran effacé avant d'\''être lu' web/src/composants/Toast.tsx \
   $'m.erreur ? Math.min(8000, Math.max(2600, m.texte.length * 60)) : 2600' $'2600' \
-  '« Ton entreprise » : le curseur'
+  $'la sécurité du comptable d\'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l\'ouverture coche ce qui est fait'
 prouver 'la page ouverte avec le mauvais compte, sans moyen d'\''en changer' web/public/plateforme/poste.js \
   $'<div class="po-gestes">${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : \'\'}' $'<div class="po-gestes">' \
   '(1.100.0) ouverte avec le mauvais compte'
@@ -31502,9 +31502,11 @@ prouver $'cabportefeuille23-la-question-part-telle-quelle' modules/socle/ecrans/
   $'const libelles = pre && pre.trous ? String(' \
   $'const libelles = pre ? String(' \
   $'Tes données : la copie de la nuit échouée se dit échouée, et « Défaire une erreur » écrit au support'
+# (1.388.39) Le bouton d'un portefeuille vide s'appelle désormais comme celui de l'en-tête : le défaut se pose avec l'ancien nom
+# écrit en dur (« Nouveau client… », d'avant la 1.169.0), qui n'est sur aucun écran.
 prouver $'cabportefeuille24-le-bouton-se-nomme-tel-quel' modules/socle/visites/cabvisites.js \
   $'depuis un tableur.\', action: \'Clique sur {bouton}.\'' \
-  $'depuis un tableur.\', action: \'Clique sur <b>« Ajouter un client… »</b>.\'' \
+  $'depuis un tableur.\', action: \'Clique sur <b>« Nouveau client… »</b>.\'' \
   $'« je suis un cabinet comptable » sur la porte : le cabinet se crée, on choisit son départ, le Cabinet s\'ouvre ; « Verrouiller » ferme la session'
 prouver $'cabportefeuille24-resserrer-eclaire-la-periode' modules/socle/visites/cabvisites.js \
   $'cible: [\'#tb-dossiers .filtres\', \'#tb-dossiers\'], cote: \'dessus\', titre: \'Resserrer\',' \

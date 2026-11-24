@@ -6758,3 +6758,19 @@ Sur GitHub, après la date retapée, la page de l'achat se redessinait encore (l
 après) et remettait la date rangée : « Enregistrer les modifications » repartait sous le clic. Le test
 refait désormais le geste entier (retaper la date, puis cliquer) jusqu'à ce que la question « Période
 clôturée » s'ouvre. Rien ne change dans l'application.
+
+## 1.388.39 — Sept preuves qui ne tombaient plus, rendues à leurs tests
+
+Le passage complet des preuves sur la 1.388.38 a trouvé sept défauts que plus aucun test ne voyait. Le code
+était juste ; ce sont les tests qui avaient cessé de regarder l'endroit :
+- l'ordre des cases d'une carte au téléphone (montants, puis client, puis le reste) : la liste des factures a
+  sa propre grille depuis la 1.388.26, le test regarde aussi celle des devis, qui suit encore la règle ;
+- les scripts de Ton compte et de l'assistant ne partent plus à la première ouverture : la place que leur
+  départ a libérée ne cachait plus leur retour, le test le vérifie directement ;
+- un refus long en bas de l'écran reste le temps d'être lu : vérifié sur les codes de secours, l'écran
+  « Ton entreprise » ne passant plus par ce message ;
+- l'invitation de visite du Cabinet se ferme quand une fenêtre s'ouvre par-dessus, ouverte au clavier ;
+- le refus d'un code faux se lit en entier dans une fenêtre plus haute que l'écran (un écran bas) ;
+- la visite nomme le bouton tel que l'écran l'écrit : le défaut se pose avec l'ancien nom écrit en dur.
+
+Rien ne change dans l'application.

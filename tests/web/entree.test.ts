@@ -402,6 +402,12 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(fichier.suggestedFilename()).toBe('skanfact-codes-de-secours.txt');
     const contenu = fs.readFileSync(await fichier.path(), 'utf8');
     for (const c of codes) expect(contenu).toContain(c);
+    // Sans la case cochée, le refus passe en bas de l'écran : un message long y reste le temps d'être lu (plus que les
+    // 2,6 secondes d'une confirmation), sinon il s'efface avant la fin de sa phrase.
+    await bouton(p, 'ecran.code_pose.bouton').click();
+    await expect.poll(() => p.locator('#toast.show').innerText().catch(() => '')).toBe(phrase('ecran.code_pose.garde_avant'));
+    await p.waitForTimeout(3_500);
+    expect(await p.locator('#toast.show').innerText().catch(() => '')).toBe(phrase('ecran.code_pose.garde_avant'));
     // La case cochée, un code faux n'active rien : le refus le dit, sur son champ, et le compte n'a toujours pas de code.
     const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
     await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();

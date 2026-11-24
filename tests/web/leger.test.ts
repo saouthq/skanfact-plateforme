@@ -295,6 +295,10 @@ describe('léger sur une connexion lente', () => {
         expect(ds.length, fin).toBeGreaterThan(0);
         for (const d of ds) expect(d.posee, `${fin} attend la réponse du dossier`).toBeLessThan(dossierLu?.recue ?? -1);
       }
+      // (L14, L15) Les scripts de Ton compte et de l'assistant se chargent quand on les ouvre, jamais à la première ouverture : la marge que
+      // leur départ a libérée ne doit pas servir à les y remettre sans que rien ne le dise.
+      const avantDessin = [...s1.demandes, ...s2.demandes].map((d) => new URL(d.chemin, 'http://x').pathname);
+      expect(avantDessin.filter((c) => /\/plateforme\/(compte|assistant)\.js$/.test(c))).toEqual([]);
       expect(s1.ko).toBeLessThanOrEqual(1_300);
       expect(s1complet).toBeLessThanOrEqual(1_300);
       expect(s1.ms).toBeLessThan(15_000);

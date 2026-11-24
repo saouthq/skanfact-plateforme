@@ -190,6 +190,16 @@ describe('les propositions de visite, une par ouverture', () => {
     await aller('#/echeances');
     await titre('Échéances');
 
+    // (1.387.98, issue 6, CAB-16) Une fenêtre qui s'ouvre par-dessus l'invitation la ferme : elle ne reste pas dessous.
+    await p.reload();
+    await titre('Échéances');
+    await appel.waitFor({ timeout: 15_000 });
+    // Au clavier : un clic à côté de l'invitation la fermerait déjà, et l'on ne saurait plus qui l'a fermée.
+    await p.locator('#nd').press('Enter');
+    await p.locator('#modal-root .modal').first().waitFor({ timeout: 10_000 });
+    expect(await appel.count()).toBe(0);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
     await p.reload();
     await titre('Échéances');
     await appel.waitFor({ timeout: 15_000 });

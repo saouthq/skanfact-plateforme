@@ -235,8 +235,16 @@ describe('le parcours, à la souris', () => {
     await expect.poll(() => fenetre.getByRole('alert').innerText()).toBe(fine('Mets d\'abord tes codes de secours de côté (copie-les ou télécharge-les), puis coche « Je les ai mis de côté ».'));
     expect(await fenetre.getByRole('checkbox', { name: 'Je les ai mis de côté' }).evaluate((e) => e === document.activeElement)).toBe(true);
     await fenetre.getByRole('checkbox', { name: 'Je les ai mis de côté' }).check();
-    // Un code faux n'active rien : le refus le dit, sur son champ, et le compte n'a toujours pas de code.
+    // Un code faux n'active rien : le refus le dit, sur son champ, et le compte n'a toujours pas de code. Sur un écran bas
+    // (un portable), la fenêtre est plus haute que l'écran et défile en elle-même : on la remonte en haut avant le refus.
+    await p.setViewportSize({ width: 1440, height: 520 });
     await premier.fill(juste === '000000' ? '111111' : '000000');
+    // La case tout au bas de ce qui se voit : le curseur y revient sans rien faire défiler, et le refus, juste dessous,
+    // serait sous le bord si la fenêtre ne l'amenait pas.
+    await premier.evaluate((input) => {
+      const m = input.closest('.modal') as HTMLElement;
+      m.scrollTop += input.getBoundingClientRect().bottom - m.getBoundingClientRect().bottom + 2;
+    });
     await activer.click();
     await expect.poll(() => fenetre.getByRole('alert').innerText()).toBe(fine(phrase('compte.code_essai_faux')));
     expect(await premier.evaluate((e) => e === document.activeElement)).toBe(true);
@@ -248,6 +256,7 @@ describe('le parcours, à la souris', () => {
       return !!boite && !!message && message.y >= boite.y && message.y + message.height <= boite.y + boite.height + 1;
     }).toBe(true);
     expect((await admin.query('select code_methode from socle.utilisateur where email = $1', [email])).rows).toEqual([{ code_methode: null }]);
+    await p.setViewportSize({ width: 1440, height: 900 });
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-0-code-qr.png') });
     // Le code que montre le téléphone : le code est activé, et la carte le dit.
     await premier.fill(codeTotp(depuisBase32(secret), Date.now()));
