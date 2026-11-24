@@ -119,14 +119,17 @@ describe('le premier article de la caisse', () => {
     await p.keyboard.press('Control+A');
     await p.keyboard.type('5,001');
     await ttc.press('Tab');
-    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 5_000 })
-      .toBe('Aucun prix HT ne donne exactement 5,001 DT TTC à 19 % : le plus proche donne 5,002 DT.');
+    // (MET1-5) La case prend le vrai TTC, et l'écart se dit en orange sous le prix — pas dans un toast vert qui s'efface.
+    await expect.poll(async () => net(await fiche.locator('#cat-ttc-ecart').innerText().catch(() => '')), { timeout: 5_000 })
+      .toBe('Le prix TTC devient 5,002 DT : aucun prix HT au millime ne donne exactement 5,001 DT TTC à 19 %. C\'est 5,002 DT qui s\'imprimera sur la facture.');
+    expect(await ttc.inputValue()).toBe('5,002');
     expect(await ht.inputValue()).toBe('4,203');
     // Le prix de l'étiquette, enfin : 5,000.
     await ttc.click();
     await p.keyboard.press('Control+A');
     await p.keyboard.type('5');
     await expect.poll(() => ht.inputValue()).toBe('4,202');
+    expect(await fiche.locator('#cat-ttc-ecart').count()).toBe(0);
     await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
     const tuile = p.locator('#cs-articles .cs-art', { hasText: 'Piles AA (lot de 4)' });
     await expect.poll(() => tuile.locator('.cs-art-prix').innerText().then(net), { timeout: 10_000 }).toBe('5,000 DT');

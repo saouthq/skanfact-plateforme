@@ -357,6 +357,25 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
   // (1.155.12) Le devis de la charte, au téléphone : la ligne se pose dans sa feuille et se lit en carte (désignation, quantité
   // × prix, total) ; le tableau du bureau ne se montre pas, ni sa phrase « Les colonnes ». Le prix tapé, puis « OK » : le
   // second dessin de la feuille faisait planter la page (« The node to be removed is no longer a child of this node »).
+  it('MET1-7 : au téléphone, la ligne se tape au prix du rayon (TTC) et dit son total TTC', async () => {
+    const c = await commercante({});
+    const { cx, p, erreurs } = await ouvrir(c, '#/doc/new/facture', TELEPHONE);
+    await p.locator('#ed-pq-q').fill('Pins');
+    await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    await p.locator('#ed-tel-ajout').click();
+    await p.locator('.t-feuille input[type=search]').fill('Huile d\'olive 1 L');
+    await p.locator('.t-feuille [data-tf-libre]').click();
+    await p.locator('.t-feuille [data-tva="19"]').click();
+    await p.locator('.t-feuille [data-tf-ttc]').fill('16,5');
+    await p.locator('.t-feuille [data-tf-ttc]').dispatchEvent('change');
+    // 13,866 HT est le HT au millime le plus proche de 16,500 TTC à 19 % ; le total le redit en TTC.
+    await expect.poll(async () => net(await p.locator('.t-feuille [data-tf=unitPrice]').inputValue())).toBe('13,866');
+    expect(net(await p.locator('#tf-ttc-tot').innerText())).toBe('soit 16,501 TTC');
+    expect(net(await p.locator('.t-feuille [data-tf-ttc]').inputValue())).toBe('16,501');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('les lignes d\'un devis au téléphone : une carte par ligne, dans l\'écran, et la feuille qui ne plante pas', async () => {
     const c = await commercante({});
     const { cx, p, erreurs } = await ouvrir(c, '#/doc/new/devis', TELEPHONE);

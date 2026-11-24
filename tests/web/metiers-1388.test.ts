@@ -96,7 +96,49 @@ describe('MET1 (1.388.51) : l\'épicier, le boulanger et le menuisier retrouvent
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/bl1`);
     await p.locator('[data-etq=statut]').first().click({ timeout: 20_000 });
     await expect.poll(async () => (await p.locator('.pop-t').first().innerText().catch(() => '')).replace(/[\u00a0\u202f]/g, ' '), { timeout: 10_000 }).toBe('Statut du bon de livraison');
+
+    // MET1-4 : un bon en préparation ne se dit pas « chaque bon a sa facture ».
+    await p.keyboard.press('Escape');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/autres/livraison`);
+    await p.locator('#a-resume').waitFor({ timeout: 20_000 });
+    const tuile = (await p.locator('#a-resume').innerText()).replace(/[\u00a0\u202f]/g, ' ');
+    expect(tuile).not.toContain('chaque bon a sa facture');
+    expect(tuile).toContain('1 bon en préparation : à faire signer (ou émettre) pour le facturer');
     await cx.close();
     expect(erreurs).toEqual([]);
+  }, 120_000);
+  it('MET1-3 : le chantier ouvert après l\'acompte compte cet acompte (la pièce tirée du devis suit son affaire)', async () => {
+    const jeton = await personne('menuisier');
+    const ent = String((await api('POST', '/entreprises-essai', jeton)).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const jour = new Date().toISOString().slice(0, 10);
+    const ligne = { label: 'Bibliothèque en chêne', description: '', qty: 1, unit: 'u', unitPrice: 4000, vatRate: 19 };
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Villa Essai' } },
+      { collection: 'clients', cle: 'c2', rang: 1, revision: null, contenu: { id: 'c2', name: 'Autre client' } },
+      { collection: 'projects', cle: 'ch1', rang: 0, revision: null, contenu: { id: 'ch1', name: 'Chantier escalier villa', clientId: 'c1' } },
+      { collection: 'projects', cle: 'ch0', rang: 1, revision: null, contenu: { id: 'ch0', name: 'Un autre chantier', clientId: 'c1' } },
+      { collection: 'documents', cle: 'dv1', rang: 0, revision: null, contenu: { id: 'dv1', type: 'devis', number: 'DEV-2026-002', status: 'accepté', date: jour, clientId: 'c1', createdAt: 1, lines: [ligne], discountRate: 0, withholdingRate: 0, payments: [] } },
+      { collection: 'documents', cle: 'fa1', rang: 1, revision: null, contenu: { id: 'fa1', type: 'facture', status: 'brouillon', date: jour, clientId: 'c1', createdAt: 2, deposit: { quoteId: 'dv1', rate: 30 },
+        lines: [{ ...ligne, label: 'Acompte 30 %', unitPrice: 1200 }], discountRate: 0, withholdingRate: 0, payments: [] } },
+      { collection: 'documents', cle: 'fa2', rang: 2, revision: null, contenu: { id: 'fa2', type: 'facture', status: 'brouillon', date: jour, clientId: 'c1', createdAt: 3, fromQuoteId: 'dv1', projectId: 'ch0',
+        lines: [{ ...ligne, unitPrice: 100 }], discountRate: 0, withholdingRate: 0, payments: [] } },
+    ] })).statut).toBe(200);
+    const cx = await contexte(jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/dv1`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator('[data-etq="affaire"]').first().click();
+    await p.locator('[data-pr="ch1"]').click();
+    const surLeServeur = async (cle: string) => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Obj[]).find((o) => o.collection === 'documents' && o.cle === cle)?.contenu;
+    // L'acompte, sans affaire, suit le devis ; la facture déjà rangée dans un autre chantier ne bouge pas.
+    await expect.poll(async () => (await surLeServeur('fa1'))?.projectId, { timeout: 15_000 }).toBe('ch1');
+    expect((await surLeServeur('fa2'))?.projectId).toBe('ch0');
+    await expect.poll(async () => (await p.locator('#toast').innerText().catch(() => '')).replace(/[\u00a0\u202f]/g, ' '), { timeout: 10_000 }).toContain('pièce déjà tirée de');
+    expect(erreurs).toEqual([]);
+    await cx.close();
   }, 120_000);
 });

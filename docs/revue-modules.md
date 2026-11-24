@@ -6961,3 +6961,16 @@ toucherait une centaine de tables et ne se défait pas ; on les **classe**.
   `POST /console/entreprises/:id/test`, geste `console.clients.test` (droit affiché dans Équipe).
 - Test : `tests/web/console-clients.test.ts` (ranger, retrouver, remettre ; le support refusé). Preuve : la liste
   garde les organisations de test si le filtre saute.
+
+## 1.388.53 — L'artisan et le commerçant (rapport #21 : MET1-3, MET1-4, MET1-5, MET1-7)
+
+- **MET1-3** — Ranger un devis dans une affaire range aussi les pièces déjà tirées de lui (acompte, solde, bons) et
+  restées sans affaire ; une pièce déjà rangée ailleurs ne bouge pas, et un message nomme celles qui suivent.
+  L'artisan ouvre son chantier APRÈS l'acompte : la marge du chantier oubliait cet acompte.
+- **MET1-4** — La tuile « À facturer » des bons de livraison ne dit plus « chaque bon a sa facture » tant qu'un bon
+  est en préparation : elle dit « N bons en préparation : à faire signer (ou émettre) pour les facturer » et mène à eux.
+- **MET1-5** — Un prix TTC qu'aucun HT au millime n'atteint (16,500 à 19 %) : la case prend le vrai TTC (16,501) et
+  l'écart s'écrit en orange sous le prix, au lieu d'un toast à coche verte qui s'effaçait.
+- **MET1-7** — Au téléphone, la feuille d'une ligne montre et accepte le prix TTC (le prix du rayon), et le total de la
+  ligne se redit en TTC.
+- Tests : `metiers-1388`, `telephone-commercant`, `caisse-premier-article` (retourné vers la règle) ; quatre preuves.

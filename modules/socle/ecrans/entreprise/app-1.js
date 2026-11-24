@@ -7812,6 +7812,9 @@
       const fermer = () => { voile.remove(); document.removeEventListener('keydown', echap); };
       const echap = e => { if (e.key === 'Escape') fermer(); };
       const total = () => { const essai = { ...doc, lines: [{ ...l, ...brouillon }] }; const tt = C.computeTotals(essai, company()).lines[0] || {}; return tt; };
+      // (MET1-7) Le prix du rayon est TTC : la feuille le montre sous le HT et le laisse taper, comme la grille de
+      // l'ordinateur (« HT | TTC ») — le commerçant debout ne connaissait pas son prix hors taxes.
+      const ttcUnitaire = () => (C.computeTotals({ ...doc, lines: [{ ...l, ...brouillon, qty: 1, discount: 0 }] }, company()).lines[0] || {}).ttc || 0;
       const remises = [0, 5, 10];
       // (1.155.12) Redessiner retire le champ qu'on vient de quitter : son « change » repart à la perte du focus, pendant le
       // dessin même, et le navigateur refuse le second dessin (vu au téléphone : le prix tapé, puis « OK »). Un seul à la fois.
@@ -7824,12 +7827,19 @@
           <div class="tf-t"><b>${h(l.label || 'Ligne')}</b>${st !== null ? `<small>en stock : ${pct(st)}</small>` : ''}</div>
           <div class="tf-ch"><span>Quantité</span><span class="pas"><button type="button" data-pas="-1" aria-label="Un de moins">−</button><input type="text" inputmode="decimal" data-montant autocomplete="off" data-tf="qty" value="${h(frChiffre(brouillon.qty))}" aria-label="Quantité"><button type="button" data-pas="1" aria-label="Un de plus">+</button></span></div>
           <div class="tf-ch"><span>Prix ${sansTva ? '' : 'HT '}· par ${h(l.unit || 'unité')}</span><input type="text" inputmode="decimal" data-tf="unitPrice" value="${h(C.money(brouillon.unitPrice, null, dec))}" aria-label="Prix"></div>
+          ${sansTva ? '' : `<div class="tf-ch"><span>Prix TTC · par ${h(l.unit || 'unité')}</span><input type="text" inputmode="decimal" data-montant autocomplete="off" data-tf-ttc value="${h(C.money(ttcUnitaire(), null, dec))}" aria-label="Prix TTC"></div>`}
           <div class="tf-ch col"><span>Remise</span><div class="choix-t">${remises.map(r => `<button type="button" data-rem="${r}" class="${!autre && brouillon.discount === r ? 'on' : ''}">${r ? r + ' %' : 'Aucune'}</button>`).join('')}<button type="button" data-rem="autre" class="${autre ? 'on' : ''}">${autre ? pct(brouillon.discount) + ' %' : 'Autre…'}</button></div></div>
           ${sansTva ? '' : `<div class="tf-ch col"><span>TVA</span><div class="choix-t">${C.VAT_RATES.map(r => `<button type="button" data-tva="${r}" class="${brouillon.vatRate === r ? 'on' : ''}">${r} %</button>`).join('')}</div></div>`}
-          <div class="tf-tot"><span>Total de la ligne</span><b>${C.money(tt.ht || 0, null, dec)}${sansTva ? '' : ' HT'}</b>${brouillon.discount ? `<small>avant remise ${C.money(C.round3(brouillon.qty * brouillon.unitPrice), null, dec)}</small>` : ''}</div>
+          <div class="tf-tot"><span>Total de la ligne</span><b>${C.money(tt.ht || 0, null, dec)}${sansTva ? '' : ' HT'}</b>${sansTva ? '' : `<small id="tf-ttc-tot">soit ${C.money(tt.ttc || 0, null, dec)} TTC</small>`}${brouillon.discount ? `<small>avant remise ${C.money(C.round3(brouillon.qty * brouillon.unitPrice), null, dec)}</small>` : ''}</div>
           <div class="tf-pied"><button type="button" class="btn danger" data-tf-suppr>${lfIc('annuler', 15)}Supprimer</button><button type="button" class="btn btn-primary" data-tf-ok>Valider</button></div></div>`;
         $$('[data-pas]', voile).forEach(b => b.onclick = () => { brouillon.qty = Math.max(0, C.round3(brouillon.qty + Number(b.dataset.pas))); dessiner(); });
         $$('[data-tf]', voile).forEach(x => x.onchange = () => { brouillon[x.dataset.tf] = lireMontant(x.value); dessiner(); });
+        const champTtc = $('[data-tf-ttc]', voile);
+        if (champTtc) champTtc.onchange = () => {
+          const r = C.calculPrix({ mode: 'ttc', valeur: lireMontant(champTtc.value), tva: C.ligneDePanier({ vatRate: brouillon.vatRate }, company()).vatRate, decimales: dec });
+          if (r.ok) brouillon.unitPrice = r.ht;
+          dessiner();
+        };
         $$('[data-rem]', voile).forEach(b => b.onclick = () => {
           if (b.dataset.rem === 'autre') {
             // La remise libre se tape à la place du bouton.
@@ -8404,6 +8414,16 @@
     const poserAffaire = v => {
       doc.projectId = v || '';
       const lpAff = $('#lp-affaire dd'); if (lpAff) { lpAff.innerHTML = affaireLue(); lierAffaireLue(); }
+      // Les pièces déjà tirées de celle-ci (l'acompte d'un devis, sa facture de solde, un bon) et
+      // restées sans affaire la suivent (rapport MET1-3) : l'artisan ouvre son chantier APRÈS l'acompte,
+      // et la marge du chantier oubliait cet acompte. Une pièce déjà rangée ailleurs ne bouge pas.
+      const suivent = v && doc.id ? C.chaineDePieces(data, doc).filter(x => !x.projectId && (!doc.clientId || x.clientId === doc.clientId)) : [];
+      if (suivent.length) {
+        suivent.forEach(x => { x.projectId = v; });
+        save(true);
+        const pr = projectById(v);
+        toast(`${pl(suivent.length, 'pièce déjà tirée', 'pièces déjà tirées')} de ${docLabel(doc)} ${suivent.length > 1 ? 'comptent' : 'compte'} aussi dans « ${pr ? pr.name : 'cette affaire'} » : ${suivent.map(docLabel).join(', ')}.`);
+      }
       if (!figee) return;          // pièce modifiable : `head.onchange` et « Enregistrer » s'en chargent
       const st = docById(doc.id); if (!st) return;
       if (v) st.projectId = v; else delete st.projectId;
@@ -13069,7 +13089,12 @@
           const suiv = $('input[name=unitPrice]', root); if (suiv) suiv.focus();
         });
         // La marge se montre pendant la saisie : c'est le moment où on se rend compte qu'on vend à perte.
-        const hint = () => {
+        // (MET1-5) Le TTC tapé qu'aucun HT au millime ne donne : la case prend le vrai TTC, et l'écart se dit ici en
+        // orange, sous le prix, tant qu'on n'a pas retouché le prix — un toast à coche verte s'effaçait comme un succès,
+        // et la facture sortait 16,501 pour un rayon à 16,500.
+        let ecartTtc = '';
+        const hint = () => { hintMarge(); if (ecartTtc) $('#marge-hint', root).insertAdjacentHTML('afterbegin', `<span class="small warn-text" id="cat-ttc-ecart">${ecartTtc}</span><br>`); };
+        const hintMarge = () => {
           const v = formValues($('#kf', root));
           const pv = Number(v.unitPrice) || 0, pa = Number(v.unitCost) || 0;
           const el = $('#marge-hint', root);
@@ -13110,13 +13135,16 @@
           const r = C.calculPrix({ mode: 'ttc', valeur: champTtc.value.trim() === '' ? '' : lireMontant(champTtc.value), tva: C.ligneDePanier({ vatRate: Number(champTva.value) || 0 }, company()).vatRate, decimales: C.decimalsFor(company().currency) });
           if (!r.ok) return;
           champHt.value = enChamp(r.ht);
+          if (dire && !r.exact) {
+            ecartTtc = `Le prix TTC devient ${C.money(r.ttc, company().currency)} : aucun prix HT au millime ne donne exactement ${C.money(lireMontant(champTtc.value), company().currency)} TTC à ${pct(r.tva)} %. C'est ${C.money(r.ttc, company().currency)} qui s'imprimera sur la facture.`;
+            champTtc.value = enChamp(r.ttc);
+          } else if (dire || r.exact) ecartTtc = '';
           hint();
-          if (dire && !r.exact) toast(`Aucun prix HT ne donne exactement ${C.money(lireMontant(champTtc.value), company().currency)} TTC à ${pct(r.tva)} % : le plus proche donne ${C.money(r.ttc, company().currency)}.`);
         };
         majTtc();
         champTtc.addEventListener('input', () => { tapeTtc = true; majHt(false); });
         champTtc.addEventListener('change', () => { if (tapeTtc) majHt(true); });
-        $('#kf', root).addEventListener('input', e => { if (e.target === champHt || e.target === e.currentTarget) { tapeTtc = false; majTtc(); } });
+        $('#kf', root).addEventListener('input', e => { if (e.target === champHt || e.target === e.currentTarget) { tapeTtc = false; ecartTtc = ''; majTtc(); hint(); } });
         champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });
         // Suivre par lot implique de suivre le stock (brique 97), comme le numéro de série : la case se coche.
         $('input[name=parLot]', root).onchange = e => {
@@ -21033,7 +21061,11 @@
     const attente = {
       proforma: () => { const n = nStatut('envoyée'); return chiffreA('Envoyées', String(n), n ? 'en attente du client — voir lesquelles' : 'aucune en attente', '', n ? 'envoyée' : ''); },
       commande: () => { const n = nStatut('reçue', 'partielle'); return chiffreA('À livrer', String(n), n ? 'reçues, pas encore livrées en entier' : 'tout est livré', n ? 'ambre' : ''); },
-      livraison: () => chiffreA('À facturer', String(aFacturer.length), aFacturer.length ? 'émis ou signés, sans facture — les facturer' : 'chaque bon a sa facture', aFacturer.length ? 'ambre' : '', aFacturer.length ? 'facturer' : ''),
+      // Un bon en BROUILLON est en préparation (il ne livre rien, B2) : tant qu'il en reste, la tuile ne dit jamais
+      // « chaque bon a sa facture » — la boulangère qui saisit le soir lisait qu'elle n'avait rien à facturer (MET1-4).
+      livraison: () => aFacturer.length || !brouillons
+        ? chiffreA('À facturer', String(aFacturer.length), aFacturer.length ? 'émis ou signés, sans facture — les facturer' : 'chaque bon a sa facture', aFacturer.length ? 'ambre' : '', aFacturer.length ? 'facturer' : '')
+        : chiffreA('À facturer', '0', `${pl(brouillons, 'bon en préparation', 'bons en préparation')} : à faire signer (ou émettre) pour ${brouillons > 1 ? 'les' : 'le'} facturer`, 'ambre', 'brouillon'),
       contrat: () => { const n = nStatut('envoyé'); return chiffreA('À faire signer', String(n), n ? 'envoyés, pas encore signés — voir lesquels' : 'aucun en attente de signature', n ? 'ambre' : '', n ? 'envoyé' : ''); },
     }[type];
     const nAnnee = mine.filter(d => (d.date || '').startsWith(annee)).length;

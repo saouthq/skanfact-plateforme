@@ -7412,7 +7412,7 @@ prouver "le prix de l'étiquette qui bouge quand la TVA change" modules/socle/ec
   "champTva.addEventListener('change', () => { if (tapeTtc && champTtc.value !== '') majHt(true); else majTtc(); });" "champTva.addEventListener('change', () => { majTtc(); });" \
   "$TTC"
 prouver "un prix TTC inatteignable arrondi sans un mot" modules/socle/ecrans/entreprise/app-1.js \
-  "if (dire && !r.exact) toast(" "if (false) toast(" \
+  "          if (dire && !r.exact) {" "          if (false) {" \
   "$TTC"
 prouver "le TTC qui ne suit pas le HT tapé" modules/socle/ecrans/entreprise/app-1.js \
   "champTtc.value = ht > 0 ? enChamp(" "champTtc.value = ht < 0 ? enChamp(" \
@@ -32016,6 +32016,15 @@ prouver "statut de le bon" modules/socle/ecrans/entreprise/app-1.js \
 prouver "la liste garde les organisations de test" serveur/console/routes.ts \
   "(await lesEntreprises(t, jour)).filter((e) => !deTest.has(e.id))" "(await lesEntreprises(t, jour))" \
   $'ranger une organisation d\'essai avec les tests, la retrouver, la remettre ; le support ne le peut pas'
+prouver "l'acompte suit le chantier" modules/socle/ecrans/entreprise/app-1.js \
+  "C.chaineDePieces(data, doc).filter(x => !x.projectId &&" "[].filter(x => !x.projectId &&" \
+  $'MET1-3 : le chantier ouvert après l\'acompte compte cet acompte (la pièce tirée du devis suit son affaire)'
+prouver "un bon en préparation se dit à facturer" modules/socle/ecrans/entreprise/app-1.js \
+  "livraison: () => aFacturer.length || !brouillons" "livraison: () => true" \
+  'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
+prouver "la feuille du téléphone sans prix TTC" modules/socle/ecrans/entreprise/app-1.js \
+  "if (r.ok) brouillon.unitPrice = r.ht;" "if (false) brouillon.unitPrice = r.ht;" \
+  'MET1-7 : au téléphone, la ligne se tape au prix du rayon (TTC) et dit son total TTC'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
