@@ -6933,3 +6933,15 @@ Dix preuves anciennes visaient des lignes que les correctifs du lot ont changée
 double clic de ROB-6, les dates de TVA de CAB2-1, l'écriture d'un achat de PONT-2). Leurs ancres suivent le code ; deux
 d'entre elles ne mordaient plus, parce que le dernier bulletin ne sert qu'à une fiche sans salaire : le test des documents
 du personnel gagne ce cas (une fiche sans salaire prend son bulletin le plus récent, jamais celui d'un autre salarié).
+
+## 1.388.51 — L'épicier, le boulanger et le menuisier retrouvent ce qu'ils cherchent (audit #30, #21)
+
+Quatre constats de la revue par métier (#21) :
+- MET1-6 : le choix du client d'une pièce ne montrait que six noms, sans dire qu'il en coupait d'autres ; il dit désormais
+  « 9 autres clients « Karim » : tape la suite du nom pour le trouver ». Plus de doublon recréé faute de voir le bon client.
+- MET1-8 : la famille d'un article (Boissons, Droguerie…) se cherche dans le Catalogue et dans la barre d'ajout d'une pièce.
+- MET1-9 : la recherche (Ctrl K) trouve les affaires (les chantiers), par leur nom et par leur client.
+- MET1-11 : « Statut du bon de livraison », et non plus « Statut de le bon de livraison ».
+- MET1-12 : la colonne Unité de la grille des lignes a la place de « bouteille » (elle coupait « boutei… »).
+
+Testé à la souris (`tests/web/metiers-1388.test.ts`) ; quatre preuves.

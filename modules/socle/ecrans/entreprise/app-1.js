@@ -1929,7 +1929,7 @@
     const q = String(query || '').trim();
     const words = sansAccents(q).split(/\s+/).filter(Boolean);
     const correspond = c => {
-      const hay = sansAccents(`${c.label || ''} ${c.description || ''} ${c.code || ''}`), serre = hay.replace(/\s+/g, '');
+      const hay = sansAccents(`${c.label || ''} ${c.description || ''} ${c.code || ''} ${c.famille || ''}`), serre = hay.replace(/\s+/g, '');
       return words.every(w => hay.includes(w) || serre.includes(w.replace(/\s+/g, '')));
     };
     // Un code-barres tapé ou scanné (10.15.0) désigne UN article : il passe en tête, avant les
@@ -9970,7 +9970,7 @@
             const tx = $('#pop-taux', pop); if (tx) { tx.oninput = () => mettre('exchangeRate', tx.value); tx.focus(); }
             const ex = $('#pop-export', pop); if (ex) ex.onchange = () => poserExport(ex.checked);
           }, { label: 'Devise et taux' });
-        if (k === 'statut') return ouvrirBulle(b, `<div class="pop-t">Statut ${isQ ? 'du devis' : 'de ' + h(leAutre)}</div>${C.STATUSES[doc.type].map(st => choix('data-st', st, h(optionStatut(st, doc.type)), '', st === doc.status)).join('')}`,
+        if (k === 'statut') return ouvrirBulle(b, `<div class="pop-t">Statut ${isQ ? 'du devis' : h(leAutre.replace(/^le /, 'du ').replace(/^la /, 'de la '))}</div>${C.STATUSES[doc.type].map(st => choix('data-st', st, h(optionStatut(st, doc.type)), '', st === doc.status)).join('')}`,
           (pop, fermer) => $$('[data-st]', pop).forEach(x => x.onclick = () => { mettre('status', x.dataset.st); fermer(); }));
         if (k === 'prix') return ouvrirBulle(b, `<div class="pop-t">Les prix sur le bon</div>
             ${choix('data-px', '1', 'Masqués', 'le bon dit ce qui est livré, sans les montants', doc.hidePrices !== false)}${choix('data-px', '0', 'Imprimés', 'le bon porte aussi les prix et le total', doc.hidePrices === false)}`,
@@ -10102,12 +10102,16 @@
         if (!pq) return;
         const q = sansAccents($('#ed-pq-q', pq).value.trim());
         const dernier = id => (data.documents.filter(d => d.clientId === id && d.number).map(d => d.date || '').sort().pop() || '');
-        pqListe = q ? data.clients.filter(c => !c.archived && sansAccents([c.name, c.contact, c.matricule, c.email, c.phone].join(' ')).includes(q)).slice(0, 6)
+        // (audit #30, MET1-6) Six noms au plus, et ce qui est coupé se COMPTE : sans le dire, le commerçant qui cherche
+        // « Karim Ferchichi » parmi quinze « Karim » croyait qu'il n'existait pas, et recréait un doublon.
+        const pqTous = q ? data.clients.filter(c => !c.archived && sansAccents([c.name, c.contact, c.matricule, c.email, c.phone].join(' ')).includes(q)) : [];
+        pqListe = q ? pqTous.slice(0, 6)
           : data.clients.slice().sort((a, b) => dernier(b.id).localeCompare(dernier(a.id)) || a.name.localeCompare(b.name, 'fr')).slice(0, 4);
         pqSel = Math.max(0, Math.min(pqSel, pqListe.length));
         const brut = $('#ed-pq-q', pq).value.trim();
         $('#ed-pq-liste', pq).innerHTML = pqListe.map((c, i) => `<button type="button" role="option" class="ed-pq-o${i === pqSel ? ' sel' : ''}" data-cl="${h(c.id)}" aria-selected="${i === pqSel}">${pastilleClient(c.id)}<span><b>${h(c.name)}</b><small>${phraseClient(c)}</small></span></button>`).join('')
           + (pqListe.length || brut ? '' : '<p class="pop-vide">Aucun client pour l\'instant.</p>')
+          + (pqTous.length > pqListe.length ? `<p class="pop-vide" id="ed-pq-plus">${pl(pqTous.length - pqListe.length, 'autre client', 'autres clients')} « ${h(brut)} » : tape la suite du nom pour le trouver.</p>` : '')
           + `<button type="button" role="option" class="ed-pq-nv${pqSel === pqListe.length ? ' sel' : ''}" id="ed-pq-nv">${lfIc('ajout', 15, 2.4)}<b>Nouveau client « ${h(brut || '…')} »</b><small>sans quitter ${isQ ? 'le devis' : isAv ? 'l\'avoir' : isExtra ? h(leAutre) : 'la facture'}</small></button>`;
         $$('[data-cl]', pq).forEach(x => x.onclick = () => choisirClient(x.dataset.cl));
         $('#ed-pq-nv', pq).onclick = () => clientForm(null, c => { clientCombo.setItems(clientItems(doc.clientId)); choisirClient(c.id); }, { name: brut });
@@ -13749,7 +13753,7 @@
     // (1.318.0) Les articles archivés vivent à part (« Archivés », en haut) : ils ne se vendent plus, leur stock et leurs pièces restent.
     const draw = dansUnLot(drawList('#list-wrap', catalogState.presta, prestaCols, () => data.catalog.filter(c => !c.archived === !catalogState.archives), {
       apres: () => drawResume(),
-      noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''}`,
+      noun: motsCatalogue().un, placeholder: `Rechercher ${motsCatalogue().unNom}…`, text: c => `${c.label} ${c.description || ''} ${c.unit || ''} ${c.code || ''} ${c.famille || ''}`, // (audit #30, MET1-8) la famille se cherche
       // 10.12.0 (H-E26, vu au test humain) — deux chiffres du pied mentaient sans rien casser :
       // « moyenne 58,333 DT » faisait la moyenne de 25 DT de l'heure, d'un lot à 0 DT et d'une pièce
       // à 150 DT — un prix moyen n'a de sens que dans UNE unité (un agrégat porte son unité, 7.0.1) ;
@@ -15967,6 +15971,9 @@
     // (plateforme) 1.232.0 — les SALARIÉS par leur nom, leur poste, leur CIN : la fiche s'ouvre (docs/revue-paie.md, P2).
     const salaries = (data.employees || []).map(e => ({ kind: 'Salarié', main: e.name, sub: [e.position, e.endDate && e.endDate < C.today() ? `parti le ${C.fmtDate(e.endDate)}` : ''].filter(Boolean).join(' · '),
       text: `${e.name} ${e.position || ''} ${e.cin || ''} ${e.cnss || ''} salarie`.toLowerCase(), run: () => navigate('#/salarie/' + encodeURIComponent(e.id)) }));
+    // (audit #30, MET1-9) Les AFFAIRES (chantiers) par leur nom et leur client : « Chantier B12 » ne rendait que l'Aide.
+    const affairesP = (data.projects || []).map(pr => ({ kind: 'Affaire', main: pr.name, sub: pr.clientId ? clientName(pr.clientId) : '',
+      text: `${pr.name || ''} ${pr.clientId ? clientName(pr.clientId) : ''} affaire chantier`.toLowerCase(), run: () => navigate('#/affaire/' + pr.id) }));
     const fournisseurs = (data.suppliers || []).map(sp => ({ kind: 'Fournisseur', main: sp.name, sub: [sp.contact, sp.email, sp.phone].filter(Boolean).join(' · '),
       text: `${sp.name} ${sp.contact || ''} ${sp.email || ''} ${sp.phone || ''} ${sp.matricule || ''}`.toLowerCase(), run: () => navigate('#/fournisseur/' + sp.id) }));
     // Les JUSTIFICATIFS (10.14.1, S-04) : un fichier joint se cherche par son NOM. Skander : « quand je
@@ -15992,7 +15999,7 @@
       text: `${a.name} ${a.bank || ''} ${a.rib || ''} compte banque caisse tresorerie`.toLowerCase(), run: () => navigate('#/tresorerie') }));
     // Un onglet des Paramètres et son panneau du même nom (« Ton abonnement ») : une seule ligne, celle du panneau.
     const reglagesP = reglagesDePalette();
-    const all = [...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP, ...recentes, ...clients, ...fournisseurs, ...comptes, ...salaries, ...items, ...justifs];
+    const all = [...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP, ...recentes, ...clients, ...fournisseurs, ...affairesP, ...comptes, ...salaries, ...items, ...justifs];
     const HINT = $('#palette-root .hint').innerHTML;
     const GROUPES = ['Pages', 'Clients et pièces', 'Actions', 'Me guider', 'Aide'];
     const groupeDe = x => x.kind === 'Me guider' || x.kind === 'Aide' ? x.kind

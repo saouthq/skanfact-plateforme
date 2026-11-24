@@ -481,9 +481,9 @@
 
 /* La grille des lignes : une rangée par ligne, comme la maquette (poignée, désignation, qté, unité, P.U., remise, TVA, total, ⋯) */
 .ed-lignes table.ed-grille > thead > tr, .ed-lignes table.ed-grille > tbody > tr {
-  grid-template-columns: 22px minmax(0, 1fr) 62px 70px 96px 66px 62px 104px 30px; grid-template-areas: none; column-gap: 8px; align-items: center;
+  grid-template-columns: 22px minmax(0, 1fr) 62px 92px 96px 66px 62px 104px 30px; grid-template-areas: none; column-gap: 8px; align-items: center;
 }
-.ed-lignes.sans-tva table.ed-grille > thead > tr, .ed-lignes.sans-tva table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(0, 1fr) 62px 70px 96px 66px 104px 30px; }
+.ed-lignes.sans-tva table.ed-grille > thead > tr, .ed-lignes.sans-tva table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(0, 1fr) 62px 92px 96px 66px 104px 30px; }
 .ed-lignes table.ed-grille tr > * { grid-area: auto; }
 .ed-lignes table.ed-grille > tbody > tr { padding: 8px 0; align-items: start; }
 .ed-lignes table.ed-grille > tbody > tr > td { padding: 0; border: 0; }
@@ -910,8 +910,8 @@
 .t-feuille .tf-q input, .t-feuille .tf-q input:focus { -webkit-appearance: none; appearance: none; height: auto; padding: 0; border: 0 !important; box-shadow: none !important; outline: 0; }
 .t-feuille .tf-q input::-webkit-search-cancel-button { display: none; }
 /* (1.155.0, maquette « FODEC ») La colonne FODEC : une case par ligne, chez une entreprise qui fabrique. */
-.ed-lignes.fodec table.ed-grille > thead > tr, .ed-lignes.fodec table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(140px, 1fr) 54px 64px 88px 58px 58px 44px 96px 30px; column-gap: 6px; }
-.ed-lignes.fodec.sans-tva table.ed-grille > thead > tr, .ed-lignes.fodec.sans-tva table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(140px, 1fr) 54px 64px 88px 58px 44px 96px 30px; }
+.ed-lignes.fodec table.ed-grille > thead > tr, .ed-lignes.fodec table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(140px, 1fr) 54px 84px 88px 58px 58px 44px 96px 30px; column-gap: 6px; }
+.ed-lignes.fodec.sans-tva table.ed-grille > thead > tr, .ed-lignes.fodec.sans-tva table.ed-grille > tbody > tr { grid-template-columns: 22px minmax(140px, 1fr) 54px 84px 88px 58px 44px 96px 30px; }
 .ed-lignes table.ed-grille .c-fodec { text-align: center; }
 .ed-lignes table.ed-grille td.c-fodec { align-self: start; }
 /* Une désignation et ce qu'elle porte dessous (numéros de série, repères) restent dans leur colonne : sans min-width 0, la

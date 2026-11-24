@@ -32001,6 +32001,18 @@ prouver "la douchette ecrit dans la quantite" modules/socle/ecrans/entreprise/ap
 prouver "la douchette double la ligne" modules/socle/ecrans/entreprise/app-1.js \
   "if (d && d.itemId === it.id && Number.isFinite(Number(d.qty))) {" "if (false) {" \
   'Hichem lit trois codes à la suite : chaque lecture ajoute son article, la même deux fois fait +1, le curseur reste dans la barre'
+prouver "le choix du client tait ce qu'il coupe" modules/socle/ecrans/entreprise/app-1.js \
+  "+ (pqTous.length > pqListe.length ?" "+ (false ?" \
+  'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
+prouver "la palette ignore les affaires" modules/socle/ecrans/entreprise/app-1.js \
+  "...fournisseurs, ...affairesP, ..." "...fournisseurs, ..." \
+  'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
+prouver "le catalogue ignore la famille" modules/socle/ecrans/entreprise/app-1.js \
+  "\${c.code || ''} \${c.famille || ''}\`, // (audit #30, MET1-8)" "\${c.code || ''}\`, // (audit #30, MET1-8)" \
+  'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
+prouver "statut de le bon" modules/socle/ecrans/entreprise/app-1.js \
+  "h(leAutre.replace(/^le /, 'du ').replace(/^la /, 'de la '))" "'de ' + h(leAutre)" \
+  'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
