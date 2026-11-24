@@ -31975,6 +31975,20 @@ prouver "ses propres envois dits faits ailleurs" web/public/plateforme/pont.js \
   "=> o.revision !== (vu.get(" "=> !!o.revision || (vu.get(" \
   "Rania garde Factures ouvert : la facture faite ailleurs se dit, « Mettre à jour » la montre ; ce que le poste fait lui-même ne se dit pas"
 
+# 1.388.47 — CAB2-1, CAB2-2 : la fiche d'un dossier tenu suit les Échéances, et ne réclame pas la TVA à un non-assujetti.
+prouver "la fiche au 28 des personnes physiques" modules/socle/ecrans/cabinet/app-1.js \
+  "const limiteDe = (m, d) => K.dateLimiteDeclaration(S, m, 'tva', d);" "const limiteDe = (m, d) => (d ? \`\${moisSuivant(m)}-28\` : '');" \
+  $'Karima ajoute une kiné (personne physique) et un épicier non assujetti : la fiche suit les Échéances, et le forfait n\'est pas réclamé'
+prouver "rien n'attend sous des mois en retard" modules/socle/ecrans/cabinet/app-1.js \
+  "    if (aSaisirTard.length) {" "    if (false) {" \
+  $'Karima ajoute une kiné (personne physique) et un épicier non assujetti : la fiche suit les Échéances, et le forfait n\'est pas réclamé'
+prouver "la fiche reclame la TVA au non-assujetti" modules/socle/ecrans/cabinet/app-1.js \
+  "      !sansTva && !tard.includes(mp) && etats" "      !tard.includes(mp) && etats" \
+  $'Karima ajoute une kiné (personne physique) et un épicier non assujetti : la fiche suit les Échéances, et le forfait n\'est pas réclamé'
+prouver "la campagne compte le non-assujetti" modules/socle/ecrans/cabinet/app-1.js \
+  "L.filter(x => !x.sansTva && x.mois.has(moisC)" "L.filter(x => x.mois.has(moisC)" \
+  $'Karima ajoute une kiné (personne physique) et un épicier non assujetti : la fiche suit les Échéances, et le forfait n\'est pas réclamé'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -6880,3 +6880,23 @@ saisie.
 
 Testé à la souris (`tests/web/ailleurs-1388.test.ts` : un client créé et une facture émise sur ce poste ne se disent pas,
 un brouillon écrit par une autre session se dit, « Mettre à jour » le montre) ; deux preuves.
+
+## 1.388.47 — La fiche d'un dossier tenu suit les Échéances (audit #30, CAB2-1 et CAB2-2)
+
+Au Cabinet, la fiche d'un dossier donnait sa propre date limite : le 28 du mois suivant, écrite en dur. Pour une personne
+physique (la TVA se dépose le 15, réglé dans les Réglages), la fiche annonçait « à déposer d'ici le 28/11 » une TVA que les
+Échéances disaient en retard depuis le 15/11. Et un dossier tenu au cabinet dont les mois en retard n'avaient rien de saisi
+montrait la carte verte « Rien n'attend … aucune en retard » sous un en-tête qui comptait quatre mois en retard. Enfin un
+forfaitaire « non assujetti à la TVA » (par sa fiche, ou par un régime « Pas de TVA ») se voyait réclamer la TVA du mois par
+sa fiche et comptait dans la campagne et les retards du tableau de bord, alors que les Échéances ne lui réclamaient rien.
+
+Désormais :
+- toutes les dates de la fiche (en-tête, ce qui attend, grille de l'année, légende, volet « TVA : mensuelle · déclarée le … »)
+  et de ses voisins (messages, cases) passent par la même règle que les Échéances : le jour réglé, le 15 des personnes
+  physiques, le mois qui suit le trimestre pour un trimestriel ;
+- les mois en retard d'un dossier tenu, encore à saisir, entrent dans « Ce qui attend », en rouge, avec « Saisir » ;
+- un dossier qui ne dépose pas de TVA n'a plus de déclaration réclamée sur sa fiche (« Pas de déclaration de TVA : dossier
+  non assujetti ») et ne compte plus dans la campagne ni dans les retards du tableau de bord. À VÉRIFIER avec un comptable :
+  ce qu'un forfaitaire doit déposer d'autre (déclaration annuelle, retenues).
+
+Testé à la souris (`tests/web/cab2-fiche-1388.test.ts`) ; quatre preuves.

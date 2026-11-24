@@ -1873,7 +1873,7 @@
     if (nP) l.push({ titre: 'Bien reçu, merci', sous: `${pl(nP, 'pièce reçue', 'pièces reçues')}`, texte: `${bonjour}bien reçu ${nP > 1 ? `vos ${nP} pièces` : 'votre pièce'}, merci ! Je m'en occupe.` });
     const dc = declarationConnue(d.id, mp);
     const tard = retard.get(d.name) || [];
-    if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp))}`, texte: `${bonjour}votre déclaration ${deFr(moisLong(mp))} est prête : je la dépose avant le ${jjmm(limiteDe(mp))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
+    if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp, d))}`, texte: `${bonjour}votre déclaration ${deFr(moisLong(mp))} est prête : je la dépose avant le ${jjmm(limiteDe(mp, d))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
     else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces ${deFr(moisLong(mp))}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
     if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations ${deMois(tard[0])}${tard.slice(1).map(m => ` et ${deMois(m)}`).join('')} sont` : `la déclaration ${deMois(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
     return l.slice(0, 2);
@@ -2103,7 +2103,7 @@
       const tardTitre = ms => { const n = ms.map(moisLong); return n.length > 3 ? pl(n.length, 'mois en retard', 'mois en retard') : `${cap(n.length > 1 ? `${n.slice(0, -1).join(', ')} et ${n[n.length - 1]}` : n[0])} en retard`; };
       const etatMois = tard.length
         ? `<b>${esc(tardTitre(tard))}</b><small class="rouge">${esc(tard.map(m => `${moisLong(m)} : échu, pas encore déclaré`).join(' · '))}</small>`
-        : `<b>${esc(cap(mo.mot))}</b>${mo.cl === 'pret' ? `<small>tu le déposes avant le ${esc(jjmm(limiteDe(mp)))}</small>` : ''}`;
+        : `<b>${esc(cap(mo.mot))}</b>${mo.cl === 'pret' ? `<small>tu le déposes avant le ${esc(jjmm(limiteDe(mp, d)))}</small>` : ''}`;
       const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
       const savoir = [
         nP ? `<li>${MSG_IC.photo}<span><b>${esc(pl(nP, 'pièce reçue', 'pièces reçues'))}</b><small>à saisir, ou à classer dans « Pièces reçues »</small></span></li>` : '',
@@ -2963,9 +2963,10 @@
       if (!d.manual) for (const p of recues.get(d.id) || []) { const m = moisDePieceTb(d, brut, p.recueLe, p.mois); aClasser.set(m, (aClasser.get(m) || 0) + 1); }
       const cases = l.mois.map(c => (!aClasser.get(c.mois) ? c : { ...c, aClasser: aClasser.get(c.mois), ...(c.etape === 'recu' ? { etape: 'saisi' } : {}) }));
       const mois = new Map(cases.map(c => [c.mois, c]));
-      const retard = cases.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
+      const sansTva = sansTvaCd(d);
+      const retard = sansTva ? [] : cases.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
       const n = e => cases.filter(c => c.etape === e).length;
-      return { d, l, eq, mois, retard, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
+      return { d, l, eq, mois, retard, sansTva, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
     });
   }
   const anneauTb = (fait, sur, t = 92) => {
@@ -2977,7 +2978,7 @@
   // La campagne du mois : où en est chaque dossier pour la déclaration du dernier mois fini.
   function campagneTb(L, moisC) {
     if (!moisC) return '';
-    const mens = L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors');
+    const mens = L.filter(x => !x.sansTva && x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors');
     if (!mens.length) return '';
     const par = ETAPES_TB.map(([e, nom]) => [e, nom, mens.filter(x => x.mois.get(moisC).etape === e)]);
     const fait = par[0][2].length, reste = mens.length - fait, auj = K.today();
@@ -5128,8 +5129,14 @@
   const deMois = m => (/^[aeiouo]/.test(moisLong(m)) ? 'd\'' : 'de ') + moisLong(m);
   const moisSuivant = m => { const [a, n] = m.split('-').map(Number); return n === 12 ? `${a + 1}-01` : `${a}-${String(n + 1).padStart(2, '0')}`; };
   const jjmm = iso => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
-  // La date limite d'un mois (le 28 du mois suivant, À VÉRIFIER) : celle des Échéances.
-  const limiteDe = m => `${moisSuivant(m)}-28`;
+  // La date limite de la TVA d'un mois pour un dossier : celle des Échéances, par la MÊME règle (`K.dateLimiteDeclaration` :
+  // le jour réglé, celui des personnes physiques pour elles, le mois qui suit le trimestre pour un trimestriel). (audit #30,
+  // CAB2-1) Elle était le 28 en dur : la fiche d'une kiné donnait le 28/11 pour une TVA que les Échéances disaient en retard
+  // depuis le 15/11. À VÉRIFIER avec un comptable : le jour de chaque régime se règle dans les Réglages.
+  const limiteDe = (m, d) => K.dateLimiteDeclaration(S, m, 'tva', d);
+  // (audit #30, CAB2-2) Un dossier qui ne dépose pas de TVA (« non assujetti » sur sa fiche, ou un régime « Pas de TVA ») : la
+  // règle des Échéances (`K.periodeTva`). La fiche et le tableau de bord lui réclamaient quand même la déclaration du mois.
+  const sansTvaCd = d => ['aucune', 'non-assujetti'].includes(K.periodeTva(S, d));
   // Les mois en retard de chaque dossier : la même lecture que la liste des Dossiers (K.echeances).
   function retardsConnus() {
     const retard = new Map();
@@ -5208,7 +5215,7 @@
       xm.ecr ? (xm.br ? ['af', 'Écritures', `${pl(xm.ecr, 'écriture')}, dont ${xm.br} au brouillard à réviser`] : ['ok', 'Écritures', `${pl(xm.ecr, 'écriture')}, toutes validées`]) : ['att', 'Écritures', d.manual ? 'rien de saisi encore' : 'rien reçu du client'],
       xm.banque ? ['ok', 'Banque', `${pl(xm.banque, 'mouvement')} sur la banque${L.rapproche ? ` · rapprochée jusqu'au ${jjmm(L.rapproche)}` : ''}`] : ['att', 'Banque', 'aucun mouvement de banque pour ce mois'],
       L.attente ? ['af', 'Compte d\'attente', `${esc(dtCd(L.attente))} DT à expliquer`] : ['ok', 'Compte d\'attente', 'vide'],
-      tenuEnCours ? ['att', 'TVA', `se prépare après la fin du mois, pour le ${jjmm(limiteDe(mr))}`] : dm && dm.deposee ? ['ok', 'TVA', `déposée${dm.montant ? ` · ${esc(dtCd(montantDe(dm.montant)))} DT` : ''}`] : dm ? ['af', 'TVA', 'la déclaration est prête : à déposer'] : ['af', 'TVA', 'la déclaration reste à préparer'],
+      tenuEnCours ? ['att', 'TVA', `se prépare après la fin du mois, pour le ${jjmm(limiteDe(mr, d))}`] : dm && dm.deposee ? ['ok', 'TVA', `déposée${dm.montant ? ` · ${esc(dtCd(montantDe(dm.montant)))} DT` : ''}`] : dm ? ['af', 'TVA', 'la déclaration est prête : à déposer'] : ['af', 'TVA', 'la déclaration reste à préparer'],
     ];
   }
   async function chargerLivreFd(d, annee) {
@@ -5259,6 +5266,7 @@
     if (!L && !refus) void chargerLivreFd(d, annee);
     const retard = retardsConnus();
     const tard = retard.get(d.name) || [];
+    const sansTva = sansTvaCd(d);
     const eq = equipeDe(d);
     const em = etatsMessages.get(d.id) || {};
     const q = (questionsAttente || []).find(x => x.dossierId === d.id) || {};
@@ -5277,23 +5285,31 @@
     // Les mois où rien n'est arrivé du client (les retards, et le mois qui se dépose) : un seul geste, « Relancer ».
     const sansRien = d.manual ? [] : [...tard, ...(!tard.includes(mp) && (!d.from || d.from <= mp) ? [mp] : [])].filter(m => etatMoisFd(d, m, L, tard, mc)[0] === 'manque');
     const relanceTxt = (d.relances || []).length ? `${derniereRelanceCd(d)}.` : `${prenom || 'Le client'} n'a jamais été relancé.`;
-    const quandMp = (() => { const lim = limiteDe(mp); return lim === aujourdhui ? 'se dépose aujourd\'hui' : lim > aujourdhui ? `se dépose d'ici le ${jjmm(lim)}` : 'reste à déposer'; })();
+    const quandMp = (() => { const lim = limiteDe(mp, d); return lim === aujourdhui ? 'se dépose aujourd\'hui' : lim > aujourdhui ? `se dépose d'ici le ${jjmm(lim)}` : 'reste à déposer'; })();
     if (sansRien.length) {
       const noms = sansRien.map(moisLong), titre = `${cap(noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0])} · rien reçu`;
-      const dit = sansRien.map(m => (tard.includes(m) ? `${cap(moisLong(m))} est en retard depuis le ${jjmm(limiteDe(m))}` : `${cap(moisLong(m))} ${quandMp}`)).join(' ; ');
+      const dit = sansRien.map(m => (tard.includes(m) ? `${cap(moisLong(m))} est en retard depuis le ${jjmm(limiteDe(m, d))}` : `${cap(moisLong(m))} ${quandMp}`)).join(' ; ');
       // (1.362.5) « Aucune écriture depuis le 30/11 » au-dessus de juillet à septembre : la dernière écriture est APRÈS les mois
       // qui manquent, le trou est au milieu des livres. « Depuis » ne se dit que d'une écriture d'avant le premier mois vide.
       const avant = L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? L.derniere : '';
       attend.push(['alerte', tard.some(m => sansRien.includes(m)) ? 'rouge' : 'ambre', titre, `${avant ? `Aucune écriture depuis le ${jjmm(avant)}. ` : L && L.derniere ? `Aucune écriture sur ${sansRien.length > 1 ? 'ces mois' : 'ce mois'}, alors que ses livres en ont après (la dernière le ${jjmm(L.derniere)}). ` : 'Aucune écriture encore. '}${dit}. ${relanceTxt}`, [`Relancer ${prenom || 'le client'}…`, 'relancer']]);
     }
+    // (audit #30, CAB2-1) Un dossier tenu au cabinet : ses mois en retard « à saisir » n'entraient nulle part, et la carte
+    // verte disait « Rien n'attend » sous un en-tête qui comptait quatre mois en retard. Ils attendent la saisie, en rouge.
+    const aSaisirTard = tard.filter(m => etatMoisFd(d, m, L, tard, mc)[0] === 'pc');
+    if (aSaisirTard.length) {
+      const noms = aSaisirTard.map(moisLong);
+      attend.push(['saisie', 'rouge', `${cap(noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0])} · à saisir, en retard`,
+        `${aSaisirTard.length > 1 ? `Le premier est en retard depuis le ${jjmm(limiteDe(aSaisirTard[0], d))}` : `En retard depuis le ${jjmm(limiteDe(aSaisirTard[0], d))}`} : rien n'est saisi ; les pièces du mois, puis la déclaration.`, ['Saisir', versSaisie]]);
+    }
     for (const m of tard) {
       const [cl, mot] = etatMoisFd(d, m, L, tard, mc), br = ((L && L.parMois[m]) || {}).br || brouillardsConnus(d.id, m);
-      if (cl === 'manque') continue;
-      else if (cl === 'rev') attend.push(['alerte', 'rouge', `${cap(moisLong(m))} · en retard depuis le ${jjmm(limiteDe(m))}`, `${pl(br, 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(m)}`, versSaisie, eq.suit && eq.suit.id !== S.moi && !dir ? `${prenomDe(eq.suit)} révise` : '']]);
-      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · ${mot === 'sans activité' ? mot : 'prêt'}, en retard depuis le ${jjmm(limiteDe(m))}`, mot === 'sans activité' ? 'Clôturé par le client sans une écriture : sa déclaration se dépose quand même, à zéro (À VÉRIFIER), sur e-jibaya, puis se marque déposée dans Échéances.' : 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', `echeance:${m}`]]);
+      if (cl === 'manque' || cl === 'pc') continue;
+      else if (cl === 'rev') attend.push(['alerte', 'rouge', `${cap(moisLong(m))} · en retard depuis le ${jjmm(limiteDe(m, d))}`, `${pl(br, 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(m)}`, versSaisie, eq.suit && eq.suit.id !== S.moi && !dir ? `${prenomDe(eq.suit)} révise` : '']]);
+      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · ${mot === 'sans activité' ? mot : 'prêt'}, en retard depuis le ${jjmm(limiteDe(m, d))}`, mot === 'sans activité' ? 'Clôturé par le client sans une écriture : sa déclaration se dépose quand même, à zéro (À VÉRIFIER), sur e-jibaya, puis se marque déposée dans Échéances.' : 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', `echeance:${m}`]]);
     }
-    if (!tard.includes(mp) && (!d.from || d.from <= mp)) {
-      const [cl, mot] = etatMoisFd(d, mp, L, tard, mc), lim = limiteDe(mp);
+    if (!sansTva && !tard.includes(mp) && (!d.from || d.from <= mp)) {
+      const [cl, mot] = etatMoisFd(d, mp, L, tard, mc), lim = limiteDe(mp, d);
       const quand = lim === aujourdhui ? 'à déposer aujourd\'hui' : lim > aujourdhui ? `à déposer d'ici le ${jjmm(lim)}` : 'à déposer';
       if (cl === 'rev') attend.push(['alerte', 'ambre', `${cap(moisLong(mp))} · ${quand}`, `${pl(((L && L.parMois[mp]) || {}).br || brouillardsConnus(d.id, mp), 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(mp)}`, versSaisie]]);
       else if (cl === 'pc') attend.push(['saisie', 'ambre', `${cap(moisLong(mp))} · ${quand}, à saisir`, 'Un dossier tenu au cabinet : ses pièces se saisissent ici.', ['Saisir ' + moisLong(mp), versSaisie]]);
@@ -5305,7 +5321,7 @@
     const tenuEnCours = d.manual && etatMoisFd(d, mp, L, tard, mc)[0] === 'fait' && (!d.from || d.from <= mc);
     if (tenuEnCours) {
       const xc = (L && L.parMois[mc]) || { ecr: 0 }, jusque = L && L.derniere && L.derniere.slice(0, 7) === mc ? ` jusqu'au ${jjmm(L.derniere)}` : '';
-      attend.push(['saisie', 'gris', `${cap(moisLong(mc))} · se saisit au cabinet`, `${xc.ecr ? `${pl(xc.ecr, 'écriture saisie', 'écritures saisies')}${jusque}.` : 'Rien de saisi encore.'} Le mois se déclare le ${jjmm(limiteDe(mc))} (À VÉRIFIER).`, [xc.ecr ? 'Continuer la saisie' : 'Commencer la saisie', versSaisie]]);
+      attend.push(['saisie', 'gris', `${cap(moisLong(mc))} · se saisit au cabinet`, `${xc.ecr ? `${pl(xc.ecr, 'écriture saisie', 'écritures saisies')}${jusque}.` : 'Rien de saisi encore.'} Le mois se déclare le ${jjmm(limiteDe(mc, d))} (À VÉRIFIER).`, [xc.ecr ? 'Continuer la saisie' : 'Commencer la saisie', versSaisie]]);
     }
     if (nP) attend.push(['boite', 'ambre', `${pl(nP, 'pièce reçue', 'pièces reçues')} à classer`, 'Envoyées par le client : à saisir, ou à classer dans « Pièces reçues ».', [`Ouvrir ${nP > 1 ? `les ${nP} pièces` : 'la pièce'}`, '#/pieces']]);
     if (em.etat === 'a_traiter') attend.push(['msg', 'ambre', em.nonLus ? `${pl(em.nonLus, 'message', 'messages')} de ${esc(prenom || d.name)}` : `${esc(prenom || d.name)} t'a répondu`, em.dernier && em.dernier.cote === 'entreprise' && em.dernier.extrait ? `« ${esc(em.dernier.extrait.slice(0, 110))}${em.dernier.extrait.length > 110 ? '…' : ''} »` : 'dans votre conversation', ['Répondre', `#/messages/${encodeURIComponent(d.id)}`]]);
@@ -5383,21 +5399,21 @@
       : attend.length ? `<section class="panel fd-p" aria-labelledby="fd-at"><div class="fd-ph"><h2 id="fd-at">Ce qui attend ${info('fd.attend')}</h2><span class="fd-ph-n">${pl(attend.filter(a => a[4]).length, 'geste')}, dans l'ordre</span></div><ul class="fd-afs">${lignesAt}</ul></section>`
         : `<section class="panel fd-p fd-okp" aria-labelledby="fd-ok"><div class="fd-ok-m" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23"/><path d="M15.5 27.5l7 7 14-15"/></svg></div>
         <div class="fd-ok-c"><h2 id="fd-ok">Rien n'attend pour ${esc(d.name)}</h2><p>${dm && dm.deposee ? `${cap(moisLong(mp))} est déposé.` : `${cap(moisLong(mp))} n'attend rien du cabinet aujourd'hui.`} Aucune pièce à classer, aucun message ni aucune question n'attend.</p>
-          <ul class="fd-ok-l"><li>${CD_IC.ok}<span><b>${pl(nDecl, 'déclaration déposée', 'déclarations déposées')} en ${annee}</b>, aucune en retard</span></li><li>${FD_IC.attente}<span><b>La prochaine : ${esc(moisLong(prochaine))}, le ${jjmm(limiteDe(prochaine))}</b> (À VÉRIFIER)</span></li></ul></div></section>`;
+          <ul class="fd-ok-l"><li>${CD_IC.ok}<span><b>${pl(nDecl, 'déclaration déposée', 'déclarations déposées')} en ${annee}</b>, aucune en retard</span></li>${sansTva ? `<li>${FD_IC.attente}<span><b>Pas de déclaration de TVA</b> : dossier non assujetti (À VÉRIFIER)</span></li>` : `<li>${FD_IC.attente}<span><b>La prochaine : ${esc(moisLong(prochaine))}, le ${jjmm(limiteDe(prochaine, d))}</b> (À VÉRIFIER)</span></li>`}</ul></div></section>`;
 
     // L'année, en cases : son état, ce qui a été payé, la barre du chiffre d'affaires.
     const caMax = L ? Math.max(1, ...Object.values(L.parMois).map(v => v.ca)) : 1;
     const cases = mois.map((m, i) => {
       const [cl, lib, t] = etats[i], v = (L && L.parMois[m]) || { ca: 0, ecr: 0, br: 0 }, dc = (L && L.decl[m]) || null;
       const sous = dc && dc.deposee && dc.total ? `${esc(dtCd(dc.total))} DT ${dc.payee ? 'payés' : 'déclarés'}` : v.br ? `${pl(v.br, 'au brouillard', 'au brouillard')}` : v.ecr ? pl(v.ecr, 'écriture')
-        : d.archived ? '' : t ? `en retard depuis le ${jjmm(limiteDe(m))}` : m === mp && cl !== 'fait' && limiteDe(m) === aujourdhui ? 'dépôt aujourd\'hui' : cl === 'cours' && !d.manual ? 'rien reçu' : '';
+        : d.archived ? '' : t ? `en retard depuis le ${jjmm(limiteDe(m, d))}` : m === mp && cl !== 'fait' && limiteDe(m, d) === aujourdhui ? 'dépôt aujourd\'hui' : cl === 'cours' && !d.manual ? 'rien reçu' : '';
       const barre = v.ca > 0 ? `<i class="fd-m-ca" style="--w:${Math.round((v.ca / caMax) * 100)}" title="Chiffre d'affaires HT ${deMois(m)} : ${esc(dtCd(v.ca))} DT"></i>` : '';
       return `<button type="button" class="fd-m ${cl}${t ? ' tard' : ''}${ficheFd.mois === m ? ' ici' : ''}" data-fd-mois="${m}"${['avenir', 'hors'].includes(cl) || (cl === 'arch' && !v.ecr && !v.br) ? ' disabled' : ''} aria-label="${MOIS_LONGS[i]} : ${lib}${t ? ', en retard' : ''}"><span class="fd-m-n">${MOIS_CD[i]}</span><b>${t ? 'en retard' : lib}</b><small>${sous}</small>${barre}</button>`;
     }).join('');
     const legs = [['fait', 'déposé'], ['rev', 'à réviser'], ['pc', 'à saisir'], ['pret', 'prêt'], ['manque', 'rien reçu'], ['cours', 'en cours'], ['hors', 'avant la mission']].concat(d.archived ? [['arch', 'archivé : rien n\'est plus réclamé']] : []).filter(([c]) => etats.some(e => e[0] === c)).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('');
     const pop = ficheFd.mois ? popMoisFd(d, ficheFd.mois, d.archived ? etats[mois.indexOf(ficheFd.mois)] : etatMoisFd(d, ficheFd.mois, L, tard, mc), L, eq, dir, hors) : '';
     const anneeP = `<section class="panel fd-p" aria-labelledby="fd-an"><div class="fd-ph"><h2 id="fd-an">L'année ${annee} ${info('fd.mois')}</h2><span class="fd-ph-n">${d.manual ? 'lue dans le livre que tu tiens' : 'lue dans ses livres sur SkanFact · la barre : le chiffre d\'affaires du mois'}</span></div>
-      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}${d.archived ? '' : '<span class="fd-leg-r" title="Le jour de l\'usage. Si le tien diffère, change-le dans Réglages › Échéances : tous tes écrans suivent.">Date limite : le 28 du mois suivant (À VÉRIFIER pour ton cabinet)</span>'}</div>${pop}</section>`;
+      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}${d.archived ? '' : '<span class="fd-leg-r" title="Le jour de l\'usage. Si le tien diffère, change-le dans Réglages › Échéances : tous tes écrans suivent.">' + (sansTva ? 'Pas de déclaration de TVA : dossier non assujetti' : 'Date limite : le ' + K.jourTva(S, d) + (K.periodeTva(S, d) === 'trimestrielle' ? ' du mois qui suit le trimestre' : ' du mois suivant')) + ' (À VÉRIFIER pour ton cabinet)</span>'}</div>${pop}</section>`;
 
     // (1.216.0) Ce que montrait l'ancien « Suivi » : l'invitation du client tenu, les relances, qui travaille sur le dossier.
     const relancesT = (d.relances || []).filter(r => r && r.at).slice().reverse();
@@ -5420,13 +5436,13 @@
     // n'est qu'un repli quand le jour n'est pas connu.
     const hist = [
       ...(d.relances || []).filter(r => r && r.at).map(r => [KC.jourDeLInstant(Number(r.at)), `Relance ${canalRelance(r) || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
-      ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
+      ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m, d) > aujourdhui ? aujourdhui : limiteDe(m, d), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
       ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
     ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
     const cote = `<aside class="fd-cote" aria-label="La fiche">
       ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honFiche(d) ? `${esc(dtCd(honFiche(d)))} DT HT par mois` : '<button type="button" class="lien-manque" id="fd-hon">à écrire sur la fiche</button>') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
       ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : (aPlusieurs() ? '<span class="muted small">Personne ne suit encore ce dossier.</span>' : '<span class="muted small">Tu tiens ce dossier.</span>')}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
-      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.regime ? kv('Régime', esc(labelOf(K.choixRegimes(S, d.regime), d.regime) || d.regime)) : ''}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', (() => { const t = ({ mensuelle: 'mensuelle · déclarée le 28', trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod]; return t ? esc(t) : `${esc('non précisée · comptée mensuelle, déclarée le 28')}${dir ? ' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>' : ''}`; })())}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
+      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.regime ? kv('Régime', esc(labelOf(K.choixRegimes(S, d.regime), d.regime) || d.regime)) : ''}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', (() => { const t = ({ mensuelle: `mensuelle · déclarée le ${K.jourTva(S, d)}`, trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod]; return t ? esc(t) : `${esc(`non précisée · comptée mensuelle, déclarée le ${K.jourTva(S, d)}`)}${dir ? ' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>' : ''}`; })())}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
       ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
         : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}
@@ -5438,11 +5454,11 @@
     const phrase = [
       sansRien.length && L && L.derniere && L.derniere.slice(0, 7) < sansRien[0] ? `Rien reçu depuis le ${jjmm(L.derniere)}` : '',
       tard.length ? `${cap(tard.map(moisLong).join(', '))} en retard` : '',
-      !tard.includes(mp) && etats[mois.indexOf(mp)] && etats[mois.indexOf(mp)][0] !== 'fait' && (!d.from || d.from <= mp) ? `${moisLong(mp)} ${limiteDe(mp) === aujourdhui ? 'à déposer aujourd\'hui' : limiteDe(mp) > aujourdhui ? `à déposer d'ici le ${jjmm(limiteDe(mp))}` : 'à déposer'}` : '',
+      !sansTva && !tard.includes(mp) && etats[mois.indexOf(mp)] && etats[mois.indexOf(mp)][0] !== 'fait' && (!d.from || d.from <= mp) ? `${moisLong(mp)} ${limiteDe(mp, d) === aujourdhui ? 'à déposer aujourd\'hui' : limiteDe(mp, d) > aujourdhui ? `à déposer d'ici le ${jjmm(limiteDe(mp, d))}` : 'à déposer'}` : '',
       em.nonLus ? `${pl(em.nonLus, 'non lu', 'non lus')} de ${esc(prenom || d.name)}` : '',
       sansRien.length && !(d.relances || []).length ? 'jamais relancé' : '',
       tenuEnCours ? `${cap(moisLong(mp))} déposé · ${moisLong(mc)} se saisit au cabinet` : '',
-    ].filter(Boolean).map((t, i) => (i ? t.charAt(0).toLowerCase() + t.slice(1) : cap(t))).join(' · ') || (nouveau ? `Arrivé au cabinet · son premier mois : ${esc(moisLong(d.from || mc))}` : `Tout est à jour · prochaine déclaration le ${jjmm(limiteDe(prochaine))} (À VÉRIFIER)`);
+    ].filter(Boolean).map((t, i) => (i ? t.charAt(0).toLowerCase() + t.slice(1) : cap(t))).join(' · ') || (nouveau ? `Arrivé au cabinet · son premier mois : ${esc(moisLong(d.from || mc))}` : sansTva ? 'Tout est à jour · pas de déclaration de TVA (non assujetti)' : `Tout est à jour · prochaine déclaration le ${jjmm(limiteDe(prochaine, d))} (À VÉRIFIER)`);
     const lien = lienRelie(d);
     const ecrire = d.manual ? `<button type="button" class="btn" id="fd-ecrire-hors">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}…</button>` : `<a class="btn" href="#/messages/${encodeURIComponent(d.id)}">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}${em.nonLus ? `<span class="cd-nl-t">${em.nonLus}</span>` : ''}</a>`;
     const tete = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)} ${info('fd.page')}</h1>
@@ -5555,11 +5571,11 @@
       et('Saisie', recu ? pl(v.ecr, 'écriture') : '—', recu ? 'fait' : ''),
       et('Révision', v.br ? `${pl(v.br, 'écriture')} au brouillard` : recu ? 'faite' : '—', v.br ? 'ici' : recu ? 'fait' : ''),
       et('Déclaration', dc ? (dc.montant ? `${esc(dtCd(montantDe(dc.montant)))} DT` : 'préparée') : 'à préparer', dc ? 'fait' : ''),
-      et('Dépôt', d.archived ? '—' : dc && dc.deposee ? 'déposée' : `au plus tard le ${jjmm(limiteDe(m))}`, dc && dc.deposee ? 'fait' : t ? 'tard' : ''),
+      et('Dépôt', d.archived ? '—' : dc && dc.deposee ? 'déposée' : `au plus tard le ${jjmm(limiteDe(m, d))}`, dc && dc.deposee ? 'fait' : t ? 'tard' : ''),
       et('Paiement', dc && dc.payee ? 'payée' : '—', dc && dc.payee ? 'fait' : ''),
     ].join('');
     const rev = v.br && !(eq.suit && eq.suit.id !== S.moi && !dir);
-    return `<div class="fd-pop" role="dialog" aria-label="${esc(cap(moisLong(m)))} ${m.slice(0, 4)}"><div class="fd-pop-t"><span><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</b><small>${esc(lib)}${t ? ` · en retard depuis le ${jjmm(limiteDe(m))}` : ''}</small></span><button type="button" class="tb-mc-x" id="fd-pop-x" aria-label="Fermer">${CD_IC.croix}</button></div>
+    return `<div class="fd-pop" role="dialog" aria-label="${esc(cap(moisLong(m)))} ${m.slice(0, 4)}"><div class="fd-pop-t"><span><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</b><small>${esc(lib)}${t ? ` · en retard depuis le ${jjmm(limiteDe(m, d))}` : ''}</small></span><button type="button" class="tb-mc-x" id="fd-pop-x" aria-label="Fermer">${CD_IC.croix}</button></div>
       <ol class="fd-frise">${frise}</ol>
       ${t ? '<p class="fd-pop-n">Passé la date limite, des pénalités de retard sont possibles (À VÉRIFIER : rien n\'est calculé ici).</p>' : ''}
       <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button>${d.archived ? '' : `<button type="button" class="btn btn-sm" data-fd-ech="${esc(m)}">Voir dans Échéances</button>`}${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
@@ -5932,7 +5948,7 @@
   function trousCl(d, ctx) {
     const { m, etat, l, tard, aujourdhui, relanceTxt, prenom, livre, mp } = ctx;
     const t = [];
-    if (etat[0] === 'manque' && !d.manual) t.push({ k: `t:${m}`, sorte: 'trou', rub: 'manque', mois: m, titre: `${cap(moisLong(m))} ${m.slice(0, 4)} · ventes, achats, relevé bancaire`, sous: tard.includes(m) ? `en retard depuis le ${jjmm(limiteDe(m))} · ${relanceTxt}` : limiteDe(m) === aujourdhui ? 'à déposer aujourd\'hui' : `à déposer d'ici le ${jjmm(limiteDe(m))}`, etat: ['rouge', 'manquante', 'manque'], geste: { lib: `Relancer ${prenom || 'le client'}…`, act: 'relance' } });
+    if (etat[0] === 'manque' && !d.manual) t.push({ k: `t:${m}`, sorte: 'trou', rub: 'manque', mois: m, titre: `${cap(moisLong(m))} ${m.slice(0, 4)} · ventes, achats, relevé bancaire`, sous: tard.includes(m) ? `en retard depuis le ${jjmm(limiteDe(m, d))} · ${relanceTxt}` : limiteDe(m, d) === aujourdhui ? 'à déposer aujourd\'hui' : `à déposer d'ici le ${jjmm(limiteDe(m, d))}`, etat: ['rouge', 'manquante', 'manque'], geste: { lib: `Relancer ${prenom || 'le client'}…`, act: 'relance' } });
     for (const x of l.filter(y => y.etat[1] === 'sans justificatif')) t.push({ ...x, k: `j:${x.k}`, sorte: 'trou', rub: 'manque', cible: x, titre: `${cap(moisLong(m))} · le justificatif de ${x.num || x.titre}`, sous: `${x.titre} · ${dtCd(x.montant)} DT : ${prenom || 'le client'} l'a saisi sans justificatif`, em: '', etat: ['rouge', 'manquante', 'manque'], geste: d.manual ? null : { lib: `Demander à ${prenom || 'le client'}`, act: 'demander' } });
     if (m < mp) {
       for (const r of ((livre && livre.releves) || []).filter(y => String(y.au || y.du).slice(0, 7) === m)) {
@@ -8792,7 +8808,7 @@
     const parts = [];
     if (tard.length) parts.push(`<span class="rouge">${esc(tard.map(moisLong).join(', '))} en retard</span>`);
     if (!tard.includes(mp) && (!dossier.from || dossier.from <= mp) && etatMoisFd(dossier, mp, null, tard, mc)[0] !== 'fait') {
-      parts.push(`<span class="ambre">${esc(moisLong(mp))} à déposer${limiteDe(mp) === auj ? ' aujourd\'hui' : limiteDe(mp) > auj ? ` d'ici le ${esc(fmtJour(limiteDe(mp)).slice(0, 5))}` : ''}</span>`);
+      parts.push(`<span class="ambre">${esc(moisLong(mp))} à déposer${limiteDe(mp, dossier) === auj ? ' aujourd\'hui' : limiteDe(mp, dossier) > auj ? ` d'ici le ${esc(fmtJour(limiteDe(mp, dossier)).slice(0, 5))}` : ''}</span>`);
     }
     if (eqC.suit) parts.push(`tenu par ${esc(eqC.suit.id === S.moi ? 'toi' : prenomDe(eqC.suit))}`);
     return parts.map(x => ` · ${x}`).join('') + `<span id="d-avalider"${row.provisionalCount ? '' : ' hidden'}> · <span class="warn-text">${row.provisionalCount ? `${row.provisionalCount} mois à valider` : ''}</span></span>`;
