@@ -31967,6 +31967,14 @@ prouver "le double clic qui valide deux fois" modules/socle/ecrans/cabinet/app-2
   "      try { await enregistrerUneFois(puisValider); }" "      enregistrement = false; btns.forEach(b => { b.disabled = false; }); try { await enregistrerUneFois(puisValider); }" \
   "le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
 
+# 1.388.46 — ROB-3 : un poste resté ouvert dit ce qu'un autre poste a fait.
+prouver "le poste ouvert aveugle a l'autre poste" web/public/plateforme/pont.js \
+  "return; void voirAilleurs();" "return;" \
+  "Rania garde Factures ouvert : la facture faite ailleurs se dit, « Mettre à jour » la montre ; ce que le poste fait lui-même ne se dit pas"
+prouver "ses propres envois dits faits ailleurs" web/public/plateforme/pont.js \
+  "=> o.revision !== (vu.get(" "=> !!o.revision || (vu.get(" \
+  "Rania garde Factures ouvert : la facture faite ailleurs se dit, « Mettre à jour » la montre ; ce que le poste fait lui-même ne se dit pas"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

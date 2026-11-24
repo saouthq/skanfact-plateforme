@@ -418,6 +418,15 @@
     const enSaisie = !!$('#modal-root .modal') || !!(document.activeElement && document.activeElement.matches('input, textarea, select'));
     if (!enSaisie && /^(#\/(dashboard|compta)([?].*)?)?$/.test(location.hash)) render();
   });
+  // (audit #30, ROB-3) Ce qu'un autre poste a fait depuis l'ouverture (le point de contact le relit avec les questions) : la page
+  // ne le montrait pas, et les listes et les totaux restaient faux jusqu'au rechargement. On le dit, avec le geste qui met à jour.
+  window.addEventListener('skanfact-ailleurs', e => {
+    const d = e.detail || {}, v = $('#view');
+    if (!v || $('#maj-ailleurs') || !(d.n > 0)) return;
+    const quoi = d.documents > 0 ? `${pl(d.documents, 'pièce')} faite${sPl(d.documents)} ou changée${sPl(d.documents)} sur un autre poste` : `${d.n > 1 ? 'Des changements faits' : 'Un changement fait'} sur un autre poste`;
+    v.insertAdjacentHTML('afterbegin', `<div class="banner info" id="maj-ailleurs" role="status"><span><b>${h(quoi)} depuis ton ouverture.</b> Cette page ne ${d.n > 1 ? 'les' : 'le'} montre pas encore : ses listes et ses totaux datent de ton ouverture.</span><button type="button" class="btn" id="maj-ailleurs-ok">Mettre à jour</button></div>`);
+    $('#maj-ailleurs-ok').onclick = () => location.reload();
+  });
   const PHRASES_ALERTE = {
     numero: a => `Le ticket imprimé ${h(a.numeroPoste)} est enregistré sous le numéro ${h(a.numeroSerie)} : les deux numéros diffèrent.`,
     chaine: a => `Le ticket ${h(a.numeroSerie)} ne suit pas le ticket précédent de cette caisse : la chaîne des tickets est cassée (un ticket manque ou a été remplacé).`,

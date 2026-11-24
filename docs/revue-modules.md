@@ -6864,3 +6864,19 @@ contre-passer chaque doublon). Le contrôle du doublon de pièce ne jouait pas q
 Désormais « Enregistrer » et « Enregistrer et valider » se grisent le temps du geste, et un second clic (ou le raccourci
 clavier) pendant ce temps ne fait rien : une seule écriture, validée une fois. Testé à la souris
 (`tests/web/cabinet-saisie.test.ts`, trois clics dans la même milliseconde) ; une preuve.
+
+## 1.388.46 — Un poste resté ouvert dit ce qu'un autre poste a fait (audit #30, ROB-3)
+
+Deux postes de la même entreprise (deux personnes, ou la même sur deux ordinateurs) : une facture émise sur l'un
+n'apparaissait pas sur l'autre resté ouvert, ni dans la liste, ni dans les totaux (« À encaisser »), jusqu'à un
+rechargement de la page ; un client créé sur l'un était proposé comme « Nouveau client » sur l'autre. Rien ne disait que
+la page datait de son ouverture.
+
+Désormais le poste ouvert demande au serveur, avec les questions du cabinet (toutes les deux minutes et au retour sur
+l'onglet), ce qui a changé depuis sa lecture. Ce qu'il a envoyé lui-même ne compte pas ; ce qu'un autre poste a fait se dit
+en haut de la page : « 1 pièce faite ou changée sur un autre poste depuis ton ouverture. Cette page ne le montre pas encore :
+ses listes et ses totaux datent de ton ouverture. » avec « Mettre à jour ». La page ne se recharge jamais seule pendant une
+saisie.
+
+Testé à la souris (`tests/web/ailleurs-1388.test.ts` : un client créé et une facture émise sur ce poste ne se disent pas,
+un brouillon écrit par une autre session se dit, « Mettre à jour » le montre) ; deux preuves.

@@ -633,12 +633,12 @@
   };
   poste.auRetour(relancer);
   setInterval(() => { if (navigator.onLine) relancer(); }, 30_000);
-  // (1.94.0) Les questions du cabinet arrivent sans recharger la page : la page ouverte ne les lisait qu'à son
-  // ouverture, et « À faire » ne disait rien d'une question posée l'heure d'avant (vu au parcours du 21/10/2026). Elles
-  // se relisent toutes les deux minutes et au retour sur l'onglet ; nouvelles, l'écran les reçoit
-  // (`skanfact-questions`) et se redessine.
+  // (1.94.0) Les questions du cabinet, relues toutes les deux minutes et au retour sur l'onglet (`skanfact-questions`). (audit #30, ROB-3) Avec elles, ce qu'un
+  // AUTRE poste a écrit depuis la lecture (révisions que `vu` ne connaît pas) : l'écran le dit (`skanfact-ailleurs`) ; nos propres envois sont déjà dans `vu`.
+  const autreRev = (/** @type {any} */ o) => o.revision !== (vu.get(`${o.collection}\u0000${o.cle}`) || {}).revision;
+  async function voirAilleurs() { if (!marqueLue || enCours || nonEnregistre) return; /** @type {any} */ const r = await appel('GET', `/dossier-v10?depuis=${encodeURIComponent(marqueLue)}&profil=${encodeURIComponent(profilLu)}`).catch(() => null); const n = r && r.partiel ? (r.objets || []).filter(autreRev).length + (r.retires || []).filter((/** @type {any} */ x) => vu.has(`${x.collection}\u0000${x.cle}`)).length : 0; if (n) window.dispatchEvent(new CustomEvent('skanfact-ailleurs', { detail: { n, documents: (r.objets || []).filter((/** @type {any} */ o) => o.collection === 'documents' && autreRev(o)).length } })); }
   async function relireLesQuestions() {
-    if (!ent || LECTURE || document.hidden || !navigator.onLine) return;
+    if (!ent || LECTURE || document.hidden || !navigator.onLine) return; void voirAilleurs();
     /** @type {any[] | null} */ const q = await questionsDuCabinet().catch(() => null);
     if (!q || JSON.stringify(q) === JSON.stringify(questionsLues)) return;
     questionsLues = q;
