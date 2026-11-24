@@ -30914,8 +30914,8 @@ prouver $'recherche-par-montant' modules/socle/ecrans/entreprise/app-1.js \
   $'${C.docLabel(d.type, company())} ' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 prouver $'recherche-un-compte' modules/socle/ecrans/entreprise/app-1.js \
-  $'...fournisseurs, ...comptes, ...salaries' \
-  $'...fournisseurs, ...salaries' \
+  $'...affairesP, ...comptes, ...salaries' \
+  $'...affairesP, ...salaries' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 prouver $'recherche-un-seul-signe' modules/socle/ecrans/entreprise/app-1.js \
   $'amt: montantTexte(montantDeListe(d), docCur(d)), text:' \
