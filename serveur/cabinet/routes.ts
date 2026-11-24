@@ -25,7 +25,10 @@ const uuid = z.string().uuid();
 const nomExemple = () => rendre(t('cabinet.exemple.nom'), 'fr');
 const champInvalide = (champ: string, raison: ReturnType<typeof t>) => ({ statut: 400 as const, corps: { motif: motif('commun.champ_invalide', { champ, raison }), champ } });
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
-const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' });
+const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' })
+  // (1.388.60, issue 22, ROLE-2) Les déclarations se préparent depuis la balance et les écritures : sans la comptabilité, le
+  // cabinet ne lirait rien de ce qu'il faut déclarer. Le mandat ne se fait pas, en le disant (tous ses chemins passent ici).
+  .refine((p) => !p.includes('declarations') || p.includes('comptabilite'), { message: 'cabinet.champ.perimetre_declarations' });
 const ROLES_SUR_DOSSIER = ['supervision', 'revision', 'saisie', 'paie'] as const;
 // Les rôles d'une personne au cabinet (0030) : associé, collaborateur, assistant de saisie.
 const ROLES_AU_CABINET = ['supervision', 'revision', 'saisie'] as const;

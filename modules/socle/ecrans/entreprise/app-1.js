@@ -11437,7 +11437,7 @@
   // Les parties qu'une personne lit sans pouvoir les écrire (plateforme, brique 102) : le geste est refusé AVANT,
   // en le disant ; jamais un « Enregistré » que le serveur n'aura pas reçu.
   const NOMS_EN_LECTURE = { documents: 'les pièces de vente', clients: 'les fiches clients', suppliers: 'les fiches fournisseurs',
-    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue', accounts: 'les comptes de trésorerie' };
+    employees: 'les salariés', stockAdjustments: 'les mouvements de stock', purchases: 'les achats', catalog: 'le catalogue', accounts: 'les comptes de trésorerie', movements: 'les mouvements de trésorerie' };
   const enLecture = partie => !peutEcrireDossier(partie);
   // (1.387.85, issue 7, COLLAB-3) La caisse et la banque ne se créent ni ne se modifient que par le propriétaire ou un
   // administrateur (serveur/v10/droits.ts, tresorerie.comptes.modifier) : un autre rôle ne lit jamais un « créé » que le
@@ -11457,8 +11457,17 @@
   const auteurAutre = (partie, id) => (bridge.auteurAutre ? bridge.auteurAutre(partie, id) : null);
   const refusAuteur = (auteur, quoi) => `${quoi} a été fait par ${auteur || 'quelqu\'un d\'autre'} : seul son auteur, le propriétaire ou un administrateur le supprime. Rien n'a été supprimé.`;
   // Le bandeau d'une page dont la partie principale se lit seulement : dit avant le premier geste.
+  // (1.388.60, issue 22, ROLE-3) La partie qui décide du bandeau est celle où se fait le TRAVAIL de la page : en Trésorerie,
+  // les mouvements (la comptabilité interne les enregistre), pas les comptes (que seuls le propriétaire et l'administrateur créent).
+  const PARTIE_DU_TRAVAIL = { tresorerie: 'movements' };
   function bandeauLecture(name) {
-    const p = (PARTIES_DES_PAGES[name] || [])[0];
+    const p = PARTIE_DU_TRAVAIL[name] || (PARTIES_DES_PAGES[name] || [])[0];
+    // Le travail s'écrit, une partie voisine non : une phrase précise, jamais « Lecture seule ».
+    if (p && bridge.droitsDossier && !enLecture(p) && (PARTIES_DES_PAGES[name] || []).includes('accounts') && enLecture('accounts') && !$('#bandeau-lecture')) {
+      const t = $('#view .page-head');
+      if (t) t.insertAdjacentHTML('afterend', `<div class="banner info" id="bandeau-lecture" data-lecture-partielle><span>Tu enregistres les mouvements, les virements et le rapprochement. Créer ou modifier un compte (la caisse, la banque) reste à ${h(quiCreeLesComptes())}.</span></div>`);
+      return;
+    }
     // (COLLAB-15) Une page qui dit déjà sa lecture seule (Achats, Clients, Fournisseurs ont la leur) n'en reçoit pas une seconde.
     if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture') || $$('#view .banner, #view .bandeau').some(x => /^\s*Lecture seule/.test(x.textContent))) return;
     // (brique 121) La caisse vend par sa route à elle : qui la tient n'y est jamais « en lecture seule ».

@@ -8896,6 +8896,12 @@
     }
     if (!s.data) { el.innerHTML = '<div class="empty">Lecture des paquets…</div>'; return; }
     // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » : il fallait recharger toute la page (UX 2).
+    // (1.388.60, issue 22, ROLE-2) Un mandat qui ne confie pas la comptabilité : « Réessayer » ne réussirait jamais. On dit
+    // quoi demander au client, et où il le coche.
+    if (s.data.erreur && Array.isArray(dossier.perimetre) && !dossier.perimetre.includes('comptabilite')) {
+      el.innerHTML = `<div class="warn-box" id="lv-refus" data-hors-mandat><b>${esc(dossier.name || 'Ce client')} ne t'a pas confié sa comptabilité.</b> Ses écritures, sa balance et ses déclarations se lisent depuis elle. Demande-lui de cocher « La comptabilité » dans « Mon comptable », sur son SkanFact : la page se remplit dès qu'il l'a fait.</div>`;
+      return;
+    }
     if (s.data.erreur) {
       el.innerHTML = `<div class="warn-box" id="lv-refus"><b>La comptabilité n'a pas pu se lire.</b> ${esc(s.data.erreur)}
         <div class="inline mt"><button type="button" class="btn btn-sm" id="lv-relire-tout">Réessayer</button></div></div>`;

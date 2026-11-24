@@ -32127,6 +32127,18 @@ prouver "la frise réclame un exercice clos" modules/socle/ecrans/cabinet/app-1.
 prouver "la liasse se dit complète" modules/socle/ecrans/cabinet/app-1.js \
   '<p class="small muted mb" id="li-manque">' '<p class="small muted mb" id="li-tout">' \
   $'la liasse dit qu\'il manque les flux de trésorerie, les notes et les fichiers XML'
+prouver 'la Trésorerie qui juge les comptes, pas les mouvements (1.388.60)' modules/socle/ecrans/entreprise/app-1.js \
+  'const p = PARTIE_DU_TRAVAIL[name] || (PARTIES_DES_PAGES[name] || [])[0];' 'const p = (PARTIES_DES_PAGES[name] || [])[0];' \
+  'le bandeau de la Trésorerie juge les mouvements, et dit ce qui reste au propriétaire'
+prouver 'la Trésorerie qui redit « Lecture seule » à qui enregistre (1.388.60)' modules/socle/ecrans/entreprise/app-1.js \
+  'Tu enregistres les mouvements, les virements et le rapprochement.' 'Lecture seule.' \
+  'le bandeau de la Trésorerie juge les mouvements, et dit ce qui reste au propriétaire'
+prouver 'le mandat « déclarations » sans la comptabilité, accepté (1.388.60)' serveur/cabinet/routes.ts \
+  '  .refine((p) => !p.includes('\''declarations'\'') || p.includes('\''comptabilite'\''), { message: '\''cabinet.champ.perimetre_declarations'\'' });' ';' \
+  'le propriétaire choisit son cabinet par son code'
+prouver 'le Cabinet sans la comptabilité qui propose « Réessayer » (1.388.60)' modules/socle/ecrans/cabinet/app-1.js \
+  'if (s.data.erreur && Array.isArray(dossier.perimetre) && !dossier.perimetre.includes('\''comptabilite'\'')) {' 'if (false) {' \
+  'au Cabinet, un dossier sans la comptabilité dit quoi demander, sans « Réessayer »'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

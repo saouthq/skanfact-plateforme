@@ -114,7 +114,7 @@ describe('la révision d\'un dossier', () => {
     expect((await appeler('PUT', `${url}/2026`, d.associe.jeton, { contenu: REVISION, revision: null })).statut).toBe(200);
     expect((await appeler('GET', `${url}?annee=2026`, d.client.jeton)).corps.revisions).toEqual([]);
     // Sans la comptabilité au mandat, plus de révision.
-    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['declarations'] })).statut).toBe(200);
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['saisie_achats'] })).statut).toBe(200);
     expect((await appeler('PUT', `${url}/2026-01`, d.associe.jeton, { contenu: REVISION, revision: null })).statut).toBe(403);
     // Directement dans la base aussi.
     await expect(enTantQue(pool, d.assistant.utilisateur, (tx) => tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, null)',
@@ -233,7 +233,7 @@ describe('les questions au client', () => {
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query('select compta.poser_question($1, $2::jsonb)', [d.ent, JSON.stringify({ ...QUESTION, montant: 1.5 })])))
       .rejects.toThrow('un montant se donne en millimes');
     // Sans la comptabilité au mandat : plus de question.
-    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['declarations'] })).statut).toBe(200);
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['saisie_achats'] })).statut).toBe(200);
     expect((await appeler('POST', url, d.associe.jeton, QUESTION)).statut).toBe(403);
   });
 });

@@ -141,7 +141,7 @@ describe('la liasse et l\'annuel', () => {
     expect((await poser(d.ent, d.associe, { tauxImpot: '15', revision: 1 })).corps).toEqual({ revision: 2 });
     expect((await annuel(d.ent, d.collaborateur)).tauxImpot).toBe('15');
     // Sans la comptabilité dans le mandat, l'associé non plus.
-    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['declarations'] })).statut).toBe(200);
+    expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['saisie_achats'] })).statut).toBe(200);
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query('select compta.poser_annuel($1, 2026, \'[]\'::jsonb, 250000, 2)', [d.ent])))
       .rejects.toThrow(/entreprise introuvable|ne permet pas de préparer la liasse/);
   });

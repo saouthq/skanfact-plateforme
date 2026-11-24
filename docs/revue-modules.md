@@ -7093,3 +7093,19 @@ SOCIAL-1 (l'indemnité de congés non pris sur un mois complet, et posée sur le
 - **À faire vérifier par un expert** (rien changé) : SOCIAL-3 (une prime non mensuelle imposée par différence plutôt qu'en
   multipliant le mois par douze), l'assiette exacte de SOCIAL-4, la méthode de SOCIAL-2, l'IRPP au SMIG.
 - Tests : `paie-cloture-1388-59` ; parcours de paie, de saisie et de liasse relancés ; six preuves.
+
+## 1.388.60 — Les rôles dans l'entreprise (rapport #22 : ROLE-2, ROLE-3)
+
+- **ROLE-3** — En Trésorerie, la comptabilité interne enregistre les mouvements, les virements et le rapprochement : la
+  page ne lui dit plus « Lecture seule ». Le bandeau juge la partie où se fait le travail de la page (les mouvements), et
+  dit à la place que créer ou modifier un compte (la caisse, la banque) reste au propriétaire ou à un administrateur.
+- **ROLE-2** — Un mandat qui confie les déclarations sans la comptabilité ne se fait plus : le cabinet n'aurait rien pu
+  lire de ce qu'il faut déclarer. Le serveur le refuse par ses trois chemins (proposer, inviter, changer le périmètre), en
+  disant « coche aussi « La comptabilité », ou décoche « Les déclarations » ». Un mandat déjà posé ainsi, au Cabinet, ne
+  propose plus « Réessayer » : la page dit que le client ne lui a pas confié sa comptabilité, et ce qu'il faut lui
+  demander de cocher dans « Mon comptable ».
+  *Reste* : l'écran du client n'empêche pas de cocher les déclarations seules avant l'envoi ; c'est le refus du serveur
+  qui le dit (pont.js tenu à sa taille).
+- **ROLE-1** (le stock lu sur une partie des pièces selon le rôle) attend la décision de Skander (déjà noté en 1.388.49).
+- Tests : `roles-1388-60`, `mandats` (le refus par ses deux routes de changement) ; `revision` et `annuel` passent par un
+  mandat sans la comptabilité (`saisie_achats`) au lieu des déclarations seules ; quatre preuves.

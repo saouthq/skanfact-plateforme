@@ -104,6 +104,13 @@ describe('le cabinet et ses mandats', () => {
     const m = await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code.toLowerCase() });
     expect(m.statut, JSON.stringify(m.corps)).toBe(201);
     expect(m.corps.perimetre).toEqual(['comptabilite', 'declarations', 'saisie_achats']);
+    // (1.388.60, issue 22, ROLE-2) Les déclarations seules : le cabinet n'aurait rien à lire pour les préparer. Refusé, par
+    // les trois chemins (proposer, inviter, changer), en le disant.
+    for (const [methode, chemin] of [['PUT', 'mandat/perimetre'], ['POST', 'mandat/invitation']] as const) {
+      const r = await appeler(methode, `/entreprises/${cl.ent}/${chemin}`, cl.jeton, { perimetre: ['declarations', 'saisie_achats'], ...(chemin === 'mandat/invitation' ? { email: 'compta-role2@exemple.tn' } : {}) });
+      expect(r.statut, chemin).toBe(400);
+      expect(r.corps.motif).toMatch(/les déclarations se préparent depuis ta comptabilité : coche aussi « La comptabilité »/);
+    }
     expect((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.motif).toMatch(/déjà un cabinet/i);
     // L'associé voit la proposition, mais pas encore le dossier.
     expect(await portefeuille(cab.id, cab.associe)).toMatchObject([{ entreprise: cl.ent, raisonSociale: 'Menuiserie Ben Salah', statut: 'propose', tenu: false, role: 'supervision' }]);
