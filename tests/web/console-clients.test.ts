@@ -121,10 +121,10 @@ describe('la liste des clients, à la souris', () => {
     await expect.poll(() => menu.count(), { timeout: 10_000 }).toBe(1);
     // Les gestes de l'abonnement, nos échanges, ce qui détruit, l'accès : chaque famille après un trait (la maquette Clients).
     expect((await menu.locator('button b').allInnerTexts()).map(net)).toEqual(['Prolonger l\'essai…', 'Sur sa fiche…', 'Noter un appel…', 'Écrire au contact…', 'Passer en lecture seule…',
-      'Demander l\'accès au dossier…']);
+      'Demander l\'accès au dossier…', 'Ranger avec les organisations de test…']);
     // (1.383.8, issue 5, CONSOLE-10) ce que la fiche propose en plus est nommé ici, et mène à la fiche.
     expect(net(await menu.locator('button', { hasText: 'Sur sa fiche…' }).locator('.c-menu-action > span').innerText())).toMatch(/^Noter un paiement reçu, .*offrir l.abonnement/i);
-    expect((await menu.locator('button.c-menu-trait b').allInnerTexts()).map(net)).toEqual(['Noter un appel…', 'Passer en lecture seule…', 'Demander l\'accès au dossier…']);
+    expect((await menu.locator('button.c-menu-trait b').allInnerTexts()).map(net)).toEqual(['Noter un appel…', 'Passer en lecture seule…', 'Demander l\'accès au dossier…', 'Ranger avec les organisations de test…']);
     // « Passer en lecture seule » détruit : il est dit en rouge ; pas de note pour la direction.
     expect(await menu.locator('button.c-menu-danger b').innerText()).toBe('Passer en lecture seule…');
     expect(await menu.locator('.c-menu-note').count()).toBe(0);
@@ -297,11 +297,11 @@ describe('la liste des clients, à la souris', () => {
     await p.keyboard.press('ArrowDown');
     expect(await auClavier()).toBe('Sur sa fiche…');
     await p.keyboard.press('End');
-    expect(await auClavier()).toBe('Demander l\'accès au dossier…');
+    expect(await auClavier()).toBe('Ranger avec les organisations de test…');
     await p.keyboard.press('ArrowDown');
     expect(await auClavier()).toBe('Prolonger l\'essai…');
     await p.keyboard.press('ArrowUp');
-    expect(await auClavier()).toBe('Demander l\'accès au dossier…');
+    expect(await auClavier()).toBe('Ranger avec les organisations de test…');
     // Échap le ferme et rend le clavier à son bouton ; Entrée le rouvre.
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('.c-menu-liste').count(), { timeout: 10_000 }).toBe(0);
@@ -329,6 +329,43 @@ describe('la liste des clients, à la souris', () => {
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('.c-dialogue').count(), { timeout: 10_000 }).toBe(0);
     expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
+  // (0225) Les organisations de test : la direction range une entreprise d'essai à part (elle sort de la liste), la
+  // retrouve dans « Organisations de test rangées à part », et la remet ; le support ne le peut pas.
+  it('ranger une organisation d\'essai avec les tests, la retrouver, la remettre ; le support ne le peut pas', async () => {
+    const marque = `Essai rangé ${Date.now().toString(36)}`;
+    const email = `proprio-test-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Proprio Essai', motDePasse: MDP });
+    const jC = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', jC, { raisonSociale: marque })).corps.id);
+    // Le support : le serveur refuse le geste.
+    expect((await api('POST', `/console/entreprises/${ent}/test`, jS, { motif: 'compte de test' })).statut).toBe(403);
+    const p = await ouvrir(jD, `#/clients?q=${encodeURIComponent(marque)}`);
+    await cliquer(ligne(p, marque).locator('.c-menu-btn'));
+    await cliquer(p.locator('.c-menu-liste').getByRole('button', { name: /Ranger avec les organisations de test/ }));
+    const fenetre = p.locator('.c-dialogue');
+    await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(1);
+    // Sans motif : refusé, et rien ne bouge.
+    await cliquer(fenetre.getByRole('button', { name: 'Ranger avec les tests' }));
+    await expect.poll(async () => net(await fenetre.innerText()), { timeout: 5_000 }).toMatch(/motif/i);
+    await fenetre.locator('textarea').fill('Compte créé pour essayer la plateforme');
+    await cliquer(fenetre.getByRole('button', { name: 'Ranger avec les tests' }));
+    await expect.poll(() => fenetre.count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => ligne(p, marque).count(), { timeout: 15_000 }).toBe(0);
+    // La liste à part la nomme, et la remet.
+    await cliquer(p.getByRole('button', { name: /Organisations de test rangées à part/ }));
+    const liste = p.locator('.c-dialogue');
+    await expect.poll(async () => net(await liste.innerText()), { timeout: 10_000 }).toContain(marque);
+    await cliquer(liste.locator('li', { hasText: marque }).getByRole('button', { name: 'Remettre dans la liste' }));
+    await expect.poll(async () => net(await p.locator('.c-dialogue').innerText()), { timeout: 10_000 }).toContain('Remettre');
+    await p.locator('.c-dialogue textarea').fill('Finalement un vrai client');
+    await cliquer(p.locator('.c-dialogue').getByRole('button', { name: 'Remettre dans la liste' }));
+    await expect.poll(() => ligne(p, marque).count(), { timeout: 15_000 }).toBe(1);
+    // Le journal garde les deux gestes, avec leur motif.
+    const j = await admin.query('select geste, motif from plateforme.geste_console where entreprise = $1 order by le', [ent]);
+    expect(j.rows.map((r) => r.geste)).toEqual(['clients.test_classee', 'clients.test_remise']);
     await fermer(p);
   }, 90_000);
 });

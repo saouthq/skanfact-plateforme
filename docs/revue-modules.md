@@ -6945,3 +6945,19 @@ Quatre constats de la revue par métier (#21) :
 - MET1-12 : la colonne Unité de la grille des lignes a la place de « bouteille » (elle coupait « boutei… »).
 
 Testé à la souris (`tests/web/metiers-1388.test.ts`) ; quatre preuves.
+
+## 1.388.52 — Ranger les organisations de test à part dans la console
+
+La console de production mélange les entreprises créées pour essayer la plateforme (« test vide », « Boulangerie
+d'essai ») avec les vrais clients : elles comptent dans « À décider », les relances et les totaux. Les effacer
+toucherait une centaine de tables et ne se défait pas ; on les **classe**.
+
+- Menu « ••• » d'une ligne de Clients : « Ranger avec les organisations de test… » (direction seule, motif obligatoire,
+  au journal). Refusé dès qu'une entreprise a émis une pièce, reçu un règlement ou une facture d'abonnement : ce n'est
+  plus un essai. L'entreprise de SkanFact ne se classe jamais.
+- Une organisation rangée sort de la liste des clients ; elle se retrouve sous « Organisations de test rangées à
+  part », d'où « Remettre dans la liste » la rend. Rien ne s'écrit dans son dossier.
+- Migration 0225 (`plateforme.organisation_test`), routes `GET /console/organisations-test` et
+  `POST /console/entreprises/:id/test`, geste `console.clients.test` (droit affiché dans Équipe).
+- Test : `tests/web/console-clients.test.ts` (ranger, retrouver, remettre ; le support refusé). Preuve : la liste
+  garde les organisations de test si le filtre saute.

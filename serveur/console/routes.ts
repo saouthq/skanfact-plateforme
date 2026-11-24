@@ -392,7 +392,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     for (const d of lireSupport(await lireJson(t, 'select plateforme.console_support(null, null) v')).ouvertes) demandes.set(d.entreprise.id, (demandes.get(d.entreprise.id) ?? 0) + 1);
     const contestees = new Set(lireContestations(await lireJson(t, 'select plateforme.console_contestations($1) v', [maintenant()]))
       .filter((c) => c.close === null).map((c) => c.entreprise.id));
-    const entreprises = avecRisque(avecEnPlus(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
+    // Les organisations de test (0225) sortent de la liste, de ses comptes et de « À décider » : elles se lisent à part.
+    const deTest = new Set((await lireJson(t, 'select plateforme.console_organisations_test() v') as { id: string }[]).map((x) => x.id));
+    const entreprises = avecRisque(avecEnPlus(avecVenues((await lesEntreprises(t, jour)).filter((e) => !deTest.has(e.id)), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
       lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))),
     lireEnPlus(await lireJson(t, 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour)),
     jour, lireUsages(await lireJson(t, 'select plateforme.console_usage_trente($1::date) v', [jour])), contestees, demandes);
@@ -641,6 +643,23 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       await transaction(tx).query('select plateforme.console_appliquer_reprise($1, $2)', [id, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // ── Les organisations de test (0225) ─────────────────────────────────────────────────────────────────────────────
+  // Une entreprise d'essai (ni pièce émise, ni règlement, ni facture d'abonnement) se range à part, et se remet ; la
+  // direction seule, avec son motif. La liste se recalcule tout de suite (« frais »).
+  ajouter({
+    methode: 'GET', chemin: '/console/organisations-test', geste: 'console.clients.voir',
+    traiter: async (_r, tx) => ({ corps: { organisations: await lireJson(transaction(tx), 'select plateforme.console_organisations_test() v') } }),
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/test', geste: 'console.clients.test',
+    corps: z.object({ remettre: z.boolean().optional(), motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query(corps.remettre ? 'select plateforme.console_declasser_test($1, $2, $3)' : 'select plateforme.console_classer_test($1, $2, $3)', [id, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

@@ -246,11 +246,64 @@ function FenetreExport({ total, filtres, fermer }: { total: number; filtres: Rec
   );
 }
 
+// Ranger une organisation d'essai avec les organisations de test, ou l'en sortir (0225) : la direction seule, avec son
+// motif (le journal le garde). Rien ne s'écrit dans le dossier de l'entreprise ; elle sort des listes, et s'y remet.
+function RangerTest({ client, remettre, fermer, fait }: { client: { id: string; nom: string }; remettre: boolean; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', `/console/entreprises/${client.id}/test`, { motif: motif.trim(), remettre });
+        if (!r) return;
+        if (r.statut === 200) { toast(phrase(remettre ? 'console.ecran.clients.te.remise' : 'console.ecran.clients.te.rangee', { nom: client.nom })); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(remettre ? 'console.ecran.clients.te.titre_remettre' : 'console.ecran.clients.te.titre', { nom: client.nom })} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(remettre ? 'console.ecran.clients.te.bouton_remettre' : 'console.ecran.clients.te.bouton')}</Bouton>
+      </>}>
+      <p>{phrase(remettre ? 'console.ecran.clients.te.explique_remettre' : 'console.ecran.clients.te.explique')}</p>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.clients.te.motif_aide')} valeur={motif} changer={setMotif} premier faute={faute > 0} n={faute} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// La liste des organisations rangées avec les tests : qui, quand, pourquoi, et « Remettre dans la liste ».
+function OrganisationsTest({ fermer, remettre }: { fermer: () => void; remettre: (c: { id: string; nom: string }) => void }) {
+  const [l] = useLecture<{ organisations: { id: string; nom: string; motif: string; le: string; par: string | null }[] }>('/console/organisations-test');
+  const liste = l.etat === 'lu' ? l.donnees.organisations : null;
+  return (
+    <Dialogue titre={titre('console.ecran.clients.te.liste_titre')} fermer={fermer}
+      pied={<Bouton ferme onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}>
+      {l.etat === 'panne' ? <Alerte ton="danger">{l.texte}</Alerte> : !liste ? <p className="c-vide">{titre('console.ecran.lecture')}</p>
+        : liste.length === 0 ? <p>{phrase('console.ecran.clients.te.liste_vide')}</p>
+          : <ul className="c-te-liste">{liste.map((o) => (
+            <li key={o.id}>
+              <span><b data-donnee>{o.nom}</b><span className="c-sous" data-donnee>{dire('console.ecran.clients.te.ligne', { le: jourDe(o.le.slice(0, 10)), par: o.par ?? '—', motif: o.motif })}</span></span>
+              <Bouton petit onClick={() => remettre({ id: o.id, nom: o.nom })}>{titre('console.ecran.clients.te.bouton_remettre')}</Bouton>
+            </li>))}</ul>}
+    </Dialogue>
+  );
+}
+
 // Le menu « … » d'une ligne (la maquette Clients : un nom et sa phrase, sans icône) : pointer son paiement quand une
 // facture l'attend, puis les gestes que le serveur permet sur son abonnement AUJOURD'HUI à ce rôle (la règle de sa
 // fiche), nos échanges (noter un appel, écrire au contact), ce qui détruit, et demander l'accès à son dossier ; un trait
 // sépare chaque famille. Un geste ouvre sa fenêtre ici, sur la liste : rien ne fait perdre sa place.
-export type FaireDuMenu = { geste: (g: Geste) => void; acces: () => void; appel: () => void; ecrire: () => void };
+export type FaireDuMenu = { geste: (g: Geste) => void; acces: () => void; appel: () => void; ecrire: () => void; test?: () => void };
 export function actionsDe(e: Ligne, role: string, faire: FaireDuMenu): ActionLigne[] {
   const out: ActionLigne[] = [];
   const att = e.enPlus.attend;
@@ -282,6 +335,11 @@ export function actionsDe(e: Ligne, role: string, faire: FaireDuMenu): ActionLig
   }
   out.push(...e.gestes.filter((g) => DETRUIT.has(g)).map((g, i) => ({ ...action(g), trait: i === 0 && out.length > 0 })));
   if (!tenu) out.push({ titre: titre('console.ecran.clients.m.acces'), sous: phrase('console.ecran.clients.m.acces_sous'), faire: faire.acces, trait: out.length > 0 });
+  // (0225) Une entreprise d'essai, sans pièce émise : la direction la range avec les organisations de test (le serveur
+  // revérifie : ni pièce émise, ni règlement, ni facture d'abonnement).
+  if (faire.test && role === 'direction' && e.pieces === 0 && !tenu) {
+    out.push({ titre: titre('console.ecran.clients.m.test'), sous: phrase('console.ecran.clients.m.test_sous'), faire: faire.test, trait: true });
+  }
   return out;
 }
 
@@ -433,6 +491,8 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
   // Nos échanges, depuis le menu d'une ligne (0110) : noter un appel, écrire au contact.
   const [appel, setAppel] = useState<{ id: string; nom: string } | null>(null);
   const [ecrire, setEcrire] = useState<{ client: { id: string; nom: string }; contexte: Contexte } | null>(null);
+  const [test, setTest] = useState<{ client: { id: string; nom: string }; remettre: boolean } | null>(null);
+  const [voirTests, setVoirTests] = useState(false);
 
   // Une recherche lancée d'ailleurs (la barre du haut, un chiffre du tableau du matin) remplace celle-ci.
   useEffect(() => {
@@ -622,7 +682,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                   <tbody>
                     {lu.lignes.map((o) => <LigneDeLaListe key={o.id} o={o} aujourdhui={aujourdhui} role={moi.role} reserve={reserve} arrivees={vue === 'arrivees'} risques={vue === 'a_risque'}
                       faireDuMenu={(x) => ({ geste: (g) => setGeste({ id: x.id, geste: g }), acces: () => setAcces({ id: x.id, nom: x.raisonSociale }),
-                        appel: () => setAppel({ id: x.id, nom: x.raisonSociale }), ecrire: () => setEcrire({ client: { id: x.id, nom: x.raisonSociale }, contexte: contexteDe(x.etat.etat, x.etat.etat === 'lecture_seule' ? x.etat.raison : undefined) }) })} />)}
+                        appel: () => setAppel({ id: x.id, nom: x.raisonSociale }), test: () => setTest({ client: { id: x.id, nom: x.raisonSociale }, remettre: false }), ecrire: () => setEcrire({ client: { id: x.id, nom: x.raisonSociale }, contexte: contexteDe(x.etat.etat, x.etat.etat === 'lecture_seule' ? x.etat.raison : undefined) }) })} />)}
                   </tbody>
                 </table>
               </div>
@@ -652,6 +712,9 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
           )}
       </section>
       <p className="c-cl-notes"><span>{phrase('console.ecran.clients.note_groupe')}</span> <span>{maj(dire('console.ecran.clients.note_par_an'))} <b className="c-cl-verifier">{dire('console.ecran.clients.note_a_verifier')}</b> {dire('console.ecran.clients.note_par_an_fin')}</span></p>
+      {moi.role === 'direction' ? <p className="c-cl-notes"><Bouton ton="discret" petit onClick={() => setVoirTests(true)}>{titre('console.ecran.clients.te.voir')}</Bouton></p> : null}
+      {voirTests ? <OrganisationsTest fermer={() => setVoirTests(false)} remettre={(c) => { setVoirTests(false); setTest({ client: c, remettre: true }); }} /> : null}
+      {test ? <RangerTest client={test.client} remettre={test.remettre} fermer={() => setTest(null)} fait={() => { setTest(null); relire(); }} /> : null}
       {exporter && lu ? <FenetreExport total={lu.total} filtres={selection} fermer={() => setExporter(false)} /> : null}
       {geste ? <GesteDuMenu id={geste.id} geste={geste.geste} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
       {acces ? <Demander client={acces} demande={null} fermer={() => setAcces(null)} fait={() => setAcces(null)} /> : null}

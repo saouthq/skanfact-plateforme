@@ -39,6 +39,7 @@ declarerTextes({
   'geste.console.clients.ecrire': 'écrire au contact d\'un client, dans son application',
   'geste.console.clients.arrivee': 'clore ou rouvrir l\'arrivée d\'un client (son issue, avec le motif)',
   'geste.console.clients.sortie': 'mener la sortie d\'un client (l\'ouvrir, régler son remboursement, la clore)',
+  'geste.console.clients.test': 'ranger une organisation d\'essai avec les organisations de test, ou l\'en sortir',
   'geste.console.clients.reprise': 'mener la procédure de reprise d\'une entreprise (l\'ouvrir, noter les pièces vues, la clore, la confirmer)',
   // Le message à la propriétaire quand une procédure de reprise s'ouvre (0112) : dans son application, l'alerte par e-mail
   // sans le texte. « %JUSQU_AU% » : la date que la base pose.

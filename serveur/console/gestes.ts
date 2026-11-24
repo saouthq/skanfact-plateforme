@@ -94,6 +94,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // La sortie d'un client (docs/console.md C54 ; 0131) : l'ouvrir, régler son remboursement, la clore ; la direction seule
   // (c'est un contrat et de l'argent). Ses données, c'est lui qui les télécharge ; la console n'en lit que la trace.
   { code: 'console.clients.sortie', roles: [D], ecrit: true },
+  // Les organisations de test (0225) : une entreprise d'essai, sans pièce émise ni paiement, sort des listes de la console
+  // et s'y remet ; la direction seule, avec son motif, au journal. Rien ne s'écrit dans son dossier.
+  { code: 'console.clients.test', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

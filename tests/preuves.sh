@@ -32013,6 +32013,9 @@ prouver "le catalogue ignore la famille" modules/socle/ecrans/entreprise/app-1.j
 prouver "statut de le bon" modules/socle/ecrans/entreprise/app-1.js \
   "h(leAutre.replace(/^le /, 'du ').replace(/^la /, 'de la '))" "'de ' + h(leAutre)" \
   'Hichem retrouve ses quinze Karim, ses boissons par famille, son chantier par Ctrl K, et le statut du bon se dit bien'
+prouver "la liste garde les organisations de test" serveur/console/routes.ts \
+  "(await lesEntreprises(t, jour)).filter((e) => !deTest.has(e.id))" "(await lesEntreprises(t, jour))" \
+  $'ranger une organisation d\'essai avec les tests, la retrouver, la remettre ; le support ne le peut pas'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
