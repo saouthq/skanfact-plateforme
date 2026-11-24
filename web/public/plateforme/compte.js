@@ -585,5 +585,13 @@
 
   // `aides` : ce que les autres panneaux des Paramètres reprennent tel quel (l'équipe, equipe.js) — un refus dit de la
   // même façon partout, et une seule copie de chaque geste.
-  w.SkanCompte = { dessiner, appareils, aides: { esc, jour, pl, refuser, effacerRefus, surClic, copier } };
+  // (audit #30, ENT2-1) Ce que la personne peut ouvrir d'autre : ses entreprises (pas celles qu'elle voit par son cabinet) et ses
+  // cabinets, pour passer de l'un à l'autre depuis le menu du haut.
+  /** @param {{ appel: (m: string, c: string) => Promise<any> }} o */
+  async function entrees(o) {
+    const moi = await o.appel('GET', '/moi');
+    return { entreprises: (moi.entreprises || []).filter((/** @type {any} */ e) => !e.parCabinet).map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, essai: !!e.essai })),
+      cabinets: (moi.cabinets || []).map((/** @type {any} */ c) => ({ id: c.id, name: c.nom })) };
+  }
+  w.SkanCompte = { dessiner, appareils, entrees, aides: { esc, jour, pl, refuser, effacerRefus, surClic, copier } };
 })();

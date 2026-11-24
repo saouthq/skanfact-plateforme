@@ -1608,7 +1608,7 @@
         // (l'exemple), qui ne compte pas dans le groupe.
         dossiers: moi.entreprises.filter((/** @type {any} */ e) => !e.parCabinet)
           .map((/** @type {any} */ e) => ({ id: e.id, name: e.raison_sociale, shared: false, dir: 'Serveur SkanFact', essai: !!e.essai })),
-        current: ent, device: { name: '' }, retires: [],
+        current: ent, device: { name: '' }, retires: [], cabinets: (moi.cabinets || []).map((/** @type {any} */ c) => ({ id: c.id, name: c.nom })),
       };
     },
     switchDossier: async (/** @type {string} */ id) => { ouvrirEntreprise(id); return { ok: true }; },

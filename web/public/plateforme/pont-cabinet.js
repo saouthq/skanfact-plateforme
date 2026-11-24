@@ -1339,7 +1339,7 @@
     exportPdf,
     // Ton compte (lot onboarding, 0076 ; compte.js, le même que dans l'entreprise) et tes appareils (brique 74).
     dessinerCompte: (/** @type {HTMLElement} */ el, /** @type {any} */ v10) => /** @type {any} */ (window).SkanCompte.dessiner(el, { appel, modal: v10.modal, toast: v10.toast }),
-    dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),
+    dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }), entrees: () => /** @type {any} */ (window).SkanCompte.entrees({ appel }),
     // Les messages des clients (lot messagerie ; plateforme/messagerie.js) : la boîte de tous les clients, la
     // conversation d'un client, et le compte de ceux « À traiter » (la pastille du menu).
     // (1.115.0) La boîte ouvre la conversation du client choisi à droite de sa liste : la même, fabriquée ici.

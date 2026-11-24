@@ -2918,6 +2918,8 @@
         <span class="marque-s">${h(init(nomOuvert(d)))}</span><span class="lib">${h(nomOuvert(d))}<small>${h(act ? act.label + ' · ouverte' : 'ouverte')}</small></span><span class="coche">${COCHE}</span></button>`).join('')}
       ${autres.map(d => `<button type="button" data-dos="${h(d.id)}" title="${h(d.name)}">
         <span class="marque-s autre">${h(init(d.name))}</span><span class="lib">${h(d.name)}<small>${d.essai ? 'Pour essayer sans risque' : d.shared ? 'Partagée' : 'Une autre entreprise'}</small></span></button>`).join('')}
+      ${(r.cabinets || []).length ? `<span class="menu-titre">${(r.cabinets || []).length > 1 ? 'Tes cabinets' : 'Ton cabinet'}</span>${r.cabinets.map(c => `<button type="button" data-cab-ouvrir="${h(c.id)}" title="Ouvrir ${h(c.name)} dans SkanFact Cabinet">
+        <span class="marque-s autre">${h(init(c.name))}</span><span class="lib">${h(c.name)}<small>Cabinet comptable · s'ouvre dans SkanFact Cabinet</small></span></button>`).join('')}` : ''}
       <div class="trait"></div>
       ${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? `<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte">${ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')}<span class="lib">Le groupe<small>Tes sociétés, côte à côte</small></span></button>` : ''}
       <button type="button" id="dm-new" title="Créer une autre entreprise, séparée de celle-ci">${ic('<path d="M12 5v14M5 12h14"/>')}<span class="lib">Ajouter une entreprise</span></button>
@@ -2935,6 +2937,8 @@
       toast(`Ouverture de « ${d ? d.name : 'ce dossier'} »…`);
       try { await bridge.switchDossier(b.dataset.dos); } catch (e) { toast(plainError(e), true); }
     });
+    // (audit #30, ENT2-1) Le cabinet de la personne : quitter l'entreprise pour lui, après le même garde-fou qu'un changement d'entreprise.
+    $$('[data-cab-ouvrir]', m).forEach(b => b.onclick = async () => { fermerDossiers(); if (!await leaveOk()) return; location.assign(`/v10/cabinet/?c=${encodeURIComponent(b.dataset.cabOuvrir)}`); });
     $('#dm-new', m).onclick = () => { fermerDossiers(); nouvelleEntreprise(); };
     if ($('#dm-groupe', m)) $('#dm-groupe', m).onclick = () => { fermerDossiers(); navigate('#/groupe'); };
     if ($('#dm-share', m)) $('#dm-share', m).onclick = () => { fermerDossiers(); partagerDossier(); };

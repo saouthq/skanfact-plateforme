@@ -2776,6 +2776,18 @@
       + (estAssocie() ? '<div class="trait"></div>' + btn('abonnement', 'carte', 'Abonnement du cabinet', abo) + btn('reglages', 'reglages', 'Réglages du cabinet', '') : btn('reglages', 'reglages', 'Réglages', '')),
     b, 'Le cabinet');
     if (!el) return;
+    // (audit #30, ENT2-1) Les entreprises de la personne (et ses autres cabinets) : qui tient aussi sa propre société passe
+    // de l'un à l'autre d'ici. Lues au serveur à l'ouverture du menu, posées sous le code du cabinet.
+    if (api.entrees) void api.entrees().then(x => {
+      if (!el.isConnected) return;
+      const autres = (x.cabinets || []).filter(c => c.id !== new URLSearchParams(location.search).get('c')), ents = x.entreprises || [];
+      if (!autres.length && !ents.length) return;
+      const lien = (href, nom, sous) => `<button type="button" role="menuitem" data-cab-aller="${esc(href)}" title="Ouvrir ${esc(nom)}"><span class="ic">${icB(href.includes('/cabinet/') ? 'dossiers' : 'fiche', 18)}</span><span class="lib">${esc(nom)}<small>${esc(sous)}</small></span></button>`;
+      el.insertAdjacentHTML('beforeend', `<div class="trait"></div><span class="menu-titre">${ents.length > 1 ? 'Tes entreprises' : ents.length ? 'Ton entreprise' : 'Tes autres cabinets'}</span>`
+        + ents.map(e => lien(`/v10/?e=${encodeURIComponent(e.id)}`, e.name, e.essai ? 'Pour essayer sans risque · s\'ouvre dans SkanFact' : 's\'ouvre dans SkanFact')).join('')
+        + (ents.length && autres.length ? '<span class="menu-titre">Tes autres cabinets</span>' : '') + autres.map(c => lien(`/v10/cabinet/?c=${encodeURIComponent(c.id)}`, c.name, 'un autre cabinet')).join(''));
+      el.querySelectorAll('[data-cab-aller]').forEach(x => { x.onclick = () => { window.SkanBarre.fermer(); location.assign(x.dataset.cabAller); }; });
+    }).catch(() => {});
     const r = b.getBoundingClientRect();
     el.style.left = `${Math.round(window.SkanBarre.tablette() ? r.right + 12 : r.left)}px`;
     el.style.top = `${Math.round(window.SkanBarre.tablette() ? r.top : r.bottom + 6)}px`;

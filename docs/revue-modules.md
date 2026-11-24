@@ -6900,3 +6900,17 @@ Désormais :
   ce qu'un forfaitaire doit déposer d'autre (déclaration annuelle, retenues).
 
 Testé à la souris (`tests/web/cab2-fiche-1388.test.ts`) ; quatre preuves.
+
+## 1.388.48 — Passer de son entreprise à son cabinet (audit #30, ENT2-1)
+
+Une personne qui tient à la fois sa société et un cabinet n'avait aucun chemin de l'une à l'autre : le menu « Tes
+entreprises » ne connaissait pas ses cabinets, et le menu du cabinet ne connaissait pas ses entreprises. Il fallait
+repasser par la page d'accueil du compte.
+
+Désormais :
+- dans l'entreprise, « Tes entreprises » finit par « Ton cabinet » (ou « Tes cabinets ») ; un clic ouvre SkanFact Cabinet,
+  après la question habituelle si une saisie n'est pas enregistrée ;
+- dans le Cabinet, le menu du cabinet ajoute « Ton entreprise » (ou « Tes entreprises ») et « Tes autres cabinets ». Les
+  dossiers que le cabinet tient pour ses clients n'y sont pas : ce ne sont pas les entreprises de la personne.
+
+Testé à la souris (`tests/web/entree-cabinet-1388.test.ts`, aller et retour) ; deux preuves.

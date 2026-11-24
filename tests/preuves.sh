@@ -31989,6 +31989,12 @@ prouver "la campagne compte le non-assujetti" modules/socle/ecrans/cabinet/app-1
   "L.filter(x => !x.sansTva && x.mois.has(moisC)" "L.filter(x => x.mois.has(moisC)" \
   $'Karima ajoute une kiné (personne physique) et un épicier non assujetti : la fiche suit les Échéances, et le forfait n\'est pas réclamé'
 
+prouver "le menu de l'entreprise ignore le cabinet" web/public/plateforme/pont.js \
+  "cabinets: (moi.cabinets || [])" "cabinets: ([])" \
+  $'Mourad tient sa société et son cabinet : chaque menu propose l\'autre, et le lien l\'ouvre'
+prouver "le menu du cabinet ignore l'entreprise" modules/socle/ecrans/cabinet/app-1.js \
+  "if (api.entrees) void api.entrees()" "if (false) void api.entrees()" \
+  $'Mourad tient sa société et son cabinet : chaque menu propose l\'autre, et le lien l\'ouvre'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
