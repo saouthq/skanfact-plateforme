@@ -179,7 +179,7 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
     const carte = async (k: string) => net(await p.locator(`[data-stat="${k}"]`).innerText());
     await aller('#/dashboard', '[data-stat]');
     expect(await carte('encaisser')).toBe('On te doit 7 129,107 DT · 5 factures dont 1 800,916 en retard');
-    expect(await carte('dois')).toBe('Tu dois 6 832,138 DT · 3 achats, avoir déduit dont 422,250 en retard');
+    expect(await carte('dois')).toBe('Tu dois 6 832,138 DT · 3 achats, avoir déduit, retenue de 33,272 déduite dont 422,250 en retard');
     expect(await carte('ca-mois')).toBe(`Facturé en ${mois} 2 107,400 DT HT · 2 509,806 TTC ${avant} : 2 847,500`);
     expect(await carte('devis')).toBe('Devis en attente 796,110 DT TTC · 1 devis + 1 expiré sans réponse');
     // Le nombre de gestes dépend du jour (une échéance fiscale entre dans les quinze jours) : la phrase dit celui que
@@ -245,7 +245,7 @@ describe('l\'accueil 1.312.0 : les chiffres du jour, ceux de chaque page', () =>
     expect(net(await p.locator('#lfo-arch').innerText())).toBe('Et 422,250 DT que tu dois encore à « Transport Ben Salah », archivé : ses pièces restent dans « À payer ».');
     await photo('d-fournisseurs');
     await aller('#/dashboard', '[data-stat]');
-    expect(await carte('dois')).toBe('Tu dois 6 832,138 DT · 3 achats, avoir déduit dont 422,250 en retard');
+    expect(await carte('dois')).toBe('Tu dois 6 832,138 DT · 3 achats, avoir déduit, retenue de 33,272 déduite dont 422,250 en retard');
 
     // E. « Facturé en … » ouvre le journal des ventes du mois : le même chiffre, avoir déduit.
     await p.locator('[data-stat="ca-mois"]').click();

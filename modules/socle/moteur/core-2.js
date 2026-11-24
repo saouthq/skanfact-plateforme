@@ -1115,9 +1115,11 @@
               try { sal = round3((declarationMensuelleSalaires(data, yy, mois) || {}).total || 0); } catch (_) { sal = 0; }
               sal = round3(sansBulletin(yy, mois).reduce((a, e) => { const c = ficheDe(e, yy, mois); return round3(a + (c.irpp || 0) + (c.css || 0) + (c.tfp || 0) + (c.foprolos || 0)); }, sal));
             }
-            const montant = round3((v.toPay || 0) + (v.withheldOnBuys || 0) + sal);
+            // (1.388.60, issue 23, CHIFFRE-1) Les timbres des factures du mois se déclarent avec la TVA : l'écriture du mois
+            // les porte au 4365 (`toPay + stamps + withheldOnBuys`), la prévision aussi. Un seul montant de la déclaration.
+            const montant = round3((v.toPay || 0) + (v.stamps || 0) + (v.withheldOnBuys || 0) + sal);
             if (montant > 0.0005) events.push({ date: d, amount: -montant, kind: 'fiscal', estime: true, label: `${tva.label} — ${MONTHS_FR[mois - 1]} ${yy}`, id: fiscalFilingId('tva', d),
-              detail: { tva: round3(v.toPay || 0), retenues: round3(v.withheldOnBuys || 0), salaires: sal } });
+              detail: { tva: round3(v.toPay || 0), timbres: round3(v.stamps || 0), retenues: round3(v.withheldOnBuys || 0), salaires: sal } });
           }
           d = nextDeadline(tva, addDays(d, 1));
         }
@@ -1448,7 +1450,7 @@
     const deductible = round3(buys.reduce((s, r) => s + r.deductible, 0));
     const carry = round3(Math.max(0, Number(carryIn) || 0));
     const balance = round3(collected - deductible - carry);
-    // Timbres encaissés : ils ne sont pas de la TVA mais se déclarent aussi. À VÉRIFIER.
+    // Timbres des factures de la période : ils ne sont pas de la TVA mais se déclarent aussi. À VÉRIFIER.
     const stamps = round3(sales.reduce((s, r) => s + r.timbre, 0));
     // (1.388.42, FISC-2) La FODEC facturée sur la période : collectée pour l'État, elle se déclare avec la TVA (À VÉRIFIER).
     const fodec = round3(sales.reduce((s, r) => s + (r.fodec || 0), 0));

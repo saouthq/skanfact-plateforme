@@ -87,7 +87,9 @@ describe('la trésorerie 1.266.0', () => {
     const f = C.cashForecast(d, d.company, 30, JOUR, { salaires: false });
     const t = f.events.find((e: Obj) => e.kind === 'fiscal');
     expect(t.date).toBe('2026-11-28');
-    expect(t.amount).toBe(-C.round3(190 - 76));
+    // (1.388.60, issue 23, CHIFFRE-1) La déclaration du mois porte aussi le timbre de la facture (1 DT), comme son écriture.
+    expect(t.amount).toBe(-C.round3(190 - 76 + 1));
+    expect(t.detail.timbres).toBe(1);
     expect(t.estime).toBe(true);
     d.fiscalFilings.push({ id: 'tva@2026-11-28' });
     expect(C.cashForecast(d, d.company, 30, JOUR, { salaires: false }).events.some((e: Obj) => e.kind === 'fiscal')).toBe(false);

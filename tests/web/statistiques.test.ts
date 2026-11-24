@@ -146,7 +146,7 @@ describe('les statistiques : vendu, encaissé, gagné, acheté', () => {
 
     // 2. Factures et comptoir : deux paniers moyens qui ne se mélangent pas ; la TVA de toutes les ventes, sous le tableau.
     expect(await lignes(p, '#s-canaux')).toEqual([['Factures', '2et 1 avoir', '5 860,880', '2 930,440'], ['Tickets de caisse', '2', '80,190', '40,095']]);
-    expect(net(await p.locator('#s-tva').innerText())).toBe('TVA collectée sur la période : 1 128,803 DT, à reverser, avoirs déduits. i');
+    expect(net(await p.locator('#s-tva').innerText())).toBe('TVA collectée sur la période : 1 128,803 DT, avoirs déduits. Ce que tu reverses vraiment (moins la TVA de tes achats et ton crédit) se lit dans Comptabilité › TVA à payer. i');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'statistiques-1-ventes.png') });
 
     // 3. Les devis : un sur quatre tranchés accepté ; « trop cher » deux fois, quelle que soit la façon de l'écrire.

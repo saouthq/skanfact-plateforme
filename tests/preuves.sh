@@ -32139,6 +32139,30 @@ prouver 'le mandat « déclarations » sans la comptabilité, accepté (1.388.60
 prouver 'le Cabinet sans la comptabilité qui propose « Réessayer » (1.388.60)' modules/socle/ecrans/cabinet/app-1.js \
   'if (s.data.erreur && Array.isArray(dossier.perimetre) && !dossier.perimetre.includes('\''comptabilite'\'')) {' 'if (false) {' \
   'au Cabinet, un dossier sans la comptabilité dit quoi demander, sans « Réessayer »'
+prouver 'la prévision qui oublie les timbres de la déclaration (1.388.61)' modules/socle/moteur/core-2.js \
+  'const montant = round3((v.toPay || 0) + (v.stamps || 0) + (v.withheldOnBuys || 0) + sal);' 'const montant = round3((v.toPay || 0) + (v.withheldOnBuys || 0) + sal);' \
+  'la TVA du mois écoulé sort le 28, estimée sur ce qui est saisi'
+prouver 'la TVA mois par mois sans le montant à déclarer (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  'const aDeclarer = m => C.round3((m.toPay || 0) + (m.stamps || 0) + (m.withheldOnBuys || 0));' 'const aDeclarer = m => C.round3(m.toPay || 0);' \
+  'la TVA mois par mois dit « À déclarer »'
+prouver 'les Statistiques qui disent « à reverser » de la TVA collectée (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  '</b>, avoirs déduits${Math.abs(cur1.cession.tva)' '</b>, à reverser, avoirs déduits${Math.abs(cur1.cession.tva)' \
+  'les Statistiques disent la TVA collectée sans « à reverser »'
+prouver 'Reste à encaisser sans la retenue du 411 (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  '${rsOpen > 0.0005 ? ` · le compte 411 porte ${C.money(rsOpen, cur)} de plus : la retenue que tes clients garderont en payant` : '\'''\''}' '' \
+  '« Reste à encaisser » et « Tu dois » disent l'\''écart avec les comptes 411 et 401'
+prouver 'Tu dois sans la retenue gardée (1.388.61)' modules/socle/ecrans/entreprise/app-1.js \
+  '${rsAGarderTout > 0.0005 && dettes.length ? `, retenue de ${nb(rsAGarderTout)} déduite` : '\'''\''}' '' \
+  'la quincaillerie de Sousse ouvre son accueil un lundi matin'
+prouver 'le gain de change qui oublie le règlement (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  '<div class="sub">règlement, avoir ou acompte à un autre taux que sa pièce</div>' '<div class="sub">avoir ou acompte à un autre taux que sa pièce</div>' \
+  'le gain de change nomme aussi le règlement'
+prouver 'Relancer N factures qui compte les reportées (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  'const nbRetards30 = C.overdueInvoices(data, company()).filter(C.aRelancer).length;' 'const nbRetards30 = f30.late.clients.length;' \
+  'le bouton de relance de la Trésorerie compte comme le menu et la page Relances'
+prouver 'la balance du cabinet dite identique (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
+  ' Sa balance peut différer de celle-ci sur deux points : la déclaration du mois n\'\''y est que lorsqu\'\''il l\'\''a passée, et ce que cette page range en soldes de départ (compte 12), il le range lui-même, souvent au compte d\'\''attente 471.' '' \
+  'la Comptabilité dit en quoi la balance du cabinet peut différer'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

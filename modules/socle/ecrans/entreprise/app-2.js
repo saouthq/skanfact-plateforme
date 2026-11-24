@@ -3646,7 +3646,9 @@
     const seuilT = f30.seuil;
     const sousSeuil = seuilT ? `sous ton seuil (${C.money(seuilT, cur)})` : 'sous zéro';
     const retards30 = C.round3(f30.late.clients.reduce((x, e) => x + e.amount, 0));
-    const nbRetards30 = f30.late.clients.length;
+    // (1.388.60, issue 23, CHIFFRE-7) Le bouton compte ce qu'il ouvre : la page Relances, sans les factures reportées (le
+    // menu compte de même, `C.aRelancer`). Le montant, lui, garde tout le retard : c'est de l'argent qui manque.
+    const nbRetards30 = C.overdueInvoices(data, company()).filter(C.aRelancer).length;
     // (1.357.6) Une caisse se compte, elle ne se pointe pas (`C.seCompte`) : ses mouvements ne sont jamais « à pointer ».
     const recos = data.accounts.filter(a => !C.seCompte(a)).map(a => ({ a, r: C.reconciliation(data, company(), a.id, t0) }));
     const aPointer = recos.reduce((n, x) => n + x.r.moves.filter(m => !m.reconciled).length, 0);
@@ -3664,7 +3666,7 @@
     // déjà dû ; sinon pointer le relevé ; quand tout est en ordre, noter un mouvement.
     const premierAPointer = (recos.find(x => x.r.moves.some(m => !m.reconciled)) || {}).a;
     const principalT = trou ? { id: 'tr-voir-trou', ic: 'echeance', l: 'Voir ce qui arrive' }
-      : retards30 > 0 ? { id: 'tr-relancer', ic: 'cloche', l: nbRetards30 > 1 ? `Relancer ${nbRetards30} factures` : 'Relancer la facture en retard' }
+      : retards30 > 0 && nbRetards30 > 0 ? { id: 'tr-relancer', ic: 'cloche', l: nbRetards30 > 1 ? `Relancer ${nbRetards30} factures` : 'Relancer la facture en retard' }
         : aPointer > 0 ? { id: 'tr-pointer', ic: 'coche', l: 'Pointer le relevé' } : null;
     const sous30 = [trou ? `${sousSeuil} le ${C.fmtDate(trou.date)}` : '', retards30 > 0 ? `sans les retards : ${h(C.money(p30.end, cur))}` : ''].filter(Boolean).join(' · ') || 'aucun trou prévu';
     $('#view').innerHTML = `
@@ -5047,7 +5049,7 @@
         + section('s-canaux', comptoir ? 'Factures et comptoir' : 'Les factures', 'stat.canaux', `<div class="lf-tab scroll-x"><table class="list lf-table" data-sans-cartes><thead><tr><th>Vendu par</th><th class="r">Pièces</th><th class="r">HT</th><th class="r">Panier moyen HT</th></tr></thead><tbody>
             ${ligneCanal('Factures', canaux.factures)}${comptoir ? ligneCanal('Tickets de caisse', canaux.comptoir) : ''}</tbody>
             <tfoot><tr><td><span class="pied-t"><b>${h(p.label.charAt(0).toUpperCase() + p.label.slice(1))}</b></span></td><td class="r m">${cur1.invoices}</td><td class="r m">${lfMontant(cur1.ht, cur)}</td><td></td></tr></tfoot></table></div>
-          <p class="small mu sx-note" id="s-tva">TVA collectée sur la période : <b>${h(C.money(cur1.tvaCollectee, cur))}</b>, à reverser, avoirs déduits${Math.abs(cur1.cession.tva) > 0.0005 ? `, dont ${h(C.money(cur1.cession.tva, cur))} sur la revente d'un bien` : ''}. ${info('stat.vat')}</p>
+          <p class="small mu sx-note" id="s-tva">TVA collectée sur la période : <b>${h(C.money(cur1.tvaCollectee, cur))}</b>, avoirs déduits${Math.abs(cur1.cession.tva) > 0.0005 ? `, dont ${h(C.money(cur1.cession.tva, cur))} sur la revente d'un bien` : ''}. Ce que tu reverses vraiment (moins la TVA de tes achats et ton crédit) se lit dans Comptabilité › TVA à payer. ${info('stat.vat')}</p>
           ${ligneCession(cur1.cession)}`)
         + `<div class="sx-deux">${section('s-items', 'Ce qui se vend le mieux', 'stat.items', items.length ? `<ul class="rank">${items.map(x => `<li><span class="name">${h(x.label)}</span><span class="bar"><i style="width:${largeurRang(x.ht, itemMax)}%"></i></span><span class="amt">${C.money(x.ht, cur)}</span></li>`).join('')}</ul>
             <p class="small mu sx-note">Regroupées par libellé, remises comprises.${items.some(x => x.acomptes) ? ' Un acompte facturé a sa ligne, le mois où il est facturé ; le mois du solde, sa déduction vient en moins de cette ligne.' : ''}</p>` : vide('Aucune vente sur cette période', 'Le classement se remplit dès la première facture émise.'))}
@@ -5334,6 +5336,8 @@
       // Converti, comme sa jumelle de l'accueil : une facture en euros ne s'additionne pas
       // à une facture en dinars (7.16.0).
       const openAmount = open.reduce((s, d) => s + C.toBase(d, balance(d).remaining, company()), 0);
+      // (1.388.60, issue 23, CHIFFRE-5) Le reste dû est le net ; le 411 porte aussi la retenue que les clients garderont.
+      const rsOpen = C.round3(open.reduce((s, d) => s + (C.retenueASubir(d, data, company()) || 0), 0));
       // Les attestations à recevoir : ce que les clients ont DÉJÀ retenu en payant (10.14.0), en
       // dinars. La liste comptait les factures impayées, et additionnait les retenues en devise sans
       // les convertir — la faute de la 7.16.0, un panneau plus bas.
@@ -5383,7 +5387,7 @@
           <div class="stat"><div class="lbl">Chiffre d'affaires HT — ${h(periodLabel())} ${info('dash.caMonth')}</div><div class="val">${C.money(sum.ht, cur)}</div><div class="sub">${pl(sum.count, 'document')}, avoirs déduits</div></div>
           <div class="stat"><div class="lbl">TVA collectée ${info('compta.vat')}</div><div class="val">${C.money(sum.tva, cur)}</div><div class="sub">+ timbres ${C.money(sum.timbre, cur)}${sum.fodec ? ` · FODEC ${C.money(sum.fodec, cur)}` : ''}</div></div>
           <div class="stat"><div class="lbl">Encaissé sur la période ${info('compta.payments')}</div><div class="val">${C.money(paidTotal, cur)}</div><div class="sub">${pl(pays.length, 'paiement')}</div></div>
-          <div class="stat" data-cstat="encaisser" role="button" tabindex="0" title="Voir les factures qui restent à encaisser"><div class="lbl">Reste à encaisser (total) ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture ouverte', 'factures ouvertes')}</div></div>
+          <div class="stat" data-cstat="encaisser" role="button" tabindex="0" title="Voir les factures qui restent à encaisser"><div class="lbl">Reste à encaisser (total) ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture ouverte', 'factures ouvertes')}${rsOpen > 0.0005 ? ` · le compte 411 porte ${C.money(rsOpen, cur)} de plus : la retenue que tes clients garderont en payant` : ''}</div></div>
         </div>
         <div class="panel"><h2>TVA par taux — ${h(periodLabel())} ${info('compta.vat')}</h2>
           ${/* (1.388.42, FISC-2) La FODEC entre dans la base de la TVA de son taux : le tableau la dit, et la base imposable la compte. */''}
@@ -5600,6 +5604,8 @@
     function drawVat() {
       const year = comptaState.year;
       const chain = C.vatChain(data, company(), year, 12);
+      // Le montant de la déclaration d'un mois, comme l'écriture le porte au 4365 et comme la prévision le paie (CHIFFRE-1).
+      const aDeclarer = m => C.round3((m.toPay || 0) + (m.stamps || 0) + (m.withheldOnBuys || 0));
       // (1.357.9, bout en bout 17 ; règle U-12) La TVA d'un mois se déclare et se paie le mois SUIVANT : tant qu'on n'a pas choisi
       // de mois, l'onglet s'ouvrait sur le mois en cours, vide le 13 novembre (« Rien à déclarer »), pendant que la TVA d'octobre
       // — déposée par le cabinet, à verser avant le 28 — attendait trois écrans plus bas. Le mois en cours n'est pas terminé :
@@ -5732,16 +5738,17 @@
           </div>` : ''}
           ${ligneReport}
         </div>
-        ${chain.some(m => m.collected || m.deductible || m.carryIn) ? `
+        ${chain.some(m => m.collected || m.deductible || m.carryIn || m.stamps || m.withheldOnBuys) ? `
         <div class="panel"><h2>Mois par mois — ${year} ${info('compta.vatMonths')}</h2>
-          <table class="list compact"><thead><tr><th>Mois</th><th class="r">Collectée</th><th class="r">Déductible</th><th class="r">Crédit repris</th><th class="r">À payer</th><th class="r">Crédit reporté</th></tr></thead><tbody>
+          <table class="list compact"><thead><tr><th>Mois</th><th class="r">Collectée</th><th class="r">Déductible</th><th class="r">Crédit repris</th><th class="r">TVA à payer</th><th class="r" title="La TVA à payer, plus les timbres des factures du mois et les retenues que tu as opérées : ce que porte l'écriture du mois, et ce que la Trésorerie prévoit de payer">À déclarer</th><th class="r">Crédit reporté</th></tr></thead><tbody>
             ${chain.map((m, i) => `<tr class="clickable ${m.toPay ? '' : 'row-ok'}${moisRien.includes(i) ? ' cpt-rien' : ''}" data-vm="${String(i + 1).padStart(2, '0')}" title="Voir la déclaration ${h(deMois(m.label))}"><td>${h(m.label)}${deposeesParMois.has(m.month) ? ' <small class="ok-text cpt-dep">déposée</small>' : ''}</td><td class="r nw">${montantCompta(m.collected)}</td><td class="r nw">${montantCompta(m.deductible)}</td>
               <td class="r nw">${m.carryIn ? montantCompta(m.carryIn) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.toPay ? `<strong>${montantCompta(m.toPay)}</strong>` : '<span class="muted">—</span>'}</td>
+              ${/* (1.388.60, issue 23, CHIFFRE-1) Un seul montant de la déclaration : TVA, timbres, retenues opérées. */''}<td class="r nw" data-vm-declarer>${aDeclarer(m) ? montantCompta(aDeclarer(m)) : '<span class="muted">—</span>'}</td>
               <td class="r nw">${m.carryOut ? montantCompta(m.carryOut) : '<span class="muted">—</span>'}</td></tr>`).join('')}
             <tr class="total-row"><td><strong>Total à reverser</strong></td><td class="r">${montantCompta(chain.reduce((s, m) => s + m.collected, 0))}</td>
               <td class="r">${montantCompta(chain.reduce((s, m) => s + m.deductible, 0))}</td><td></td>
-              <td class="r"><strong>${montantCompta(chain.reduce((s, m) => s + m.toPay, 0))}</strong></td><td></td></tr>
+              <td class="r"><strong>${montantCompta(chain.reduce((s, m) => s + m.toPay, 0))}</strong></td><td class="r"><strong>${montantCompta(chain.reduce((s, m) => s + aDeclarer(m), 0))}</strong></td><td></td></tr>
           </tbody></table>
           ${moisRien.length ? `<p class="small muted mt cpt-tel-seul" id="vat-mois-vides">Au téléphone, les mois sans rien ne s'affichent pas : ${h(moisRienDits)}.</p>` : ''}
           <p class="small muted mt">Le crédit d'un mois vient en déduction du suivant : c'est pour ça que le total ne se lit pas ligne par ligne. <em>Ces chiffres sont l'arithmétique exacte de tes données, pas une déclaration officielle : à faire valider par ton comptable avant tout dépôt.</em></p>
@@ -5756,7 +5763,7 @@
             <div class="stat"><div class="lbl">Dotation aux amortissements ${info('immo.annuity')}</div><div class="val">${C.money(res.depreciation, cur)}</div><div class="sub">${res.depreciation ? 'une charge qui ne sort pas d\'argent' : 'aucun bien amorti sur la période'}</div></div>
             ${res.horsSuivi ? `<div class="stat"><div class="lbl">Marchandises sans article suivi ${info('compta.horsSuivi')}</div><div class="val">${C.money(res.horsSuivi, cur)}</div><div class="sub">achetées pour le stock, jamais entrées dans un stock suivi</div></div>` : ''}
             ${res.autres ? `<div class="stat"><div class="lbl">${res.autres > 0 ? 'Autres charges' : 'Autres produits'} ${info('compta.autres')}</div><div class="val">${C.money(Math.abs(res.autres), cur)}</div><div class="sub">frais bancaires, écritures diverses, cessions</div></div>` : ''}
-            ${res.change ? `<div class="stat"><div class="lbl">${res.change < 0 ? 'Perte de change' : 'Gain de change'} ${info('compta.change')}</div><div class="val">${C.money(Math.abs(res.change), cur)}</div><div class="sub">avoir ou acompte à un autre taux que sa pièce</div></div>` : ''}
+            ${res.change ? `<div class="stat"><div class="lbl">${res.change < 0 ? 'Perte de change' : 'Gain de change'} ${info('compta.change')}</div><div class="val">${C.money(Math.abs(res.change), cur)}</div><div class="sub">règlement, avoir ou acompte à un autre taux que sa pièce</div></div>` : ''}
             <div class="stat"><div class="lbl">Résultat avant impôt</div><div class="val ${res.resultat >= 0 ? 'ok' : 'due'}">${C.money(res.resultat, cur)}</div><div class="sub">${res.marge == null ? '' : `${pct(res.marge).replace('-', '−')} % du chiffre d'affaires`}</div></div>
             <div class="stat"><div class="lbl">Non comptés en charges</div><div class="val">${C.money(C.round3(res.stock - res.horsSuivi + res.immo), cur)}</div><div class="sub">${C.money(C.round3(res.stock - res.horsSuivi), cur)} en stock · ${C.money(res.immo, cur)} en immobilisations</div></div>
           </div>
@@ -5853,7 +5860,7 @@
             <button class="btn" id="ecr-mail" ${bal.lines ? '' : 'disabled'}>${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable'}</button>
             <button class="btn btn-ghost" id="ecr-plan">Plan de comptes…</button>
           </div>
-          ${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mt" id="ecr-cabinet-lit">Ton cabinet lit ces écritures en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.</p>' : ''}
+          ${/* (1.388.60, issue 23, CHIFFRE-4) La balance du cabinet n'est pas tout à fait celle-ci : on le dit. */''}${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mt" id="ecr-cabinet-lit">Ton cabinet lit tes pièces en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail. Sa balance peut différer de celle-ci sur deux points : la déclaration du mois n\'y est que lorsqu\'il l\'a passée, et ce que cette page range en soldes de départ (compte 12), il le range lui-même, souvent au compte d\'attente 471.</p>' : ''}
         </div>
 
         <div class="panel" id="ecr-ods"><h2>Opérations diverses saisies à la main ${info('ecr.od')}</h2>

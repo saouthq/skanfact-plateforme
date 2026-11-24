@@ -44,19 +44,19 @@ describe('la prévision et les estimations de la paie (16 § 10.1, points 4 et 1
     const part = C.montantSocial(d, 'dm-2026-10').montant;
     expect(part).toBeGreaterThan(0);
     const avant = C.cashForecast(d, d.company, 30, JOUR);
-    expect(ev(avant, 'tva@2026-11-28').amount).toBe(-C.round3(114 + part));
+    expect(ev(avant, 'tva@2026-11-28').amount).toBe(-C.round3(114 + 1 + part)); // (1.388.60, CHIFFRE-1) TVA, timbre de F1, part paie
     // Payée hier : elle est dans le disponible, et le 28 n'attend plus que la TVA.
     d.socialFilings.push({ id: 'dm-2026-10', filedAt: '2026-11-02', paidDate: '2026-11-02', amount: part, accountId: 'b1', method: 'virement' });
     const apres = C.cashForecast(d, d.company, 30, JOUR);
     expect(C.round3(avant.start - apres.start)).toBe(part);
-    expect(ev(apres, 'tva@2026-11-28').amount).toBe(-114);
+    expect(ev(apres, 'tva@2026-11-28').amount).toBe(-115);
     expect(ev(apres, 'tva@2026-11-28').detail.salaires).toBe(0);
     expect(C.round3(apres.end - avant.end)).toBe(0);
     // Payée pour le 20 : un mouvement à sa date, et toujours une seule fois.
     d.socialFilings[0].paidDate = '2026-11-20';
     const plusTard = C.cashForecast(d, d.company, 30, JOUR);
     expect(plusTard.events.filter((e: Obj) => e.kind === 'saisi' && e.source === 'social').map((e: Obj) => [e.date, e.amount])).toEqual([['2026-11-20', -part]]);
-    expect(ev(plusTard, 'tva@2026-11-28').amount).toBe(-114);
+    expect(ev(plusTard, 'tva@2026-11-28').amount).toBe(-115);
     expect(C.round3(plusTard.end - avant.end)).toBe(0);
   });
 

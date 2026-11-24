@@ -7109,3 +7109,28 @@ SOCIAL-1 (l'indemnité de congés non pris sur un mois complet, et posée sur le
 - **ROLE-1** (le stock lu sur une partie des pièces selon le rôle) attend la décision de Skander (déjà noté en 1.388.49).
 - Tests : `roles-1388-60`, `mandats` (le refus par ses deux routes de changement) ; `revision` et `annuel` passent par un
   mandat sans la comptabilité (`saisie_achats`) au lieu des déclarations seules ; quatre preuves.
+
+## 1.388.61 — Deux chemins, un chiffre (rapport #23 : CHIFFRE-1 → CHIFFRE-8)
+
+- **CHIFFRE-1** — La déclaration du mois a un seul montant : la prévision de trésorerie compte aussi les timbres des
+  factures du mois, comme l'écriture qui les porte au 4365 (l'entreprise d'essai lisait 366,223 DT pour 369,223). Le
+  tableau « Mois par mois » de la TVA garde sa colonne « TVA à payer » et gagne « À déclarer » : TVA, timbres et retenues
+  opérées. Deux tests de la prévision gravaient l'oubli (−114 pour −115 : le timbre d'1 DT) ; ils comptent le timbre.
+- **CHIFFRE-2** — Les Statistiques ne disent plus « à reverser » d'une TVA collectée brute : elles renvoient à
+  Comptabilité › TVA à payer, qui retire la TVA des achats et le crédit.
+- **CHIFFRE-3** — Déjà corrigé en 1.388.42 (« timbres des factures de la période ») ; un commentaire du moteur disait
+  encore « encaissés ».
+- **CHIFFRE-4** — La phrase « ton cabinet lit en direct » dit en quoi sa balance peut différer : la déclaration du mois
+  n'y est qu'une fois passée par lui, et les soldes de départ (12 ici) se rangent chez lui, souvent au 471.
+  *Reste* : rapprocher les deux rangements (12 et 471) et l'écriture mensuelle passée d'office côté entreprise demande
+  l'avis du comptable pilote.
+- **CHIFFRE-5** — « Reste à encaisser (total) » dit que le 411 porte en plus la retenue que les clients garderont ; la
+  carte « Tu dois » de l'accueil dit la retenue déduite, et son infobulle que le 401 porte ce montant en plus.
+- **CHIFFRE-6** — Le gain ou la perte de change nomme le règlement, d'où il vient le plus souvent.
+- **CHIFFRE-7** — « Relancer N factures » (Trésorerie) compte ce que la page Relances propose : sans les reportées,
+  comme le menu. Le montant du retard, lui, les garde.
+- **CHIFFRE-8** — *Reste* : au Cabinet, la contre-passation d'un règlement supprimé chez le client cite le numéro de
+  l'entreprise (« BQ-2026-000005 ») ; le retrouver demande que le Cabinet sache chercher ce numéro (numérotation
+  partagée, à reprendre à part).
+- Tests : `chiffres-1388-61`, la prévision (`tresorerie-1266`, `tresorerie-paie-urgence`), les Statistiques, l'accueil et
+  la Comptabilité du grossiste relus ; huit preuves.

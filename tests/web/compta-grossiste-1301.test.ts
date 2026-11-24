@@ -238,7 +238,7 @@ describe('la Comptabilité 1.301.0 : le grossiste et sa comptable', () => {
     await p.locator('#c-tabs').waitFor({ timeout: 20_000 });
     await onglet('ecritures');
     await expect.poll(async () => lire('#ecr-mail'), { timeout: 10_000 }).toBe('Envoyer par e-mail…');
-    expect(await lire('#ecr-cabinet-lit')).toBe('Ton cabinet lit ces écritures en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.');
+    expect(await lire('#ecr-cabinet-lit')).toBe('Ton cabinet lit tes pièces en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail. Sa balance peut différer de celle-ci sur deux points : la déclaration du mois n\'y est que lorsqu\'il l\'a passée, et ce que cette page range en soldes de départ (compte 12), il le range lui-même, souvent au compte d\'attente 471.');
 
     // ── 7. Au téléphone : la barre passe à la ligne, rien ne déborde.
     const tel = await contexte(mourad, 390, 844);

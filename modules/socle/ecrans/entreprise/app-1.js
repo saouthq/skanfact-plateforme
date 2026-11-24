@@ -4398,6 +4398,9 @@
     const dette = C.detteFournisseurs(data, company());
     const dettes = dette.pieces;
     const doisTout = dette.total, doisRetard = dette.late;
+    // (1.388.60, issue 23, CHIFFRE-5) Ce que tu garderas en retenue à la source en payant : la dette est le net, le compte
+    // 401 de tes écritures porte le brut. La carte le dit, comme la fiche du fournisseur.
+    const rsAGarderTout = C.round3((data.purchases || []).reduce((t, p) => t + C.toBase(p, C.retenueAOperer(p, company(), data) || 0, company()), 0));
     const moisAvant = C.addMonths(C.today(), -1, 1).slice(0, 7);
     const ofAvant = issued.filter(d => d.date && d.date.startsWith(moisAvant));
     const nomMois = m => LF_MOIS[Number(m.slice(5, 7)) - 1];
@@ -4443,7 +4446,7 @@
       <div class="stats a-ch${commercial ? ' a-ch2' : ''}${horsLigne ? ' a-gris' : ''}">
         ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
-        ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}${dette.aDeduire > 0.0005 ? `, ${dette.avoirs.length > 1 ? 'avoirs déduits' : 'avoir déduit'}` : ''}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
+        ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}${dette.aDeduire > 0.0005 ? `, ${dette.avoirs.length > 1 ? 'avoirs déduits' : 'avoir déduit'}` : ''}${rsAGarderTout > 0.0005 && dettes.length ? `, retenue de ${nb(rsAGarderTout)} déduite` : ''}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', rsAGarderTout > 0.0005 && dettes.length ? `Voir les achats à payer. Tu garderas ${nb(rsAGarderTout)} de retenue à la source en payant, pour l'État : le compte 401 de tes écritures porte ce montant en plus` : 'Voir les achats à payer')}
         ${commercial ? '' : carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC${cessionsMois > 0.0005 ? ` · dont ${nb(cessionsMois)} de revente d'un bien` : ''}`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
         ${commercial ? '' : carteDevis()}
       </div>

@@ -160,7 +160,7 @@ describe('les statistiques 1.323.0 : le chiffre d\'affaires de la boulangerie, l
       .filter((td) => getComputedStyle(td).display !== 'none').map((td) => (td.textContent ?? '').replace(/\s+/g, ' ').trim()).slice(0, 3)));
     expect(await lignes('#s-canaux')).toEqual([['Factures', '2et 1 avoir', '874,949'], ['Tickets de caisse', '1', '30,100']]);
     expect(net(await p.locator('#s-canaux tfoot').innerText())).toContain('905,049');
-    expect(net(await p.locator('#s-tva').innerText())).toBe('TVA collectée sur la période : 1 875,826 DT, à reverser, avoirs déduits, dont 1 795,595 DT sur la revente d\'un bien. i');
+    expect(net(await p.locator('#s-tva').innerText())).toBe('TVA collectée sur la période : 1 875,826 DT, avoirs déduits, dont 1 795,595 DT sur la revente d\'un bien. Ce que tu reverses vraiment (moins la TVA de tes achats et ton crédit) se lit dans Comptabilité › TVA à payer. i');
     expect(net(await p.locator('#s-cession').innerText())).toBe(`Cette revente n'est pas une vente de ton métier : Four à sole 6 bouches (${facture}), 9 450,500 DT HT. Ton comptable la passe à part, aux produits des cessions (775) : elle n'est dans aucun chiffre de cette page, sauf la TVA collectée. i`);
     // Le voisin qui rachète le four n'est pas le meilleur client ; le four n'est pas « ce qui se vend le mieux ».
     expect(await p.locator('#s-clients .rank .name').allInnerTexts()).toEqual(['Hôtel Les Dunes', 'Restaurant La Marina', 'Vente au comptoir']);
