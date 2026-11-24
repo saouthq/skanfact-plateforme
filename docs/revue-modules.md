@@ -6819,3 +6819,20 @@ Désormais :
 
 Restent à la décision d'un expert : la FODEC à l'export (FISC-3) et le seuil de la retenue des deux côtés (FISC-4).
 Testé à la souris (`tests/web/fodec-devis-1388.test.ts`) ; quatre preuves.
+
+## 1.388.43 — L'indemnité de congés non pris (audit #30, SOCIAL-1)
+
+Un salarié qui part avec des jours de congé non pris : l'indemnité se calculait sur le salaire raboté du mois de la
+sortie (un départ le 10 donnait un jour de salaire trois fois trop petit), et elle n'arrivait sur aucun bulletin — elle
+n'était écrite que dans le document de solde de tout compte, donc ni soumise à la CNSS et à l'impôt, ni payée par la paie.
+
+Désormais :
+- le salaire d'un jour se prend sur un mois complet (la fiche du salarié, sinon le dernier bulletin avant tout prorata) ;
+- le bulletin du mois de la sortie porte la ligne « Indemnité de congés non pris (N jours) », soumise comme un salaire, dans
+  l'application de l'entreprise comme au Cabinet (les deux bâtisseurs de bulletin passent par la même règle) ; une sortie
+  le dernier jour du mois compte aussi dans la prévision de trésorerie ;
+- le solde de tout compte ne la recompte pas : une fois sur le bulletin, il dit « sur son dernier bulletin », et sa
+  phrase dit la base (« sur la base d'un mois complet »).
+
+À VÉRIFIER avec un comptable : le diviseur (jours ouvrables du mois) retenu pour le salaire d'un jour.
+Testé (`tests/moteur/paie-documents-personnel.test.ts`, `tests/web/cabinet-documents-personnel.test.ts`) ; trois preuves.

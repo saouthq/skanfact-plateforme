@@ -31940,6 +31940,17 @@ prouver "la TVA a payer qui tait la FODEC" modules/socle/ecrans/entreprise/app-2
   '${cur1.fodec ?' '${false ?' \
   "Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe"
 
+# 1.388.43 — SOCIAL-1 : l'indemnité de congés non pris sur un mois complet, et sur le dernier bulletin.
+prouver $'l\'indemnite de conges sur le bulletin rabote' modules/personnel/moteur/compta-paie.js \
+  "const base = fiche || (dernier ?" "const base = (dernier ? Number(dernier.computed.gross) : 0) || fiche || (dernier ?" \
+  $'l\'indemnité de congés non pris : au jour de la sortie, au salaire d\'un jour d\'un mois complet (sa fiche)'
+prouver $'l\'indemnite de conges sur aucun bulletin' modules/personnel/moteur/compta-paie.js \
+  "if (!(ic.montant > 0)) return [];" "return [];" \
+  $'SOCIAL-1 : le bulletin du mois de départ porte l\'indemnité (soumise comme un salaire), et le solde ne la compte pas deux fois'
+prouver $'l\'indemnite comptee deux fois au solde' modules/personnel/moteur/compta-paie.js \
+  "      surBulletin(data, employeeId)" "      false" \
+  $'SOCIAL-1 : le bulletin du mois de départ porte l\'indemnité (soumise comme un salaire), et le solde ne la compte pas deux fois'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

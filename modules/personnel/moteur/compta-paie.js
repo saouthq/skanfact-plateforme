@@ -430,23 +430,45 @@
     const e = (data.employees || []).find(x => x.id === employeeId) || {};
     const jour = String(e.endDate || dateIso || jourDeLInstant(Date.now()));
     const solde = leaveBalance(data, employeeId, Number(jour.slice(0, 4)), jour).remaining;
+    // (1.388.42, SOCIAL-1) Le salaire d'un jour se prend sur un mois COMPLET : le brut de la fiche (celui du mois de la
+    // sortie, s'il a changé dans l'année). Il se prenait sur le dernier bulletin — celui du mois de départ, déjà raboté par
+    // le prorata : le même droit perdait la moitié de sa valeur parce que le bulletin du mois avait été fait. Sans brut sur la
+    // fiche, le brut d'avant prorata du dernier bulletin.
     const dernier = (data.payslips || []).filter(p => p.employeeId === employeeId && p.computed)
       .sort((a, b) => (Number(b.year) - Number(a.year)) || (Number(b.month) - Number(a.month)))[0];
     const ouvrables = Number(baremesPaie((data && data.payrollSettings) || {}).workedDays) || 26;
-    const journalier = round3((dernier ? Number(dernier.computed.gross) || 0 : Number(e.grossSalary) || 0) / ouvrables);
+    const fiche = Number(employeAuMois(e, Number(jour.slice(0, 4)), Number(jour.slice(5, 7))).grossSalary) || 0;
+    const base = fiche || (dernier ? Number((dernier.prorata && dernier.prorata.brutFiche) || dernier.gross || dernier.computed.gross) || 0 : 0);
+    const journalier = round3(base / ouvrables);
     const jours = Math.max(0, solde);
     return { solde, jours, journalier, montant: round3(journalier * jours) };
+  }
+
+  // (1.388.42, SOCIAL-1) L'indemnité de congés non pris arrive sur le bulletin du mois de la sortie : elle est soumise à la CNSS
+  // et à l'impôt comme un salaire (À VÉRIFIER avec le comptable). La fenêtre de départ l'annonçait « ajoutée au bulletin » et
+  // aucun bulletin ne la portait : ni CNSS, ni impôt, ni écriture. Les deux constructeurs de bulletin (l'entreprise, le
+  // Cabinet) la posent par cette fonction.
+  function congesDuDepart(data, employee, year, month) {
+    const ym = `${year}-${String(month).padStart(2, '0')}`;
+    if (!employee || !employee.endDate || String(employee.endDate).slice(0, 7) !== ym) return [];
+    const ic = indemniteConges(data, employee.id, employee.endDate);
+    if (!(ic.montant > 0)) return [];
+    return [{ label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, taxable: true, conges: true }];
   }
 
   // Les lignes que le solde de tout compte propose : le salaire du mois, l'indemnité de congés non pris (`cle: 'conges'`, que
   // la fenêtre fait suivre la date tant qu'on n'y touche pas), le préavis, la fin de contrat. Les montants sont à celui qui
   // l'établit : seule l'indemnité de congés se calcule.
+  // Le bulletin du mois de départ porte-t-il déjà l'indemnité ? Alors le solde la rappelle sans la compter deux fois.
+  const surBulletin = (data, employeeId) => (data.payslips || []).some(p => p.employeeId === employeeId && (p.bonuses || []).some(b => b && b.conges));
   function lignesDuSolde(data, employeeId, dateIso) {
     const ic = indemniteConges(data, employeeId, dateIso);
     const lic = indemniteLicenciement(data, employeeId, dateIso);
     return [
       { label: 'Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', amount: 0 },
-      { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, cle: 'conges' },
+      surBulletin(data, employeeId)
+        ? { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''}) : sur son dernier bulletin`, amount: 0 }
+        : { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, cle: 'conges' },
       { label: 'Indemnité de préavis', amount: 0 },
       lic ? { label: lic.label, amount: lic.montant, cle: 'licenciement' } : { label: 'Indemnité de fin de contrat', amount: 0 }
     ];
@@ -958,10 +980,13 @@
       deductions: L.filter(v => v.sorte === 'retenue').map(v => ({ label: String(v.label || '').trim() || 'Retenue du mois', amount: round3(Number(v.amount)), variableId: v.id }))
     };
   }
-  function regulsDuMois(employee, year, month) {
+  // `data` (SOCIAL-1) : avec lui, le mois de la sortie porte aussi l'indemnité de congés non pris — les deux bâtisseurs
+  // de bulletin (l'entreprise, le Cabinet) passent par ici, donc par la même règle.
+  function regulsDuMois(employee, year, month, data) {
     const ym = `${year}-${String(month).padStart(2, '0')}`;
     return ((employee && employee.regularisations) || []).filter(r => r && r.pourMois === ym && Number(r.amount))
-      .map(r => ({ label: String(r.label || '').trim() || 'Régularisation', amount: round3(Number(r.amount)), taxable: r.taxable !== false, regulId: r.id }));
+      .map(r => ({ label: String(r.label || '').trim() || 'Régularisation', amount: round3(Number(r.amount)), taxable: r.taxable !== false, regulId: r.id }))
+      .concat(data ? congesDuDepart(data, employee, year, month) : []);
   }
   // (plateforme) 1.230.0 — la SAISIE SUR SALAIRE (une opposition, une pension alimentaire : `employee.saisies` : { id,
   // creancier, total, monthly, debut 'AAAA-MM', reference, versements: [{ id, date, amount, accountId, method }] }).
@@ -1004,7 +1029,7 @@
     // (plateforme) 1.256.0 — la prime d'ancienneté et les variables du mois, comme le bulletin de l'entreprise (core.js,
     // `payslipInputForSansPointage`) : une règle des deux côtés, un chiffre.
     const vars = variablesDuMois(employee, year, month), st = baremesPaie((data && data.payrollSettings) || {});
-    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(employee, st, year, month, total - hors - p.absences, total), ...regulsDuMois(employee, year, month), ...vars.bonuses], prorata,
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: [...primesDuMois(employee, total - hors - p.absences, total), ...primeAncienneteDuMois(employee, st, year, month, total - hors - p.absences, total), ...regulsDuMois(employee, year, month, data), ...vars.bonuses], prorata,
       deductions: [...echeancesDuMois(data, employee.id, year, month), ...saisiesDuMois(data, employee, year, month), ...vars.deductions] };
     return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month), retardsDuMois(data, employee, year, month, p).concat(heuresDeNuitDuMois(data, employee, year, month, p).lignes)) } : i;
   }

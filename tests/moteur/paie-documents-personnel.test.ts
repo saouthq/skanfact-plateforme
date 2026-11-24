@@ -38,9 +38,11 @@ const societe = { name: 'Boulangerie du Port', address: 'Rue du Port\n2000 Le Ba
 const texte = (html: string) => html.replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ');
 
 describe('les documents du personnel, dans le moteur commun', () => {
-  it('l\'indemnité de congés non pris : au jour de la sortie, au salaire d\'un jour du dernier bulletin de ce salarié', () => {
+  // (1.388.42, SOCIAL-1) Retourné vers la règle : le salaire d'un jour se prend sur un mois COMPLET (le brut de la fiche,
+  // 1 234,567 ÷ 26 = 47,483), jamais sur le dernier bulletin — celui du mois de départ est raboté par le prorata.
+  it('l\'indemnité de congés non pris : au jour de la sortie, au salaire d\'un jour d\'un mois complet (sa fiche)', () => {
     // Sortie le 14 août : sept mois de 2026 (1,5 jour par mois), quel que soit le jour du document.
-    const attendue = { solde: 10.5, jours: 10.5, journalier: 50.048, montant: 525.504 };
+    const attendue = { solde: 10.5, jours: 10.5, journalier: 47.483, montant: 498.572 };
     expect(compta.indemniteConges(donnees(), 's1', '2026-06-30')).toEqual(attendue);
     expect(compta.indemniteConges(donnees(), 's1', '2026-12-31')).toEqual(attendue);
     // Sans sortie, la date donnée arrête le compte (trois mois, 4,5 jours) ; sans bulletin, le salaire de sa fiche.
@@ -56,16 +58,33 @@ describe('les documents du personnel, dans le moteur commun', () => {
     expect([avance.jours, avance.montant]).toEqual([0, 0]);
   });
 
+  it('SOCIAL-1 : le bulletin du mois de départ porte l\'indemnité (soumise comme un salaire), et le solde ne la compte pas deux fois', () => {
+    type Bonus = { label: string; amount: number; taxable?: boolean; conges?: boolean };
+    const m = compta as unknown as { regulsDuMois: (e: Objet, y: number, mo: number, d?: Objet) => Bonus[]; saisieDuMois: (d: Objet, e: Objet, y: number, mo: number) => { bonuses: Bonus[] } };
+    const c = core as unknown as { payslipInputFor: (d: Objet, e: Objet, y: number, mo: number) => { bonuses: Bonus[] } };
+    const ligne = { label: 'Indemnité de congés non pris (10,5 jours)', amount: 498.572, taxable: true, conges: true };
+    // Le mois de la sortie, et lui seul : l'entreprise (`payslipInputFor`) et le Cabinet (`saisieDuMois`) la posent pareil.
+    expect(m.regulsDuMois(une, 2026, 8, donnees())).toEqual([ligne]);
+    expect(m.regulsDuMois(une, 2026, 7, donnees())).toEqual([]);
+    expect(m.regulsDuMois(une, 2026, 8)).toEqual([]);
+    expect(c.payslipInputFor(donnees(), une, 2026, 8).bonuses.filter((b) => b.conges)).toEqual([ligne]);
+    expect(m.saisieDuMois(donnees(), une, 2026, 8).bonuses.filter((b) => b.conges)).toEqual([ligne]);
+    // Le bulletin d'août la porte : le solde de tout compte la rappelle, à zéro.
+    const d = donnees();
+    d.payslips = [...(d.payslips as Objet[]), { id: 'p8', employeeId: 's1', year: 2026, month: 8, bonuses: [ligne], computed: { gross: 1000 } }];
+    expect(compta.lignesDuSolde(d, 's1', '2026-08-20')[1]).toEqual({ label: 'Indemnité de congés non pris (10,5 jours) : sur son dernier bulletin', amount: 0 });
+  });
+
   it('deux chemins, un chiffre : la ligne que la fenêtre propose est celle que le document imprime', () => {
     const lignes = compta.lignesDuSolde(donnees(), 's1', '2026-08-20');
     expect(lignes.map((l) => [l.label, l.amount])).toEqual([
-      ['Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', 0], ['Indemnité de congés non pris (10,5 jours)', 525.504], ['Indemnité de préavis', 0], ['Indemnité de fin de contrat', 0]]);
-    expect(lignes.find((l) => l.cle === 'conges')?.amount).toBe(525.504);
+      ['Salaire du mois en cours (s\'il n\'est pas sur un bulletin)', 0], ['Indemnité de congés non pris (10,5 jours)', 498.572], ['Indemnité de préavis', 0], ['Indemnité de fin de contrat', 0]]);
+    expect(lignes.find((l) => l.cle === 'conges')?.amount).toBe(498.572);
     // Le document, daté deux mois avant la sortie (préparé d'avance : au 15 juin, il compterait 7,5 jours), compte au jour
     // de la sortie, comme la fenêtre.
     const doc = texte(core.hrDocumentHtml('solde', une, donnees(), societe, { date: '2026-06-15', lines: lignes }));
-    expect(doc).toContain('Indemnité de congés non pris (10,5 jours) 525,504');
-    expect(doc).toContain('Solde de congés non pris au départ : 10,5 jours , soit 525,504 DT sur la base du dernier salaire');
+    expect(doc).toContain('Indemnité de congés non pris (10,5 jours) 498,572');
+    expect(doc).toContain('Solde de congés non pris au départ : 10,5 jours , soit 498,572 DT sur la base d\'un mois complet');
     // core.js reprend la liste du moteur commun : une seule copie.
     expect(core.HR_DOCS).toEqual(compta.HR_DOCS);
     expect(compta.HR_DOCS.map((d) => d[0])).toEqual(['contrat', 'avenant', 'attestation', 'certificat', 'salaire', 'annuelle', 'essai', 'solde']);

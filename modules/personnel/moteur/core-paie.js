@@ -604,7 +604,7 @@
     // (plateforme) 1.230.0 — avec les régularisations portées sur ce mois (un bulletin payé corrigé, un rappel).
     // (plateforme) 1.256.0 — la prime d'ancienneté des réglages (au jour, comme une prime de la fiche) et les primes du mois
     // importées d'un tableur.
-    return { gross, workedDays: total, absentDays, bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.primeAncienneteDuMois(employee, s, year, month, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month), ...vars.bonuses], deductions, prorata };
+    return { gross, workedDays: total, absentDays, bonuses: [...primesDuMois(employee, total - hors - absentDays, total), ...Compta.primeAncienneteDuMois(employee, s, year, month, total - hors - absentDays, total), ...Compta.regulsDuMois(employee, year, month, data), ...vars.bonuses], deductions, prorata };
   }
 
   // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`employee.primes` :
@@ -625,7 +625,9 @@
     if (mois && mois.data && employee) {
       const first = `${mois.year}-${String(mois.month).padStart(2, '0')}-01`, last = addDays(first, daysInMonth(mois.year, mois.month) - 1);
       const entre = employee.hireDate && employee.hireDate > first && employee.hireDate <= last;
-      const sort = employee.endDate && employee.endDate >= first && employee.endDate < last;
+      // (1.388.42, SOCIAL-1) Une sortie le dernier jour du mois n'a pas de prorata, mais son bulletin porte l'indemnité de
+      // congés non pris : la fiche du mois passe donc par le même constructeur que le bulletin.
+      const sort = employee.endDate && employee.endDate >= first && employee.endDate <= last;
       if (entre || sort) {
         const i = payslipInputForSansPointage(mois.data, employee, mois.year, mois.month);
         return { gross: i.gross, workedDays: i.workedDays, bonuses: i.bonuses, prorata: i.prorata, year: mois.year, month: mois.month };
@@ -694,7 +696,7 @@
           ${(opts.lines || []).map(l => `<tr><td>${escapeHtml(l.label)}</td><td class="n">${fmt(l.amount)}</td></tr>`).join('')}
           <tr class="tot"><td>Total du solde</td><td class="n">${fmt(round3((opts.lines || []).reduce((a, l) => a + (Number(l.amount) || 0), 0)))} ${escapeHtml(cur)}</td></tr>
         </table>
-        <p class="small">Solde de congés non pris au départ : <b>${pctFr(bal.remaining)} jour${sAccord(bal.remaining)}</b>${leavePay > 0 ? `, soit ${fmt(leavePay)} ${escapeHtml(cur)} sur la base du dernier salaire` : ''}.</p>
+        <p class="small">Solde de congés non pris au départ : <b>${pctFr(bal.remaining)} jour${sAccord(bal.remaining)}</b>${leavePay > 0 ? `, soit ${fmt(leavePay)} ${escapeHtml(cur)} sur la base d'un mois complet` : ''}.</p>
         <p>Le présent solde est établi en double exemplaire. <em>À VÉRIFIER : les indemnités de fin de contrat dépendent du motif de la rupture et de la convention collective applicable — faites relire ce document avant signature.</em></p>`,
       // (plateforme) 1.223.0 — les documents de la maquette. Les montants viennent des bulletins établis, jamais tapés.
       salaire: (() => {
