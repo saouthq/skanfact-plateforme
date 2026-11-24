@@ -6854,3 +6854,13 @@ Désormais :
   TVA entre les pièces, s'il reste, se dit sur sa propre ligne (« Arrondi de la TVA (deux pièces) »).
 
 Testé à la souris (`tests/web/acomptes-1388.test.ts`) ; trois preuves.
+
+## 1.388.45 — Au Cabinet, un double clic sur « Enregistrer et valider » n'écrit qu'une écriture (audit #30, ROB-6)
+
+Dans la grille de saisie à la main, deux ou trois clics rapides sur « Enregistrer et valider » écrivaient et validaient
+deux ou trois fois la même écriture (les numéros se suivaient, et une écriture validée ne se modifie plus : il fallait
+contre-passer chaque doublon). Le contrôle du doublon de pièce ne jouait pas quand le champ Pièce était vide.
+
+Désormais « Enregistrer » et « Enregistrer et valider » se grisent le temps du geste, et un second clic (ou le raccourci
+clavier) pendant ce temps ne fait rien : une seule écriture, validée une fois. Testé à la souris
+(`tests/web/cabinet-saisie.test.ts`, trois clics dans la même milliseconde) ; une preuve.

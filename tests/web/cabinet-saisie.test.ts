@@ -47,7 +47,7 @@ describe('la saisie du Cabinet, à la souris', () => {
     await api('POST', '/moi/code', jeton, { methode: 'application' });
     return jeton;
   };
-  type Ecriture = { id: string; journal: string; piece: string | null; statut: string; numero: string | null; chaine: number | null;
+  type Ecriture = { id: string; journal: string; piece: string | null; libelle?: string; statut: string; numero: string | null; chaine: number | null;
     origine: { type: string; id: string }; lignes: { compte: string; debit: string; credit: string; lettre: string | null }[] };
   const livres = async (ent: string, jeton: string) => (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, jeton)).corps.ecritures as Ecriture[];
   // Un menu de ligne s'ouvre par son bouton ; une action se choisit par ce qu'elle dit.
@@ -145,6 +145,13 @@ describe('la saisie du Cabinet, à la souris', () => {
     await expect.poll(async () => (await livres(ent, associe)).find((e) => e.piece === 'OD-8')?.statut, { timeout: 10_000 }).toBe('validee');
     const od8 = (await livres(ent, associe)).find((e) => e.piece === 'OD-8');
     expect(od8?.numero).toMatch(/^OD-2026-\d{6}$/);
+    // (audit #30, ROB-6) Sans numéro de pièce, trois clics rapides sur « Enregistrer et valider » : une seule écriture, validée une fois.
+    await expect.poll(async () => p.locator('#sa-libelle').inputValue(), { timeout: 10_000 }).toBe('');
+    await remplir('', 'Frais double clic', [['627', '12,500', ''], ['532', '', '12,500']]);
+    await p.locator('#sa-okvalider').evaluate((b) => { (b as HTMLButtonElement).click(); (b as HTMLButtonElement).click(); (b as HTMLButtonElement).click(); });
+    await expect.poll(async () => (await livres(ent, associe)).filter((e) => e.libelle === 'Frais double clic' && e.statut === 'validee').length, { timeout: 10_000 }).toBe(1);
+    await p.waitForTimeout(2000);
+    expect((await livres(ent, associe)).filter((e) => e.libelle === 'Frais double clic').length).toBe(1);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-2-grille.png') });
 
     // L'achat du client, au brouillard : son menu ne propose ni de le reprendre, ni de le supprimer.

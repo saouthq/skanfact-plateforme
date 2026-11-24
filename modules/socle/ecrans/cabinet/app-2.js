@@ -4574,7 +4574,20 @@
       const pc2 = $('#sa-piece'); if (pc2) pc2.focus();
     };
 
+    // (audit #30, ROB-6) Un geste à la fois : deux clics rapides sur « Enregistrer et valider » écrivaient et validaient deux
+    // fois la même écriture (les fenêtres et le contrôle de licence attendent, rien ne refusait le second passage). Les deux
+    // boutons se grisent le temps du geste, comme « Émettre » côté entreprise ; le raccourci clavier passe par la même porte.
+    let enregistrement = false;
     const enregistrer = async (puisValider) => {
+      if (enregistrement) return;
+      enregistrement = true;
+      const btns = ['#sa-ok', '#sa-okvalider'].map(x => $(x, el)).filter(Boolean);
+      const avant = btns.map(b => b.disabled);
+      btns.forEach(b => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
+      try { await enregistrerUneFois(puisValider); }
+      finally { enregistrement = false; btns.forEach((b, i) => { if (b.isConnected) { b.disabled = avant[i]; b.removeAttribute('aria-busy'); } }); }
+    };
+    const enregistrerUneFois = async (puisValider) => {
       const ecr = ecritureSaisie(p);
       // Le contrôle porte sur le geste DEMANDÉ : valider exige un libellé, le brouillard non
       // (T-51). Sans ce drapeau, le pont refusait la validation APRÈS l'enregistrement, et l'écran
@@ -4629,7 +4642,7 @@
       if (deux && !await confirmDialog('Déjà au livre ?', `<p>${esc(deux.journal)} ${esc(deux.piece)} du ${esc(fmtJour(deux.date))} porte déjà ce numéro. L'enregistrer encore compterait la pièce deux fois.</p>`, 'L\'enregistrer quand même')) return;
       // (plateforme) 1.105.0 — sans réseau, valider attend le serveur : on le dit avant d'écrire, la pièce reste ici.
       if (puisValider && typeof api.horsLigne === 'function' && api.horsLigne()) {
-        if (await confirmDialog('Valider demande le réseau', '<p>Sans réseau, une écriture se garde au brouillard de ce poste, sans numéro : elle partira seule au retour du réseau, et tu la valideras alors.</p>', 'Enregistrer en brouillard')) await enregistrer(false);
+        if (await confirmDialog('Valider demande le réseau', '<p>Sans réseau, une écriture se garde au brouillard de ce poste, sans numéro : elle partira seule au retour du réseau, et tu la valideras alors.</p>', 'Enregistrer en brouillard')) await enregistrerUneFois(false);
         return;
       }
       try {

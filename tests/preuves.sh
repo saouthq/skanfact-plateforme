@@ -31962,6 +31962,11 @@ prouver "la fenetre d'acompte muette sur le deja facture" modules/socle/ecrans/e
   "const avant = [...acEmis, ...acBrouillons];" "const avant = [];" \
   "Fathi demande un second acompte : la fenêtre dit les 30 % déjà facturés, refuse 80 %, et annonce le solde après les deux"
 
+# 1.388.45 — ROB-6 : un double clic sur « Enregistrer et valider » n'écrit qu'une écriture.
+prouver "le double clic qui valide deux fois" modules/socle/ecrans/cabinet/app-2.js \
+  "      try { await enregistrerUneFois(puisValider); }" "      enregistrement = false; btns.forEach(b => { b.disabled = false; }); try { await enregistrerUneFois(puisValider); }" \
+  "le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
