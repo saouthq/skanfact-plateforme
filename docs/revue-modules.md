@@ -6774,3 +6774,10 @@ Le passage complet des preuves sur la 1.388.38 a trouvé sept défauts que plus 
 - la visite nomme le bouton tel que l'écran l'écrit : le défaut se pose avec l'ancien nom écrit en dur.
 
 Rien ne change dans l'application.
+
+## 1.388.40 — Le refus d'un code faux, validé comme on le tape
+
+Sur GitHub, la preuve « le refus caché sous le bord de la fenêtre » restait verte : le test cliquait « Vérifier
+et activer », et ce clic faisait d'abord défiler la fenêtre jusqu'au bouton, ce qui montrait le refus pour une
+autre raison que celle qu'on vérifie. Le test valide désormais par Entrée depuis la case du code, la case posée
+tout au bas de ce qui se voit. Rien ne change dans l'application.

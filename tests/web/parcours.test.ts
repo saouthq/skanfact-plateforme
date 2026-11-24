@@ -245,7 +245,9 @@ describe('le parcours, à la souris', () => {
       const m = input.closest('.modal') as HTMLElement;
       m.scrollTop += input.getBoundingClientRect().bottom - m.getBoundingClientRect().bottom + 2;
     });
-    await activer.click();
+    // Valider par Entrée, depuis la case : un clic sur le bouton ferait d'abord défiler la fenêtre jusqu'à lui (et
+    // montrerait le refus pour une autre raison que celle qu'on vérifie).
+    await premier.press('Enter');
     await expect.poll(() => fenetre.getByRole('alert').innerText()).toBe(fine(phrase('compte.code_essai_faux')));
     expect(await premier.evaluate((e) => e === document.activeElement)).toBe(true);
     // Le refus se lit en entier, au bas de cette fenêtre plus haute que l'écran (vu le 09/10/2026 : la moitié du
