@@ -6799,3 +6799,23 @@ Désormais :
 
 Le pont reconnaît l'écriture contre-passée à son miroir, même encore au brouillard. Testé à la souris
 (`tests/web/achat-resume-1358.test.ts`, étape 6) ; deux preuves.
+
+## 1.388.42 — La FODEC suit le devis jusqu'à la facture, et la comptabilité la dit (audit #30, FISC-1 et FISC-2)
+
+Un fabricant qui chiffrait ses poutrelles par un devis perdait la FODEC en route : le devis n'avait pas de colonne FODEC,
+et la facture tirée du devis (conversion, acompte, solde) arrivait avec la case décochée. Pour dix poutrelles, 25 DT de
+FODEC et 4,750 DT de TVA dessus n'étaient pas facturés, alors que l'entreprise les doit à l'État. Et quand la FODEC était
+facturée, la comptabilité de l'entreprise ne la disait nulle part.
+
+Désormais :
+- le devis, la proforma et le bon de commande portent la FODEC des produits fabriqués, comme la facture ; la facture tirée
+  du devis garde la case et le taux, et l'annonce de l'acompte et du solde la compte ;
+- Comptabilité › Ventes dit la FODEC collectée (carte, phrase sous le tableau), le tableau « TVA par taux » montre la
+  FODEC et la base imposable de chaque taux (19 % de la base imposable refait la TVA affichée), et le journal des ventes a
+  sa colonne FODEC (HT + TVA + FODEC + timbre refait le TTC) ; l'export CSV aussi ;
+- « TVA à payer » range la FODEC collectée parmi ce qui se déclare aussi, dit « timbres des factures de la période »
+  (c'est ce que le chiffre compte), et dit que les retenues subies ne se versent pas : elles s'imputent sur l'impôt, avec
+  leurs attestations (FISC-10). À VÉRIFIER avec un comptable : la case de la FODEC sur la déclaration mensuelle.
+
+Restent à la décision d'un expert : la FODEC à l'export (FISC-3) et le seuil de la retenue des deux côtés (FISC-4).
+Testé à la souris (`tests/web/fodec-devis-1388.test.ts`) ; quatre preuves.

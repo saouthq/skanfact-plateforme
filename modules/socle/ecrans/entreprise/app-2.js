@@ -5342,6 +5342,7 @@
         { key: 'client', label: 'Client', asc: true, val: r => (r.client || '').toLowerCase(), get: r => `${h(r.client)}<div class="small muted">${h(r.subject)}</div>` },
         { key: 'ht', label: 'HT', r: true, val: r => r.ht, get: r => montantCompta(r.ht) },
         { key: 'tva', label: 'TVA', r: true, val: r => r.tva, get: r => montantCompta(r.tva) },
+        ...(allRows.some(r => r.fodec) ? [{ key: 'fodec', label: 'FODEC', r: true, val: r => r.fodec || 0, get: r => r.fodec ? montantCompta(r.fodec) : '—' }] : []),
         { key: 'ttc', label: 'TTC', r: true, val: r => r.ttc, get: r => montantCompta(r.ttc) },
         { key: 'rs', label: 'Retenue', r: true, val: r => r.rs, get: r => r.rs ? montantCompta(r.rs) : '—' },
         { key: 'net', label: 'Net', r: true, val: r => r.net, get: r => montantCompta(r.net) },
@@ -5371,16 +5372,17 @@
         </div>
         <div class="stats">
           <div class="stat"><div class="lbl">Chiffre d'affaires HT — ${h(periodLabel())} ${info('dash.caMonth')}</div><div class="val">${C.money(sum.ht, cur)}</div><div class="sub">${pl(sum.count, 'document')}, avoirs déduits</div></div>
-          <div class="stat"><div class="lbl">TVA collectée ${info('compta.vat')}</div><div class="val">${C.money(sum.tva, cur)}</div><div class="sub">+ timbres ${C.money(sum.timbre, cur)}</div></div>
+          <div class="stat"><div class="lbl">TVA collectée ${info('compta.vat')}</div><div class="val">${C.money(sum.tva, cur)}</div><div class="sub">+ timbres ${C.money(sum.timbre, cur)}${sum.fodec ? ` · FODEC ${C.money(sum.fodec, cur)}` : ''}</div></div>
           <div class="stat"><div class="lbl">Encaissé sur la période ${info('compta.payments')}</div><div class="val">${C.money(paidTotal, cur)}</div><div class="sub">${pl(pays.length, 'paiement')}</div></div>
           <div class="stat" data-cstat="encaisser" role="button" tabindex="0" title="Voir les factures qui restent à encaisser"><div class="lbl">Reste à encaisser (total) ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture ouverte', 'factures ouvertes')}</div></div>
         </div>
         <div class="panel"><h2>TVA par taux — ${h(periodLabel())} ${info('compta.vat')}</h2>
-          <table class="list compact"><thead><tr><th>Taux</th><th class="r">Base HT</th><th class="r">TVA</th></tr></thead><tbody>
-            ${C.VAT_RATES.map(r => `<tr><td>TVA ${r} %</td><td class="r">${C.money(sum.byRate[r].base, cur)}</td><td class="r">${C.money(sum.byRate[r].vat, cur)}</td></tr>`).join('')}
-            <tr class="total-row"><td><strong>Total</strong></td><td class="r"><strong>${C.money(sum.ht, cur)}</strong></td><td class="r"><strong>${C.money(sum.tva, cur)}</strong></td></tr>
+          ${/* (1.388.42, FISC-2) La FODEC entre dans la base de la TVA de son taux : le tableau la dit, et la base imposable la compte. */''}
+          <table class="list compact"><thead><tr><th>Taux</th><th class="r">Base HT</th>${sum.fodec ? '<th class="r">FODEC</th><th class="r">Base imposable</th>' : ''}<th class="r">TVA</th></tr></thead><tbody>
+            ${C.VAT_RATES.map(r => `<tr><td>TVA ${r} %</td><td class="r">${C.money(sum.byRate[r].base, cur)}</td>${sum.fodec ? `<td class="r">${C.money(sum.byRate[r].fodec, cur)}</td><td class="r">${C.money(C.round3(sum.byRate[r].base + sum.byRate[r].fodec), cur)}</td>` : ''}<td class="r">${C.money(sum.byRate[r].vat, cur)}</td></tr>`).join('')}
+            <tr class="total-row"><td><strong>Total</strong></td><td class="r"><strong>${C.money(sum.ht, cur)}</strong></td>${sum.fodec ? `<td class="r"><strong>${C.money(sum.fodec, cur)}</strong></td><td class="r"><strong>${C.money(C.round3(sum.ht + sum.fodec), cur)}</strong></td>` : ''}<td class="r"><strong>${C.money(sum.tva, cur)}</strong></td></tr>
           </tbody></table>
-          <p class="small muted mt">Timbres fiscaux : ${C.money(sum.timbre, cur)} · TTC facturé : ${C.money(sum.ttc, cur)} · Retenues à la source subies sur les encaissements de la période : ${C.money(rsSubies, cur)}${Math.abs(sum.rs - rsSubies) > 0.0005 ? ` (les factures de la période en portent ${C.money(sum.rs, cur)} : un client la retient en payant)` : ''}. <em>À VÉRIFIER avec le comptable</em> avant déclaration.</p>
+          <p class="small muted mt">Timbres fiscaux : ${C.money(sum.timbre, cur)}${sum.fodec ? ` · FODEC collectée : ${C.money(sum.fodec, cur)} (dans la base de la TVA)` : ''} · TTC facturé : ${C.money(sum.ttc, cur)} · Retenues à la source subies sur les encaissements de la période : ${C.money(rsSubies, cur)}${Math.abs(sum.rs - rsSubies) > 0.0005 ? ` (les factures de la période en portent ${C.money(sum.rs, cur)} : un client la retient en payant)` : ''}. <em>À VÉRIFIER avec le comptable</em> avant déclaration.</p>
         </div>
         <div class="panel"><h2>Journal des ventes — ${h(periodLabel())} ${info('compta.journal')}</h2>
           <div class="inline mb"><button class="btn" id="exp-journal">Exporter en CSV</button><button class="btn" id="exp-pdfs">Exporter tous les PDF de la période</button><button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>${info('compta.comptable')}</div>
@@ -5712,7 +5714,7 @@
               <span>${cur1.toPay ? 'TVA à reverser' : 'Crédit de TVA reportable sur la période suivante'}</span>
               <span class="num">${C.money(cur1.toPay || cur1.carryOut, cur)}</span></div>
           </div>
-          <p class="small muted mt">Timbres fiscaux encaissés sur la période : ${C.money(cur1.stamps, cur)} · retenues subies : ${C.money(cur1.withheldBySale, cur)} · retenues que tu as opérées : ${C.money(cur1.withheldOnBuys, cur)}. Ces trois lignes se déclarent séparément de la TVA. <em>À VÉRIFIER avec ton comptable.</em></p>` : ''}
+          <p class="small muted mt" id="vat-autres">${/* (1.388.42, FISC-2 et FISC-10) La FODEC collectée se dit ; le timbre est celui des factures de la période ; la retenue subie n'est pas à verser. */''}Se déclarent aussi : timbres des factures de la période ${C.money(cur1.stamps, cur)}${cur1.fodec ? ` · <b>FODEC collectée ${C.money(cur1.fodec, cur)}</b>` : ''} · retenues que tu as opérées ${C.money(cur1.withheldOnBuys, cur)}, à reverser. Les retenues subies (${C.money(cur1.withheldBySale, cur)}) ne se versent pas : elles s'imputent sur ton impôt, avec leurs attestations. <em>À VÉRIFIER avec ton comptable.</em></p>` : ''}
           ${blocCabinet}
           ${partPaie}
           ${cur1 && (cur1.collected || cur1.deductible) ? `<div class="inline mt">

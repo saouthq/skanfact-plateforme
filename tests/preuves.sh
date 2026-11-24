@@ -31926,6 +31926,20 @@ prouver $'la correction d\'une piece validee dite Validee' web/public/plateforme
   "m.origine.type === 'contre_passation' && m.origine.id === e.id" "false" \
   $'Sarra relit PK-2611-07 : l\'écriture au brouillard puis validée par Leila, la frise qui le suit, l\'affaire rangée et retirée, et les lignes au téléphone'
 
+# 1.388.42 — FISC-1/2 : la FODEC suit le devis jusqu'à la facture, et la comptabilité la dit.
+prouver "la FODEC perdue sur le devis" modules/socle/ecrans/entreprise/app-1.js \
+  "(isInv || isAv || isQ || doc.type === 'proforma' || doc.type === 'commande')" "(isInv || isAv)" \
+  "Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe"
+prouver "la base imposable sans la FODEC" modules/socle/moteur/core-1.js \
+  "byRate[rate].fodec = round3(byRate[rate].fodec + (v.fodec || 0));" "" \
+  "Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe"
+prouver "le journal des ventes sans colonne FODEC" modules/socle/ecrans/entreprise/app-2.js \
+  "...(allRows.some(r => r.fodec) ?" "...(false ?" \
+  "Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe"
+prouver "la TVA a payer qui tait la FODEC" modules/socle/ecrans/entreprise/app-2.js \
+  '${cur1.fodec ?' '${false ?' \
+  "Hédi chiffre dix poutrelles : le devis porte la FODEC, la facture tirée du devis la garde, comme une facture directe"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

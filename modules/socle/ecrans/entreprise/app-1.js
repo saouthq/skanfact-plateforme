@@ -6598,7 +6598,9 @@
     // (1.155.0, maquette « FODEC ») Une entreprise qui fabrique (Réglages : « Je fabrique ce que je vends ») coche la FODEC
     // ligne par ligne ; le taux est la règle `fodec.taux` du serveur (1 %, À VÉRIFIER), posé sur le brouillon et gelé à
     // l'émission. Une pièce prix TTC (le comptoir) n'en porte pas.
-    const fabrique = (isInv || isAv) && !doc.prixTtc && (company().fodec === true || doc.lines.some(l => l.fodec === true));
+    // (1.388.42, FISC-1) Le devis, la proforma et le bon de commande la portent aussi : le prix annoncé au client est celui qu'il
+    // paiera, et la facture tirée du devis (conversion, acompte, solde) garde ses lignes FODEC au lieu de les perdre.
+    const fabrique = (isInv || isAv || isQ || doc.type === 'proforma' || doc.type === 'commande') && !doc.prixTtc && (company().fodec === true || doc.lines.some(l => l.fodec === true));
     function appliquerRegles() {
       if (!figee && (isInv || isAv) && bridge.seuilRetenue) {
         const sr = Number(bridge.seuilRetenue()) || 0;
@@ -10695,6 +10697,8 @@
     // brouillon de facture : sans lui, « Si le devis devient une facture » retenait 1 % d'un devis sous le seuil, et
     // l'acompte s'annonçait « 382,704 DT » pour une facture qui en fera 386,560. L'annonce et la pièce, un constructeur (E-02).
     if (bridge.seuilRetenue) { const sr = Number(bridge.seuilRetenue()) || 0; if (sr > 0) inv.seuilRetenue = sr; }
+    // (1.388.42, FISC-1) La FODEC du devis passe à la facture : son taux, pour que l'annonce (acompte, solde) la compte.
+    if (Number(quote.fodecRate) > 0) inv.fodecRate = Number(quote.fodecRate);
     return inv;
   }
   // (1.307.0) Facturer un devis encore en attente, c'est que le client a dit oui : le jour où l'on facture se note comme sa

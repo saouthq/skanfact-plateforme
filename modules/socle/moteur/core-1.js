@@ -2022,7 +2022,7 @@
       const bal = d.type === 'facture' ? invoiceBalance(d, data, company) : null;
       const vatByRate = {};
       // (1.155.0) La FODEC est dans la base de la TVA de son taux : elle en sort, le chiffre d'affaires reste le net HT.
-      VAT_RATES.forEach(r => { const v = t.vatByRate[r]; vatByRate[r] = { base: round3((v ? v.base - (v.fodec || 0) : 0) * sign), vat: round3((v ? v.vat : 0) * sign) }; });
+      VAT_RATES.forEach(r => { const v = t.vatByRate[r]; vatByRate[r] = { base: round3((v ? v.base - (v.fodec || 0) : 0) * sign), vat: round3((v ? v.vat : 0) * sign), fodec: round3((v ? v.fodec || 0 : 0) * sign) }; });
       // (1.318.0) La part des marchandises et des produits fabriqués de chaque taux, dans la devise de la pièce : le journal
       // la convertit et la ventile (`ventilerBase`).
       const natures = {};
@@ -2061,11 +2061,13 @@
 
   function vatSummary(rows) {
     const byRate = {};
-    VAT_RATES.forEach(r => { byRate[r] = { base: 0, vat: 0 }; });
-    const sum = { ht: 0, tva: 0, timbre: 0, ttc: 0, rs: 0, net: 0 };
+    // (1.388.42, FISC-2) La FODEC de chaque taux est dans la base de SA TVA : elle se dit à part (`fodec`), et la base imposable
+    // du taux est `base + fodec` — sans elle, « 19 % de la base » ne refaisait pas la TVA affichée.
+    VAT_RATES.forEach(r => { byRate[r] = { base: 0, vat: 0, fodec: 0 }; });
+    const sum = { ht: 0, tva: 0, timbre: 0, fodec: 0, ttc: 0, rs: 0, net: 0 };
     rows.forEach(r => {
-      VAT_RATES.forEach(rate => { byRate[rate].base = round3(byRate[rate].base + r.vatByRate[rate].base); byRate[rate].vat = round3(byRate[rate].vat + r.vatByRate[rate].vat); });
-      Object.keys(sum).forEach(k => { sum[k] = round3(sum[k] + r[k]); });
+      VAT_RATES.forEach(rate => { const v = r.vatByRate[rate]; byRate[rate].base = round3(byRate[rate].base + v.base); byRate[rate].vat = round3(byRate[rate].vat + v.vat); byRate[rate].fodec = round3(byRate[rate].fodec + (v.fodec || 0)); });
+      Object.keys(sum).forEach(k => { sum[k] = round3(sum[k] + (Number(r[k]) || 0)); });
     });
     return { byRate, ...sum, count: rows.length };
   }

@@ -1450,6 +1450,8 @@
     const balance = round3(collected - deductible - carry);
     // Timbres encaissés : ils ne sont pas de la TVA mais se déclarent aussi. À VÉRIFIER.
     const stamps = round3(sales.reduce((s, r) => s + r.timbre, 0));
+    // (1.388.42, FISC-2) La FODEC facturée sur la période : collectée pour l'État, elle se déclare avec la TVA (À VÉRIFIER).
+    const fodec = round3(sales.reduce((s, r) => s + (r.fodec || 0), 0));
     // Retenues subies (déductibles de ton impôt) et opérées (à reverser) : celles des RÈGLEMENTS du
     // mois, jamais celles des factures (10.14.0) — tant que rien n'est versé, rien n'est retenu. Un
     // avoir posé après un règlement régularise dans SON mois.
@@ -1459,7 +1461,7 @@
       period, byRate, collected, deductible, carryIn: carry,
       toPay: balance > 0 ? balance : 0,
       carryOut: balance < 0 ? round3(-balance) : 0,     // crédit de TVA reportable sur la période suivante
-      stamps, withheldBySale, withheldOnBuys,
+      stamps, fodec, withheldBySale, withheldOnBuys,
       salesCount: sales.length, buysCount: buys.length,
       salesHT: round3(sales.reduce((s, r) => s + r.ht, 0)),
       buysHT: round3(buys.reduce((s, r) => s + r.ht, 0))
@@ -1953,7 +1955,9 @@
       { key: 'client', label: 'Client' }, { key: 'subject', label: 'Objet' }, { key: 'ht', label: 'Total HT', type: 'money' },
       ...VAT_RATES.map(r => ({ label: `Base ${r}%`, type: 'money', get: x => x.vatByRate[r].base })),
       ...VAT_RATES.map(r => ({ label: `TVA ${r}%`, type: 'money', get: x => x.vatByRate[r].vat })),
-      { key: 'tva', label: 'Total TVA', type: 'money' }, { key: 'timbre', label: 'Timbre', type: 'money' }, { key: 'ttc', label: 'TTC', type: 'money' },
+      { key: 'tva', label: 'Total TVA', type: 'money' }, { key: 'timbre', label: 'Timbre', type: 'money' },
+      // (1.388.42, FISC-2) La FODEC a sa colonne : sans elle, HT + TVA + timbre ne refaisaient pas le TTC d'une facture qui la porte.
+      { key: 'fodec', label: 'FODEC', type: 'money' }, { key: 'ttc', label: 'TTC', type: 'money' },
       { key: 'rs', label: 'Retenue source', type: 'money' }, { key: 'net', label: 'Net à payer', type: 'money' },
       { key: 'statusLabel', label: 'Statut' }, { key: 'paid', label: 'Payé', type: 'money' }, { key: 'remaining', label: 'Reste', type: 'money' }
     ];
