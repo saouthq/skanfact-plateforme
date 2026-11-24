@@ -914,14 +914,14 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(await carte.getByRole('button', { name: 'Revenir aux gratuits de tous', exact: true }).count()).toBe(1);
     expect((await admin.query('select gratuits from plateforme.faveur_cabinet where cabinet = $1', [String(cab.id)])).rows[0].gratuits).toBe(10n);
     // Suspendre (le bouton du danger), puis reprendre : le bandeau le dit, le bouton change.
-    await cliquer(carte.getByRole('button', { name: 'Suspendre', exact: true }));
+    await cliquer(carte.getByRole('button', { name: 'Suspendre…', exact: true }));
     await fenetre.getByLabel('Motif', { exact: true }).fill('Essai de la suspension');
     await cliquer(fenetre.getByRole('button', { name: 'Suspendre', exact: true }));
     await expect.poll(() => p.locator('.c-bandeau-paie b').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Suspendu : dossiers tenus en lecture seule depuis le');
     await cliquer(carte.getByRole('button', { name: 'Reprendre', exact: true }));
     await fenetre.getByLabel('Motif', { exact: true }).fill('Essai fini');
     await cliquer(fenetre.getByRole('button', { name: 'Reprendre', exact: true }));
-    await expect.poll(() => carte.getByRole('button', { name: 'Suspendre', exact: true }).count(), { timeout: 15_000 }).toBe(1);
+    await expect.poll(() => carte.getByRole('button', { name: 'Suspendre…', exact: true }).count(), { timeout: 15_000 }).toBe(1);
     await fermer(p);
     // Le support lit la même carte, sans aucun geste.
     const q = await ouvrir(await jetonConsole(support), `#/cabinets/${String(cab.id)}`);

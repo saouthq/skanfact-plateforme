@@ -32085,6 +32085,30 @@ prouver "Ton compte sur deux colonnes" web/public/plateforme/messagerie.css \
 prouver "la fenêtre d'invitation du Cabinet sans geste principal" modules/socle/ecrans/cabinet/app-2.js \
   '<button class="btn btn-primary" id="eq-copier">Copier le lien</button>' '<button class="btn" id="eq-copier">Copier le lien</button>' \
   $'inviter par l\'adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer'
+prouver "un paiement d'un dinar noté sans un mot" web/console/src/ecrans/Fiche.tsx \
+  'recuM > 0n && recuM < prixM;' 'recuM > 0n && recuM < 0n;' \
+  $'un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »'
+prouver "le paiement noté sans entreprise SkanFact, sans avertissement" web/console/src/ecrans/Fiche.tsx \
+  '{details.sansEditeur === true ? <Alerte' '{false ? <Alerte' \
+  $'un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »'
+prouver "le paiement noté introuvable dans Factures et paiements" web/console/src/ecrans/Fiche.tsx \
+  $'e.nature === \'paye\' && e.par === \'exploitation\' && typeof e.apres?.montant === \'string\'' $'e.nature === \'jamais\'' \
+  $'un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »'
+prouver "l'offre suivante annoncée après la résiliation" web/console/src/ecrans/Fiche.tsx \
+  '{f.offreSuivante && !f.ligne?.resilie_le && !f.ligne?.suspendu_le ?' '{f.offreSuivante ?' \
+  $'un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »'
+prouver "le curseur perdu après Échap sur la fiche" web/console/src/ecrans/Fiche.tsx \
+  $'onClick={() => { setOuvert(false); zone.current?.querySelector<HTMLElement>(\'button\')?.focus({ preventScroll: true }); choisir(g); }}>{libelleDuGeste(g, etat)}</button>\n          ))}\n          {appel' $'onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>\n          ))}\n          {appel' \
+  $'un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »'
+prouver "un module ouvert pendant qu'une période d'avance attend" serveur/abonnement/gestes.ts \
+  'if (avant.a_venir_le && avant.a_venir_le > jour && !avant.modules.includes(d.module)) {' 'if (false) {' \
+  $'ne s\'ouvre pas avant le premier jour de cette période ; il s\'ouvre ce jour-là'
+prouver "la pastille suspendue renvoie à une facture" web/public/plateforme/abonnement.js \
+  $'texte: \'Lecture seule\', raison: e.raison };' $'texte: \'Lecture seule\' };' \
+  $'la pastille d\'une lecture seule porte sa raison ; suspendue, la barre ne renvoie pas à une facture'
+prouver "la fiche d'un cabinet ignore l'entreprise SkanFact absente" serveur/console/routes.ts \
+  'abonnement, sansEditeur } };' 'abonnement } };' \
+  $'la liste compte ce que la fiche montre ; un dossier s\'y dit comme dans la liste des clients ; la fiche du client nomme son cabinet'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

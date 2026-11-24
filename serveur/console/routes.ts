@@ -784,7 +784,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const role = roleDe(qui);
       const abonnement = role === 'direction' || role === 'support'
         ? await lireJson(t, 'select plateforme.console_abonnement_cabinet($1, $2::date) v', [id, jour]) : null;
-      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises), abonnement } };
+      // (1.388.58) Sans entreprise SkanFact désignée, aucune facture de cabinet ne se prépare : l'écran le dit.
+      const sansEditeur = abonnement ? !(await lireJson<{ editeur: unknown }>(t, 'select plateforme.console_editeur() v'))?.editeur : undefined;
+      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises), abonnement, sansEditeur } };
     },
   });
 
@@ -829,6 +831,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     const etatApres = etatAbonnement(faitsApres(faits, apres), jour);
     // Un module ouvert ou retiré ne change pas l'état : l'aperçu dit aussi la liste des modules d'après, et ceux qui partent
     // au renouvellement.
+    // (1.388.58 ; issue 19, CONS2-1) Un paiement noté se compare au prix de sa période (HT, sans la remise ni les modules,
+    // que la fenêtre nomme) ; et sans entreprise SkanFact désignée, il ne compte dans aucun encaissé : l'aperçu le dit.
+    if (corps.apercu && geste === 'payer' && corps.offre && corps.periodicite && typeof details.debut === 'string') {
+      const prix = lirePrix(await lireJson(tx, 'select plateforme.prix_du_jour($1::date) v', [details.debut])).get(`${corps.offre}/${corps.periodicite}`) ?? null;
+      const nos = await lireJson<{ editeur: unknown }>(tx, 'select plateforme.console_editeur() v');
+      Object.assign(details, { prixHt: prix === null ? null : versTexte(prix, 3), sansEditeur: !nos?.editeur });
+    }
     if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules, modulesARetirer: apres.modules_a_retirer ?? [] } };
     // Le motif reste dans l'histoire de l'abonnement (C1) : l'aperçu s'en passe, le geste jamais.
     if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('console.motif_requis'), champ: 'motif', raison: t('console.motif_requis') } };

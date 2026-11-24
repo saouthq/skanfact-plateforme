@@ -7044,3 +7044,27 @@ MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; no
 - Tests : `equipe-entreprise` (nouveau parcours « céder la propriété »), `cabinet-equipe` ; quatre preuves. Reste
   à concevoir : annuler une cession en attente (une nouvelle demande remplace l'ancienne aujourd'hui) et quitter
   soi-même une équipe sans passer par le propriétaire.
+
+## 1.388.58 — La console de l'équipe : paiements notés, abonnements, lecture seule (rapport #19 : CONS2-1 → CONS2-6)
+
+- **CONS2-1 (bloquant)** — « Noter un paiement reçu » dit le prix hors taxes de la période choisie (au prix de son
+  premier jour, sans la remise ni les modules) et prévient avant le geste quand le montant reçu est plus bas
+  (« 1,000 DT reçus pour 390,000 DT HT attendus »), sans le refuser : une remise ou un geste commercial restent
+  possibles. Sans entreprise SkanFact désignée, la fenêtre dit que le paiement prolonge l'abonnement mais ne comptera
+  dans aucun encaissé, même après la désignation. Chaque paiement noté se lit désormais dans « Factures et paiements »
+  de la fiche (jour, facture faite ailleurs, période, moyen, montant), plus seulement dans le journal.
+  *Reste* : l'écran Paiements ne lit toujours que les paiements notés avec l'entreprise SkanFact du jour ; un
+  paiement noté avant la désignation n'y entre pas (la fiche le dit).
+- **CONS2-2** — Une entreprise suspendue par SkanFact lit « Lecture seule · Suspendue par SkanFact » au bas de la
+  barre, plus « Règle ta facture pour créer » : la raison voyage avec la pastille.
+- **CONS2-3** — Un abonnement résilié ou suspendu n'annonce plus d'offre suivante (« À partir du … : Complet »).
+- **CONS2-4** — Un module ne s'ouvre plus pendant qu'une période payée d'avance attend son premier jour : le
+  rattrapage n'aurait compté que la dernière période payée, et les jours de celle qui court n'auraient été facturés
+  nulle part. Le refus dit le jour où il pourra s'ouvrir. « Ton abonnement » n'écrit plus « Complet, avec la paie »
+  (Complet la contient).
+- **CONS2-5** — La fiche d'un cabinet dit « aucune facture ne se prépare tant que l'entreprise SkanFact n'est pas
+  désignée » au lieu de « sa facture se prépare ».
+- **CONS2-6** — L'initiale du cabinet se lit en thème sombre ; « Suspendre… » porte ses points de suspension ; après
+  Échap, le curseur revient sur « Gestes » ; « Ce que chaque rôle ouvre » dit « sans son accord ».
+- Tests : `gestes-0111`, `abonnement-textes`, `offre-compte` (le paiement d'un dinar, l'avertissement, la liste, la
+  résiliation, le curseur), `console` (API et souris) ; neuf preuves.

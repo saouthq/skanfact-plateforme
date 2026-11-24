@@ -265,4 +265,60 @@ describe('ce que l\'offre compte, à la souris', () => {
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 150_000);
+
+  // (1.388.58 ; issue 19, CONS2-1) Un paiement noté se lit à côté du prix de la période : 1 DT pour une année d'Essentiel
+  // s'annonce avant le geste ; sans entreprise SkanFact désignée, la fenêtre le dit ; et le paiement se retrouve dans
+  // « Factures et paiements », pas seulement dans le journal.
+  it('un paiement noté : comparé au prix, dit quand il ne compte pas, et lu dans « Factures et paiements »', async () => {
+    const amira = await direction();
+    const nadia = await personne('nadia');
+    const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Menuiserie Prix Juste' })).corps.id);
+    // Aucune entreprise SkanFact désignée (comme les autres parcours de la console qui en dépendent).
+    await admin.query('delete from plateforme.editeur');
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, amira.console);
+    const c = await cx.newPage();
+    c.on('pageerror', (e) => erreurs.push(e.message));
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=apercu`);
+    await expect.poll(() => c.locator('h1').first().innerText().catch(() => ''), { timeout: 20_000 }).toBe('Menuiserie Prix Juste');
+    // (CONS2-6) Échap ferme la fenêtre et rend le curseur à « Gestes », pas à la page entière.
+    await cliquer(c.locator('.c-menu > button'));
+    await cliquer(c.locator('.c-menu-liste button', { hasText: 'Noter un paiement reçu' }));
+    await expect.poll(() => c.getByRole('dialog').count(), { timeout: 10_000 }).toBe(1);
+    await c.keyboard.press('Escape');
+    await expect.poll(() => c.getByRole('dialog').count(), { timeout: 10_000 }).toBe(0);
+    await expect.poll(() => c.evaluate(() => document.activeElement?.className ?? ''), { timeout: 5_000 }).toContain('c-fiche-gestes');
+    await cliquer(c.locator('.c-menu > button'));
+    await cliquer(c.locator('.c-menu-liste button', { hasText: 'Noter un paiement reçu' }));
+    const f = c.getByRole('dialog');
+    await f.getByLabel('Périodicité').selectOption('annuel');
+    await expect.poll(() => f.locator('p.c-sous').allInnerTexts().then((t) => t.map(net).join(' ')).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/prix de l.offre pour cette période : 390,000 DT HT/i);
+    await f.getByLabel('N° de la facture faite ailleurs').fill('EXT-PRIX-001');
+    await f.getByLabel('Montant reçu').fill('1');
+    await expect.poll(() => f.locator('.c-alerte').allInnerTexts().then((t) => t.map(net).join(' ')).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/1,000 DT reçus pour 390,000 DT HT attendus/);
+    expect(net(await f.locator('.c-alerte').allInnerTexts().then((t) => t.join(' ')))).toMatch(/ne comptera dans aucun encaissé/);
+    await f.getByLabel('Montant reçu').fill('465,100');
+    await expect.poll(() => f.locator('.c-alerte').allInnerTexts().then((t) => t.map(net).join(' ')).catch(() => ''), { timeout: 10_000 })
+      .not.toMatch(/reçus pour/);
+    await f.getByLabel('Motif', { exact: true }).fill('Virement reçu pour une année');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=factures`);
+    await expect.poll(() => c.locator('.c-fiche-factures table').last().innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toMatch(/EXT-PRIX-001.*465,100 DT/);
+    // (CONS2-3) Un changement d'offre prévu, puis la résiliation : la carte ne promet plus d'offre à venir.
+    await faire(admin, ent, { geste: 'changer-offre', offre: 'complet', periodicite: 'annuel', motif: 'passe à Complet' });
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=apercu`);
+    await c.reload();
+    await expect.poll(() => c.locator('.c-fiche-ent-note').allInnerTexts().then((t) => t.map(net).join(' | ')).catch(() => ''), { timeout: 15_000 })
+      .toMatch(/À partir du .*Complet/);
+    await faire(admin, ent, { geste: 'resilier', motif: 'le client arrête' });
+    await c.reload();
+    await expect.poll(() => c.locator('.c-fiche-ent-quand').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/résili/i);
+    expect((await c.locator('.c-fiche-ent-note').allInnerTexts()).map(net).join(' | ')).not.toMatch(/À partir du .*Complet/);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 150_000);
 });

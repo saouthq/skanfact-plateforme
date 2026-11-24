@@ -59,6 +59,7 @@ declarerTextes({
   'abonnement.geste.periodicite': 'la périodicité est « annuel » ou « mensuel »',
   'abonnement.geste.deja_resilie': 'l\'abonnement est déjà résilié (le {le})',
   'abonnement.geste.pas_resilie': 'l\'abonnement n\'est pas résilié',
+  'abonnement.geste.module_periode_avance': 'une période payée d\'avance commence le {le} : {module} pourra s\'ouvrir à partir de ce jour-là, pour que chaque jour où il sert soit facturé',
   'abonnement.geste.deja_suspendu': 'l\'abonnement est déjà suspendu (le {le})',
   'abonnement.geste.pas_suspendu': 'l\'abonnement n\'est pas suspendu',
   'abonnement.geste.deja_offert': 'l\'abonnement est déjà offert',

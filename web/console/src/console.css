@@ -1861,7 +1861,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   padding: 24px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte);
   border: 1px solid var(--c-nuit-trait);
 }
-.c-bandeau > .c-avatar { width: 60px; height: 60px; border-radius: 16px; font-size: 19px; background: var(--c-papier); color: var(--c-nuit); }
+.c-bandeau > .c-avatar { width: 60px; height: 60px; border-radius: 16px; font-size: 19px; background: var(--c-nuit-texte); color: var(--c-nuit); }
 .c-bandeau-texte { display: grid; gap: 6px; min-width: 0; }
 .c-bandeau-texte h1 { margin: 0; color: var(--c-nuit-texte); font-size: clamp(26px, 3vw, 34px); text-wrap: balance; }
 .c-bandeau-puces { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -3383,3 +3383,5 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-te-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .c-te-liste > li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-block-end: 1px solid var(--c-trait); }
 .c-te-liste > li > span { display: grid; gap: 2px; min-width: 0; }
+/* (1.388.58) Les paiements reçus hors de la plateforme, sous les factures de la fiche. */
+.c-fa-recus { font-size: 15.5px; margin: 18px 0 8px; }

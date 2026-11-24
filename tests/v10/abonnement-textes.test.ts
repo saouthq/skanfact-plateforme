@@ -16,7 +16,7 @@ const net = (t: string) => t.replace(/[\u00a0\u202f]/g, ' ');
 const A = fenetre.SkanAbonnement as {
   etatEnClair: (e: Etat, regles?: { essai?: number; relances?: number[] }, suite?: { aFaire?: string | null; prolonge?: boolean; rappels?: { rang: string; le: string }[] }) => { titre: string; texte: string; pastille: string; jauge: { texte: string } | null };
   bandeau: (e: Etat | null, gere: boolean) => { titre: string; texte: string; bouton: string; principal: boolean; ecrire: boolean; vers: string | null } | null;
-  pastille: (e: Etat | null) => { show: boolean; ton: string; texte: string };
+  pastille: (e: Etat | null) => { show: boolean; ton: string; texte: string; raison?: string };
 };
 const actif = { etat: 'actif', offre: 'essentiel', periodicite: 'mensuel', jusquAu: '2026-11-01', jours: 10, resilie: false };
 
@@ -76,5 +76,16 @@ describe('les textes de l\'abonnement', () => {
     expect(A.etatEnClair({ etat: 'hors', raison: 'tenu_par_cabinet' }, {}, {})).toMatchObject({ titre: 'Ton cabinet tient ce dossier' });
     expect(net(A.etatEnClair(actif, { relances: [15, 7, 1] }, { aFaire: 'payer' }).texte))
       .toBe('Encore 10 jours. Ta facture du renouvellement t\'attend juste en dessous : réglée d\'ici le 01/11/2026, rien ne s\'arrête.');
+  });
+
+  // (1.388.58 ; issue 19, CONS2-2) Une entreprise que SkanFact a suspendue ne se fait pas dire « Règle ta facture pour
+  // créer » sous la pastille de la barre : la raison voyage avec la pastille, et l'écran la lit avant le rôle.
+  it('la pastille d\'une lecture seule porte sa raison ; suspendue, la barre ne renvoie pas à une facture', () => {
+    expect(A.pastille({ etat: 'lecture_seule', depuis: '2026-10-20', raison: 'suspendu' })).toMatchObject({ texte: 'Lecture seule', raison: 'suspendu' });
+    expect(A.pastille({ etat: 'lecture_seule', depuis: '2026-10-20', raison: 'essai_termine' }).raison).toBe('essai_termine');
+    const app2 = fs.readFileSync(path.join(import.meta.dirname, '../../modules/socle/ecrans/entreprise/app-2.js'), 'utf8');
+    const sous = /const sous = lecture \? \(([^\n]*)/.exec(app2)?.[1] ?? '';
+    expect(sous.indexOf("p.raison === 'suspendu' ? 'Suspendue par SkanFact'")).toBe(0);
+    expect(sous).toContain('Règle ta facture pour créer');
   });
 });

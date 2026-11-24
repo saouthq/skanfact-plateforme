@@ -203,3 +203,19 @@ describe('changer d\'offre', () => {
     expect(() => geste(PAYEE, { geste: 'changer-offre', offre: 'essentiel', periodicite: 'annuel' }, '2026-12-01')).toThrow(refus('abonnement.geste.changer_meme'));
   });
 });
+
+// (1.388.58 ; issue 19, CONS2-4) Un module ouvert pendant qu'une période payée d'avance attend : le rattrapage n'aurait
+// compté que la dernière période payée, et les jours de la période qui court n'auraient été facturés nulle part.
+describe('un module, quand une période payée d\'avance attend', () => {
+  it('ne s\'ouvre pas avant le premier jour de cette période ; il s\'ouvre ce jour-là', () => {
+    const RECU = { facture: 'F-2026-119', montant: 465100n, moyen: 'virement' as const, le: '2026-11-30' };
+    // Payée jusqu'au 11/11/2027 ; le 01/12/2026, une seconde année est payée d'avance : elle commence le 12/11/2027.
+    const { apres } = calculerGeste(ligneDe(PAYEE), PAYEE, { motif: 'essai', geste: 'payer', offre: 'essentiel', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
+    expect(apres).toMatchObject({ a_venir_le: '2027-11-12', paye_jusqu_au: '2028-11-11', modules: [] });
+    expect(() => calculerGeste(apres, PAYEE, { motif: 'essai', geste: 'ouvrir-module', module: 'paie' }, '2026-12-02'))
+      .toThrow(refus('abonnement.geste.module_periode_avance', { module: t('abonnement.module.paie'), le: '12/11/2027' }));
+    const ouvert = calculerGeste(apres, PAYEE, { motif: 'essai', geste: 'ouvrir-module', module: 'paie' }, '2027-11-12');
+    expect(ouvert.apres.modules).toEqual(['paie']);
+  });
+});
+

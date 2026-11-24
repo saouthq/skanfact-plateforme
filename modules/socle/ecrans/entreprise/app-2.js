@@ -9638,7 +9638,7 @@
     el.classList.toggle('calme', p.ton === 'calme');
     if (!montre) return;
     const t = p.texte || '';
-    const sous = lecture ? (responsable ? 'Règle ta facture pour créer' : 'La propriétaire règle la facture')
+    const sous = lecture ? (p.raison === 'suspendu' ? 'Suspendue par SkanFact' : responsable ? 'Règle ta facture pour créer' : 'La propriétaire règle la facture')
       : /^Lecture seule le/.test(t) ? 'Facture non réglée' : /^Échéance/.test(t) ? 'Ta facture t\'attend' : /^S'arrête/.test(t) ? 'Tu peux encore continuer'
         : /dernier jour/.test(t) ? 'Choisis ton offre aujourd\'hui' : p.ton === 'attire' ? 'Choisis ton offre' : 'Tout est ouvert, sans carte';
     const dessin = /Lecture seule/.test(t) ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'

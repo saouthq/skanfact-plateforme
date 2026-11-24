@@ -134,6 +134,12 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       if (avant.a_venir_le && (avant.a_venir_retraits ?? []).includes(d.module)) {
         throw new Refus('abonnement.geste.module_part_avec_la_periode', { valeurs: { module: t(`abonnement.module.${d.module}`), le: jourEnFrancais(avant.a_venir_le) } });
       }
+      // (1.388.58 ; issue 19, CONS2-4) Une période payée d'avance attend son premier jour : le rattrapage ne compterait que la
+      // dernière période payée, et les jours de celle qui court ne seraient facturés nulle part. Le module s'ouvre une fois
+      // la période d'avance commencée (ou en annulant le paiement d'avance).
+      if (avant.a_venir_le && avant.a_venir_le > jour && !avant.modules.includes(d.module)) {
+        throw new Refus('abonnement.geste.module_periode_avance', { valeurs: { module: t(`abonnement.module.${d.module}`), le: jourEnFrancais(avant.a_venir_le) } });
+      }
       const partent = avant.modules_a_retirer ?? [];
       if (avant.modules.includes(d.module) && partent.includes(d.module)) {
         apres.modules_a_retirer = partent.filter((m) => m !== d.module);

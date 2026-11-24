@@ -293,6 +293,11 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
     );
   };
   const details = apercu?.details ?? {};
+  // (1.388.58 ; issue 19, CONS2-1) Le montant reçu se lit à côté du prix de la période : moins que le prix hors taxes,
+  // c'est presque toujours une faute de frappe (un zéro oublié) ; la fenêtre le dit avant le geste, sans le refuser
+  // (une remise, un geste commercial restent possibles).
+  const recuM = millimesDe(recu), prixM = typeof details.prixHt === 'string' ? millimesDe(details.prixHt) : null;
+  const sousLePrix = geste === 'payer' && recuM !== null && prixM !== null && recuM > 0n && recuM < prixM;
   return (
     <Dialogue titre={nom} sous={sous} pour={pourQui(fiche)} fermer={fermer} occupe={occupe}
       pied={perimee
@@ -320,6 +325,9 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
               options={MOYENS_RECUS.map((m) => ({ valeur: m, texte: titre(`console.ecran.geste.recu.moyen.${m}`) }))} />
             <Champ libelle={titre('console.ecran.geste.recu.le')} type="date" max={fiche.aujourdhui} valeur={le} changer={setLe} {...fauteDe('le')} />
           </div>
+          {typeof details.prixHt === 'string' ? <p className="c-sous">{phrase('console.ecran.geste.recu.prix', { prix: montant(details.prixHt) })}</p> : null}
+          {sousLePrix && typeof details.prixHt === 'string' ? <Alerte ton="attention">{phrase('console.ecran.geste.recu.sous_le_prix', { recu: montant(`${(recuM ?? 0n) / 1000n}.${String((recuM ?? 0n) % 1000n).padStart(3, '0')}`), prix: montant(details.prixHt) })}</Alerte> : null}
+          {details.sansEditeur === true ? <Alerte ton="attention">{phrase('console.ecran.geste.recu.sans_editeur')}</Alerte> : null}
         </>
       ) : null}
       {geste === 'ouvrir-module' || geste === 'fermer-module' ? (
@@ -498,6 +506,7 @@ type GesteContestation = { sorte: 'noter'; facture: { id: string; numero: string
 function SesFactures({ f, role, preparer, contester }: { f: Donnees; role: Role; preparer: () => void; contester: (g: GesteContestation) => void }) {
   const ed = f.factures.editeur;
   const peut = role === 'direction' && !!ed?.proprietaire && !f.faits.tenuParCabinet && !factureOuverte(f.factures.lignes);
+  const recus = f.evenements.filter((e) => e.nature === 'paye' && e.par === 'exploitation' && typeof e.apres?.montant === 'string');
   const note = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.fa.cabinet')
     : !ed ? phrase('console.ecran.fiche.fa.sans_editeur')
       : role !== 'direction' ? phrase('console.ecran.fiche.fa.direction')
@@ -555,7 +564,39 @@ function SesFactures({ f, role, preparer, contester }: { f: Donnees; role: Role;
             </tbody>
           </table>
         </div>
-      ) : <Vide icone="info">{phrase('console.ecran.fiche.fa.aucune')}</Vide>}
+      ) : recus.length ? null : <Vide icone="info">{phrase('console.ecran.fiche.fa.aucune')}</Vide>}
+      {/* (1.388.58 ; issue 19, CONS2-1) Les paiements reçus hors de la plateforme, notés par l'équipe : ils paient l'abonnement
+          sans facture SkanFact, et ne se lisaient que dans le journal de la fiche. */}
+      {recus.length ? (
+        <div className="c-defile">
+          <h3 className="c-fa-recus">{titre('console.ecran.fiche.fa.recus')}</h3>
+          <table className="c-table c-fa-table">
+            <thead><tr>
+              <th scope="col">{titre('console.ecran.champ.le')}</th>
+              <th scope="col">{titre('console.ecran.champ.facture')}</th>
+              <th scope="col">{titre('console.ecran.fiche.fa.col.periode')}</th>
+              <th scope="col">{titre('console.ecran.champ.moyen')}</th>
+              <th scope="col" className="c-droite">{titre('console.ecran.champ.montant')}</th>
+            </tr></thead>
+            <tbody>
+              {recus.map((e) => {
+                const a = e.apres ?? {};
+                const txt = (k: string) => (typeof a[k] === 'string' ? a[k] as string : '');
+                return (
+                  <tr key={e.id}>
+                    <td className="c-nombre">{jourCourt(txt('le') || e.le.slice(0, 10))}</td>
+                    <td data-donnee>{txt('facture') || '—'}</td>
+                    <td>{txt('debut') && txt('fin') ? `${jourCourt(txt('debut'))} → ${jourCourt(txt('fin'))}` : '—'}</td>
+                    <td>{valeurLisible('moyen', a.moyen)}</td>
+                    <td className="c-droite c-nombre">{valeurLisible('montant', a.montant)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!ed ? <p className="c-sous">{phrase('console.ecran.fiche.fa.recus_sans_editeur')}</p> : null}
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -802,6 +843,11 @@ export const pourQui = (f: Pick<Donnees, 'raisonSociale' | 'identite'>) => [f.ra
 export const DETRUIT: ReadonlySet<Geste> = new Set<Geste>(['suspendre', 'resilier', 'retirer-offert']);
 const ORDRE_DU_MENU: readonly Geste[] = ['payer', 'prolonger', 'accorder-delai', 'reprendre', 'offrir-mois', 'changer-offre', 'annuler-resiliation',
   'ouvrir-module', 'fermer-module', 'offrir', 'suspendre', 'resilier', 'retirer-offert'];
+// Un montant tapé (« 465,100 », « 1 250,5 ») en millimes, pour comparer sans nombre à virgule ; null s'il ne se lit pas.
+function millimesDe(t: string): bigint | null {
+  const m = /^(\d+)(?:[.,](\d{1,3}))?$/.exec(t.replace(/[\s\u00a0\u202f]/g, ''));
+  return m ? BigInt(m[1] ?? '0') * 1000n + BigInt((m[2] ?? '').padEnd(3, '0')) : null;
+}
 export const nomDuGeste = (g: Geste, etat: Etat) => titre(`console.ecran.geste.${cleGeste(g)}${g === 'accorder-delai' && etat.etat === 'lecture_seule' ? '_lecture' : ''}`);
 export const libelleDuGeste = (g: Geste, etat: Etat) => `${nomDuGeste(g, etat)}…`;
 // `reserve` : ce que ce rôle ne fait pas ici, sous le dernier choix (comme le menu d'une ligne de la liste).
@@ -839,12 +885,12 @@ function MenuGestes({ gestes, etat, choisir, raison, reserve, appel, offert }: {
           <p className="c-menu-note">{offert ? phrase('console.ecran.fiche.gestes_offert') : gestes.length ? phrase('console.ecran.fiche.gestes_aide') : raison}</p>
           {/* Ce qui détruit en dernier, en rouge, après un trait (la maquette). */}
           {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).filter((g) => !DETRUIT.has(g)).map((g) => (
-            <button key={g} type="button" onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
+            <button key={g} type="button" onClick={() => { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true }); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
           ))}
-          {appel ? <button type="button" className={gestes.some((g) => !DETRUIT.has(g)) ? 'c-menu-trait' : undefined} onClick={() => { setOuvert(false); appel(); }}>{titre('console.ecran.clients.m.appel')}</button> : null}
+          {appel ? <button type="button" className={gestes.some((g) => !DETRUIT.has(g)) ? 'c-menu-trait' : undefined} onClick={() => { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true }); appel(); }}>{titre('console.ecran.clients.m.appel')}</button> : null}
           {[...gestes].sort((x, y) => ORDRE_DU_MENU.indexOf(x) - ORDRE_DU_MENU.indexOf(y)).filter((g) => DETRUIT.has(g)).map((g, i) => (
             <button key={g} type="button" className={['c-menu-danger', i === 0 && (appel || gestes.some((x) => !DETRUIT.has(x))) ? 'c-menu-trait' : ''].filter(Boolean).join(' ')}
-              onClick={() => { setOuvert(false); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
+              onClick={() => { setOuvert(false); zone.current?.querySelector<HTMLElement>('button')?.focus({ preventScroll: true }); choisir(g); }}>{libelleDuGeste(g, etat)}</button>
           ))}
           {gestes.length && reserve ? <p className="c-menu-note">{reserve}</p> : null}
         </div>
@@ -1019,7 +1065,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                 </span>
                 <span className="c-fiche-ent-offre">{maj(abonnementEnMots(f.etat, f.faits))}</span>
                 <span className="c-fiche-ent-quand">{maj(expliquer(f.etat, f.aujourdhui))}</span>
-                {f.offreSuivante ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.offre_suivante', { offre: offreEtPeriode(f.offreSuivante.offre, f.offreSuivante.periodicite), le: jourCourt(f.offreSuivante.aPartirDu) })}</span> : null}
+                {/* (1.388.58) Une offre suivante ne s'annonce plus sur un abonnement résilié ou suspendu : il n'aura pas de suite. */}
+                {f.offreSuivante && !f.ligne?.resilie_le && !f.ligne?.suspendu_le ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.offre_suivante', { offre: offreEtPeriode(f.offreSuivante.offre, f.offreSuivante.periodicite), le: jourCourt(f.offreSuivante.aPartirDu) })}</span> : null}
                 {f.delai && f.etat.etat === 'en_retard' ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.delai')}</span> : null}
                 {/* 0113 : ce que la prochaine facture coûtera (le chiffre de la liste et des échéances), le mois offert qui
                     l'attend, les modules qui partent au renouvellement. */}

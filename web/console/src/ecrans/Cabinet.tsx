@@ -36,7 +36,7 @@ type AbonnementCabinet = { etat: EtatCabinet; depuis: string | null; payeJusquAu
   prochaine: { debut: string; totalHt: string; plafonne: boolean } | null; factures: FactureCabinet[]; refus: string | null;
   faveur?: Faveur; regles?: ReglesCab; gestes?: GesteCabinet[]; histoire?: GesteFait[] };
 type Donnees = { aujourdhui: string; id: string; nom: string; creeLe: string; collaborateurs: Collaborateur[]; dossiers: Dossier[]; comptes: Record<Place, number>;
-  abonnement?: AbonnementCabinet | null };
+  abonnement?: AbonnementCabinet | null; sansEditeur?: boolean };
 // Des millimes (« 60000 ») en dinars (« 60.000 ») pour `montant`, sans passer par un nombre à virgule.
 const enDinars = (m: string) => `${m.length > 3 ? m.slice(0, -3) : '0'}.${m.slice(-3).padStart(3, '0')}`;
 
@@ -146,7 +146,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
         </div>
         <div className="c-bandeau-paie">
           {a ? <>
-            <b>{phrase(`${K}.ab.ligne.${a.etat.raison === 'suspendu' ? 'suspendu' : a.etat.offert ? 'offert' : a.etat.etat}`, { echeance: jourCourt(a.etat.echeance ?? ''), depuis: jourCourt(a.etat.depuis ?? ''), jusquAu: jourCourt(a.etat.jusquAu ?? '') })}</b>
+            <b>{phrase(`${K}.ab.ligne.${a.etat.raison === 'suspendu' ? 'suspendu' : a.etat.offert ? 'offert' : a.etat.etat === 'a_facturer' && c.sansEditeur ? 'sans_editeur' : a.etat.etat}`, { echeance: jourCourt(a.etat.echeance ?? ''), depuis: jourCourt(a.etat.depuis ?? ''), jusquAu: jourCourt(a.etat.jusquAu ?? '') })}</b>
             <span>{phrase(`${K}.ab.sous`, { payants: selon(a.payants, `${K}.ab.payants`), tenus: selon(a.tenus, `${K}.ab.tenus`) })}</span>
           </> : <>
             <b>{phrase(`${K}.paie_ligne`)}</b>

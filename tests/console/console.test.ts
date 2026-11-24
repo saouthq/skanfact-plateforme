@@ -571,7 +571,9 @@ describe('les cabinets', () => {
     // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes, son abonnement (0172 : ce
     // qu'il paie, compté, jamais le nom d'un dossier ; 0220 : ce que la console lui a posé, ses règles, les gestes
     // possibles et leur histoire) ; rien d'autre.
-    expect(Object.keys(f.corps).sort()).toEqual(['abonnement', 'aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    expect(Object.keys(f.corps).sort()).toEqual(['abonnement', 'aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom', 'sansEditeur']);
+    // (1.388.58 ; CONS2-5) Sans entreprise SkanFact désignée, la fiche le dit : aucune facture de cabinet ne se prépare.
+    expect(f.corps.sansEditeur).toBe(!(await admin.query('select 1 from plateforme.editeur')).rowCount);
     expect(Object.keys(f.corps.abonnement as object).sort()).toEqual(['depuis', 'etat', 'factures', 'faveur', 'gestes', 'histoire', 'payants', 'payeJusquAu', 'prochaine', 'refus', 'regles', 'tenus']);
     expect(Object.keys((f.corps.collaborateurs as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
     expect(f.corps.comptes).toEqual(ligne?.comptes);

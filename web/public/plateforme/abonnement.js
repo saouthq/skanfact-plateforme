@@ -223,7 +223,7 @@
   // (1.122.0) Une ligne courte, au pied du menu : « Essentiel jusqu'au 01/11/2026 — pense à le renouveler » y tenait sur
   // trois lignes (recette du 23/10/2026). Le détail est dans le bandeau de l'accueil et dans l'onglet, où elle mène. Le
   // dernier jour de l'essai prend le rouge, comme la grâce : c'est le jour où il faut agir.
-  /** @param {Etat | null} e @returns {{ show: boolean, ton: string, texte: string }} */
+  /** @param {Etat | null} e @returns {{ show: boolean, ton: string, texte: string, raison?: string | undefined }} */
   function pastille(e) {
     const rien = { show: false, ton: '', texte: '' };
     if (!e || e.etat === 'hors') return rien;
@@ -237,7 +237,8 @@
       return { show: true, ton: 'attire', texte: e.resilie ? `S'arrête le ${jour(e.jusquAu)}` : `Échéance le ${jour(e.jusquAu)}` };
     }
     if (e.etat === 'en_retard') return { show: true, ton: 'alerte', texte: `Lecture seule le ${jour(e.lectureSeuleLe)}` };
-    return { show: true, ton: 'alerte', texte: 'Lecture seule' };
+    // (1.388.58) La raison voyage : une entreprise que SkanFact a suspendue ne se fait pas dire « règle ta facture ».
+    return { show: true, ton: 'alerte', texte: 'Lecture seule', raison: e.raison };
   }
 
   // L'état en tête de l'onglet : une pastille, un titre, ce qu'il veut dire, et la jauge des jours quand ils comptent.
@@ -833,7 +834,7 @@
     const modulesEnPlus = (a.modules || []).filter((m) => m === 'paie' || m === 'compta');
     const netDeLaProchaine = p && !modulesEnPlus.length && !p.remise ? (a.prix.find((x) => x.offre === p.offre && x.periodicite === p.periodicite) || {}).net : null;
     const prochaine = p && a.etat.etat === 'actif' && !a.etat.resilie && !aFaire && !a.choix
-      ? `Prochaine facture : ${montant(p.montantHt, true)} HT${netDeLaProchaine ? `, soit ${montant(netDeLaProchaine, true)} TVA et timbre compris` : ''}, pour la période qui commence le ${jour(p.debut)} (${nomOffre(p.offre)} ${p.periodicite === 'annuel' ? 'à l\'année' : 'au mois'}${modulesEnPlus.length ? `, avec ${enListe(modulesEnPlus)}` : ''}${p.remise ? `, remise de ${p.remise} % déduite` : ''}). Elle arrivera ici, et un e-mail te préviendra.` : '';
+      ? `Prochaine facture : ${montant(p.montantHt, true)} HT${netDeLaProchaine ? `, soit ${montant(netDeLaProchaine, true)} TVA et timbre compris` : ''}, pour la période qui commence le ${jour(p.debut)} (${nomOffre(p.offre)} ${p.periodicite === 'annuel' ? 'à l\'année' : 'au mois'}${modulesEnPlus.length && p.offre !== 'complet' ? `, avec ${enListe(modulesEnPlus)}` : ''}${p.remise ? `, remise de ${p.remise} % déduite` : ''}). Elle arrivera ici, et un e-mail te préviendra.` : '';
     el.innerHTML = `<div class="abo">
       <section class="abo-tete ${c.ton}" id="abo-etat">
         <div class="abo-tete-txt">
