@@ -349,6 +349,11 @@ describe('l\'entrée refaite, à la souris', () => {
     expect(await aide.innerText()).toBe(phrase('ecran.porte.mf_ok'));
     expect(await p.locator('.ent-apercu-nom').innerText()).toBe(`Gharbi Informatique SARL\n${rendre(t('ecran.porte.apercu_mf'), 'fr')} : 1234567A/A/M/000`);
     await p.screenshot({ path: path.join(PHOTOS, 'entree-ton-entreprise.png') });
+    // (issue 18, ENT2-8) Recharger en route ne ramène pas à la porte : « Ton entreprise » reste, avec ce qui est tapé.
+    await p.reload();
+    await ecran(p, 'ecran.porte.entreprise_titre');
+    expect(await champ(p, 'ecran.porte.raison').inputValue()).toBe('Gharbi Informatique SARL');
+    expect(await champ(p, 'ecran.porte.matricule').inputValue()).toBe('1234567 a a m 000');
     await p.context().close();
   });
 

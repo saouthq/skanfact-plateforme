@@ -79,6 +79,9 @@ describe('toutes les données de l\'entreprise, à la souris', () => {
     // (1.387.79, issue 14) La remise en place et l'effacement ne se promettent pas d'un clic : le panneau dit qu'ils se
     // demandent au support, et le bouton y mène, le sujet déjà posé.
     expect(net(await p.locator('#export-panel').innerText())).toContain('se demande au support');
+    // (ENT2-6) Aucun numéro de version écrit au client, et « Écrire au support » est un vrai bouton de l'application.
+    expect(net(await p.locator('#export-panel').innerText())).not.toMatch(/\d+\.\d+\.\d+|issue/);
+    expect(await p.locator('#export-support').getAttribute('class')).toBe('btn');
     await p.locator('#export-support').click();
     await expect.poll(() => p.locator('#sup-sujet').inputValue().catch(() => ''), { timeout: 10_000 }).toContain('effacer les données');
     await p.keyboard.press('Escape');

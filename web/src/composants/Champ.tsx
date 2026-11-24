@@ -49,9 +49,11 @@ type PropsChamp = Commun & {
   // Un mot de passe qu'on peut afficher (« Afficher » / « Cacher », lot entrée) ; ce qui se lit sous la saisie (l'aide
   // qui suit la frappe : la jauge du mot de passe, la forme du matricule).
   revelable?: boolean; dessous?: ReactNode; maxLength?: number;
+  // (issue 18, ENT2-3) Une valeur qui ne se change pas sur cet écran (l'adresse d'une invitation, qui lui est réservée).
+  lecture?: boolean;
 };
 
-export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, refus, vise = true, ...cadre }: PropsChamp) {
+export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, lecture = false, faute = false, n, refus, vise = true, ...cadre }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n, vise);
   const id = useId();
   const [vu, setVu] = useState(false);
@@ -61,7 +63,7 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
   const champ = (
     <Cadre {...cadre} rouge={f.rouge} pour={id}>
       <input ref={f.ref} id={id} aria-label={cadre.libelle} type={revelable && vu ? 'text' : type} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }}
-        aria-invalid={f.rouge || undefined} {...(nom ? { name: nom } : {})} {...(placeholder ? { placeholder } : {})} {...(maxLength ? { maxLength } : {})}
+        aria-invalid={f.rouge || undefined} {...(nom ? { name: nom } : {})} {...(placeholder ? { placeholder } : {})} {...(maxLength ? { maxLength } : {})} {...(lecture ? { readOnly: true, 'aria-readonly': true } : {})}
         {...(autoComplete ? { autoComplete } : {})} {...(inputMode ? { inputMode } : {})} {...(liste ? { list: liste } : {})} />
       {liste ? <datalist id={liste}>{propositions?.map((p) => <option key={p} value={p} />)}</datalist> : null}
     </Cadre>

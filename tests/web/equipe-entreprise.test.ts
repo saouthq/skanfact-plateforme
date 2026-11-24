@@ -124,12 +124,18 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
 
     // ── La personne ouvre le lien sans compte : qui l'invite, où, son adresse remplie ; elle entre ────────────────────
     const y = await page();
+    // (issue 18, ENT2-11) Ce que le rôle ne lit pas ne se demande pas : aucun refus 403 attendu de ces lectures-là.
+    const refus403: string[] = [];
+    y.on('response', (r) => { if (r.status() === 403) refus403.push(new URL(r.url()).pathname); });
     await y.goto(lien);
     await y.getByRole('heading', { level: 1, name: titre('ecran.inscription.titre') }).waitFor({ timeout: 15_000 });
     await expect.poll(async () => aplatir(await y.locator('.ent-entete p').innerText()))
       .toBe(aplatir(phrase('ecran.invitation.sous_inscription', { qui: 'Nadia', ou: 'Boulangerie de l\'essai', email: adresse })));
     const champ = (cle: string) => y.locator('label.field').filter({ hasText: titre(cle) }).locator('input');
     expect(await champ('ecran.connexion.email').inputValue()).toBe(adresse);
+    // (issue 18, ENT2-3) L'adresse invitée ne se change pas sur cette page : l'invitation lui est réservée, et un compte
+    // créé sous une autre adresse restait à côté, refusé.
+    expect(await champ('ecran.connexion.email').evaluate((e) => (e as HTMLInputElement).readOnly)).toBe(true);
     await champ('ecran.inscription.nom').fill('Yassine');
     await champ('ecran.connexion.mot_de_passe').fill('Un-bon-mot-de-passe');
     await y.screenshot({ path: path.join(PHOTOS, 'equipe-entreprise-2-arrivee.png') });
@@ -150,6 +156,8 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
     await parametres(y, ent);
     expect(await y.locator('#set-tabs [data-tab="equipe"]').count()).toBe(0);
     expect(await y.locator('#set-tabs [data-tab="societe"]').count()).toBe(1);
+    await y.waitForTimeout(1_500);
+    expect(refus403.filter((c) => /\/(messages\/attente|cabinet\/range|acces-support|cles-api)$/.test(c))).toEqual([]);
 
     // ── Ses rôles se changent (les siens sont cochés), puis il est retiré ────────────────────────────────────────────
     const yassine = String((await equipe()).membres.find((m) => m.nom === 'Yassine')?.id);
@@ -188,12 +196,23 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
 
     // ── Une invitation qui attend s'annule : son lien ne vaut plus ───────────────────────────────────────────────────
     await p.locator('#eqp-inviter').click();
-    await fenetre.locator('#eqp-email').fill(`dora-${unique()}@exemple.tn`);
+    const adresseDora = `dora-${unique()}@exemple.tn`;
+    await fenetre.locator('#eqp-email').fill(adresseDora);
     await fenetre.locator('input[name="eqp-role"][value="lecture"]').check();
     await fenetre.locator('#eqp-ok').click();
     await p.locator('#eqp-lien').waitFor({ timeout: 15_000 });
     const lienDora = await p.locator('#eqp-lien').inputValue();
     await fenetre.getByRole('button', { name: 'Fermer', exact: true }).click();
+    // (issue 18, ENT2-3) Le lien ouvert avec un autre compte (Yassine, encore connecté) : le refus nomme l'adresse
+    // attendue, et le geste principal y mène — déconnecté, l'écran de connexion s'ouvre sur cette adresse.
+    await y.goto(lienDora);
+    await y.getByRole('heading', { name: titre('ecran.invitation.titre') }).waitFor({ timeout: 20_000 });
+    await expect.poll(async () => aplatir(await y.locator('[role="alert"]').first().innerText()))
+      .toBe(aplatir(phrase('ecran.invitation.autre_adresse', { email: adresseDora, ou: 'Boulangerie de l\'essai' })));
+    await y.getByRole('button', { name: titre('ecran.invitation.changer_compte', { email: adresseDora }), exact: true }).click();
+    await y.getByRole('heading', { level: 1, name: titre('ecran.connexion.titre') }).waitFor({ timeout: 15_000 });
+    await expect.poll(() => y.locator('label.field').filter({ hasText: titre('ecran.connexion.email') }).locator('input').inputValue()).toBe(adresseDora);
+    expect(await y.evaluate(() => sessionStorage.getItem('skanfact.invitation'))).toBe(new URL(lienDora).searchParams.get('invitation'));
     const invitation = String(((await equipe()).invitations as unknown as { id: string }[])[0]?.id);
     await menu(`I:${invitation}`, 'Annuler l\'invitation');
     await expect.poll(async () => (await equipe()).invitations).toEqual([]);

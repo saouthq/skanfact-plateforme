@@ -16,10 +16,21 @@ import { dire, phrase, titre } from '../langue.ts';
 
 // `pourUnClient` (1.77.0) : arrivé par le lien d'un client qui l'invite, le comptable sans cabinet commence par le sien ;
 // la phrase dit le client qui l'attend.
-export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient, profil }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null; profil?: 'cabinet' | 'entreprise' | null }) {
+// (issue 18, ENT2-8) Ce qui est tapé sur « Ton entreprise » ou « Ton cabinet » survit à un rechargement et à une
+// déconnexion dans cet onglet, comme l'assistant qui suit : gardé pour la personne connectée seulement, effacé à la création.
+const BROUILLON = 'skanfact.porte';
+type Brouillon = { qui: string; etape: 'porte' | 'entreprise' | 'cabinet'; raison: string; matricule: string; ville: string; nomCabinet: string };
+function lireBrouillon(qui: string | undefined): Brouillon | null {
+  if (!qui) return null;
+  try { const b = JSON.parse(sessionStorage.getItem(BROUILLON) ?? 'null') as Brouillon | null; return b && b.qui === qui ? b : null; } catch { return null; }
+}
+const oublierBrouillon = () => { try { sessionStorage.removeItem(BROUILLON); } catch { /* rien à oublier */ } };
+
+export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient, profil, personne }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null; profil?: 'cabinet' | 'entreprise' | null; personne?: string | undefined }) {
   const g = useGeste(deconnecte);
   type Etape = 'porte' | 'entreprise' | 'cabinet' | 'depart';
-  const [etape, setEtapeBrute] = useState<Etape>(pourUnClient || profil === 'cabinet' ? 'cabinet' : 'porte');
+  const [lu] = useState(() => lireBrouillon(personne));
+  const [etape, setEtapeBrute] = useState<Etape>(pourUnClient || profil === 'cabinet' ? 'cabinet' : lu && lu.etape !== 'porte' ? lu.etape : 'porte');
   // (ENTREE-12) Ouvrir une carte est une page de plus : « Précédent » ramène à la porte. « Ton départ » remplace sa page
   // et ne se quitte pas par l'historique : l'entreprise ou le cabinet y est déjà créé.
   const etapeVue = useRef<Etape>(etape);
@@ -43,11 +54,15 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient,
   const sansCabinet = profil === 'entreprise';
   // (1.373.0) Le cabinet créé, on choisit par où commencer (son dossier d'exemple, ou ses clients) avant de l'ouvrir.
   const [cabinetNeuf, setCabinetNeuf] = useState<string | null>(null);
-  const [raison, setRaison] = useState('');
-  const [nomCabinet, setNomCabinet] = useState('');
-  const [matricule, setMatricule] = useState('');
+  const [raison, setRaison] = useState(lu?.raison ?? '');
+  const [nomCabinet, setNomCabinet] = useState(lu?.nomCabinet ?? '');
+  const [matricule, setMatricule] = useState(lu?.matricule ?? '');
   // Sa ville, facultative (0110) : l'équipe SkanFact la lit sur sa fiche pour le reconnaître au téléphone.
-  const [ville, setVille] = useState('');
+  const [ville, setVille] = useState(lu?.ville ?? '');
+  useEffect(() => {
+    if (!personne || etape === 'depart') return;
+    try { sessionStorage.setItem(BROUILLON, JSON.stringify({ qui: personne, etape, raison, matricule, ville, nomCabinet } satisfies Brouillon)); } catch { /* sans stockage : la saisie vit en mémoire */ }
+  }, [personne, etape, raison, matricule, ville, nomCabinet]);
 
   // Découvrir : l'écran « On prépare l'exemple » (lot onboarding ; ExemplePrepare.tsx) crée l'entreprise d'essai, la
   // remplit de l'exemple en disant où il en est, puis ouvre la découverte sur elle : plus de page blanche ni d'attente
@@ -59,12 +74,14 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient,
     if (!r) return;
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
     try { sessionStorage.setItem('skanfact.assistant', r.corps.id); } catch { /* sans stockage : l'entreprise s'ouvre sur ses premiers pas */ }
+    oublierBrouillon();
     creee(r.corps.id);
   });
   const creerCabinet = () => g.geste(async () => {
     const r = await g.api<{ id: string }>('POST', '/cabinets', { nom: nomCabinet.trim() });
     if (!r) return;
     if (r.statut !== 201) { g.refuser(refusDe(r)); return; }
+    oublierBrouillon();
     // Invité par un client, son dossier l'attend : le cabinet s'ouvre dessus, sans détour.
     if (pourUnClient) { cabinetCree(r.corps.id); return; }
     setCabinetNeuf(r.corps.id); setEtape('depart');
@@ -114,7 +131,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient,
           <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.cabinet_creer')}</Bouton>
           <Bouton discret onClick={() => setEtape('porte')}>{titre('ecran.porte.retour')}</Bouton>
         </>}>
-        <Champ obligatoire libelle={titre('ecran.porte.cabinet_nom')} aide={phrase('ecran.porte.cabinet_nom_aide')} valeur={nomCabinet} changer={setNomCabinet} {...g.sur('nom')} />
+        <Champ obligatoire libelle={titre('ecran.porte.cabinet_nom')} aide={phrase('ecran.porte.cabinet_nom_aide')} valeur={nomCabinet} changer={setNomCabinet} premier {...g.sur('nom')} />
       </Carte>
     );
   }

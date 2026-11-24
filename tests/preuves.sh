@@ -32043,6 +32043,36 @@ prouver "le fabriqué dit prestation" modules/socle/ecrans/entreprise/app-1.js \
 prouver "la FODEC imprimée sans sa base" modules/socle/moteur/core-2.js \
   $'${t.fodecBase ? ` <span class="dim">${L.on} ${fmt(t.fodecBase)}</span>` : \'\'}' "" \
   'la base remisée des seules lignes qui la portent'
+prouver "l'adresse invitée se modifie" web/src/ecrans/Inscription.tsx \
+  "lecture={!seul && !!(invitation?.email ?? comptable?.email ?? dossier?.email)}" "lecture={false}" \
+  'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver "le refus de l'invitation ne nomme pas l'adresse" web/src/App.tsx \
+  "if (a?.statut === 200 && a.corps.valable) setAutreAdresse({ jeton, apercu: a.corps });" "" \
+  'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver "le commercial demande la messagerie" web/public/plateforme/pont.js \
+  "attente: () => (messagerie ? appel('GET', '/messages/attente') : refuseSansDemander())," "attente: () => appel('GET', '/messages/attente')," \
+  'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver "le commercial demande le support" web/public/plateforme/pont.js \
+  "lire: () => (responsable ? appel('GET', '/acces-support') : refuseSansDemander())," "lire: () => appel('GET', '/acces-support')," \
+  'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver "la déconnexion hors ligne efface sans demander" web/public/plateforme/pont.js \
+  "if ((attenteGardee || nonEnregistre) && !(await poste.demander(" "if ((attenteGardee) && !(await poste.demander(" \
+  "un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit"
+prouver "Ton entreprise perdu au rechargement" web/src/ecrans/Porte.tsx \
+  "const [lu] = useState(() => lireBrouillon(personne));" "const [lu] = useState(() => lireBrouillon(undefined));" \
+  "ton entreprise : la forme du matricule se dit pendant la frappe, et le haut de la facture se dessine avec ce qui est tapé"
+prouver "Ton cabinet sans curseur" web/src/ecrans/Porte.tsx \
+  "valeur={nomCabinet} changer={setNomCabinet} premier {...g.sur('nom')} />" "valeur={nomCabinet} changer={setNomCabinet} {...g.sur('nom')} />" \
+  $'la porte, le refus sans perdre le curseur, l\'exemple chargé et visité, le premier vrai dossier, puis le code au huitième jour'
+prouver "le bouton du support nu" web/public/plateforme/pont.js \
+  $'<button type="button" class="btn" id="export-support">' $'<button type="button" class="btn-lien" id="export-support">' \
+  $'le propriétaire télécharge le fichier complet ; un commercial ne voit pas le panneau'
+prouver "l'appareil retiré dit « session fermée »" web/src/ecrans/Connexion.tsx \
+  "{sortie === 'retire' ? (motifRetire || phrase('ecran.connexion.appareil_retire')) : phrase('ecran.connexion.session_finie')}" "{phrase('ecran.connexion.session_finie')}" \
+  $'le bureau retire le portable perdu ; le portable, à sa reconnexion, efface ce qu\'il gardait, et l\'entrée le dit'
+prouver "le bandeau des remises compte les changements" web/public/plateforme/pont.js \
+  "'Un appareil retiré a remis un enregistrement'" "'Un appareil retiré a remis'" \
+  $'le portable retiré remet ce qu\'il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

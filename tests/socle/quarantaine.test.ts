@@ -90,7 +90,7 @@ describe('la quarantaine', () => {
     expect(await client(ent, bureau.jeton, 'c2')).toBe(undefined);
     // L'entrée le dit à l'appareil.
     expect((await appeler('GET', '/moi', portable.jeton)).corps).toEqual({
-      motif: 'Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et tes 3 changements faits hors ligne sont mis de côté au serveur, où le propriétaire de l\'entreprise les acceptera ou les rejettera ; reconnecte-toi pour continuer.',
+      motif: 'Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et tes 3 changements pas encore envoyés sont mis de côté au serveur, où le propriétaire ou un administrateur de l\'entreprise les acceptera ou les rejettera (Paramètres › Données et sécurité) ; reconnecte-toi pour continuer.',
       bouton: 'connexion', effacer: true,
     });
 
@@ -132,7 +132,7 @@ describe('la quarantaine', () => {
     // La tablette ne remet que dans ses entreprises.
     expect((await appeler('POST', '/quarantaine', tablette.jeton, { entreprise: autre.ent, changements })).statut).toBe(401);
     expect((await appeler('POST', '/quarantaine', tablette.jeton, { entreprise: ent, changements })).corps).toEqual({ recus: 1 });
-    expect((await appeler('GET', '/moi', tablette.jeton)).corps.motif).toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et ton changement fait hors ligne est mis de côté au serveur, où le propriétaire de l\'entreprise l\'acceptera ou le rejettera ; reconnecte-toi pour continuer.');
+    expect((await appeler('GET', '/moi', tablette.jeton)).corps.motif).toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et ton changement pas encore envoyé est mis de côté au serveur, où le propriétaire ou un administrateur de l\'entreprise l\'acceptera ou le rejettera (Paramètres › Données et sécurité) ; reconnecte-toi pour continuer.');
 
     const id = ((await appeler('GET', `/entreprises/${ent}/quarantaine`, bureau.jeton)).corps.remises as { id: string }[])[0]?.id ?? '';
     expect(await appeler('POST', `/entreprises/${ent}/quarantaine/${id}`, bureau.jeton, { accepter: false })).toEqual({ statut: 200, corps: { appliques: 0, misDeCote: [] } });

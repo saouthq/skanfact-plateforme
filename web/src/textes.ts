@@ -12,6 +12,9 @@ declarerTextes({
   'ecran.deconnexion': 'se déconnecter',
   'ecran.invitation.titre': 'l\'invitation n\'a pas abouti',
   'ecran.invitation.continuer': 'continuer',
+  // (issue 18, ENT2-3) L'invitation ouverte avec un autre compte : l'adresse attendue, et le geste qui y mène.
+  'ecran.invitation.autre_adresse': 'cette invitation à rejoindre {ou} est réservée à l\'adresse {email}, et tu es connecté avec un autre compte. Déconnecte-toi, puis entre avec {email} (ou crée son compte) : l\'invitation reste gardée',
+  'ecran.invitation.changer_compte': 'entrer avec {email}',
   // Arriver par un lien d'invitation (lot équipe, 0079) : qui invite, où, et l'adresse avec laquelle entrer — l'invitation
   // lui est réservée.
   'ecran.invitation.etape': 'une invitation',
@@ -96,6 +99,8 @@ declarerTextes({
   'ecran.connexion.creer_cabinet': 'je suis comptable',
   'ecran.connexion.oublie': 'mot de passe oublié ?',
   'ecran.connexion.aide': 'besoin d\'aide ?',
+  // (issue 18, ENT2-2) L'appareil retiré depuis un autre poste : le vrai motif, qui reste, et où attend ce qui était enregistré.
+  'ecran.connexion.appareil_retire': 'cet appareil a été retiré de ton compte depuis un autre appareil. Ce qu\'il n\'avait pas encore envoyé est remis au serveur : le propriétaire ou un administrateur de l\'entreprise l\'accepte ou le rejette dans Paramètres › Données et sécurité. Reconnecte-toi pour continuer',
   'ecran.connexion.session_finie': 'ta session a été fermée : trop longtemps sans activité, ou ton mot de passe a changé sur un autre appareil. Reconnecte-toi pour reprendre où tu en étais',
   'ecran.connexion.session_perdu': 'ce que tu enregistrais n\'a pas pu être gardé : sur l\'ordinateur d\'un autre, rien ne reste sur le poste. Refais-le une fois reconnecté',
   'ecran.aide.titre': 'écris-nous',

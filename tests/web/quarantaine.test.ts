@@ -130,8 +130,9 @@ describe('la quarantaine, à la souris', () => {
     // Le serveur revient d'aplomb : « Réessayer » remet, puis efface.
     await cp.unroute('**/v1/quarantaine');
     await p.getByRole('button', { name: 'Réessayer', exact: true }).click();
-    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 30_000 })
-      .toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et tes 2 changements faits hors ligne sont mis de côté au serveur, où le propriétaire de l\'entreprise les acceptera ou les rejettera ; reconnecte-toi pour continuer.');
+    // (issue 18, ENT2-2) Le vrai motif reste sur l'écran de connexion, seul : plus de « ta session a été fermée » à côté.
+    await expect.poll(() => p.locator('#session-finie').innerText(), { timeout: 30_000 })
+      .toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé, et tes 2 changements pas encore envoyés sont mis de côté au serveur, où le propriétaire ou un administrateur de l\'entreprise les acceptera ou les rejettera (Paramètres › Données et sécurité) ; reconnecte-toi pour continuer.');
     await p.screenshot({ path: path.join(PHOTOS, 'quarantaine-1-portable.png') });
     await expect.poll(() => posteGarde(p), { timeout: 10_000 }).toBe(false);
     expect(await p.evaluate(() => [localStorage.getItem('skanfact.jeton'), localStorage.getItem('skanfact.hors_ligne')])).toEqual([null, null]);
@@ -146,14 +147,14 @@ describe('la quarantaine, à la souris', () => {
     b.on('pageerror', (e) => erreurs.push(e.message));
     await ouvrir(b, `${adresse}/v10/?e=${ent}#/clients`);
     await expect.poll(() => b.locator('#poste-bandeau').innerText(), { timeout: 15_000 })
-      .toMatch(/^Un appareil retiré a remis 2 changements faits hors ligne : ils attendent ta décision\.\s*Voir$/);
+      .toMatch(/^Un appareil retiré a remis un enregistrement \(2 changements\) : ils attendent ta décision\.\s*Voir$/);
     await b.screenshot({ path: path.join(PHOTOS, 'quarantaine-2-bandeau.png') });
     await b.getByRole('button', { name: 'Voir', exact: true }).click();
     await b.waitForTimeout(800);
     await plusTard(b);
     const panneau = b.locator('#p-quarantaine');
     await expect.poll(() => panneau.innerText(), { timeout: 15_000 })
-      .toMatch(/Remis par Nadia, depuis «\s*Chrome sur Windows\s*», le \d\d\/\d\d\/\d{4} à \d+ h \d\d\.\s*Client «\s*Boulangerie du Lac \(portable\)\s*» modifié\s*Client «\s*Café des Arts\s*» ajouté\s*\d+ réglages? du dossier\s*Accepter\s*Rejeter…$/);
+      .toMatch(/Remis par Nadia, depuis «\s*Chrome sur Windows\s*», le \d\d\/\d\d\/\d{4} à \d+ h \d\d\.\s*Client «\s*Boulangerie du Lac \(portable\)\s*» modifié\s*Client «\s*Café des Arts\s*» ajouté\s*(\d+ réglages du dossier|Un réglage du dossier), que l'écran ajuste souvent seul à son ouverture\s*Accepter\s*Rejeter…$/);
     await b.screenshot({ path: path.join(PHOTOS, 'quarantaine-3-panneau.png') });
 
     // « Rejeter… » demande d'abord : rien n'est décidé tant qu'on n'a pas dit oui.

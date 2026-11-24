@@ -161,6 +161,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.defi_console': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'plateforme.session_console': { classe: 'hors', raison: 'une session ouverte est une clé de connexion' },
   'plateforme.invitation_console': { classe: 'hors', raison: 'les invitations dans l\'équipe de SkanFact (0118) : leur lien est une clé d\'entrée, et elles ne sont à aucune entreprise' },
+  'plateforme.organisation_test': { classe: 'hors', raison: 'le rangement d\'une entreprise d\'essai à part dans la console de SkanFact (1.388.52) : une note de l\'éditeur, pas une donnée du dossier' },
   'plateforme.geste_console': { classe: 'hors', raison: 'le journal de la console de SkanFact, avec ses notes : une remise ne le fait jamais revenir en arrière' },
   // Le service (0085, docs/console.md C12) : ce que le serveur mesure de lui-même et ce que sa veille voit. Des comptes
   // de requêtes de toutes les entreprises mêlées, jamais une donnée de l'une d'elles.

@@ -1038,6 +1038,12 @@ export interface BaseDeDonnees {
     par: string;
     le: Generated<Date>;
   };
+  'plateforme.organisation_test': {
+    entreprise: string;
+    motif: string;
+    le: Date;
+    par: string;
+  };
   'plateforme.pause_partenaire': {
     id: Generated<string>;
     partenaire: string;

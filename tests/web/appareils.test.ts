@@ -125,7 +125,7 @@ describe('tes appareils, à la souris', () => {
     // Le portable se reconnecte : il efface ce qu'il gardait, et l'entrée le dit.
     await portable.reload();
     await portable.waitForURL((u) => !u.pathname.startsWith('/v10'), { timeout: 20_000 });
-    await expect.poll(() => portable.locator('#toast').innerText(), { timeout: 15_000 })
+    await expect.poll(() => portable.locator('#session-finie').innerText(), { timeout: 15_000 })
       .toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour continuer.');
     await portable.screenshot({ path: path.join(PHOTOS, 'appareils-3-efface.png') });
     expect(await portable.evaluate(() => sessionStorage.getItem('test.poste_apres'))).toBe('efface');
@@ -142,7 +142,7 @@ describe('tes appareils, à la souris', () => {
     await expect.poll(() => posteGarde(mac), { timeout: 15_000 }).toBe(true);
     expect((await api('DELETE', `/moi/appareils/${macAppareil}`, bureauJeton)).statut).toBe(200);
     await mac.goto(`${serveur.adresse}/`);
-    await expect.poll(() => mac.locator('#toast').innerText(), { timeout: 15_000 })
+    await expect.poll(() => mac.locator('#session-finie').innerText(), { timeout: 15_000 })
       .toBe('Cet appareil a été retiré de ton compte : ce qu\'il gardait pour travailler sans réseau est effacé ; reconnecte-toi pour continuer.');
     await expect.poll(() => posteGarde(mac), { timeout: 10_000 }).toBe(false);
     expect(await mac.evaluate(() => [localStorage.getItem('skanfact.jeton'), localStorage.getItem('skanfact.poste_de')])).toEqual([null, null]);

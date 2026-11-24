@@ -73,6 +73,9 @@ describe('l\'entrée d\'un comptable (1.373.0), à la souris', () => {
     // ── Le nom : refusé vide, puis tapé d'une traite — le curseur n'a pas quitté la case ───────────────────────────
     await p.getByRole('heading', { level: 1, name: 'Ton cabinet' }).waitFor({ timeout: 10_000 });
     expect(net(await p.locator('.ent-fil').innerText())).toBe('Ton compte 2 Ton cabinet 3 Ton départ');
+    // (ENT2-7) Le curseur est déjà dans la case à l'ouverture, comme sur « Ton entreprise » : on tape sans cliquer.
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.getAttribute('aria-label') || (document.activeElement as HTMLElement | null)?.id || document.activeElement?.tagName)).not.toBe('BODY');
+    expect(await p.getByRole('textbox', { name: 'Nom du cabinet' }).evaluate((e) => e === document.activeElement)).toBe(true);
     await p.getByRole('button', { name: 'Créer mon cabinet', exact: true }).click();
     await expect.poll(() => p.locator('.ent-aide.alerte').innerText().catch(() => '')).toBe('Il faut au moins 2 caractères.');
     await p.keyboard.type('Cabinet Trabelsi & Associés', { delay: 15 });

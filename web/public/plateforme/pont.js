@@ -230,7 +230,7 @@
   // (1.266.7 ; 16 § 10.1, point 4) Le rôle ne lit pas la paie d'une entreprise qui en a une : l'écran le dit.
   let paieCachee = false;
   /** @param {string} champ */
-  const repart = (champ) => !cachees.has(champ) && !lectureSeule.has(champ) && (!ecrivables || ecrivables.has(champ));
+  const repart = (champ) => !cachees.has(champ) && !lectureSeule.has(champ) && (!ecrivables || ecrivables.has(champ)); const refuseSansDemander = () => Promise.reject(Object.assign(new Error('Ton rôle ne le permet pas.'), { statut: 403 })); // (issue 18, ENT2-11) ce que le rôle ne lit pas ne se demande pas
   /** @param {any} d */
   const poserDroits = (d) => {
     cachees = new Set((d && d.cachees) || []);
@@ -688,7 +688,7 @@
   /** @type {Promise<void> | null} */ let finEnCours = null;
   /** @param {any} lu */
   const finDeSession = (lu) => (finEnCours = finEnCours || (async () => { try { sessionStorage.setItem('skanfact.sortie', '1'); if (location.pathname.startsWith('/v10/')) sessionStorage.setItem('skanfact.destination', location.pathname + location.search + location.hash); } catch { /* sans stockage */ } try { const w = /** @type {any} */ (window); if (vu.size && w.__data && changementsDe(w.__data).length) { if (poste.garde()) { await poste.ecrireCopie(ent, contenuDeLaCopie()); await poste.ecrireAttente(ent, { data: w.__data, sortie: true }); } else sessionStorage.setItem('skanfact.sortie', 'perdu'); } } catch { /* rien de gardé : la sortie continue (1.387.82, issue 4, ENTREE-2) */ }
-    if (lu && lu.effacer) {
+    if (lu && lu.effacer) { try { sessionStorage.setItem('skanfact.sortie', 'retire'); } catch { /* sans stockage */ } // (issue 18, ENT2-2) l'entrée dit le vrai motif, une fois
       if ((await remettre()) === null) {
         poste.sansCopie('Cet appareil a été retiré de ton compte. Ce qu\'il avait enregistré sans réseau n\'a pas encore pu être remis au serveur : rien n\'est effacé tant qu\'il ne l\'a pas reçu.');
         return;
@@ -731,8 +731,8 @@
   // une fois l'autre compte connecté (App.tsx, `destination`), gardée dans l'onglet.
   /** @param {string} [destination] */
   async function sortirDuCompte(destination) {
-    // Ce qui attend le réseau serait perdu : on le demande d'abord.
-    if (attenteGardee && !(await poste.demander('Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de ce poste.',
+    // Ce qui attend le réseau serait perdu : on le demande d'abord — (issue 18, ENT2-5) aussi ce qui n'est qu'à l'écran.
+    if ((attenteGardee || nonEnregistre) && !(await poste.demander(`Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface ${attenteGardee ? 'de ce poste' : 'de l\'écran'}.`,
       'Me déconnecter quand même', 'Attendre le réseau'))) return;
     try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
     try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
@@ -1215,7 +1215,7 @@
     // La messagerie avec le cabinet (lot messagerie ; plateforme/messagerie.js) : ce qui attend (la pastille), le fil, et
     // l'achat où la photo d'un message a été rangée.
     messagerie: LECTURE ? null : {
-      attente: () => appel('GET', '/messages/attente'),
+      attente: () => (messagerie ? appel('GET', '/messages/attente') : refuseSansDemander()),
       // (1.239.0) La conversation se dessine dès que la messagerie est là ; chargée à la première ouverture, la page reçoit
       // tout de suite de quoi l'arrêter (seul geste qu'elle fait sur la conversation), et elle se dessine à l'arrivée.
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => {
@@ -1244,7 +1244,7 @@
       // (1.173.0, 0181) Ce que le cabinet a rangé dans le dossier (Skander, 29/10/2026 : « oui, tout ») : les documents qu'il
       // a déposés, et les pièces qu'il a jointes aux achats ; qui ne lit pas la messagerie : rien.
       range: async () => {
-        try { return (await appel('GET', '/cabinet/range')).pieces || []; } catch (e) { if (/** @type {any} */ (e).statut === 403) return []; throw e; }
+        if (!messagerie) return []; try { return (await appel('GET', '/cabinet/range')).pieces || []; } catch (e) { if (/** @type {any} */ (e).statut === 403) return []; throw e; }
       },
       // Le contenu d'une de ces pièces : une pièce reçue est la sienne (son fichier, dans sa conversation), un document vient du cabinet.
       contenuRange: async (/** @type {any} */ x) => {
@@ -1302,7 +1302,7 @@
     // administrateur voit la demande de l'équipe, l'accorde pour quelques heures, la refuse, retire un accès qui court,
     // et relit chaque page lue. Pour tout autre rôle, la base refuse (403) et l'écran ne montre rien.
     accesSupport: LECTURE ? null : {
-      lire: () => appel('GET', '/acces-support'),
+      lire: () => (responsable ? appel('GET', '/acces-support') : refuseSansDemander()),
       repondre: (/** @type {string} */ id, /** @type {boolean} */ accorder, /** @type {number | null} */ heures) =>
         appel('POST', `/acces-support/${encodeURIComponent(id)}/repondre`, { accorder, heures }),
       retirer: (/** @type {string} */ id) => appel('POST', `/acces-support/${encodeURIComponent(id)}/retirer`),
@@ -2099,8 +2099,8 @@
   /** @param {HTMLElement} el @param {{ ecrire?: (() => void) | null }} [o] */
   function dessinerExport(el, o) {
     el.innerHTML = `<p class="small muted mb">Un seul fichier qui contient tout ce que ton entreprise a sur SkanFact : ses pièces et leurs règlements, ses clients et fournisseurs, ses achats, sa caisse, sa paie, sa comptabilité, ses messages avec ton cabinet, son équipe et la trace de chaque geste. Aucun mot de passe ni aucune clé d'accès n'y figure.</p>
-      <p class="small muted mb">Il est à toi : garde-le où tu veux. C'est un fichier texte (du JSON, une ligne par élément), que n'importe quel outil sait lire. Le remettre en place, ou fermer l'entreprise et effacer ses données, se demande au support : l'équipe le fait pour toi, après avoir vérifié que la demande vient de toi (1.387.79, issue 14). Chaque téléchargement est noté dans la trace de l'entreprise.</p>
-      <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button>${o && o.ecrire ? '<button type="button" class="btn-lien" id="export-support">Écrire au support</button>' : ''}</div>
+      <p class="small muted mb">Il est à toi : garde-le où tu veux. C'est un fichier texte (du JSON, une ligne par élément), que n'importe quel outil sait lire. Le remettre en place, ou fermer l'entreprise et effacer ses données, se demande au support : l'équipe le fait pour toi, après avoir vérifié que la demande vient de toi. Chaque téléchargement est noté dans la trace de l'entreprise.</p>
+      <div class="inline"><button type="button" class="btn" id="export-telecharger">Télécharger toutes les données</button>${o && o.ecrire ? '<button type="button" class="btn" id="export-support">Écrire au support</button>' : ''}</div>
       <p class="small mt" role="status" id="export-etat" style="min-height: 1.5em"></p>`;
     const bouton = /** @type {HTMLButtonElement} */ (el.querySelector('#export-telecharger'));
     const etat = /** @type {HTMLElement} */ (el.querySelector('#export-etat')), sup = /** @type {HTMLElement | null} */ (el.querySelector('#export-support')); if (sup && o && o.ecrire) sup.onclick = o.ecrire;
@@ -2191,7 +2191,7 @@
   /** @param {HTMLElement} el */
   async function dessinerServices(el) {
     /** @type {any[]} */ let cles;
-    try { cles = (await appel('GET', '/cles-api')).cles; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    if (!responsable) { el.innerHTML = ''; return; } try { cles = (await appel('GET', '/cles-api')).cles; } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
     const actives = cles.filter((k) => !k.revoquee_le && Date.parse(k.expire_le) > Date.now());
     el.innerHTML = `<p class="small muted mb">Les services qui agissent pour ton entreprise : une boutique SkanEcom que tu as reliée, un outil que tu as branché. Couper l'accès l'arrête tout de suite : le service ne peut plus rien faire ici, et ce qu'il a déjà fait reste (factures, paiements).</p>
       ${actives.length ? `<table class="list compact" id="services-liste"><tbody>${actives.map((k) => `<tr><td><strong>${esc(k.nom)}</strong>
@@ -2944,8 +2944,8 @@
     remises = await lues;
     if (!remises.length) return;
     const n = remises.reduce((t, q) => t + compter(q.changements), 0);
-    const qui = remises.length > 1 ? 'Des appareils retirés ont remis' : 'Un appareil retiré a remis';
-    const quoi = n > 1 ? `${n} changements faits hors ligne : ils attendent` : n === 1 ? 'un changement fait hors ligne : il attend' : 'des réglages changés hors ligne : ils attendent';
+    const qui = remises.length > 1 ? `Des appareils retirés ont remis ${remises.length} enregistrements` : 'Un appareil retiré a remis un enregistrement'; // (issue 18, ENT2-2) les remises comptées, pas « hors ligne »
+    const quoi = n > 1 ? `(${n} changements) : ils attendent` : n === 1 ? '(un changement) : il attend' : (remises.length > 1 ? ': ils attendent' : ': il attend');
     poste.annoncer(`${qui} ${quoi} ta décision.`, 'Voir', () => {
       const w = /** @type {any} */ (window);
       if (typeof w.__allerParametres === 'function') w.__allerParametres('donnees', 'p-quarantaine');
@@ -2980,7 +2980,7 @@
         const faits = q.changements.filter((/** @type {any} */ c) => c.collection !== '_racine');
         const reglages = q.changements.length - faits.length;
         return `<div class="remise" data-remise="${esc(q.id)}"><p><strong>Remis par ${esc(q.utilisateur || 'un membre')}, depuis « ${esc(q.appareil)} »</strong>, le ${esc(quand(q.recueLe))}.</p>
-        <ul class="small">${faits.map((/** @type {any} */ c) => `<li>${esc(decrire(c))}</li>`).join('')}${reglages ? `<li>${reglages > 1 ? `${reglages} réglages du dossier` : 'Un réglage du dossier'}</li>` : ''}</ul>
+        <ul class="small">${faits.map((/** @type {any} */ c) => `<li>${esc(decrire(c))}</li>`).join('')}${reglages ? `<li>${reglages > 1 ? `${reglages} réglages du dossier` : 'Un réglage du dossier'}, que l'écran ajuste souvent seul à son ouverture</li>` : ''}</ul>
         <div class="row"><button type="button" class="btn btn-primary btn-sm" data-accepter>Accepter</button> <button type="button" class="btn btn-sm" data-rejeter>Rejeter…</button></div>
         <p class="small" role="alert"></p></div>`;
       }).join('')}`;

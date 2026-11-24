@@ -142,6 +142,14 @@ describe('les limites du hors-ligne, à la souris', () => {
     await expect.poll(() => fenetre(p).count(), { timeout: 10_000 }).toBe(1);
     await fenetre(p).getByRole('button', { name: 'Fermer', exact: true }).click();
     expect(await clients(jeton, ent).catch(() => null)).toBe(null);
+    // (issue 18, ENT2-5) Se déconnecter maintenant perdrait ce qui n'est qu'à l'écran : la question d'abord, comme sur un
+    // poste qui garde ; « Attendre le réseau » laisse la page ouverte.
+    await p.locator('#b-moi').click();
+    await p.getByRole('menuitem', { name: 'Se déconnecter' }).click();
+    await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 10_000 })
+      .toMatch(/^Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de l'écran\./);
+    await p.getByRole('button', { name: 'Attendre le réseau', exact: true }).click();
+    expect(p.url()).toContain('/v10/');
     await retablir();
     await c.setOffline(false);
     await expect.poll(() => clients(jeton, ent), { timeout: 40_000 }).toEqual(['Boulangerie du Lac', 'Épicerie Patiente']);

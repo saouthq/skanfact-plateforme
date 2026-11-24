@@ -98,7 +98,8 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
         <Champ obligatoire libelle={titre('ecran.inscription.nom')} aide={phrase('ecran.inscription.nom_aide')} valeur={nom} changer={setNom} autoComplete="name" premier {...g.sur('nom')} />
         {/* 1.77.0 — « username » : le navigateur retient l'adresse avec le mot de passe (recette du 20/10/2026 : il retenait
             le nom, qu'il remettait ensuite dans la case de l'e-mail à la connexion). */}
-        <Champ obligatoire libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')} />
+        <Champ obligatoire libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')}
+          lecture={!seul && !!(invitation?.email ?? comptable?.email ?? dossier?.email)} />
         <Champ obligatoire libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.inscription.mot_de_passe_aide', { min: LONGUEUR_MINIMALE })} valeur={motDePasse} changer={setMotDePasse}
           type="password" autoComplete="new-password" revelable dessous={<Jauge motDePasse={motDePasse} />} {...g.sur('motDePasse')} />
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.inscription.bouton')}<Dessin id="fleche" /></Bouton>

@@ -58,6 +58,8 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
   // (1.379.0, issue 4, ENTREE-2) Une session fermée ailleurs (ou finie) ramenait ici sans un mot : la phrase reste
   // au-dessus du formulaire tant qu'on ne s'est pas reconnecté.
   const [sortie] = useState(() => { try { return sessionStorage.getItem('skanfact.sortie') ?? ''; } catch { return ''; } });
+  // (issue 18, ENT2-2) L'appareil retiré : la phrase du serveur (ce qui est mis de côté), qui reste, à la place de l'autre.
+  const [motifRetire] = useState(() => { try { return sessionStorage.getItem('skanfact.sortie_motif') ?? ''; } catch { return ''; } });
 
   // (issue 4, ENTREE-10) Trop d'essais : le bouton attend l'heure donnée par le serveur et dit combien il reste.
   const [jusqua, setJusqua] = useState(0);
@@ -85,7 +87,7 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     const defi = defiDe(r.corps, posteDUnAutre);
-    if (r.statut < 400) try { sessionStorage.removeItem('skanfact.sortie'); } catch { /* rien à oublier */ }
+    if (r.statut < 400) try { sessionStorage.removeItem('skanfact.sortie'); sessionStorage.removeItem('skanfact.sortie_motif'); } catch { /* rien à oublier */ }
     if (r.corps.etat === 'connecte' && r.corps.jeton) {
       session.ouvrir(r.corps.jeton, !posteDUnAutre);
       if (!posteDUnAutre) session.retenirAppareil(r.corps.appareil ?? null);
@@ -108,7 +110,7 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.connexion.titre')}</h1><p>{sous ?? phrase('ecran.connexion.sous')}</p></div>
         {note ? <p id="entree-note" className="ent-note" role="status">{note}</p> : null}
-        {sortie ? <p id="session-finie" className="ent-note" role="status">{phrase('ecran.connexion.session_finie')}{sortie === 'perdu' ? <> {phrase('ecran.connexion.session_perdu')}</> : null}</p> : null}
+        {sortie ? <p id="session-finie" className="ent-note" role="status">{sortie === 'retire' ? (motifRetire || phrase('ecran.connexion.appareil_retire')) : phrase('ecran.connexion.session_finie')}{sortie === 'perdu' ? <> {phrase('ecran.connexion.session_perdu')}</> : null}</p> : null}
         <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" premier={!adresseDonnee} {...g.sur('email')} />
         <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable premier={adresseDonnee} {...g.sur('motDePasse')} />
         {options.oubli ? <div className="ent-sous-champ"><button type="button" className="ent-lien" onClick={() => oubli(email)}>{titre('ecran.connexion.oublie')}</button></div> : null}

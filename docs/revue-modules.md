@@ -6999,3 +6999,28 @@ MET1-2 (la dépense du marché à 19 %) attend l'avis d'un expert-comptable ; no
   deux sens ; l'ajout d'une ligne le dit « produit fabriqué » ou « marchandise », plus « prestation ».
 - Restent à la décision d'un expert : FISC-3 (FODEC à l'export), FISC-4 (le seuil des deux côtés), FISC-6 (vente en
   suspension de TVA : une fonction à concevoir avec lui, mention légale et attestation).
+
+## 1.388.56 — L'entrée et le compte disent vrai (rapport #18 : ENT2-2, 3, 5, 6, 7, 8, 11)
+
+- **ENT2-3** — Une invitation ouverte depuis son lien : l'adresse invitée ne se change plus sur la page (elle lui est
+  réservée, et un compte créé sous une autre adresse restait à côté, refusé). Ouverte avec un autre compte, le refus
+  nomme l'adresse attendue et son geste principal est « Entrer avec … » : déconnecté, l'écran de connexion s'ouvre sur
+  cette adresse, le lien gardé.
+- **ENT2-2** — Un appareil retiré en pleine saisie : un seul message, qui reste sur l'écran de connexion (celui du
+  serveur, qui dit ce qui est mis de côté), au lieu d'un message passager et d'un « ta session a été fermée » faux à
+  côté. Le message dit « pas encore envoyé » (et non « hors ligne ») et nomme le propriétaire ou un administrateur, et
+  l'endroit (Paramètres › Données et sécurité). Le bandeau compte les remises (« un enregistrement (2 changements) »), et
+  les réglages du dossier d'une remise disent que l'écran les ajuste souvent seul.
+- **ENT2-5** — Sans réseau, sur un navigateur qui ne garde rien, « Se déconnecter » pose la même question qu'un poste qui
+  garde, puisque l'écran venait de promettre que rien n'était perdu tant qu'il restait ouvert.
+- **ENT2-6** — Données et sécurité : plus de « (1.387.79, issue 14) » écrit au client ; « Écrire au support » est un
+  bouton de l'application.
+- **ENT2-7** — « Ton cabinet » : le curseur est dans la case du nom à l'ouverture.
+- **ENT2-8** — « Ton entreprise » et « Ton cabinet » gardent ce qui est tapé au rechargement et après une déconnexion
+  dans le même onglet (pour la même personne seulement), comme l'assistant qui suit.
+- **ENT2-11** — Un commercial ou un lecteur ne fait plus partir les lectures que son rôle ne permet pas (messagerie,
+  pièces rangées par le cabinet, accès du support, clés d'API) : le même refus, sans la requête.
+- Au passage, la migration 0225 (organisations de test, 1.388.52) est mise en règle : phrases de refus au catalogue,
+  table classée pour l'export complet, geste au journal, types de la base.
+- Tests : `equipe-entreprise`, `hors-ligne-limites`, `entree`, `cabinet-entree-1373`, `export-complet`, `quarantaine`,
+  `appareils` ; dix preuves. Restent ENT2-4 (partir, céder la propriété), ENT2-9 et ENT2-10, au lot suivant.

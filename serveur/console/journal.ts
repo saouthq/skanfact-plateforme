@@ -18,6 +18,7 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^clients\.exporte$/, 'console.clients.exporter'],
   [/^clients\.reprise/, 'console.clients.reprise'],
   [/^clients\.sortie/, 'console.clients.sortie'],
+  [/^clients\.test_/, 'console.clients.test'],
   [/^clients\.arrivee_/, 'console.clients.arrivee'],
   [/^journal\.exporte$/, 'console.journal.exporter'],
   // Les demandes d'effacement (0144) : le support et la direction notent ; la direction seule décide et efface.

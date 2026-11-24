@@ -300,7 +300,8 @@ export function App() {
       const r = await appeler<Moi>('GET', '/moi');
       if (r.statut === 401) {
         // Un appareil retiré (brique 74) : ce que le poste gardait est effacé (api.ts), et l'écran le dit.
-        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
+        // (issue 18, ENT2-2) Le motif vit sur l'écran de connexion, qui reste, et non plus dans un message qui s'efface.
+        if (r.corps.effacer) try { sessionStorage.setItem('skanfact.sortie', 'retire'); sessionStorage.setItem('skanfact.sortie_motif', r.corps.motif ?? ''); } catch { toast(r.corps.motif ?? '', true); }
         session.fermer();
         setAccueil({ ecran: 'connexion' });
         return;
@@ -323,6 +324,7 @@ export function App() {
   // Une invitation en attente s'accepte d'abord : ce qu'elle fait rejoindre s'ouvre ; refusée, la
   // raison se lit, et « Continuer » reprend le chemin habituel.
   const [refusInvitation, setRefusInvitation] = useState<string | null>(null);
+  const [autreAdresse, setAutreAdresse] = useState<{ jeton: string; apercu: Extract<Apercu, { valable: true }> } | null>(null);
   useEffect(() => {
     if (!moi || moi.codeAConfigurer) return;
     const jeton = invitation.lire();
@@ -334,6 +336,10 @@ export function App() {
         const r = await appeler<{ cabinet: string | null; entreprise: string | null }>('POST', '/invitations/accepter', { jeton });
         if (r.statut === 200 && r.corps.cabinet) { ouvrirCabinet(r.corps.cabinet); return; }
         if (r.statut === 200 && r.corps.entreprise) { ouvrirEntreprise(r.corps.entreprise); return; }
+        // (issue 18, ENT2-3) Ouverte avec un autre compte que celui de l'adresse invitée : le refus la nomme, et propose
+        // d'entrer avec elle. Le lien se relit (l'aperçu) pour connaître l'adresse : le refus du serveur ne la dit pas.
+        const a = await appeler<Apercu>('POST', '/invitations/apercu', { jeton }).catch(() => null);
+        if (a?.statut === 200 && a.corps.valable) setAutreAdresse({ jeton, apercu: a.corps });
         setRefusInvitation(r.corps.motif ?? phrase('ecran.erreur_serveur'));
       } catch (x) {
         setRefusInvitation(phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'));
@@ -419,8 +425,18 @@ export function App() {
       redemander={vers({ ecran: 'oubli', email: '' })} retour={vers({ ecran: 'connexion' })} />; break;
     default:
       if (refusInvitation) {
-        ecran = <Carte titre={titre('ecran.invitation.titre')} pied={<Bouton principal onClick={() => setRefusInvitation(null)}>{titre('ecran.invitation.continuer')}</Bouton>}>
-          <p role="alert">{refusInvitation}</p></Carte>;
+        const a = autreAdresse;
+        // (issue 18, ENT2-3) L'adresse attendue est nommée, et le geste principal est d'entrer avec elle : le lien reste
+        // gardé, l'écran de connexion s'ouvre sur cette adresse. « Continuer » garde le compte ouvert.
+        const changer = a ? () => {
+          try { sessionStorage.setItem(INVITATION, a.jeton); } catch { /* sans stockage : il faudra rouvrir le lien */ }
+          setApercu(a.apercu); setAutreAdresse(null); setRefusInvitation(null);
+          void sortir();
+        } : null;
+        ecran = <Carte titre={titre('ecran.invitation.titre')} pied={<>
+          {a && changer ? <Bouton principal onClick={changer}>{titre('ecran.invitation.changer_compte', { email: a.apercu.email })}</Bouton> : null}
+          <Bouton principal={!changer} onClick={() => { setAutreAdresse(null); setRefusInvitation(null); }}>{titre('ecran.invitation.continuer')}</Bouton></>}>
+          <p role="alert">{a ? phrase('ecran.invitation.autre_adresse', { email: a.apercu.email, ou: a.apercu.ou }) : refusInvitation}</p></Carte>;
       } else if (refusInvitation !== null) ecran = <Ouverture ouvrir={null} />;
       // Le code du téléphone, exigé des seuls comptables d'un cabinet (0076).
       else if (moi?.codeAConfigurer) ecran = <CodeRequis pose={() => { void charger(); }} deconnecte={() => { void sortir(); }} cabinet={moi.cabinets[0]?.nom} />;
@@ -438,7 +454,7 @@ export function App() {
       // L'entreprise ou le cabinet créé, on relit le compte : un cabinet exige le code du téléphone d'abord.
       // (1.78.0) Un lien de dossier tenu attend : le dossier s'ouvre, pas la porte d'une entreprise à créer.
       else if (moi && !dossierTenu.lire() && moi.cabinets.length === 0 && (miennes.length === 0 || comptable.lire())) {
-        ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }}
+        ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }} personne={moi?.id}
           pourUnClient={comptable.lire() && client?.valable ? client.entreprise : null} key={client?.valable ? 'client' : 'porte'} profil={profilChoisi}
           decouvrir={() => { history.replaceState(null, '', '/?exemple=decouvrir'); setDemande({ ecran: 'exemple', visite: 'decouvrir' }); }} />;
       }
