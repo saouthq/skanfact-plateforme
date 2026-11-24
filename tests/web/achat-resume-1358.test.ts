@@ -182,6 +182,33 @@ describe('1.357.8 : le résumé de l\'achat dit ce qu\'en a fait le cabinet, ran
     await t.screenshot({ animations: 'disabled', fullPage: true, path: path.join(PHOTOS, 'achat-resume-1358-2-telephone.png') });
     await tel.close();
 
+    // 6. (1.388.41, PONT-2) Modifier une pièce dont l'écriture est validée : la page le dit AVANT de rouvrir le formulaire.
+    // « Annuler » ne rouvre rien ; « Modifier quand même » rouvre, et l'enregistrement contre-passe la validée : le résumé
+    // ne dit plus « Validée », il dit la correction partie chez le cabinet, et la frise « à revalider ».
+    await p.locator('#ac-modifier').click();
+    const q = p.locator('.modal').last();
+    await q.waitFor({ timeout: 10_000 });
+    expect(net(await q.innerText())).toContain('Modifier une pièce déjà validée ?');
+    expect(net(await q.innerText())).toContain(`Ton cabinet a validé l'écriture n° ${numero}, le ${fr}. Si tu modifies la pièce, cette écriture sera contre-passée et une nouvelle partira chez ton cabinet, qui devra la revalider.`);
+    await q.getByRole('button', { name: 'Annuler', exact: true }).click();
+    await expect.poll(() => p.locator('.modal').count(), { timeout: 5_000 }).toBe(0);
+    expect(await p.evaluate(() => location.hash)).toBe('#/achat/a-1');
+    expect(await p.locator('#lecture-piece').isVisible()).toBe(true);
+    await p.locator('#ac-modifier').click();
+    await p.locator('.modal').last().getByRole('button', { name: 'Modifier quand même', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/achat/a-1/modifier');
+    await p.locator('#b-lines input[data-k=unitPrice]').first().fill('2500');
+    await p.locator('#save').click();
+    await expect.poll(async () => (await surLeServeur('purchases', 'a-1'))?.lines?.[0]?.unitPrice, { timeout: 15_000 }).toBe(2500);
+    await expect.poll(async () => (await lireAchat()).filter((e) => !e.contrepassee && e.statut !== 'validee').length, { timeout: 20_000 }).toBe(1);
+    // Le serveur a récrit l'écriture : la page RELUE le dit (un changement d'adresse seul garderait le dessin d'avant).
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a-1`);
+    await p.reload();
+    await p.locator('#lecture-piece').waitFor({ timeout: 20_000 });
+    await expect.poll(() => compta(p), { timeout: 15_000 }).toMatch(new RegExp(`^Comptabilité Au journal des achats, au brouillard : (ton cabinet la validera|pas encore validée)\\. Modifiée après la validation de l'écriture n° ${numero} : (ton cabinet|la comptabilité) reçoit la correction\\. · voir l'écriture$`));
+    await expect.poll(() => etape(p), { timeout: 15_000 }).toBe('corrigée depuis la validation, à revalider');
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achat-resume-1358-3-corrigee.png') });
+
     expect(erreurs).toEqual([]);
-  }, 180_000);
+  }, 240_000);
 });

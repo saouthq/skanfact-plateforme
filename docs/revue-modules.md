@@ -6781,3 +6781,21 @@ Sur GitHub, la preuve « le refus caché sous le bord de la fenêtre » restait 
 et activer », et ce clic faisait d'abord défiler la fenêtre jusqu'au bouton, ce qui montrait le refus pour une
 autre raison que celle qu'on vérifie. Le test valide désormais par Entrée depuis la case du code, la case posée
 tout au bas de ce qui se voit. Rien ne change dans l'application.
+
+## 1.388.41 — Une facture d'achat que ton cabinet a déjà validée (audit #30, PONT-2)
+
+Une pièce d'achat dont le cabinet avait validé l'écriture se rouvrait d'un clic sur « Modifier la pièce », sans
+un mot. L'enregistrer contre-passait l'écriture validée et en envoyait une nouvelle, mais le résumé de la pièce
+continuait d'écrire « Validée par ton cabinet » : on croyait le travail du comptable intact, alors qu'il avait
+une écriture de plus à revalider.
+
+Désormais :
+- « Modifier la pièce » demande d'abord : « Modifier une pièce déjà validée ? », avec le numéro et la date de
+  l'écriture, et ce qui va se passer (contre-passée, une nouvelle chez ton cabinet, à revalider). Trois choix :
+  « Modifier quand même », « Écrire d'abord à mon comptable » (le message est prêt), « Annuler » ;
+- une fois modifiée, le résumé dit l'écriture vivante (au brouillard) et ajoute « Modifiée après la validation
+  de l'écriture n° … : ton cabinet reçoit la correction » ; la frise « Au cabinet » dit « corrigée depuis la
+  validation, à revalider ».
+
+Le pont reconnaît l'écriture contre-passée à son miroir, même encore au brouillard. Testé à la souris
+(`tests/web/achat-resume-1358.test.ts`, étape 6) ; deux preuves.

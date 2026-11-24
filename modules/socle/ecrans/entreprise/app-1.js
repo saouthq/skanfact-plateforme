@@ -19650,7 +19650,7 @@
       ecritureDeLAchat().then(x => {
         const li = $('#ed-fr-cab'), sp = $('#ed-fr-cabinet'); if (!li || !sp || !x) return;
         if (x.statut === 'validee') { li.className = 'fait'; const r = $('.rond', li); if (r) r.innerHTML = lfIc('coche', 13, 3); sp.textContent = x.valideeLe ? `validée le ${lfJm(x.valideeLe)}` : 'validée'; }
-        else sp.textContent = 'vue, pas encore validée';
+        else sp.textContent = x.corrigee ? 'corrigée depuis la validation, à revalider' : 'vue, pas encore validée';
       });
     };
     remplirCabinetFrise();
@@ -19666,7 +19666,10 @@
         const dd = el.querySelector('dd');
         dd.innerHTML = (x.statut === 'validee'
           ? `Validée${cab ? ' par ton cabinet' : ''}${x.valideeLe ? ` le ${C.fmtDate(x.valideeLe)}` : ''}${x.numero ? `, écriture n° ${h(String(x.numero))}` : ''}.`
-          : `Au journal des achats, au brouillard : ${cab ? 'ton cabinet la validera' : 'pas encore validée'}.`) + (x.lignes && x.lignes.length ? ' · <a href="#" id="lp-ecriture">voir l\'écriture</a>' : '');
+          : `Au journal des achats, au brouillard : ${cab ? 'ton cabinet la validera' : 'pas encore validée'}.`)
+          // (1.388.41, PONT-2) Modifiée après la validation : l'écriture validée a été contre-passée, la nouvelle attend.
+          + (x.corrigee ? ` Modifiée après la validation${x.corrigee.numero ? ` de l'écriture n° ${h(String(x.corrigee.numero))}` : ''} : ${cab ? 'ton cabinet' : 'la comptabilité'} reçoit la correction.` : '')
+          + (x.lignes && x.lignes.length ? ' · <a href="#" id="lp-ecriture">voir l\'écriture</a>' : '');
         el.hidden = false;
         const lien = $('#lp-ecriture', el);
         if (lien) lien.onclick = e => { e.preventDefault(); fenetreEcriture(numeroLu, x, 'AC', 'Journal des achats', cab); };
@@ -20875,7 +20878,20 @@
     if ($('#dup')) $('#dup').onclick = () => { untouch(); duplicatePurchase(purchaseById(p.id)); };
     // (1.357.0) Le résumé et le formulaire sont la même pièce à deux adresses : passer de l'un à l'autre REMPLACE la page (le
     // retour mène à la liste, jamais d'un état à l'autre), et le garde-fou demande avant de jeter une modification.
-    if ($('#ac-modifier')) $('#ac-modifier').onclick = () => remplacerPage('#/achat/' + p.id + '/modifier');
+    // (1.388.41, PONT-2) Une pièce dont le cabinet a VALIDÉ l'écriture se dit avant d'être rouverte : la changer contre-passe
+    // l'écriture validée et en envoie une nouvelle, que le cabinet devra revalider. On peut le lui écrire d'abord.
+    if ($('#ac-modifier')) $('#ac-modifier').onclick = async () => {
+      const x = await ecritureDeLAchat().catch(() => null);
+      if (x && x.statut === 'validee') {
+        const cab = !!(messagerieVue && messagerieVue.cabinet);
+        const quoi = `${x.numero ? `l'écriture n° ${String(x.numero)}` : 'son écriture'}${x.valideeLe ? `, le ${C.fmtDate(x.valideeLe)}` : ''}`;
+        const r = await choiceDialog('Modifier une pièce déjà validée ?', `${cab ? 'Ton cabinet a validé' : 'La comptabilité a validé'} ${quoi}. Si tu modifies la pièce, cette écriture sera contre-passée et une nouvelle partira${cab ? ' chez ton cabinet, qui devra la revalider' : ''}.`,
+          'Modifier quand même', cab ? 'Écrire d\'abord à mon comptable' : null, 'Annuler');
+        if (r === 'b') { ecrireAuComptable(`Je dois corriger la pièce ${String(p.number || '').trim()} (${quoi}), déjà validée.`); return; }
+        if (r !== 'a') return;
+      }
+      remplacerPage('#/achat/' + p.id + '/modifier');
+    };
     if ($('#ac-resume')) $('#ac-resume').onclick = () => remplacerPage('#/achat/' + p.id);
 
     if ($('#del')) $('#del').onclick = async () => {

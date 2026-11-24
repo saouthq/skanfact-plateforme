@@ -31918,6 +31918,14 @@ prouver $'les reglages de tous les dossiers par n\'importe qui' serveur/cabinet/
   $'if (false) {' \
   $'l\'associé renomme le cabinet ; un collaborateur ne le peut pas ; un nom vide est refusé ; le changement se trace'
 
+# 1.388.41 — PONT-2 : modifier une pièce que le cabinet a validée se dit, avant et après.
+prouver $'la piece validee rouverte sans un mot' modules/socle/ecrans/entreprise/app-1.js \
+  "if (x && x.statut === 'validee') {" "if (false) {" \
+  $'Sarra relit PK-2611-07 : l\'écriture au brouillard puis validée par Leila, la frise qui le suit, l\'affaire rangée et retirée, et les lignes au téléphone'
+prouver $'la correction d\'une piece validee dite Validee' web/public/plateforme/pont.js \
+  "m.origine.type === 'contre_passation' && m.origine.id === e.id" "false" \
+  $'Sarra relit PK-2611-07 : l\'écriture au brouillard puis validée par Leila, la frise qui le suit, l\'affaire rangée et retirée, et les lignes au téléphone'
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
