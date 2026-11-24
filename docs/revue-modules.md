@@ -6926,3 +6926,10 @@ suite fait +1 sur sa ligne (le prix par quantité suit). Un article choisi dans 
 quantité, comme avant.
 
 Testé à la souris (`tests/web/douchette-1388.test.ts`, trois lectures à la suite) ; deux preuves.
+
+## 1.388.50 — Les preuves réajustées après le lot de l'audit #30
+
+Dix preuves anciennes visaient des lignes que les correctifs du lot ont changées (l'indemnité de congés de SOCIAL-1, le
+double clic de ROB-6, les dates de TVA de CAB2-1, l'écriture d'un achat de PONT-2). Leurs ancres suivent le code ; deux
+d'entre elles ne mordaient plus, parce que le dernier bulletin ne sert qu'à une fiche sans salaire : le test des documents
+du personnel gagne ce cas (une fiche sans salaire prend son bulletin le plus récent, jamais celui d'un autre salarié).

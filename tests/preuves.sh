@@ -17267,27 +17267,27 @@ prouver 'l'"'"'aide du montant d'"'"'une avance qui dit son versement absent' mo
 prouver 'l'"'"'indemnité de congés comptée au jour du document, pas à la sortie' modules/personnel/moteur/compta-paie.js \
   '    const jour = String(e.endDate || dateIso || jourDeLInstant(Date.now()));' \
   '    const jour = String(dateIso || e.endDate || jourDeLInstant(Date.now()));' \
-  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour d'"'"'un mois complet (sa fiche)'
 prouver 'l'"'"'indemnité de congés sur le premier bulletin venu' modules/personnel/moteur/compta-paie.js \
   '      .sort((a, b) => (Number(b.year) - Number(a.year)) || (Number(b.month) - Number(a.month)))[0];
     const ouvrables' \
   '      .sort(() => 0)[0];
     const ouvrables' \
-  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour d'"'"'un mois complet (sa fiche)'
 prouver 'l'"'"'indemnité de congés sur les bulletins de tous les salariés' modules/personnel/moteur/compta-paie.js \
   '    const dernier = (data.payslips || []).filter(p => p.employeeId === employeeId && p.computed)' \
   '    const dernier = (data.payslips || []).filter(p => p.computed)' \
-  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour d'"'"'un mois complet (sa fiche)'
 prouver 'des congés pris d'"'"'avance qui s'"'"'indemnisent en négatif' modules/personnel/moteur/compta-paie.js \
   '    const jours = Math.max(0, solde);
     return { solde, jours, journalier,' \
   '    const jours = solde;
     return { solde, jours, journalier,' \
-  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour d'"'"'un mois complet (sa fiche)'
 prouver 'sans bulletin, une indemnité de congés nulle' modules/personnel/moteur/compta-paie.js \
-  '(dernier ? Number(dernier.computed.gross) || 0 : Number(e.grossSalary) || 0) / ouvrables' \
-  '(dernier ? Number(dernier.computed.gross) || 0 : 0) / ouvrables' \
-  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+  '    const base = fiche || (dernier ? Number(' \
+  '    const base = 0 || (dernier ? Number(' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour d'"'"'un mois complet (sa fiche)'
 prouver 'le document qui compte les congés au jour du document' modules/personnel/moteur/core-paie.js \
   '    const ic = indemniteConges(data, e.id, t);' \
   '    const ic = indemniteConges({ ...data, employees: (data.employees || []).map(x => (x.id === e.id ? { ...x, endDate: '"'"''"'"' } : x)) }, e.id, t);' \
@@ -18815,7 +18815,7 @@ prouver 'le compte de ce qui attend, toujours nul' 'web/public/plateforme/pont-c
   '    ecrituresEnAttente: async () => 0,' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'la fenêtre qui refuse de valider sans offrir le brouillard' modules/socle/ecrans/cabinet/app-2.js \
-  ''\''Enregistrer en brouillard'\'')) await enregistrer(false);' \
+  ''\''Enregistrer en brouillard'\'')) await enregistrerUneFois(false);' \
   ''\''Enregistrer en brouillard'\'')) { /* rien */ }' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 prouver 'joindre un justificatif à une écriture qui attend le réseau, offert' modules/socle/ecrans/cabinet/app-2.js \
@@ -27237,7 +27237,7 @@ prouver 'tableau 1.338.0 l : le menu propose de relancer un mois dont les pièce
 # 1.339.0 : la fiche du dossier (un dépôt daté de son jour) et le classeur (une attestation à ranger, pas un achat).
 CL1339='la fiche date un dépôt du jour du dépôt ; le classeur range une attestation au lieu de la proposer comme un achat'
 prouver 'classeur 1.339.0 a : l'\''historique date un dépôt de la date limite' modules/socle/ecrans/cabinet/app-1.js \
-  'map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m)' 'map(([m, v]) => [false ? String(v.deposeeLe).slice(0, 10) : limiteDe(m)' \
+  'map(([m, v]) => [/^\d{4}-\d{2}-\d{2}/.test(String(v.deposeeLe)) ? String(v.deposeeLe).slice(0, 10) : limiteDe(m, d)' 'map(([m, v]) => [false ? String(v.deposeeLe).slice(0, 10) : limiteDe(m, d)' \
   "$CL1339"
 prouver 'classeur 1.339.0 b : le panneau propose une attestation comme une dépense nouvelle' modules/socle/ecrans/cabinet/app-1.js \
   '} else if (g === '\''doc'\'' && p && !raison) {' '} else if (false) {' \
@@ -28585,8 +28585,8 @@ prouver 'emprunt 1.357.7 q : l'"'"'avance d'"'"'hier s'"'"'écrit à la caisse o
 ' '' \
   'un salaire et une avance payés du tiroir, caisse ouverte : le Z les retire de l'"'"'attendu, la caisse ne les sort qu'"'"'une fois'
 prouver 'resume-achat 1.357.8 a : l'"'"'écriture d'"'"'un achat se cherche à son identifiant d'"'"'écran, et ne se trouve jamais (pont)' web/public/plateforme/pont.js \
-  'x = ach.find((/** @type {any} */ e) => e.origine.id === id) || (ach.length === 1 ? ach[0] : null);' \
-  'x = ach.find((/** @type {any} */ e) => e.origine.id === id);' \
+  'x = ach.find((/** @type {any} */ e) => e.origine.id === id) || (ach.length === 1 ? ach[0] : null),' \
+  'x = ach.find((/** @type {any} */ e) => e.origine.id === id),' \
   'Sarra relit PK-2611-07 : l'"'"'écriture au brouillard puis validée par Leila, la frise qui le suit, l'"'"'affaire rangée et retirée, et les lignes au téléphone'
 prouver 'resume-achat 1.357.8 b : la frise redessinée quand le cabinet est appris perd « vue, pas encore validée »' modules/socle/ecrans/entreprise/app-1.js \
   'if (avecFriseAchat && $('"'"'#ed-frise'"'"')) { regreffer($('"'"'#ed-frise'"'"'), friseAchat()); remplirCabinetFrise(); }' \
@@ -31561,8 +31561,8 @@ prouver $'lot0-c6-un-comptable-seul-tient-son-dossier' modules/socle/ecrans/cabi
   $'\'<span class="muted small">Personne ne suit encore ce dossier.</span>\'' \
   $'au bureau : rien reçu depuis juillet, un seul geste ; le mois, le menu, la note ; un client qui arrive ; un dossier inconnu'
 prouver $'lot0-c12-la-tva-non-precisee-le-dit' modules/socle/ecrans/cabinet/app-1.js \
-  $'`${esc(\'non précisée · comptée mensuelle, déclarée le 28\')}${dir ? \' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>\' : \'\'}`' \
-  $'`${esc(\'mensuelle · déclarée le 28\')}`' \
+  $'`${esc(`non précisée · comptée mensuelle, déclarée le ${K.jourTva(S, d)}`)}${dir ? \' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>\' : \'\'}`' \
+  $'`${esc(`mensuelle · déclarée le ${K.jourTva(S, d)}`)}`' \
   $'le dossier tenu se renomme et reçoit son matricule ; celui d\'un client sur SkanFact reste le sien'
 prouver $'lot0-x2-annuler-demande-avant-de-jeter' modules/socle/ecrans/cabinet/app-2.js \
   $'<div class="modal-actions"><button class="btn" id="no" data-close>Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>' \

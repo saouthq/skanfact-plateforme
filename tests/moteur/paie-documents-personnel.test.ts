@@ -50,6 +50,11 @@ describe('les documents du personnel, dans le moteur commun', () => {
     d.employees = [{ ...une, endDate: '' }, deux];
     d.payslips = [];
     expect(compta.indemniteConges(d, 's1', '2026-03-31')).toEqual({ solde: 4.5, jours: 4.5, journalier: 47.483, montant: 213.674 });
+    // Une fiche sans salaire : le salaire d'un jour se prend sur SON bulletin le plus récent (juillet, 1 301,250 ÷ 26 = 50,048),
+    // jamais sur un plus ancien ni sur celui d'un autre salarié.
+    const f = donnees();
+    f.employees = [{ ...une, grossSalary: 0 }, deux];
+    expect(compta.indemniteConges(f, 's1', '2026-08-14')).toEqual({ solde: 10.5, jours: 10.5, journalier: 50.048, montant: 525.504 });
     // Des congés pris d'avance : le solde est négatif, l'indemnité nulle.
     const e = donnees();
     e.leaves = [{ id: 'l1', employeeId: 's1', kind: 'conges', from: '2026-06-01', to: '2026-06-30', days: 25 }];
