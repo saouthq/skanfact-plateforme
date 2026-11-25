@@ -33,6 +33,7 @@
 .cd-page .ms-mo.cours i { background: #f0c675; }
 .cd-page .ms-mo.tard i { background: #e5534b; }
 .cd-page .ms-mo.tard { color: #b42318; }
+body.dark .cd-page .ms-mo.tard { color: var(--sb-rouge-texte); } /* (#27, IFACE-5) le rouge du thème clair sur fond nuit faisait 2,49:1 */
 .cd-page .ms-mo.fait { color: var(--sb-gris); font-weight: 500; }
 .cd-page .av, #modal-root .av { display: grid; place-items: center; flex: none; color: #fff; font-weight: 700; font-size: 12px; border-radius: 11px; }
 .cd-page .cd-voir { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); }

@@ -443,6 +443,10 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .la .la-ap-l, .la .la-plus { display: none; }
   .la .la-ap-t { padding: 12px 14px; }
   .la .la-j { margin-left: 0; flex-basis: 100%; min-height: 44px; }
+}
+/* (1.388.65, #27 IFACE-1) La tablette debout (jusqu'à 1 023 px) prend les cartes du téléphone : les neuf colonnes ne tenaient
+   pas dans 620 px, et les dates, les montants et les statuts y étaient coupés (« 19/11/20 », « 1 039,87 », « À imput »). */
+@media (max-width: 1023px) {
   .la table.la-table { display: none; }
   .la .la-cartes { display: grid; gap: 8px; }
   .la .la-carte { display: grid !important; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; text-align: left; padding: 12px 14px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); color: var(--sb-encre); font: inherit; box-shadow: 0 1px 2px rgba(20, 40, 60, .04); min-height: 44px; cursor: pointer; }
@@ -454,6 +458,23 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .la .la-c-b { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--sb-trait); margin-top: 4px; }
   .la .la-c-b small:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .la .la-c-b b, .la .la-c-b small:last-child { color: var(--sb-encre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+}
+
+/* (1.388.65, #27 IFACE-1) Factures et devis à la tablette debout : la date de la pièce (le mois est déjà la rangée qui les
+   groupe), l'échéance (le statut dit « En retard » ou « Expiré », la pièce dit la date) et « Facturé par » (sur la fiche du
+   devis) cèdent leur place ; le montant et le statut se lisent en entier, et
+   plus rien ne passe sous la colonne d'actions collée à droite. */
+@media (min-width: 761px) and (max-width: 1023px) {
+  .lf table.sortable.lf-table:not(.la-table, .lc-table) :is(th, td):is(.cd, .ech, .ld-suite) { display: none; }
+  /* Un montant en devise et sa conversion passent à la ligne dans leur colonne au lieu d'en déborder (les espaces d'un
+     montant sont insécables : il reste d'un bloc). */
+  .lf table.sortable.lf-table:not(.la-table, .lc-table) td.r { white-space: normal; }
+  .lf table.lf-table td small.conv { white-space: normal; }
+  .lf table.sortable.lf-table:not(.la-table, .lc-table) td.cl { min-width: 0; }
+  .lf table.sortable.lf-table:not(.la-table, .lc-table) td.cn small { white-space: normal; }
+  .lf table.sortable.lf-table:not(.la-table, .lc-table) :is(td.cn, td.st) { white-space: normal; }
+  /* La colonne d'actions ne colle plus à droite : la table tient dans son cadre, rien ne passe dessous. */
+  .scroll-x table.sortable.lf-table:not(.la-table, .lc-table) :is(td.row-actions, thead th:last-child) { position: static; box-shadow: none; }
 }
 
 /* ---------- la liste des fournisseurs (maquette achats-fournisseurs.html, 1.204.0) : les pièces de la liste des clients ---------- */
@@ -536,6 +557,9 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 /* (1.261.0, suite) Les onglets segmentés de la Paie, la recherche et les statuts des affaires, la fiche d'une affaire. */
 .lf.mg .mg-barre { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .lf.mg .mg-barre .sel[hidden] { display: none; }
+/* (1.388.65, #27 IFACE-2) La barre d'onglets se resserre (elle défile dans son cadre) au lieu d'élargir la page : la
+   Trésorerie faisait 528 px au téléphone. */
+.lf.mg .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }
 .lf.mg .pa-seg button small { opacity: .7; margin-left: 2px; font-weight: 600; }
 .lf.mg .mg-f .cherche { flex: 1 1 220px; max-width: 320px; }
 .lf.mg .mg-f .pa-seg { flex: none; }
@@ -561,6 +585,11 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
   .lf.mg .mg-chiffre:nth-child(3) { border-left: 0; }
   .lf.mg .mg-chiffre:nth-child(n+3) { border-top: 1px solid var(--sb-trait); }
   .lf.mg .mg-f .cherche { max-width: none; }
+  /* (1.388.65, #27 IFACE-2) La Trésorerie porte des montants à huit chiffres : ses quatre chiffres passent sur une colonne. */
+  .lf.mg.tr { grid-template-columns: minmax(0, 1fr); }
+  .lf.mg.tr .mg-resume { grid-template-columns: minmax(0, 1fr); }
+  .lf.mg.tr .mg-chiffre { border-left: 0; }
+  .lf.mg.tr .mg-chiffre + .mg-chiffre { border-top: 1px solid var(--sb-trait); }
 }
 .lf.mg td.mg-barre { display: table-cell; }
 .lf.mg td.mg-barre .bar { width: 100%; }

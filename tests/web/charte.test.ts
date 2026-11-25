@@ -120,7 +120,8 @@ describe('la charte des maquettes, à la souris', () => {
     });
     expect(boutons.fond).toBe(await jeton(p, '--sb-papier'));
     expect(boutons.bord).toBe('1px');
-    expect(boutons.principal).toBe(await jeton(p, '--sb-sarcelle'));
+    // (1.388.65, #27 IFACE-5) Le bouton principal porte la sarcelle foncée de la charte, « lisible en blanc » (5,3 : 1).
+    expect(boutons.principal).toBe(await jeton(p, '--sb-sarcelle-texte'));
     expect(boutons.haut).toBeGreaterThanOrEqual(36);
     expect(erreurs).toEqual([]);
 

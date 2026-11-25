@@ -2657,7 +2657,8 @@ body.dark .g-reu.obtenue .g-reu-ico { color: #0d1418; }
 .g-cherche { margin-block-end: 18px; }
 /* Chaque domaine : son en-tête coloré, sa progression, ses visites. Deux par rangée quand la place
    le permet ; une grille décide sur la place du CADRE (10.12.0). */
-.g-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 16px; margin-block-end: 18px; align-items: start; }
+/* (1.388.65, #27 IFACE-2) min(460px, 100%) : une carte de thème ne fait jamais la page plus large que l'écran (474 px au téléphone). */
+.g-themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(460px, 100%), 1fr)); gap: 16px; margin-block-end: 18px; align-items: start; }
 .g-theme { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
 .g-theme .g-th-tete { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--th-bg); }
 .g-theme .g-th-ico { flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; background: var(--th); color: #fff; }

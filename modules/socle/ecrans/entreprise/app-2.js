@@ -8988,7 +8988,8 @@
 
   routes.guide = attendreAvant(visitesChargees, chargerVisites, 'Me guider', SANS_RESEAU_VISITES, pageGuide);
   const pageAide = (parts) => {
-    const arts = G.ARTICLES;
+    // (#27, IFACE-10) L'article d'une page « à venir » (la caisse) décrivait un écran fermé : il revient le jour où elle ouvre.
+    const arts = G.ARTICLES.filter(x => !aVenir(x.id));
     const vise = parts && parts[0] ? parts[0] : '';
     // `#/aide` seul ouvre l'ACCUEIL. Avant, il ouvrait d'office le premier article : on ne voyait
     // jamais la carte du domaine, et on ne savait pas qu'il y en avait trente et un autres.

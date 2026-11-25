@@ -1125,8 +1125,11 @@ body.dark .pm .papier { color: #1d2327; }
 .pm .i-mini { cursor: pointer; }
 .pm tr[data-bul]:focus-visible, .pm tr[data-ouvrir]:focus-visible { outline: 2px solid var(--sarcelle); outline-offset: -2px; }
 /* ── L'application dans la page de la maquette (scripts/maquette/paie-adapte.css) ── */
-.pm .btn.btn-primary { background: var(--sarcelle); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
-.pm .btn.btn-primary:hover { background: var(--sarcelle-f); }
+.pm .btn.btn-primary { background: var(--sarcelle-texte); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
+.pm .btn.btn-primary:hover { background: var(--doux-texte); }
+/* (#27, IFACE-5) Le bouton principal de la charte : blanc sur sarcelle foncée en clair, texte nuit sur menthe en sombre. */
+body.dark .pm .btn.btn-primary { background: var(--sarcelle); color: var(--barre-fond); }
+body.dark .pm .btn.btn-primary:hover { background: var(--sarcelle-f); }
 .pm .btn.btn-primary:disabled { opacity: .55; }
 .pm .btn.btn-sm, .pm .btn.mini { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 8px; }
 .pm .btn.btn-danger { color: var(--rouge-texte); }

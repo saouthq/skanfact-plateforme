@@ -42,9 +42,13 @@ body.dark { --ch-bleu-doux: color-mix(in srgb, #4d7cf2 24%, var(--sb-papier)); -
 .btn { font-family: var(--sb-police); font-size: 13.5px; font-weight: 600; min-height: 36px; padding: 7px 14px; border-radius: 10px;
   border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); line-height: 1.3; justify-content: center; }
 .btn:hover { background: var(--sb-papier); border-color: var(--sb-trait-fort); }
-.btn-primary { background: var(--sb-sarcelle); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
-.btn-primary:hover { background: var(--sb-sarcelle-f); border-color: transparent; }
-body.dark .btn-primary, body.dark .btn-primary:hover { color: #fff; }
+/* (#27, IFACE-5) Le contraste du bouton principal : blanc sur #0F9D8F faisait 3,37:1 (minimum 4,5). La charte (docs/entree.md)
+   demande #0B7A70 « lisible en blanc » (5,3:1) ; en sombre, du texte nuit sur la menthe (blanc sur #1FB8A8 : 2,48:1). */
+.btn-primary { background: var(--sb-sarcelle-texte); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
+.btn-primary:hover { background: var(--sb-doux-texte); border-color: transparent; }
+body.dark .btn-primary, body.dark .btn-primary:hover { background: var(--sb-sarcelle); color: var(--sb-barre); }
+body.dark .btn-primary:hover { background: var(--sb-sarcelle-f); }
+.btn.guide-moi { color: var(--sb-doux-texte); }
 .btn-danger, .btn-danger:hover { background: var(--sb-papier); color: var(--sb-rouge-texte); border-color: var(--sb-trait); }
 .btn-danger:hover { border-color: color-mix(in srgb, var(--sb-rouge) 45%, var(--sb-trait)); }
 .btn-ghost { background: transparent; border-color: var(--sb-trait); }

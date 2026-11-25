@@ -34,7 +34,7 @@
     },
     "bouton principal": {
       "regle": [
-        "fond rgb(15, 157, 143)"
+        "fond rgb(11, 122, 112)"
       ],
       "toleres": {}
     },
@@ -115,7 +115,7 @@
     },
     "bouton principal": {
       "regle": [
-        "fond rgb(15, 157, 143)"
+        "fond rgb(11, 122, 112)"
       ],
       "toleres": {
         "fond rgb(238, 241, 245)": "voulu — « Envoyer » tant que rien n'est écrit : gris, il prend la couleur à la première lettre"
@@ -269,7 +269,7 @@
     },
     "bouton principal": {
       "regle": [
-        "fond rgb(15, 157, 143)"
+        "fond rgb(11, 122, 112)"
       ],
       "toleres": {
         "fond rgb(12, 135, 123)": "état — le bouton principal sous le doigt ou la souris (la teinte foncée du survol)"
@@ -364,7 +364,7 @@
     },
     "bouton principal": {
       "regle": [
-        "fond rgb(15, 157, 143)"
+        "fond rgb(11, 122, 112)"
       ],
       "toleres": {}
     },

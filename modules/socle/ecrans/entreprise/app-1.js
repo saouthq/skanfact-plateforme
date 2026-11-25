@@ -1191,6 +1191,11 @@
       layer.remove(); if (modalClose === dismiss) modalClose = under;
       if (curseurDedans && avant && avant !== document.body && avant.isConnected && !avant.disabled) {
         try { avant.focus(); } catch (_) { /* un élément qui ne prend pas le curseur : on n'insiste pas */ }
+      } else if (curseurDedans && !root.children.length) {
+        // (#27, IFACE-7) Ouverte par Ctrl K, la fenêtre n'a plus d'élément d'où revenir : le curseur tombait sur la page et il
+        // fallait vingt Tab pour retrouver le contenu. Il revient au début de la page, sur son titre.
+        const v = document.querySelector('#view h1') || document.getElementById('view');
+        if (v) { if (!v.hasAttribute('tabindex')) v.setAttribute('tabindex', '-1'); try { v.focus({ preventScroll: true }); } catch (_) { /* rien */ } }
       }
       if (onDismiss) onDismiss();
     };
@@ -1210,13 +1215,25 @@
         // Une fenêtre dont la saisie n'est pas du texte (un logo, une couleur) dit ce qui se perd :
         // « ce que tu viens de taper » à quelqu'un qui n'a rien tapé fait relire la fenêtre (10.14.0).
         const perte = (opts && opts.perte) || 'Ce que tu viens de taper dans cette fenêtre ne sera pas enregistré.';
-        const jeter = await confirmDialog('Abandonner cette saisie ?\n' + perte, 'Abandonner la saisie', true);
+        // (#27, IFACE-7) Le curseur sur « Annuler » : un Entrée de trop ne jette pas ce qu'on vient de taper.
+        const jeter = await confirmDialog('Abandonner cette saisie ?\n' + perte, 'Abandonner la saisie', true, { prudent: true });
         question = false;
         if (!jeter) return;
       }
       close();
     };
     modalClose = dismiss;
+    // (#27, IFACE-7) Tant qu'une fenêtre est ouverte, Tab tourne dans la fenêtre du dessus : il sortait sur la page de derrière,
+    // où Entrée ouvrait la recherche par-dessus ou changeait de page sous la fenêtre restée ouverte.
+    layer.addEventListener('keydown', e => {
+      if (e.key !== 'Tab' || root.lastElementChild !== layer) return;
+      const l = [...layer.querySelectorAll('a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])')]
+        .filter(x => !x.disabled && x.tabIndex >= 0 && x.getClientRects().length && !x.closest('[hidden]'));
+      if (!l.length) return;
+      const premier = l[0], dernier = l[l.length - 1];
+      if (e.shiftKey && document.activeElement === premier) { e.preventDefault(); dernier.focus(); }
+      else if (!e.shiftKey && document.activeElement === dernier) { e.preventDefault(); premier.focus(); }
+    });
     layer.addEventListener('click', e => { if (e.target === layer) dismiss(); });
     $$('[data-close], [data-fen-x]', layer).forEach(b => b.addEventListener('click', dismiss));
     bindDateFields(layer);
@@ -5474,7 +5491,7 @@
       { key: 'number', label: 'Numéro', asc: true, val: d => (d.number ? '1' : '0') + (d.number || '') },
       { key: 'client', label: 'Client et objet', asc: true, val: d => nomClientPiece(d).toLowerCase() },
       { key: 'date', label: 'Date', th: 'cd', val: d => d.date || '' },
-      { key: 'due', label: 'Échéance', val: d => d.dueDate || '' },
+      { key: 'due', label: 'Échéance', th: 'ech', val: d => d.dueDate || '' },
       { key: 'status', label: 'Statut' },
       ...(ttn ? [{ key: 'ttn', label: 'El Fatoora', th: 'c tt' }] : []),
       { key: 'amount', label: 'Net à payer', r: true, val: d => versBase(d, montantDeListe(d)) },
@@ -5574,7 +5591,7 @@
       const cle = d => (d.number && d.status !== 'brouillon' ? (d.date || '').slice(0, 7) : 'brouillons');
       const groupes = {};
       sorted.forEach(d => { const k = cle(d); const g = groupes[k] || (groupes[k] = { n: 0, m: 0 }); g.n++; g.m += versBase(d, d.number ? montantDeListe(d) : C.computeTotals(d, company()).netToPay); });
-      const tete = k => { const g = groupes[k]; return `<tr class="mois"><td colspan="${nb}"><b>${k === 'brouillons' ? 'Brouillons' : `${LF_MOIS[+k.slice(5) - 1] || ''} ${k.slice(0, 4)}`}</b> <span>${pl(g.n, 'pièce')} · ${C.money(g.m, base)}${k === 'brouillons' ? ' en attente' : ' nets'}</span></td></tr>`; };
+      const tete = k => { const g = groupes[k]; return `<tr class="mois"><td colspan="${nb - 2}"><b>${k === 'brouillons' ? 'Brouillons' : `${LF_MOIS[+k.slice(5) - 1] || ''} ${k.slice(0, 4)}`}</b> <span>${pl(g.n, 'pièce')} · ${C.money(g.m, base)}${k === 'brouillons' ? ' en attente' : ' nets'}</span></td><td class="cd"></td><td class="ech"></td></tr>`; };
       const dernieres = lfDernieres();
       let dernier = null;
       const corps = paged.rows.map(d => { const k = cle(d); const t = !s.sort && k !== dernier ? tete(k) : ''; dernier = k; return t + ligne(d, dernieres); }).join('');
@@ -5583,7 +5600,7 @@
       const head = sortHead(cols, s.sort, '<th class="row-actions-h"><span class="vh">Actions</span></th>')
         .replace('<tr>', `<tr><th class="cx"><input type="checkbox" data-xtout aria-label="Choisir toute la page"${tout ? ' checked' : ''}></th>`);
       return `<div class="panel lf-tab scroll-x"><table class="list sortable lf-table"><thead>${head}</thead><tbody>${corps}</tbody>
-        <tfoot><tr><td colspan="${nb - 3}"><span class="pied-t"><b>Total de la sélection</b><span>${pl(ventes.length, 'pièce')} émise${sPl(ventes.length)} · ${C.money(ht, base)} HT${brl.length ? ` · ${pl(brl.length, 'brouillon')} à part` : ''}${euros ? ' · devises converties au taux de chaque pièce' : ''}</span></span></td><td class="r m nw">${lfMontant(net, base)} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw">${rst > 0.0005 ? lfMontant(rst, base) : '<span class="mu">—</span>'}</td><td></td></tr></tfoot></table>
+        <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total de la sélection</b><span>${pl(ventes.length, 'pièce')} émise${sPl(ventes.length)} · ${C.money(ht, base)} HT${brl.length ? ` · ${pl(brl.length, 'brouillon')} à part` : ''}${euros ? ' · devises converties au taux de chaque pièce' : ''}</span></span></td><td class="cd"></td><td class="ech"></td><td${nb - 8 > 1 ? ` colspan="${nb - 8}"` : ''}></td><td class="r m nw">${lfMontant(net, base)} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw">${rst > 0.0005 ? lfMontant(rst, base) : '<span class="mu">—</span>'}</td><td></td></tr></tfoot></table>
         ${pagerBar(paged.pg, { noun: 'pièce', grandTotal: mine.length })}</div>`;
     }
 
@@ -5917,9 +5934,9 @@
       { key: 'number', label: 'Numéro', asc: true, val: d => d.number || '' },
       { key: 'client', label: 'Client et objet', asc: true, val: d => nomClientPiece(d).toLowerCase() },
       { key: 'date', label: 'Date', th: 'cd', val: d => d.date || '' },
-      { key: 'due', label: 'Valable jusqu\'au', val: d => d.dueDate || '' },
+      { key: 'due', label: 'Valable jusqu\'au', th: 'ech', val: d => d.dueDate || '' },
       { key: 'status', label: 'Statut' },
-      { key: 'suite', label: 'Facturé par' },
+      { key: 'suite', label: 'Facturé par', th: 'ld-suite' },
       { key: 'amount', label: 'Total TTC', r: true, val: d => versBase(d, ldTotal(d)) }
     ];
 
@@ -5980,15 +5997,15 @@
       const cle = d => (d.date || '').slice(0, 7);
       const groupes = {};
       sorted.forEach(d => { const k = cle(d); const g = groupes[k] || (groupes[k] = { n: 0, m: 0 }); g.n++; g.m += versBase(d, ldTotal(d)); });
-      const tete = k => { const g = groupes[k]; return `<tr class="mois"><td colspan="${nb}"><b>${LF_MOIS[+k.slice(5) - 1] || ''} ${k.slice(0, 4)}</b> <span>${pl(g.n, 'devis', 'devis')} · ${C.money(g.m, base)} TTC</span></td></tr>`; };
+      const tete = k => { const g = groupes[k]; return `<tr class="mois"><td colspan="${nb - 3}"><b>${LF_MOIS[+k.slice(5) - 1] || ''} ${k.slice(0, 4)}</b> <span>${pl(g.n, 'devis', 'devis')} · ${C.money(g.m, base)} TTC</span></td><td class="cd"></td><td class="ech"></td><td class="ld-suite"></td></tr>`; };
       let dernier = null;
       const corps = paged.rows.map(d => { const k = cle(d); const t = !s.sort && k !== dernier ? tete(k) : ''; dernier = k; return t + ligne(d); }).join('');
       const tout = paged.rows.length > 0 && paged.rows.every(d => s.sel.has(d.id));
       const head = sortHead(cols, s.sort, '<th class="row-actions-h"><span class="vh">Actions</span></th>')
         .replace('<tr>', `<tr><th class="cx"><input type="checkbox" data-xtout aria-label="Choisir toute la page"${tout ? ' checked' : ''}></th>`);
       return `<div class="panel lf-tab scroll-x"><table class="list sortable lf-table ld-table"><thead>${head}</thead><tbody>${corps}</tbody>
-        <tfoot><tr><td colspan="${nb - 2}"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'devis', 'devis')} · ${C.money(ht, base)} HT${acc.length ? ` · dont ${pl(acc.length, 'accepté')} : ${C.money(acc.reduce((a, d) => a + versBase(d, ldTotal(d)), 0), base)} TTC` : ''}${euros ? ' · devises converties au taux de chaque devis' : ''}</span></span></td><td class="r m nw">${lfMontant(ttc, base)} <small class="dv">${h(symboleDevise(base))}</small></td><td></td></tr></tfoot></table>
-        ${pagerBar(paged.pg, { noun: 'devis', grandTotal: mine.length })}</div>`;
+        <tfoot><tr><td colspan="3"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'devis', 'devis')} · ${C.money(ht, base)} HT${acc.length ? ` · dont ${pl(acc.length, 'accepté')} : ${C.money(acc.reduce((a, d) => a + versBase(d, ldTotal(d)), 0), base)} TTC` : ''}${euros ? ' · devises converties au taux de chaque devis' : ''}</span></span></td><td class="cd"></td><td class="ech"></td><td></td><td class="ld-suite"></td><td class="r m nw">${lfMontant(ttc, base)} <small class="dv">${h(symboleDevise(base))}</small></td><td></td></tr></tfoot></table>
+        ${pagerBar(paged.pg, { noun: 'devis', pluriel: 'devis', grandTotal: mine.length })}</div>`;
     }
 
     // ── la barre des devis choisis ──
@@ -7701,6 +7718,8 @@
         el.oninput = () => {
           const i = Number(el.closest('tr').dataset.i);
           const l = doc.lines[i]; if (!l) return;
+          // (#27, IFACE-9) Le compte « N lignes » suit la désignation qu'on tape : il ne se refaisait qu'au redessin des lignes.
+          if (el.dataset.k === 'label') queueMicrotask(() => { const cpt = $('#ed-compte'); if (!cpt) return; const nb = doc.lines.filter(x => x.kind !== 'titre' && String(x.label || '').trim()).length; cpt.textContent = nb ? pl(nb, 'ligne') : ''; });
           if (el.classList.contains('num')) vueNum(el);
           if (el.type === 'number') {
             const videCh = el.value.trim() === '' || el.validity.badInput;
@@ -16000,7 +16019,8 @@
     const aidePalette = x => ({ kind: 'Aide', main: x.title, sub: x.sub, text: `aide ${x.title} ${x.sub}`.toLowerCase(), run: () => navigate('#/aide/' + x.id) });
     const aidesPour = words => {
       const mots = words.filter(w => w !== 'aide');
-      return (mots.length ? aideFiltre(G.ARTICLES, mots.join(' ')).slice(0, 4) : G.ARTICLES).map(aidePalette);
+      const ouverts = G.ARTICLES.filter(x => !aVenir(x.id)); // (#27, IFACE-10) l'article d'une page à venir (la caisse) ne se propose pas
+      return (mots.length ? aideFiltre(ouverts, mots.join(' ')).slice(0, 4) : ouverts).map(aidePalette);
     };
     // Les visites guidées (10.14.0) : « comment on émet une facture » trouve la visite qui la fait
     // FAIRE, clic par clic — pas seulement l'article qui l'explique. Trois au plus, après ce qu'on
@@ -16093,7 +16113,12 @@
       // ce que l'application connaît.
       const total = q ? trouves.length + guides.length + aides.length : 0;
       // Rangés par groupe (l'ordre de la maquette), dans leur ordre à l'intérieur de chaque groupe.
-      shown = shown.map((x, i) => [x, i]).sort((a, b) => GROUPES.indexOf(groupeDe(a[0])) - GROUPES.indexOf(groupeDe(b[0])) || a[1] - b[1]).map(([x]) => x);
+      // (#27, IFACE-6) Avec une recherche, le groupe du MEILLEUR résultat passe en tête : « nouvelle facture » ouvrait (Entrée)
+      // FAC-2025-061 de l'Imprimerie Nouvelle, et le geste « Nouvelle facture » n'arrivait qu'en dixième ligne. Le même
+      // libellé n'est montré qu'une fois (« Nouveau salarié » revenait deux fois de suite).
+      if (q) { const vus = new Set(); shown = shown.filter(x => { const g = groupeDe(x), k = `${g}\u0000${x.main}\u0000${g === 'Actions' ? '' : x.sub || ''}`; if (vus.has(k)) return false; vus.add(k); return true; }); }
+      const ordre = q ? [...new Set(shown.map(groupeDe))] : GROUPES;
+      shown = shown.map((x, i) => [x, i]).sort((a, b) => ordre.indexOf(groupeDe(a[0])) - ordre.indexOf(groupeDe(b[0])) || a[1] - b[1]).map(([x]) => x);
       const pied = $('#palette-root .hint');
       if (total > shown.length) pied.textContent = `${shown.length} résultats sur ${total} — ajoute un mot pour préciser · Entrée pour ouvrir · Échap pour fermer`;
       else pied.innerHTML = HINT;

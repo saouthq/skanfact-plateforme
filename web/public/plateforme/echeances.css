@@ -3,6 +3,9 @@
    le geste de chaque ligne. Les couleurs viennent de la charte (--sb-*). */
 #page-ech { position: relative; max-width: none; }
 .ec-grille { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 14px; align-items: start; }
+/* (1.388.65, #27 IFACE-4) À la tablette (761 à 1 100 px), la déclaration ouverte passe SOUS la liste, en pleine largeur :
+   à côté d'elle, son tableau s'empilait lettre à lettre (« OÙ / IL / EN / EST ») et le nom du dossier tombait à 39 px. */
+@media (min-width: 761px) and (max-width: 1100px) { .ec-grille { grid-template-columns: minmax(0, 1fr); } }
 .ec-col { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
 .ec-vue { display: flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--sb-survol); justify-self: start; }
 .ec-vue button { font: inherit; font-size: 12.5px; font-weight: 600; border: 0; background: none; color: var(--sb-gris); padding: 4px 10px; border-radius: 8px; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }

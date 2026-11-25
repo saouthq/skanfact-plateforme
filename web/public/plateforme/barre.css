@@ -85,9 +85,10 @@ body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0p
 
 /* Créer et la recherche */
 #barre .haut-barre { display: flex; flex-direction: column; gap: 8px; }
-#barre .btn-creer { width: 100%; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 12px; border: 0; border-radius: 10px; background: var(--sb-sarcelle); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 2px rgba(12, 135, 123, .4), 0 4px 12px -4px rgba(15, 157, 143, .45); transition: background-color .12s, box-shadow .12s; }
+#barre .btn-creer { width: 100%; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px 0 12px; border: 0; border-radius: 10px; background: var(--sb-sarcelle-texte); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 2px rgba(12, 135, 123, .4), 0 4px 12px -4px rgba(15, 157, 143, .45); transition: background-color .12s, box-shadow .12s; }
 #barre .btn-creer[hidden] { display: none; }
-#barre .btn-creer:hover { background: var(--sb-sarcelle-f); }
+#barre .btn-creer:hover { background: var(--sb-doux-texte); }
+body.dark #barre .btn-creer { background: var(--sb-sarcelle); color: var(--sb-barre); } body.dark #barre .btn-creer:hover { background: var(--sb-sarcelle-f); } /* (#27, IFACE-5) */
 #barre .btn-creer kbd { margin-left: auto; font-family: var(--sb-police); font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: rgba(255, 255, 255, .2); color: #fff; border: 0; box-shadow: none; line-height: 1.45; }
 #barre .btn-creer.ferme { background: var(--sb-papier); color: var(--sb-gris); box-shadow: 0 0 0 1px var(--sb-trait) inset; }
 #barre .btn-creer.ferme kbd { background: var(--sb-papier-2); color: var(--sb-gris-2); }

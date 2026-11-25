@@ -7243,3 +7243,39 @@ Restes, dits ici :
 - **PONT-5** : un lien d'invitation mort ouvert par un comptable déjà connecté (l'ordre de deux effets dans
   `App.tsx`).
 - **PONT-7** : la pièce désignée par le client ne remonte pas avec la pièce reçue (`"achat": null` côté serveur).
+
+## 1.388.65 — l'interface : tablette, téléphone, contraste, clavier, visites (issue #27)
+
+L'audit « comme un utilisateur » de l'interface (11 constats, aucun bloquant). Ce qui est corrigé :
+
+- **IFACE-1 — à 768 (tablette), les listes coupaient le montant, le statut et les dates.** Les achats prennent les cartes
+  du téléphone jusqu'à 1 023 px. Factures et devis laissent tomber la date de la pièce (le mois est déjà la rangée qui les
+  groupe), l'échéance (le statut dit « En retard » ou « Expiré ») et « Facturé par » ; le montant et le statut se lisent
+  en entier, et la colonne d'actions ne recouvre plus rien. La rangée du mois et le pied de tableau suivent les colonnes
+  qui restent (sinon les colonnes masquées revenaient à vide au bout du tableau).
+- **IFACE-2 — au téléphone, la Trésorerie (528 px) et « Me guider » (474 px) dépassaient l'écran.** Les quatre chiffres
+  de la Trésorerie passent sur une colonne, sa barre d'onglets défile dans son cadre, et une carte de thème de « Me
+  guider » ne dépasse jamais la largeur de l'écran.
+- **IFACE-4 — Cabinet, Échéances à la tablette.** La déclaration ouverte passe sous la liste, en pleine largeur.
+- **IFACE-5 — le contraste du bouton principal.** Blanc sur sarcelle foncée en clair (5,3 : 1, la charte), texte nuit
+  sur menthe en sombre ; « Créer », le bouton de la Paie et « Guide-moi » suivent. Le mois en retard du Cabinet prend son
+  rouge de thème sombre.
+- **IFACE-6 — Ctrl K.** Le groupe du meilleur résultat passe en tête : « nouvelle facture » met le geste devant les
+  factures de l'Imprimerie Nouvelle. Un geste n'apparaît qu'une fois.
+- **IFACE-7 — au clavier.** Tab tourne dans la fenêtre ouverte ; « Abandonner cette saisie ? » pose le curseur sur
+  « Annuler » ; une fenêtre ouverte par Ctrl K rend le curseur au titre de la page.
+- **IFACE-8** « 148 devis » (et non « deviss ») ; **IFACE-9** le compte « N lignes » suit la désignation tapée ;
+  **IFACE-10** l'article de la caisse (écran à venir) ne se propose plus, et la bulle des filtres nomme « Tout effacer ».
+- **IFACE-11 — la grande visite.** Les étapes visent ce que les écrans d'aujourd'hui portent (l'en-tête, la barre de
+  recherche, les chiffres de la Trésorerie, les cartes de la Paie). Au téléphone, les étapes du menu de l'ordinateur se
+  sautent au lieu de dire « On s'est perdus de vue ».
+- Tests : `tests/v10/iface-1388-65.test.ts` (18) et `tests/web/iface-1388-65.test.ts`, qui ouvre l'exemple de cinq ans
+  au téléphone et à 768 et mesure la page, les textes coupés et le bord réel des tableaux. Cohérence des écrans passée.
+
+Restes, dits ici :
+- **IFACE-3** (Cabinet, Livre-journal à 768, l'en-tête posé sur la première écriture) : non reproduit ici, faute d'un
+  parcours qui charge le dossier d'exemple du Cabinet à l'écran. À vérifier à la souris avant de toucher à la règle
+  collante.
+- **IFACE-6, tolérance aux fautes** (« jasmn » ne trouve pas « jasmin ») : la recherche ne pardonne pas une lettre
+  oubliée. Une recherche approchée demande sa propre version.
+- **IFACE-11, au téléphone** : la bulle des « Relances » qui déborde sous l'écran n'est pas reprise ici.

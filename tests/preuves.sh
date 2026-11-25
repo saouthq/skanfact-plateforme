@@ -32207,6 +32207,24 @@ prouver 'la déclaration hors mandat comptée dans la campagne (1.388.64)' modul
 prouver 'la paie refusée au rôle dite après coup (1.388.64)' web/public/plateforme/pont-cabinet.js \
   'paieRefus.set(id, String(e.message || '\'''\''));' '' \
   'le refus du serveur est gardé à la lecture'
+prouver 'Ctrl K à l'\''ordre fixe des groupes (1.388.65)' modules/socle/ecrans/entreprise/app-1.js \
+  'const ordre = q ? [...new Set(shown.map(groupeDe))] : GROUPES;' 'const ordre = GROUPES;' \
+  'l'\''ordre des groupes suit les résultats'
+prouver 'Tab qui sort de la fenêtre (1.388.65)' modules/socle/ecrans/entreprise/app-1.js \
+  'if (e.key !== '\''Tab'\'' || root.lastElementChild !== layer) return;' 'if (e.key !== '\''Tabulation'\'' || root.lastElementChild !== layer) return;' \
+  'Tab tourne dans la fenêtre'
+prouver 'les deviss de la barre de pages (1.388.65)' modules/socle/ecrans/entreprise/app-1.js \
+  '{ noun: '\''devis'\'', pluriel: '\''devis'\'', grandTotal: mine.length }' '{ noun: '\''devis'\'', grandTotal: mine.length }' \
+  'la barre de pages des devis'
+prouver 'le bouton principal sous le contraste (1.388.65)' web/public/plateforme/charte.css \
+  '.btn-primary { background: var(--sb-sarcelle-texte);' '.btn-primary { background: var(--sb-sarcelle);' \
+  'en clair : du blanc'
+prouver 'la visite perdue au téléphone (1.388.65)' modules/socle/visites/visites.js \
+  'cible: '\''nav#nav'\'', cote: '\''droite'\'', facultatif: true,' 'cible: '\''nav#nav'\'', cote: '\''droite'\'',' \
+  'les étapes du menu de l'
+prouver 'l'\''échéance ouverte écrasée à la tablette (1.388.65)' web/public/plateforme/echeances.css \
+  '@media (min-width: 761px) and (max-width: 1100px) { .ec-grille { grid-template-columns: minmax(0, 1fr); } }' '' \
+  'la déclaration ouverte passe sous la liste'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
