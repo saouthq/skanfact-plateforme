@@ -32239,6 +32239,17 @@ prouver "la fiche « Face à la pièce » perdue sans question" modules/socle/ec
   "    if (saisieSxEnCours()) ids.push(sxState.dossier);" "    if (false) ids.push(sxState.dossier);" \
   "ROB-1 : la ligne « Au kilomètre » et la fiche « Face à la pièce » allument la garde de fermeture"
 
+# 1.388.69 — les modules pilotés depuis la console.
+prouver "la lecture par l'IA servie à un module à venir" serveur/achats/routes.ts \
+  "    if (!(await moduleOuvertPour((sql, v) => tx.query(sql, v), 'ia', entreprise))) return false;" "    if (false) return false;" \
+  "la lecture par l'IA : ni proposée, ni servie"
+prouver "le réglage général passe avant l'exception" serveur/modules-pilotes.ts \
+  "  if (propre) return propre.etat;" "  if (propre && false) return propre.etat;" \
+  "l'exception de l'entreprise, puis le général, puis la variable du serveur"
+prouver "une page fermée reste dans le menu" modules/socle/ecrans/entreprise/app-1.js \
+  "    if (aVenir(id) || fermeParConsole(id)) return true;" "    if (aVenir(id)) return true;" \
+  "Stock quitte le menu et sa page le dit"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

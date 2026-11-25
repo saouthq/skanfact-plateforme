@@ -97,6 +97,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // Les organisations de test (0225) : une entreprise d'essai, sans pièce émise ni paiement, sort des listes de la console
   // et s'y remet ; la direction seule, avec son motif, au journal. Rien ne s'écrit dans son dossier.
   { code: 'console.clients.test', roles: [D], ecrit: true },
+  // Les modules pilotés (0226) : la direction et le support lisent l'état de chaque module ; la direction seule le change,
+  // avec son motif, au journal.
+  { code: 'console.modules.voir', roles: [D, S], ecrit: false },
+  { code: 'console.modules.poser', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

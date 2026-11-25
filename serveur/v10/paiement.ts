@@ -22,6 +22,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { initier, lire, verdict } from '../ventes/konnect.ts';
 import { appliquer, Conflit, enNombreV10 } from './dossier.ts';
+import { moduleOuvertPour } from '../modules-pilotes.ts';
 
 export const empreinte = (s: string) => createHash('sha256').update(s, 'utf8').digest('hex');
 const enJson = (m: Texte) => JSON.stringify({ cle: m.cle, valeurs: m.valeurs });
@@ -48,6 +49,9 @@ export type Demandee = { adresse: string } | { refus: Texte; statut: number };
 type Source = {
   aPayer: () => Promise<APayer | null>;
   noter: (reste: bigint, retourEmpreinte: string, maintenant: Date) => Promise<Demande | null>;
+  // (0226) Le paiement des factures d'une entreprise par SES clients est un module piloté depuis la console : « À venir »
+  // ou « Fermé », il ne s'ouvre pas, même par un lien gardé. L'abonnement à SkanFact, lui, se paie toujours.
+  module?: 'paiement';
 };
 
 // « Payer en ligne » depuis l'espace client : l'adresse où le client paie, ou pourquoi il ne peut pas (null : lien ou
@@ -57,6 +61,7 @@ export function demanderPaiement(ctx: Contexte, jeton: string, numero: string): 
   return ouvrirPaiement(ctx, numero, {
     aPayer: () => public_<APayer>(ctx, 'select ventes.espace_a_payer($1, $2) v', [lien, numero]),
     noter: (reste, retour, maintenant) => public_<Demande>(ctx, 'select ventes.paiement_demander($1, $2, $3, $4, $5) v', [lien, numero, reste.toString(), retour, maintenant]),
+    module: 'paiement',
   });
 }
 
@@ -86,6 +91,9 @@ async function ouvrirPaiement(ctx: Contexte, numero: string, source: Source): Pr
   const a = await source.aPayer();
   if (!a) return null;
   if (!a.prestataire) return { refus: motif('paiement.pas_en_ligne'), statut: 409 };
+  if (source.module && !(await moduleOuvertPour((sql, v) => enTantQue(ctx.pool, null, (tx) => tx.query(sql, v)), source.module, a.entreprise))) {
+    return { refus: motif('paiement.pas_en_ligne'), statut: 409 };
+  }
   // Le dinar seulement : les autres devises de Konnect, À VÉRIFIER (docs/paiement-en-ligne.md).
   if (a.piece.devise !== 'TND') return { refus: motif('paiement.devise'), statut: 409 };
   const reste = soldeFacture(BigInt(a.piece.net), a.piece.avoirs.map(BigInt), a.piece.reglements.map(BigInt)).reste;

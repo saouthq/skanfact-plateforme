@@ -782,8 +782,38 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('1.388.69 : les modules — pour une entreprise, avec motif ; le support lit sans geste ; l\'exception se retire', async () => {
+    const p = await console_(jD, `modules&entreprise=${ent}`);
+    expect(net(await p.locator('#rg-modules').innerText())).toBe('Les modules de Studio Lina Réglages');
+    const ligne = p.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' });
+    await ligne.getByRole('button', { name: 'Changer…' }).click();
+    const f = p.getByRole('dialog');
+    await f.locator('select').selectOption('ferme');
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    expect(net(await f.innerText())).toContain('motif');
+    await f.locator('textarea').fill('Un défaut grave dans le stock');
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    await expect.poll(async () => net(await ligne.innerText())).toMatch(/Fermé.*Un défaut grave dans le stock/);
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules.png') });
+    // Le support lit la page, sans bouton « Changer… ».
+    const q = await console_(jS, 'modules');
+    expect(await q.getByRole('button', { name: 'Changer…' }).count()).toBe(0);
+    expect(net(await q.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' }).innerText())).toContain('Studio Lina Réglages');
+    await fermer(q);
+    // Retirer l'exception : « comme tout le monde ».
+    await ligne.getByRole('button', { name: 'Changer…' }).click();
+    await f.locator('select').selectOption('serveur');
+    await f.locator('textarea').fill('Corrigé');
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    expect((await admin.query('select count(*)::int n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('au téléphone : aucun onglet ne déborde', async () => {
-    for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes']) {
+    for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {
       const p = await console_(jD, onglet, 390, 844);
       expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), onglet || 'prix').toBeLessThanOrEqual(0);
       if (!onglet) {

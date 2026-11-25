@@ -280,7 +280,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'donnees': return <Donnees demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} />;
     case 'support': return <Support demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} vue={route.params.get('vue')} />;
     case 'mesure': return <Mesure />;
-    case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;
+    case 'reglages': return <Reglages onglet={route.params.get('onglet')} entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe vue={route.params.get('vue')} />;
     default: return route.id === 'alertes' ? <Alertes /> : route.id === 'incidents' ? <Incidents ouvrir={route.params.get('ouvrir')} /> : route.id === 'sauvegardes' ? <Sauvegardes /> : route.id === 'travaux' ? <Travaux /> : route.id === 'securite' ? <Securite /> : route.id === 'versions' ? <Versions /> : route.id === 'performances' ? <Performances periode={route.params.get('periode')} /> : <Service periode={route.params.get('periode')} />;

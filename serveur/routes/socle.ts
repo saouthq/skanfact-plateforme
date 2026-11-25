@@ -2,7 +2,7 @@
 // son geste (03 D2). Les écritures sensibles passent par les fonctions de la base, qui appliquent
 // les règles de l'équipe (D4 à D6) et tracent.
 
-import { aVenir, enBeta } from '../a-venir.ts';
+import { lireLignes, listesModules } from '../modules-pilotes.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
@@ -169,13 +169,17 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // Ton compte (0076) : le code est-il exigé de moi (un comptable de cabinet), mon adresse est-elle vérifiée, combien
       // de codes de secours me restent ; et ce serveur sait-il envoyer un e-mail, un SMS (0081). Avec l'e-mail, le code
       // par e-mail tient lieu du code exigé : `codeExige` ne vaut plus que sans relais. Le numéro, masqué.
+      // (0226) Les modules pilotés depuis la console : l'état général, et celui de chaque entreprise (une exception posée
+      // pour elle passe avant). Les variables du serveur ne valent plus qu'à défaut.
+      const lignesModules = lireLignes((await tx.query('select socle.modules_pour_moi() v')).rows[0]?.v);
+      const modulesGeneraux = listesModules(lignesModules, null);
       const c = (await tx.query('select * from socle.mon_compte()')).rows[0] as { code_exige: boolean; adresse_verifiee: boolean; codes_secours: number; code_exige_le: Date | null };
       // (0216) `codeExigeLe` : le jour où le code deviendra exigé d'un comptable (sept jours après le premier vrai dossier
       // de son cabinet) ; rien avec l'e-mail, qui en tient lieu.
       const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige || cabinets.length > 0, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
         codeCourriel: (await tx.query('select socle.veut_code_courriel($1) v', [qui.utilisateur])).rows[0].v as boolean,
-        aVenir: aVenir(), beta: enBeta(), courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
-      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises, cabinets, compte } };
+        aVenir: modulesGeneraux.aVenir, beta: modulesGeneraux.beta, ferme: modulesGeneraux.ferme, courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
+      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises: entreprises.map((e) => ({ ...e, modules: listesModules(lignesModules, String(e.id)) })), cabinets, compte } };
     },
   });
 

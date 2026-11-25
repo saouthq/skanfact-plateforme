@@ -17,6 +17,7 @@ import { soldesDeFactures } from './reglements.ts';
 import { lienEcran, situationClient } from './situation.ts';
 import { payableEnLigne, vueEspace } from './espace.ts';
 import { motif, t } from '../../textes/index.ts';
+import { moduleOuvertPour } from '../modules-pilotes.ts';
 
 // Toute liste qu'on nomme se pagine (règle du projet) : 50 lignes par défaut, 200 au plus.
 const LIMITE_MAX = 200;
@@ -284,7 +285,7 @@ export function routesVentes(ctx: Contexte): Route<never>[] {
       if (piece) {
         const net = BigInt(piece.net_a_payer ?? '0');
         const reste = piece.type === 'facture' ? (await soldesDeFactures(tx, ent, [{ id: piece.id, net }])).get(piece.id)?.reste ?? null : null;
-        const paiement = !!(await tx.query('select 1 from ventes.prestataire where entreprise = $1', [ent])).rowCount;
+        const paiement = !!(await tx.query('select 1 from ventes.prestataire where entreprise = $1', [ent])).rowCount && await moduleOuvertPour((sql, v) => tx.query(sql, v), 'paiement', ent);
         payable = payableEnLigne(piece.type, piece.devise, reste, paiement);
       }
       return { statut: 201, corps: { id, jeton, adresse: `/espace/#${jeton}`, payable } };

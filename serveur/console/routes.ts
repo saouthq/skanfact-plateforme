@@ -17,6 +17,7 @@ import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
 import { enMots, envoyerInvitation, etatVu, lienConsole, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
+import { etatServeur, moduleConnu, MODULES_PILOTES, nomModule } from '../modules-pilotes.ts';
 import { etatAbonnement, lireDelai, lireAVenir, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
@@ -660,6 +661,27 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       await transaction(tx).query(corps.remettre ? 'select plateforme.console_declasser_test($1, $2, $3)' : 'select plateforme.console_classer_test($1, $2, $3)', [id, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // ── Les modules pilotés (0226) ───────────────────────────────────────────────────────────────────────────────────────
+  // Le catalogue, l'état que les variables du serveur donneraient, et les états posés (généraux et par entreprise).
+  ajouter({
+    methode: 'GET', chemin: '/console/modules', geste: 'console.modules.voir',
+    traiter: async ({ query }, tx) => {
+      const ent = typeof query.entreprise === 'string' && uuid.safeParse(query.entreprise).success ? query.entreprise : null;
+      const lu = await lireJson(transaction(tx), 'select plateforme.console_modules($1) v', [ent]) as { poses: unknown[]; entreprise: unknown };
+      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id) })), poses: lu.poses, entreprise: lu.entreprise } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/modules', geste: 'console.modules.poser',
+    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500) }),
+    traiter: async ({ corps }, tx) => {
+      if (!moduleConnu(corps.module)) throw new Introuvable();
+      const ent = corps.entreprise ?? null;
+      if (ent !== null && !uuid.safeParse(ent).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5)', [corps.module, ent, corps.etat, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

@@ -50,6 +50,7 @@ declarerTextes({
   'cabinet.classeur.lecture_coupee': 'ce client a coupé la lecture de ses photos par l\'IA (ses réglages, « Lire les photos avec l\'IA ») : la pièce se lit à l\'œil',
   'cabinet.classeur.lecture_accord': 'la pièce part à la lecture de l\'IA seulement si tu le confirmes, pour ce fichier',
   'cabinet.classeur.lecture_indisponible': 'la lecture par l\'IA n\'est pas branchée sur ce serveur : la pièce se lit à l\'œil',
+  'cabinet.classeur.lecture_pas_ouverte': 'la lecture par l\'IA n\'est pas encore ouverte pour ce dossier : la pièce se lit à l\'œil',
   'cabinet.classeur.lecture_echec': 'l\'IA n\'a pas pu lire « {nom} » : réessaie plus tard, ou lis la pièce à l\'œil',
   'cabinet.classeur.lecture_pas_facture': '« {nom} » ne ressemble pas à une facture ni à un ticket : rien n\'a été lu',
   'cabinet.classeur.export_lourd': 'l\'export dépasse 200 Mo : exporte un mois, ou le dossier permanent à part',

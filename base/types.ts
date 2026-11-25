@@ -988,6 +988,15 @@ export interface BaseDeDonnees {
     ecrit_le: Date;
     commande: string | null;
   };
+  'plateforme.module_etat': {
+    id: Generated<bigint>;
+    module: string;
+    entreprise: string | null;
+    etat: string;
+    motif: string;
+    le: Date;
+    par: string;
+  };
   'plateforme.note_appel': {
     id: Generated<string>;
     entreprise: string;

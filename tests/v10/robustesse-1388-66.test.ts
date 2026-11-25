@@ -87,7 +87,7 @@ describe('ROB-1, 4, 5, 9, 12', () => {
     expect(CAB2).toMatch(/majJm\(\); signalerSaisies\(\);/);
   });
   it('ROB-4 : le client du serveur se crée ou se met à jour en une seule écriture', () => {
-    expect(DOSSIER).toMatch(/\.onConflict\(\(oc\) => oc\.columns\(\['entreprise', 'ref_v10'\]\)\.where\('ref_v10', 'is not', null\)/);
+    expect(DOSSIER).toMatch(/\.onConflict\(\(oc\) => oc\.columns\(\['entreprise', 'ref_v10'\]\)\.where\(\(eb\) => eb\.not\(eb\('ref_v10', 'is', null\)\)\)/);
     expect(DOSSIER).not.toMatch(/const deja = await db\.selectFrom\('socle\.tiers'\)/);
   });
   it('ROB-5 : sans réseau, « Émettre » refuse avant le récapitulatif', () => {

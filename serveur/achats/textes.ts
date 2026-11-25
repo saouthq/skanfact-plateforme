@@ -9,6 +9,7 @@ declarerTextes({
   // La lecture d'une facture d'achat (brique 84 ; 14 § 2.3) : ce qui se refuse…
   // (27/10/2026) Seule l'IA de Claude lit les pièces : sans elle, rien ne se lit.
   'achats.lecture.indisponible': 'la lecture par l\'IA n\'est pas branchée sur ce serveur : rien n\'a été lu. Joins la pièce et saisis-la à la main',
+  'achats.lecture.pas_ouverte': 'la lecture par l\'IA n\'est pas encore ouverte pour ton entreprise : rien n\'a été lu. Joins la pièce et saisis-la à la main',
   'achats.lecture.ia_coupee': 'la lecture par l\'IA est coupée dans les paramètres de l\'entreprise : rien n\'a été lu. Rallume-la dans Paramètres › Lecture des factures d\'achat, ou saisis la pièce à la main',
   'achats.lecture.ia_accord': 'la pièce ne part chez l\'IA qu\'avec ton accord pour ce fichier : rien n\'a été lu. Clique sur « Lire avec l\'IA » pour la lire',
   'achats.lecture.format': 'le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WEBP) ni un PDF : rien n\'a été lu',

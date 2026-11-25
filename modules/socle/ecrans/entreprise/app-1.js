@@ -3115,6 +3115,8 @@
   };
   // (1.379.3) Ce que le serveur dit « à venir » (la caisse, la facture électronique) : visible, pas encore ouvert.
   const aVenir = id => (window.__aVenir || []).includes(id);
+  // (1.388.69) « Fermé » depuis la console (un défaut grave, le temps de le corriger) : la page ne se voit plus, rien ne se perd.
+  const fermeParConsole = id => (window.__ferme || []).includes(id === 'salarie' ? 'paie' : id);
   // (1.381.0) « Bêta » : la partie marche, on la finit avec les premiers essais (la paie). Le serveur le dit, comme « À venir ».
   const enBeta = id => (window.__beta || []).includes(id === 'salarie' ? 'paie' : id);
   const PASTILLE_BETA = '<span class="pastille-beta" title="Version bêta : cette partie marche, on la finit avec vos retours. Vérifie tes premiers chiffres avec ton comptable.">Bêta</span>';
@@ -3122,7 +3124,7 @@
   const moduleAVenir = m => !!m && Array.isArray(m.pages) && m.pages.length > 0 && m.pages.every(aVenir);
   window.__pastilles = { aVenir, enBeta, moduleAVenir, beta: PASTILLE_BETA };
   function pageCachee(id) {
-    if (aVenir(id)) return true;
+    if (aVenir(id) || fermeParConsole(id)) return true;
     const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
     // (brique 121) Le caissier tient la caisse sans lire les pièces de vente : la page Caisse lui montre ses tickets.
     if (d && id === 'caisse' && d.caisse) return false;
@@ -3150,6 +3152,14 @@
         </div>`;
       $('#pi-accueil').onclick = () => navigate('#/dashboard');
       if ($('#pi-facture')) $('#pi-facture').onclick = () => navigate('#/doc/new/facture');
+      return;
+    }
+    if (fermeParConsole(name)) {
+      $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
+        <div class="panel vide-utile" id="page-fermee"><h2>Cette partie est fermée pour l'instant</h2>
+          <p class="small">L'équipe SkanFact la corrige : elle reviendra ici d'elle-même, sans rien installer. Rien de ce que tu y as saisi n'est perdu.</p>
+          <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
+      $('#pi-accueil').onclick = () => navigate('#/dashboard');
       return;
     }
     $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
@@ -15817,7 +15827,7 @@
     'p-textes': { onglet: 'documents', titre: 'Textes imprimés sur les documents', mots: 'pied de page footer conditions mentions anglais english' },
     'p-objectifs': { onglet: 'documents', titre: 'Objectifs et statistiques', mots: 'objectif chiffre affaires client endormi dormant statistiques' },
     'p-efacture': { onglet: 'documents', titre: 'Facture électronique (El Fatoora)', mots: 'facture electronique el fatoora ttn teif xml signature soumis obligation matricule', visible: () => !!bridge.teifDuServeur && !(window.__aVenir || []).includes('efacture') },
-    'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement },
+    'p-paiement': { onglet: 'documents', titre: 'Paiement en ligne', mots: 'paiement en ligne konnect carte portefeuille payer client espace lien encaisser', visible: () => !!bridge.dessinerPaiement && !aVenir('paiement') && !fermeParConsole('paiement') },
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
     'p-imprimante': { onglet: 'documents', titre: 'Imprimante de tickets', mots: 'imprimante ticket thermique tiroir caisse reseau port usb essai bureau', visible: () => !!bridge.dessinerImprimante },
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },

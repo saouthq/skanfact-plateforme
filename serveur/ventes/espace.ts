@@ -16,6 +16,7 @@ import { soldeFacture, statutFacture } from '../../moteur/reglements.ts';
 import { enTantQue } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
+import { ETATS_MODULE, etatServeur, moduleUtilisable, type EtatModule } from '../modules-pilotes.ts';
 
 export const CHAMPS_SOCIETE = [
   'name', 'matricule', 'rc', 'capital', 'address', 'phone', 'email', 'website', 'rib', 'bank', 'logo', 'footer', 'tagline',
@@ -102,7 +103,10 @@ export async function vueEspace(ctx: Contexte, jetonEmpreinte: string) {
   const lu = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select ventes.espace($1, $2) v', [jetonEmpreinte, maintenant])).rows[0].v as Lu | null);
   if (!lu) return null;
   const aujourdhui = aujourdhuiATunis(maintenant);
-  const pieces = lu.pieces.map((p) => vueDePiece(p, lu.paiement === true, aujourdhui));
+  // (1.388.69) Le module « paiement » piloté depuis la console : à venir ou fermé, aucune facture ne se propose en ligne.
+  const pose = lu.paiement === true ? await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select ventes.etat_paiement_espace($1) v', [jetonEmpreinte])).rows[0]?.v) : null;
+  const paiement = lu.paiement === true && moduleUtilisable(typeof pose === 'string' && (ETATS_MODULE as readonly string[]).includes(pose) ? pose as EtatModule : etatServeur('paiement'));
+  const pieces = lu.pieces.map((p) => vueDePiece(p, paiement, aujourdhui));
   // Le total dû, par devise, en entiers (jamais additionné en nombre à virgule).
   const dus = new Map<string, { du: bigint; decimales: number }>();
   for (const p of lu.pieces) {

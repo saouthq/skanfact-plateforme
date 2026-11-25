@@ -619,6 +619,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une lecture du support ne se modifie pas et ne s\'efface pas : c\'est la trace que l\'entreprise relit', cle: 'base.acces_support.lecture_intouchable', fr: 'une lecture du support ne se modifie pas et ne s\'efface pas : c\'est la trace que l\'entreprise relit' },
   { base: 'demander l\'accès dit pourquoi : de trois à trois cents caractères', cle: 'base.acces_support.motif_longueur', fr: 'demander l\'accès dit pourquoi : de trois à trois cents caractères' },
   { base: 'le motif s\'écrit sans les signes < ni >', cle: 'base.acces_support.motif_balise', fr: 'le motif s\'écrit sans les signes < ni >' },
+  { base: 'ce module n\'existe pas', cle: 'base.console.module_inconnu', fr: 'ce module n\'existe pas' },
+  { base: 'cet état n\'existe pas', cle: 'base.console.module_etat_inconnu', fr: 'cet état n\'existe pas : ouvert, bêta, à venir, fermé, ou le réglage du serveur' },
   { base: 'cette entreprise n\'existe pas', cle: 'base.acces_support.entreprise_inconnue', fr: 'cette entreprise n\'existe pas' },
   { base: 'l\'entreprise de SkanFact n\'est pas une organisation de test', cle: 'base.organisation_test.editeur', fr: 'l\'entreprise de SkanFact n\'est pas une organisation de test' },
   { base: 'cette entreprise a émis une pièce, reçu un règlement ou une facture d\'abonnement : ce n\'est pas un essai, elle reste dans la liste', cle: 'base.organisation_test.vraie', fr: 'cette entreprise a émis une pièce, reçu un règlement ou une facture d\'abonnement : ce n\'est pas un essai, elle reste dans la liste' },

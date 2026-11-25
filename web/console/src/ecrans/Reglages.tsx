@@ -12,11 +12,12 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { entier } from '../nombres.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { Modules } from './Modules.tsx';
 
 const K = 'console.ecran.reglages';
 
-export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages' | 'nouveautes';
-export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages', 'nouveautes'];
+export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages' | 'nouveautes' | 'modules';
+export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages', 'nouveautes', 'modules'];
 
 type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
@@ -1508,7 +1509,7 @@ function FenetreRemise({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
 }
 
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-export function Reglages({ onglet: demande }: { onglet: string | null }) {
+export function Reglages({ onglet: demande, entreprise = null }: { onglet: string | null; entreprise?: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/reglages', 'reglages');
   const [geste, setGeste] = useState<Geste | null>(null);
   const onglet: OngletReglages = ONGLETS_REGLAGES.includes(demande as OngletReglages) ? demande as OngletReglages : 'prix';
@@ -1554,6 +1555,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'nouveautes' ? <Nouveautes d={d} geste={setGeste} peut={peut} /> : null}
+      {d && onglet === 'modules' ? <Modules entreprise={entreprise} peut={peut} /> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'contenu' ? <FenetreContenu d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />

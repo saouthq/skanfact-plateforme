@@ -453,7 +453,7 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // (#28, ROB-4) Une seule écriture qui crée OU met à jour : deux émissions simultanées pour le même client nouveau lisaient
   // toutes deux « absent », et la seconde tombait sur la contrainte tiers_ref_v10 (une erreur 500 sans un mot).
   const tiers = (await db.insertInto('socle.tiers').values({ entreprise, nature: 'societe', ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null, pays: 'TN', roles: ['client'], ref_v10: client.id })
-    .onConflict((oc) => oc.columns(['entreprise', 'ref_v10']).where('ref_v10', 'is not', null)
+    .onConflict((oc) => oc.columns(['entreprise', 'ref_v10']).where((eb) => eb.not(eb('ref_v10', 'is', null)))
       .doUpdateSet({ ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null }))
     .returning('id').executeTakeFirstOrThrow()).id;
 

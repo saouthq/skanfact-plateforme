@@ -14,6 +14,7 @@ import { objetDuDossier } from '../v10/lecture.ts';
 import { etatsDAchats } from './etat.ts';
 import { sorteDe } from './sorte.ts';
 import { IARefuse, propositionDeLIA, type ReponseIA } from './lecture-ia.ts';
+import { moduleOuvertPour } from '../modules-pilotes.ts';
 import './textes.ts';
 
 const LIMITE_MAX = 200;
@@ -142,6 +143,8 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
   // (« Lire les photos avec l'IA », company.lectureIA de la v10) ; l'écran la demande encore avant chaque envoi.
   const iaPossible = async (tx: Transaction | null | undefined, entreprise: string) => {
     if (!ctx.lecteurIA?.disponible || !tx) return false;
+    // Le module « ia » piloté depuis la console (0226) : à venir ou fermé, la lecture ne se propose pas.
+    if (!(await moduleOuvertPour((sql, v) => tx.query(sql, v), 'ia', entreprise))) return false;
     const societe = await objetDuDossier(tx, entreprise, '_racine', 'company');
     return societe?.lectureIA !== false;
   };
@@ -168,6 +171,7 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
       // (27/10/2026, Skander) Seule l'IA lit : la lecture de nos serveurs se trompait trop. Sans son accord pour ce fichier,
       // sans clé, ou coupée par l'entreprise, rien ne se lit, et la phrase dit pourquoi.
       if (!ctx.lecteurIA?.disponible) return { statut: 503, corps: { motif: motif('achats.lecture.indisponible'), bouton: null } };
+      if (!(await moduleOuvertPour((sql, v) => tx.query(sql, v), 'ia', params.entreprise ?? ''))) return { statut: 503, corps: { motif: motif('achats.lecture.pas_ouverte'), bouton: null } };
       if (!await iaPossible(tx, params.entreprise ?? '')) return { statut: 409, corps: { motif: motif('achats.lecture.ia_coupee'), bouton: null } };
       if (corps.ia !== true) return { statut: 409, corps: { motif: motif('achats.lecture.ia_accord'), bouton: null } };
       const nom = corps.nom;

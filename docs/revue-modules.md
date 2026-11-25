@@ -7304,3 +7304,28 @@ Restes, dits ici :
 ## 1.388.68 — Les réglages de caisse se cachent tant que la caisse est « À venir »
 
 - Paramètres › Documents : le panneau « Caisse et tickets » n'est plus posé quand la caisse est « À venir » (réglage du serveur `SKANFACT_A_VENIR`) ; ses valeurs enregistrées ne bougent pas. Retour de Skander, 25/11/2026.
+
+## 1.388.69 — Les modules se pilotent depuis la console (Skander, 25/11/2026)
+
+« À partir de la console je dois avoir chaque module et je peux mettre bêta dessus ou à venir » — c'est ce qu'on appelle,
+dans les autres logiciels, des drapeaux de fonction (*feature flags*) : ouvrir une partie à quelques entreprises avant tout
+le monde, la retirer d'un clic si elle casse, sans publier de version.
+
+- **Console › Réglages › modules** : onze modules (caisse, facture électronique, paiement en ligne, lecture par l'IA,
+  paie, achats, stock, immobilisations, autres pièces, pilotage, comptabilité), chacun avec son état — **ouvert**,
+  **bêta** (pastille « Bêta »), **à venir** (visible avec « À venir », rien ne s'ouvre), **fermé** (ne se voit plus : un
+  défaut grave, le temps de le corriger ; rien de ce que l'entreprise y a saisi ne se perd).
+- **Une exception par entreprise** passe avant le réglage de tous : « modules de ce client » sur sa fiche. C'est ce qui
+  ouvre la caisse à une boulangerie pilote avant les autres.
+- **La direction seule** change un état, **avec son motif**, au journal de la console (avant / après) ; le support lit.
+  « Revenir au réglage du serveur » efface l'état posé : les variables `SKANFACT_A_VENIR` / `SKANFACT_BETA` décident
+  de nouveau.
+- **Effet immédiat, dans les deux applications** : `/moi` rend à chacun les listes générales et celles de chaque
+  entreprise, sans motif ni auteur ; l'écran prend celles de l'entreprise ouverte.
+- **Le serveur refuse aussi** ce qu'il cache : la lecture par l'IA (achats et classeur du Cabinet) ne se propose plus et
+  répond « indisponible » ; le paiement en ligne ne se propose plus dans l'espace du client ni dans un lien partagé, et
+  son ouverture répond « pas en ligne ».
+- **Le paiement en ligne est « à venir » par défaut** : il n'a jamais été essayé avec un vrai compte Konnect. Le panneau
+  « Paiement en ligne » des Paramètres se cache tant qu'il l'est.
+- Base : migration 0226 (`plateforme.module_etat`, `console_poser_module`, `console_modules`, `socle.modules_pour_moi`,
+  `socle.etat_module`, `ventes.etat_paiement_espace`).

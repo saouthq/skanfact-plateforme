@@ -16,6 +16,7 @@ import { type DetailEfacture, lireEfacture } from './efacture.ts';
 import { noterPresence } from '../v10/presence.ts';
 import { sorteDe, sorteJointeDe } from '../achats/sorte.ts';
 import { refusDuDossierTenu } from '../abonnement/condition.ts';
+import { moduleOuvertPour } from '../modules-pilotes.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -56,6 +57,10 @@ const auPortefeuille = async (tx: Transaction, cabinet: string, entreprise: stri
   !!(await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [cabinet, entreprise])).rowCount;
 
 // Le client a-t-il coupé la lecture de ses pièces par l'IA ? (Le cabinet ne lit pas la fiche de sa société.)
+// Le module « ia » piloté depuis la console (0226) : à venir ou fermé, la lecture ne se propose pas, et le serveur
+// refuse comme quand il n'a pas de clé.
+const iaOuverte = (tx: Transaction, entreprise: string) => moduleOuvertPour((sql, v) => tx.query(sql, v), 'ia', entreprise);
+
 async function lectureCoupee(tx: Transaction, entreprise: string): Promise<boolean> {
   return (await tx.query('select cabinet.lecture_ia_coupee($1) c', [entreprise])).rows[0]?.c === true;
 }
@@ -269,7 +274,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       const coupee = await lectureCoupee(tx, entreprise);
       return {
         corps: {
-          ia: !!ctx?.lecteurIA?.disponible && !coupee,
+          ia: !!ctx?.lecteurIA?.disponible && !coupee && await iaOuverte(tx, entreprise),
           coupee,
           lectures: l.map((x) => ({ message: x.message, document: x.document, fournisseur: x.fournisseur, numero: x.numero, date: x.date, total: x.total, devise: x.devise, luLe: x.lu_le.toISOString(), luPar: x.lu_nom,
             source: x.source, detail: x.detail })),
@@ -309,6 +314,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
         return { corps: { fournisseur: lu.fournisseur, numero: lu.numero, date: lu.date, total: lu.total, devise: lu.devise, source: 'teif', detail: lu.detail } };
       }
       if (!ctx?.lecteurIA?.disponible) return { statut: 503, corps: { motif: motif('cabinet.classeur.lecture_indisponible'), bouton: null } };
+      if (!(await iaOuverte(tx, entreprise))) return { statut: 503, corps: { motif: motif('cabinet.classeur.lecture_pas_ouverte'), bouton: null } };
       if (await lectureCoupee(tx, entreprise)) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_coupee'), bouton: null } };
       if (corps.ia !== true) return { statut: 409, corps: { motif: motif('cabinet.classeur.lecture_accord'), bouton: null } };
       const sorte = sorteDe(fichier);

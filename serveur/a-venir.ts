@@ -4,7 +4,8 @@
 //   SKANFACT_A_VENIR=""            tout est ouvert (les tests tournent ainsi) ;
 //   SKANFACT_A_VENIR="efacture"    la caisse ouverte, la facture électronique encore à venir ;
 //   (absent)                       les deux à venir — le choix de la production d'aujourd'hui.
-export const A_VENIR_CONNUS = ['caisse', 'efacture'];
+// (1.388.69) Le paiement en ligne (Konnect) aussi : programmé, jamais essayé avec un vrai paiement. La console le rouvre.
+export const A_VENIR_CONNUS = ['caisse', 'efacture', 'paiement'];
 
 // (1.381.0 ; Skander, 18/11/2026) Ce qui marche mais se finit encore avec les premiers essais porte une pastille « Bêta » :
 // la paie. Même réglage, même forme : SKANFACT_BETA="" n'en pose aucune (les tests), absent : la paie.

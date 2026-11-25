@@ -1302,6 +1302,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               <p className="c-carte-sous">{phrase('console.ecran.fiche.histoire_sous')}</p>
             </div>
             {moi.role === 'direction' ? <Lien href={`#/journal?entreprise=${f.id}`} icone="journal" petit>{titre('console.ecran.fiche.voir_journal')}</Lien> : null}
+            {moi.role === 'direction' ? <Lien href={`#/reglages?onglet=modules&entreprise=${f.id}`} icone="reglages" petit>{titre('console.ecran.fiche.voir_modules')}</Lien> : null}
           </div>
           {f.evenements.length ? (
             <ol className="c-histoire">
