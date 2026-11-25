@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
-import { jourCourt, jourDe } from '../temps.ts';
+import { heureDe, jourCourt, jourDe } from '../temps.ts';
 import { Alerte, Bouton, Dialogue, Zone, toast } from '../ui.tsx';
 
 const K = 'console.ecran.modules';
@@ -13,7 +13,9 @@ export const ETATS = ['ouvert', 'beta', 'a_venir', 'ferme'] as const;
 type Etat = (typeof ETATS)[number];
 type Module = { id: string; nom: string; quoi: string; serveur: Etat; avecDonnees: number | null };
 type Pose = { module: string; entreprise: string | null; nom: string | null; etat: Etat; motif: string; message: string | null; le: string; par: string | null };
-type Donnees = { modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null };
+type Trace = { id: string; le: string; motif: string; par: string | null; entreprise: string | null; nom: string | null;
+  avant: { module: string; etat: Etat | 'serveur'; message?: string | null } | null; apres: { module: string; etat: Etat | 'serveur'; message?: string | null } | null };
+type Donnees = { modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null; historique: Trace[] };
 
 // L'état qui vaut : l'exception de l'entreprise, sinon le réglage général posé, sinon la variable du serveur.
 export function etatQuiVaut(m: Module, poses: readonly Pose[], entreprise: string | null): { etat: Etat; source: 'entreprise' | 'general' | 'serveur' } {
@@ -109,10 +111,94 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
 }
 
 
+// (1.388.71) Revenir à l'état d'avant un changement : la même porte que « Changer… », avec l'état et le message d'avant,
+// un motif, et ce qui va se passer. Seul le dernier changement d'un module (pour tous ou pour une entreprise) se reprend,
+// tant que rien n'est passé par-dessus : sinon on reprendrait un état que quelqu'un a déjà remplacé.
+function FenetreRetour({ t, m, fermer, fait }: { t: Trace; m: Module; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const avant = t.avant?.etat ?? 'serveur';
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', '/console/modules', { module: m.id, entreprise: t.entreprise, etat: avant, motif: motif.trim(), message: avant === 'serveur' ? null : t.avant?.message ?? null });
+        if (!r) return;
+        if (r.statut === 200 || r.statut === 201) { toast(phrase(`${K}.h.fait`, { module: m.nom })); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  const nomEtat = (e: string) => e === 'serveur' ? dire(`${K}.h.serveur`) : dire(`${K}.etat.${e}`);
+  return (
+    <Dialogue titre={titre(`${K}.h.titre`)} sous={t.entreprise ? `${m.nom} · ${t.nom ?? ''}` : m.nom} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={faire}>{titre(`${K}.h.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>
+          <li>{phrase(`${K}.g.va.etat`, { module: m.nom, avant: nomEtat(t.apres?.etat ?? 'serveur'), apres: nomEtat(avant) })}</li>
+          <li>{phrase(t.entreprise ? `${K}.g.va.qui_une` : `${K}.g.va.qui_tous`, { nom: t.nom ?? '' })}</li>
+          <li>{t.avant?.message ? phrase(`${K}.h.message_revient`, { message: t.avant.message }) : phrase(`${K}.h.sans_message`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.g.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function Historique({ d, peut, reprendre }: { d: Donnees; peut: boolean; reprendre: (t: Trace, m: Module) => void }) {
+  const nomEtat = (e: string) => e === 'serveur' ? <span className="c-mod-etat c-mod-serveur">{titre(`${K}.h.serveur`)}</span> : <Pastille etat={e as Etat} />;
+  // Le dernier changement de chaque couple (module, entreprise) : c'est le seul qui se reprend.
+  const derniers = new Set<string>();
+  const vus = new Set<string>();
+  for (const t of d.historique) { const k = `${t.apres?.module ?? ''}|${t.entreprise ?? ''}`; if (!vus.has(k)) { vus.add(k); derniers.add(t.id); } }
+  if (!d.historique.length) return <p className="c-sous c-mod-h-vide">{phrase(`${K}.h.vide`)}</p>;
+  return (
+    <div className="c-defile">
+      <table className="c-table c-mod-histo">
+        <thead><tr>
+          <th scope="col">{titre(`${K}.h.col.quand`)}</th>
+          <th scope="col">{titre(`${K}.col.module`)}</th>
+          <th scope="col">{titre(`${K}.h.col.changement`)}</th>
+          <th scope="col">{titre(`${K}.h.col.motif`)}</th>
+          <th scope="col"><span className="c-cache">{titre(`${K}.col.geste`)}</span></th>
+        </tr></thead>
+        <tbody>
+          {d.historique.map((t) => {
+            const m = d.modules.find((x) => x.id === t.apres?.module);
+            if (!m) return null;
+            return (
+              <tr key={t.id}>
+                <td className="c-mod-h-quand">{jourCourt(jourDe(t.le))} · {heureDe(t.le)}<span className="c-sous c-bloc">{t.par ?? '—'}</span></td>
+                <td><b>{m.nom}</b><span className="c-sous c-bloc">{t.entreprise ? t.nom ?? '—' : dire(`${K}.h.tous`)}</span></td>
+                <td><span className="c-mod-h-chg">{nomEtat(t.avant?.etat ?? 'serveur')}<span aria-hidden="true">→</span><span className="c-cache">{dire(`${K}.h.vers`)}</span>{nomEtat(t.apres?.etat ?? 'serveur')}</span>
+                  {t.apres?.message ? <span className="c-mod-msg c-bloc">{`«\u00a0${t.apres.message}\u00a0»`}</span> : null}</td>
+                <td>{t.motif}</td>
+                <td className="c-droite">{peut && derniers.has(t.id) ? <Bouton petit onClick={() => reprendre(t, m)}>{titre(`${K}.h.revenir`)}</Bouton> : null}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export function Modules({ entreprise: demandee }: { entreprise: string | null }) {
   const chemin = demandee ? `/console/modules?entreprise=${encodeURIComponent(demandee)}` : '/console/modules';
   const [l, relire] = useLecture<Donnees>(chemin, chemin);
   const [ouvert, setOuvert] = useState<Module | null>(null);
+  const [retour, setRetour] = useState<{ t: Trace; m: Module } | null>(null);
   if (l.etat === 'panne') return <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>;
   if (l.etat !== 'lu') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
   const d = l.donnees;
@@ -157,7 +243,7 @@ export function Modules({ entreprise: demandee }: { entreprise: string | null })
                     <span className="c-sous c-bloc">{v.source === 'serveur' ? dire(`${K}.source.serveur`)
                       : pose ? phrase(`${K}.source.pose`, { jour: jourCourt(jourDe(pose.le)), par: pose.par ?? '—', motif: pose.motif })
                         : dire(`${K}.source.${v.source}`)}</span>
-                    {pose?.message ? <span className="c-mod-msg c-bloc">« {pose.message} »</span> : null}
+                    {pose?.message ? <span className="c-mod-msg c-bloc">{`«\u00a0${pose.message}\u00a0»`}</span> : null}
                   </td>
                   {ent ? null : (
                     <td data-libelle={titre(`${K}.col.exceptions`)}>
@@ -176,6 +262,10 @@ export function Modules({ entreprise: demandee }: { entreprise: string | null })
           </tbody>
         </table>
       </div>
+      <h3 className="c-mod-h-titre" id="rg-modules-histo">{titre(`${K}.h.section`)}</h3>
+      <p className="c-sous c-mod-h-sous">{phrase(`${K}.h.sous`)}</p>
+      <Historique d={d} peut={peut} reprendre={(t, m) => setRetour({ t, m })} />
+      {retour ? <FenetreRetour t={retour.t} m={retour.m} fermer={() => setRetour(null)} fait={() => { setRetour(null); relire(); }} /> : null}
       {ouvert ? <FenetreModule m={ouvert} d={d} entreprise={ent} fermer={() => setOuvert(null)} fait={() => { setOuvert(null); relire(); }} /> : null}
     </section>
   );

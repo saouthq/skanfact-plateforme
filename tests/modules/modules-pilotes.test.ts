@@ -114,7 +114,7 @@ describe('la console pose l\'état d\'un module', () => {
     expect((lu.corps.entreprise as Corps).nom).toBe('Boulangerie des essais modules');
     expect((lu.corps.poses as Corps[]).find((p) => p.entreprise === ent)).toMatchObject({ module: 'caisse', etat: 'ouvert', motif: 'La boulangerie pilote', par: amira.nom });
     const geste = (await admin.query(`select avant, apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
-    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur' }, apres: { module: 'caisse', etat: 'ouvert', message: null } });
+    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur', message: null }, apres: { module: 'caisse', etat: 'ouvert', message: null } });
     // /moi : l'entreprise porte ses propres listes, sans motif ni auteur.
     const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[] } }[] };
     expect(moi.entreprises.find((e) => e.id === ent)?.modules.aVenir).not.toContain('caisse');
@@ -215,5 +215,22 @@ describe('le message aux clients d\'un module (la maintenance annoncée)', () =>
     expect(JSON.stringify(moi)).not.toContain('Maintenance du soir');
     const geste = (await admin.query(`select apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
     expect(geste.apres.message).toBe('Les statistiques se recalculent ce soir entre 22 h et 23 h.');
+  });
+});
+
+describe('1.388.71 : l\'historique des changements, et revenir à l\'état d\'avant', () => {
+  it('chaque changement se relit (avant, après, motif, qui) ; revenir reprend l\'état ET le message d\'avant', async () => {
+    const { jeton } = await inscrire('histo');
+    const ent = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Atelier de l\'historique' })).corps.id);
+    entreprises.push(ent);
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'beta', motif: 'Pilote des biens', message: 'Les biens sont en essai cette semaine.' })).statut).toBe(200);
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'ferme', motif: 'Un défaut des biens' })).statut).toBe(200);
+    const lu = (await appeler('GET', `/console/modules?entreprise=${ent}`, karim.console)).corps as { historique: { motif: string; par: string; avant: { etat: string; message: string | null }; apres: { etat: string } }[] };
+    expect(lu.historique.map((h) => h.motif)).toEqual(['Un défaut des biens', 'Pilote des biens']);
+    expect(lu.historique[0]).toMatchObject({ par: amira.nom, avant: { etat: 'beta', message: 'Les biens sont en essai cette semaine.' }, apres: { etat: 'ferme' } });
+    // Revenir à l'état d'avant : le même geste, avec l'état et le message d'avant.
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'beta', motif: 'Retour à l\'essai', message: 'Les biens sont en essai cette semaine.' })).statut).toBe(200);
+    const ligne = (await admin.query('select etat, message from plateforme.module_etat where entreprise = $1 and module = $2', [ent, 'immos'])).rows[0];
+    expect(ligne).toEqual({ etat: 'beta', message: 'Les biens sont en essai cette semaine.' });
   });
 });

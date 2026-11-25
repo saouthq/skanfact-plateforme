@@ -670,11 +670,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'GET', chemin: '/console/modules', geste: 'console.modules.voir',
     traiter: async ({ query }, tx) => {
       const ent = typeof query.entreprise === 'string' && uuid.safeParse(query.entreprise).success ? query.entreprise : null;
-      const lu = await lireJson(transaction(tx), 'select plateforme.console_modules($1) v', [ent]) as { poses: unknown[]; entreprise: unknown; titulaire: boolean; nomTitulaire: string | null };
+      const lu = await lireJson(transaction(tx), 'select plateforme.console_modules($1) v', [ent]) as { poses: unknown[]; entreprise: unknown; titulaire: boolean; nomTitulaire: string | null; historique: unknown[] };
       // `titulaire` : seule cette personne change un module (0226) ; les autres lisent, et l'écran nomme le titulaire.
       // (1.388.70) Combien d'entreprises ont des données dans chaque module : fermé, il passe chez elles en pause, pas dans le noir.
       const avec = await lireJson(transaction(tx), 'select plateforme.console_modules_donnees($1) v', [JSON.stringify(DONNEES_MODULE)]) as Record<string, number>;
-      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null } };
+      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null, historique: lu.historique ?? [] } };
     },
   });
   ajouter({

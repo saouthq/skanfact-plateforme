@@ -831,6 +831,23 @@ describe('les réglages de la plateforme, à la souris', () => {
     await f.getByRole('button', { name: 'Enregistrer' }).click();
     await f.waitFor({ state: 'detached', timeout: 10_000 });
     expect((await admin.query('select count(*)::int n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n).toBe(0);
+    // (1.388.71) L'historique : les deux changements, du plus récent au plus ancien ; le dernier se reprend d'un clic.
+    const h = p.locator('.c-mod-histo tbody tr');
+    await expect.poll(() => h.count()).toBeGreaterThanOrEqual(2);
+    expect(net(await h.nth(0).innerText())).toMatch(/Stock.*Studio Lina Réglages.*Fermé.*Réglage du serveur.*Corrigé/);
+    expect(net(await h.nth(1).innerText())).toMatch(/Réglage du serveur.*Fermé.*Le stock revient vers 14 h.*Un défaut grave dans le stock/);
+    expect(await h.nth(1).getByRole('button', { name: 'Revenir à l\'état d\'avant…' }).count()).toBe(0);
+    await h.nth(0).getByRole('button', { name: 'Revenir à l\'état d\'avant…' }).click();
+    const rf = p.getByRole('dialog');
+    expect(net(await rf.locator('.c-al-ce-qui-va').innerText())).toContain('Le message d\'avant revient : « Le stock revient vers 14 h, après une correction. »');
+    await rf.getByLabel('Motif', { exact: true }).fill('Finalement le défaut n\'est pas corrigé');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-retour.png') });
+    await rf.getByRole('button', { name: 'Revenir à l\'état d\'avant', exact: true }).click();
+    await rf.waitFor({ state: 'detached', timeout: 10_000 });
+    expect((await admin.query('select etat, message from plateforme.module_etat where entreprise = $1', [ent])).rows).toEqual([{ etat: 'ferme', message: 'Le stock revient vers 14 h, après une correction.' }]);
+    await p.locator('#rg-modules-histo').scrollIntoViewIfNeeded();
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-historique.png') });
+    await admin.query('delete from plateforme.module_etat where entreprise = $1', [ent]);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 90_000);

@@ -3416,3 +3416,9 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-mod-bandeau-pause { background: color-mix(in srgb, var(--c-orange) 10%, var(--c-papier)); border-color: color-mix(in srgb, var(--c-orange) 35%, transparent); }
 .c-mod-bandeau-info { background: var(--c-doux); border-color: var(--c-trait-fort); }
 .c-mod-msg { margin-top: 3px; font-size: 13px; font-style: italic; color: var(--c-gris); }
+.c-mod-h-titre { margin: 28px 0 2px; font-size: 15.5px; }
+.c-mod-h-sous { margin: 0 0 10px; }
+.c-mod-h-chg { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.c-mod-serveur { background: var(--c-papier-2); color: var(--c-gris); border: 1px dashed var(--c-trait-fort); }
+.c-mod-h-vide { margin: 6px 0 0; }
+.c-mod-h-quand { white-space: nowrap; }

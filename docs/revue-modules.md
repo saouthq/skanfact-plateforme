@@ -7359,3 +7359,17 @@ n'importe quel module ».
   `console_modules_donnees`).
 - Au passage : deux tests lisaient `pont.js` en direct au lieu de `lireEcran` (règle de l'assemblage), et deux infobulles
   de la paie du Cabinet disaient « À VÉRIFIER avec le comptable » à un comptable.
+
+## 1.388.71 — L'historique des modules, et revenir à l'état d'avant (pilotage, point 10)
+
+Le premier des dix points notés le 25/11/2026 (`docs/pilotage-console.md`).
+
+- **Console › Réglages › Modules › « Les derniers changements »** : les trente derniers changements (de cette entreprise
+  quand on vient de sa fiche), du plus récent au plus ancien — quand, par qui, le module, pour qui, l'état d'avant → celui
+  d'après (« Réglage du serveur » en pointillé quand rien n'était posé), le message aux clients, le motif.
+- **« Revenir à l'état d'avant… »** sur le dernier changement de chaque module, et lui seul : reprendre un changement
+  que quelqu'un a déjà remplacé reviendrait à défaire son travail en silence. La fenêtre dit ce qui va se passer (l'état,
+  pour qui, le message d'avant qui revient) et demande son motif ; c'est un changement de plus, au journal, qui se reprend
+  à son tour. Titulaire seul, comme le reste.
+- Le journal garde désormais aussi le **message d'avant** (`avant.message`) : sans lui, revenir en arrière aurait effacé
+  le bandeau de maintenance qu'on voulait retrouver.

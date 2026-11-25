@@ -59,6 +59,7 @@ language plpgsql volatile security definer set search_path = pg_catalog, socle, 
 declare
   v_role text := plateforme.exiger_role_console(array['direction']);
   v_avant text;
+  v_avant_msg text;
 begin
   if not plateforme.suis_titulaire_console() then
     perform socle.refus('seul le titulaire de la console change l''état d''un module');
@@ -79,7 +80,7 @@ begin
   if p_entreprise is not null and not exists (select 1 from socle.entreprise where id = p_entreprise) then
     perform socle.refus('cette entreprise n''existe pas');
   end if;
-  select etat into v_avant from plateforme.module_etat
+  select etat, message into v_avant, v_avant_msg from plateforme.module_etat
    where module = p_module and coalesce(entreprise, '00000000-0000-0000-0000-000000000000'::uuid) = coalesce(p_entreprise, '00000000-0000-0000-0000-000000000000'::uuid)
    for update;
   delete from plateforme.module_etat
@@ -89,7 +90,7 @@ begin
   end if;
   insert into plateforme.geste_console (qui, role, geste, entreprise, motif, avant, apres)
     values (socle.moi(), v_role, 'modules.etat', p_entreprise, btrim(p_motif),
-      jsonb_build_object('module', p_module, 'etat', coalesce(v_avant, 'serveur')), jsonb_build_object('module', p_module, 'etat', p_etat, 'message', nullif(btrim(coalesce(p_message, '')), '')));
+      jsonb_build_object('module', p_module, 'etat', coalesce(v_avant, 'serveur'), 'message', v_avant_msg), jsonb_build_object('module', p_module, 'etat', p_etat, 'message', nullif(btrim(coalesce(p_message, '')), '')));
 end $$;
 
 -- La liste, pour la console (direction et support la lisent) ; `p_entreprise` donne aussi le nom de l'entreprise dont on
@@ -104,7 +105,16 @@ begin
       from plateforme.module_etat m left join socle.entreprise e on e.id = m.entreprise), '[]'::jsonb),
     'entreprise', (select jsonb_build_object('id', e.id, 'nom', e.raison_sociale) from socle.entreprise e where e.id = p_entreprise),
     'titulaire', plateforme.suis_titulaire_console(),
-    'nomTitulaire', (select u.nom from socle.utilisateur u where u.id = plateforme.titulaire_console()));
+    'nomTitulaire', (select u.nom from socle.utilisateur u where u.id = plateforme.titulaire_console()),
+    -- (1.388.71) L'historique : les trente derniers changements (de cette entreprise quand on vient de sa fiche), avec
+    -- l'état d'avant, pour le reprendre d'un clic.
+    'historique', coalesce((select jsonb_agg(h order by h.le desc) from (
+      select g.id, g.le, g.motif, g.avant, g.apres, g.entreprise, e.raison_sociale nom, u.nom par
+        from plateforme.geste_console g
+        left join socle.entreprise e on e.id = g.entreprise
+        left join socle.utilisateur u on u.id = g.qui
+       where g.geste = 'modules.etat' and (p_entreprise is null or g.entreprise = p_entreprise)
+       order by g.le desc, g.id desc limit 30) h), '[]'::jsonb));
 end $$;
 
 -- (1.388.70) Combien d'entreprises ont déjà des données dans chaque module (`p_parties` : module → ses collections du

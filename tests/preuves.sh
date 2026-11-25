@@ -32260,6 +32260,11 @@ prouver "le message aux clients ne part pas" serveur/modules-pilotes.ts \
   "    if (porte?.message) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;" "    if (false) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;" \
   "se pose avec l'état, arrive dans /moi"
 
+# 1.388.71 — l'historique des modules, et revenir à l'état d'avant.
+prouver "revenir à l'état d'avant perd le message d'avant" base/migrations/0226_modules_pilotes.sql \
+  "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant, 'serveur'), 'message', v_avant_msg), jsonb_build_object" "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant, 'serveur')), jsonb_build_object" \
+  "revenir reprend l'état ET le message d'avant"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
