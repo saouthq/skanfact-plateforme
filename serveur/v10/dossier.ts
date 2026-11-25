@@ -406,6 +406,13 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   if (ticket !== (doc.ticket === true)) throw new Refus(ticket ? 'caisse.pas_un_ticket' : 'v10.ticket_par_la_caisse');
   // Un paiement ne se saisit qu'une fois la facture émise.
   if (Array.isArray(doc.payments) && doc.payments.length) throw new Refus('v10.reglement_sur_brouillon');
+  // (#28, ROB-8) Une remise de 150 % donnait un net à payer négatif, émis et numéroté.
+  const tauxR = Number(nombreEnTexte(doc.discountRate ?? 0));
+  if (!(tauxR >= 0 && tauxR <= 100)) throw new Refus('v10.remise_hors_bornes');
+  // (#28, ROB-7) Une date à plus d'un an devant, ou avant 2000, ouvrait une série FAC-2099 légale ; la refuser AVANT le
+  // numéro, en la nommant (le timbre « non renseigné au 01/01/1900 » parlait d'autre chose).
+  const jourPiece = Date.parse(String(doc.date ?? '') + 'T00:00:00Z');
+  if (Number.isFinite(jourPiece) && (jourPiece - Date.now() > 366 * 86400000 || String(doc.date) < '2000-01-01')) throw new Refus('v10.date_absurde', { valeurs: { date: String(doc.date).split('-').reverse().join('/') } });
   const stocke = await db.selectFrom('socle.dossier_v10').select(['contenu', 'revision'])
     .where('entreprise', '=', entreprise).where('collection', '=', 'documents').where('cle', '=', cle).forUpdate().executeTakeFirst();
   if ((stocke ? Number(stocke.revision) : null) !== demande.revision) throw new Conflit([{ collection: 'documents', cle }]);
@@ -443,14 +450,12 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     adresse: String(client.address ?? '') || null, email: String(client.email ?? '') || null, telephone: String(client.phone ?? '') || null,
     devise: devise(client.currency),
   };
-  const deja = await db.selectFrom('socle.tiers').select('id').where('entreprise', '=', entreprise).where('ref_v10', '=', client.id).executeTakeFirst();
-  let tiers = deja?.id;
-  if (tiers) {
-    await db.updateTable('socle.tiers').set({ ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null }).where('id', '=', tiers).execute();
-  } else {
-    tiers = (await db.insertInto('socle.tiers').values({ entreprise, nature: 'societe', ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null, pays: 'TN', roles: ['client'], ref_v10: client.id })
-      .returning('id').executeTakeFirstOrThrow()).id;
-  }
+  // (#28, ROB-4) Une seule écriture qui crée OU met à jour : deux émissions simultanées pour le même client nouveau lisaient
+  // toutes deux « absent », et la seconde tombait sur la contrainte tiers_ref_v10 (une erreur 500 sans un mot).
+  const tiers = (await db.insertInto('socle.tiers').values({ entreprise, nature: 'societe', ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null, pays: 'TN', roles: ['client'], ref_v10: client.id })
+    .onConflict((oc) => oc.columns(['entreprise', 'ref_v10']).where('ref_v10', 'is not', null)
+      .doUpdateSet({ ...fiche, type_identifiant: fiche.identifiant ? 'matricule' : null }))
+    .returning('id').executeTakeFirstOrThrow()).id;
 
   // Un avoir : la facture qu'il corrige, émise dans le dossier ET au serveur.
   let corrige: string | undefined;

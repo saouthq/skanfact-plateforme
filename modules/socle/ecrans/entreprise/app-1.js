@@ -1154,6 +1154,7 @@
   // `onDismiss` est appelé chaque fois que la fenêtre se ferme — y compris par Échap ou par un clic
   // à côté. Sans lui, une question posée sous forme de promesse ne recevait jamais de réponse : elle
   // restait en suspens pour toujours et bloquait ce qui l'attendait (voir le routeur plus bas).
+  const fenetresGardees = new Map(); // fenêtre ouverte → « a-t-on tapé dedans ? » (ROB-9)
   function modal(html, onMount, onDismiss, opts) {
     const root = $('#modal-root');
     const layer = document.createElement('div');
@@ -1189,6 +1190,7 @@
     const close = () => {
       const curseurDedans = layer.contains(document.activeElement);
       layer.remove(); if (modalClose === dismiss) modalClose = under;
+      if (fenetresGardees.delete(layer)) reportDirty();
       if (curseurDedans && avant && avant !== document.body && avant.isConnected && !avant.disabled) {
         try { avant.focus(); } catch (_) { /* un élément qui ne prend pas le curseur : on n'insiste pas */ }
       } else if (curseurDedans && !root.children.length) {
@@ -1278,6 +1280,9 @@
     // un nuancier) dit elle-même ce qui a changé : `garde` peut être une fonction (10.14.0).
     if (opts && typeof opts.garde === 'function') garde = opts.garde;
     else if (!(opts && opts.garde === false) && layer.querySelector('form')) garde = suivreSaisie(layer);
+    // (#28, ROB-9) Une fenêtre où l'on a tapé allume aussi la question du navigateur : un rechargement jetait le client à
+    // moitié saisi sans un mot (Échap et « Annuler » demandaient déjà).
+    if (garde) { const g = garde; fenetresGardees.set(layer, () => g()); layer.addEventListener('input', reportDirty); layer.addEventListener('change', reportDirty); }
     // 10.13.0 (vu au test humain) — le curseur ENTRE dans la fenêtre : le premier champ de saisie,
     // sinon le bouton principal. Il n'allait qu'au premier champ ; une question sans champ laissait
     // donc le curseur sur le bouton de la PAGE qui l'avait ouverte, derrière la fenêtre — et Entrée
@@ -2207,7 +2212,7 @@
         // (1.388.29, X-3, jumeau de CABPORTEFEUILLE-19) Une date qui n'existe pas ne se remplace plus en silence par l'ancienne :
         // le texte tapé reste, la case est marquée, et la fenêtre comme l'éditeur refusent d'enregistrer tant qu'elle ne se lit
         // pas (le message seul était aussitôt recouvert par « Enregistré »). La valeur rangée ne bouge pas.
-        if (!iso) { el.dataset.illisible = '1'; txt.setAttribute('aria-invalid', 'true'); toast('Date incomprise : écris-la sous la forme 12/03/2026.', true); return; }
+        if (!iso) { el.dataset.illisible = '1'; txt.setAttribute('aria-invalid', 'true'); toast(jourInexistant(txt.value) || 'Date incomprise : écris-la sous la forme 12/03/2026.', true); return; }
         // (issue 15 V-5) La date corrigée est comprise : le reproche d'avant ne reste pas affiché par-dessus.
         { const tt = $('#toast'), tx = tt && $('.toast-txt', tt); if (tx && tt.classList.contains('show') && /^Date incomprise/.test(tx.textContent.trim())) { clearTimeout(tt._timer); tt.className = ''; } }
         commit(iso);
@@ -2221,6 +2226,27 @@
         } else if (e.key === 'Escape' && !pop.hidden) { e.stopPropagation(); closeCal(); }
       };
     });
+  }
+
+  // (#28, ROB-11) « 30/02/2026 » a la bonne forme : « écris-la sous la forme 12/03/2026 » ne disait pas ce qui ne va pas.
+  // Un jour qui n'existe pas dans son mois se nomme, avec le dernier jour du mois.
+  function jourInexistant(v) {
+    const m = /^\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})\s*$/.exec(String(v || ''));
+    if (!m) return '';
+    const [j, mo, a] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    if (mo < 1 || mo > 12) return `Le mois ${mo} n'existe pas : écris la date sous la forme 12/03/2026.`;
+    const dernier = new Date(Date.UTC(a, mo, 0)).getUTCDate();
+    if (j < 1 || j > dernier) return `Le ${j} n'existe pas en ${String(C.MONTHS_FR[mo - 1] || '').toLowerCase()} ${a} : le mois s'arrête au ${dernier}.`;
+    return '';
+  }
+
+  // (#28, ROB-10) Sur 5 000 factures, chaque lettre tapée refaisait toute la liste : la frappe traînait. Au-delà de
+  // 500 pièces, la liste attend que la frappe se pose (150 ms) ; en dessous, elle suit chaque lettre comme avant.
+  let rebondFrappe = 0;
+  function apresFrappe(f) {
+    clearTimeout(rebondFrappe);
+    if ((data.documents || []).length + (data.purchases || []).length <= 500) return f();
+    rebondFrappe = setTimeout(f, 150);
   }
 
   // ---------- unité d'une ligne ----------
@@ -2436,7 +2462,7 @@
   // (1.164.0) Une pièce neuve dont l'état exact est gardé sur cet appareil ne perd rien si l'onglet se ferme : le navigateur
   // ne demande plus « quitter la page ? » pour elle.
   function reportDirty() {
-    const d = !!(guard && guard.dirty() && !(guard.estGarde && guard.estGarde()));
+    const d = !!(guard && guard.dirty() && !(guard.estGarde && guard.estGarde())) || [...fenetresGardees.values()].some(g => g());
     if (d === dirtyReported) return;
     dirtyReported = d;
     if (bridge.setDirty) bridge.setDirty(d);
@@ -5741,7 +5767,7 @@
 
     function brancher() {
       const w = $('#list-wrap');
-      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; draw(); };
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; apresFrappe(draw); };
       $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
       if ($('#yr')) $('#yr').onchange = e => { s.year = e.target.value; s.yearAuto = false; s.yearTouched = true; s.page = 1; draw(); };
       $$('#lf-barre [data-kind]').forEach(b => b.onclick = () => { s.kind = b.dataset.kind; s.page = 1; draw(); });
@@ -6106,7 +6132,7 @@
 
     function brancher() {
       const w = $('#list-wrap');
-      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; draw(); };
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; apresFrappe(draw); };
       $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
       if ($('#yr')) $('#yr').onchange = e => { s.year = e.target.value; s.yearAuto = false; s.yearTouched = true; s.page = 1; draw(); };
       $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => {
@@ -9154,6 +9180,13 @@
     function issueWarnings() {
       const w = [];
       const co = company();
+      // (#28, ROB-7) Une date tapée de travers (2099, 1900) partait émise sans un mot : le numéro et la TVA d'un exercice qui
+      // n'existe pas. On le dit avant, jamais on ne refuse : une pièce peut légitimement porter une date ancienne.
+      if (doc.date) {
+        const ecartJ = (Date.parse(doc.date + 'T00:00:00Z') - Date.parse(C.today() + 'T00:00:00Z')) / 86400000;
+        if (ecartJ > 366) w.push(`La date de la pièce, le ${C.fmtDate(doc.date)}, est à plus d'un an dans l'avenir : une faute de frappe ? Elle serait déclarée dans l'exercice ${doc.date.slice(0, 4)}.`);
+        else if (Number(doc.date.slice(0, 4)) < Number(C.today().slice(0, 4)) - 10) w.push(`La date de la pièce est en ${doc.date.slice(0, 4)}, il y a plus de dix ans : une faute de frappe ?`);
+      }
       // L'encours autorisé du client (brique 91 ; 14 § 3.2) : dit AVANT d'émettre, avec ses chiffres ; la personne décide.
       const enc = isInv || doc.type === 'livraison' ? C.depassementEncours(data, doc, co) : null;
       // (1.328.0) Un dépassement qu'un responsable a ACCORDÉ pour ce montant n'est plus un avertissement : le bouton disait
@@ -9402,6 +9435,9 @@
         if (bridge.dessinerAbonnement && licenceBlock('Émettre une nouvelle pièce')) return;
         if (!validate()) return;
         if (bloqueParEfacture(doc)) return;
+        // (#28, ROB-5) Sans réseau, le numéro ne peut pas être pris : le dire AVANT le récapitulatif (« un refus se dit avant
+        // la question », 7.6.0). Le brouillon reste, et se garde.
+        if (charte && navigator.onLine === false) { refus('#issue', 'Pas de réseau : une facture prend son numéro auprès du serveur. Ton brouillon est gardé ; émets-la dès que la connexion revient.'); return; }
         // (1.328.0) L'accord se sait nécessaire AVANT d'émettre (`accordAttendu`, la règle du serveur) : le bouton dit
         // « Demander l'accord », et le clic le demande, en une question. Plus de « Émettre la facture FAC-… ? » confirmé
         // pour lire ensuite qu'elle ne s'émet pas (« un refus se dit avant la question », 7.6.0).
@@ -9955,7 +9991,12 @@
       const er = $('#ed-remise');
       if (er) er.oninput = () => {
         const champ = $('input[name=discountRate]', head);
-        champ.value = String(chiffreLisible(er) ? lireMontant(er.value) : 0);
+        // (#28, ROB-8) Une remise se lit entre 0 et 100 % : « 150 » donnait un net à payer négatif sur une pièce émise.
+        const lu = chiffreLisible(er) ? lireMontant(er.value) : 0;
+        const borne = Math.min(100, Math.max(0, lu));
+        er.classList.toggle('erreur', borne !== lu);
+        er.title = borne !== lu ? 'Une remise va de 0 à 100 % : elle est comptée à ' + frChiffre(borne) + ' %.' : '';
+        champ.value = String(borne);
         head.oninput({ target: champ });
       };
       if ($('#ed-grand')) $('#ed-grand').onclick = () => apercuPleinEcran();
@@ -12074,7 +12115,7 @@
     const choisir = f => { s.f = s.f === f && f ? '' : f; s.page = 1; s.cur = -1; draw(); };
     function brancher(l) {
       const w = $('#list-wrap');
-      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; draw(); };
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; apresFrappe(draw); };
       $$('#lf-barre [data-f]').forEach(b => b.onclick = () => { s.f = b.dataset.f; s.page = 1; s.cur = -1; draw(); });
       $$('#lc-puces [data-f]').forEach(b => b.onclick = () => choisir(b.dataset.f));
       $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
@@ -16628,7 +16669,7 @@
     });
     function brancher(l) {
       const w = $('#list-wrap');
-      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; draw(); };
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; apresFrappe(draw); };
       $$('#lf-barre [data-f]').forEach(b => b.onclick = () => { s.f = b.dataset.f; s.page = 1; s.cur = -1; draw(); });
       $$('#lc-puces [data-f]').forEach(b => b.onclick = () => { s.f = s.f === b.dataset.f ? '' : b.dataset.f; s.page = 1; s.cur = -1; draw(); });
       $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
@@ -17967,7 +18008,7 @@
     }
     function brancher() {
       const remettre = () => { Object.assign(s, { q: '', st: '', kind: '', cat: '', year: '', du: '', au: '', page: 1 }); draw(); };
-      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; draw(); };
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; apresFrappe(draw); };
       $$('#lf-barre [data-kind]').forEach(b => b.onclick = () => { s.kind = b.dataset.kind; s.page = 1; draw(); });
       $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
       if ($('#cat')) $('#cat').onchange = e => { s.cat = e.target.value; s.page = 1; draw(); };

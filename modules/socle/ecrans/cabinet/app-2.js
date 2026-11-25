@@ -2475,6 +2475,7 @@
   function nomsDesSaisies() {
     const ids = Object.keys(saisieState.enAttente).filter(id => pieceEnCours(saisieState.enAttente[id]));
     if (pieceEnCours(saisieState.piece) && saisieState.dossierId) ids.unshift(saisieState.dossierId);
+    if (saisieSxEnCours()) ids.push(sxState.dossier);
     return [...new Set(ids)].map(id => ((S.dossiers || []).find(d => d.id === id) || {}).name).filter(Boolean);
   }
   // `null` et pas '' : une interface qui (re)démarre DIT qu'elle n'a rien en cours, même si c'est
@@ -2504,7 +2505,14 @@
     if (saisieState.dossierId && pieceEnCours(saisieState.piece)) l.push([saisieState.dossierId, saisieState.piece]);
     return l;
   };
-  const saisiesGardees = () => !!brouillonE && piecesAGarder().every(([id, x]) => gardeesE.get(id) === JSON.stringify(x));
+  // (#28, ROB-1) La ligne « Au kilomètre » et la fiche « Face à la pièce » ne vivent que dans la page : elles ne se gardent pas
+  // sur le poste, donc tant qu'on y a tapé, la fermeture et le rechargement DEMANDENT (« quitter la page ? »).
+  function saisieSxEnCours() {
+    if (!sxState.dossier) return false;
+    const L = sxState.jm || {};
+    return !!(String(L.four || '').trim() || String(L.ttc || '').trim()) || [...sxState.fiches.values()].some(f => f && f.touchee);
+  }
+  const saisiesGardees = () => !!brouillonE && !saisieSxEnCours() && piecesAGarder().every(([id, x]) => gardeesE.get(id) === JSON.stringify(x));
   async function garderSaisies() {
     if (!brouillonE) return;
     const l = piecesAGarder();
@@ -3790,7 +3798,7 @@
       };
       [['#sx-jm-jour', 'jour'], ['#sx-jm-piece', 'piece'], ['#sx-jm-four', 'four'], ['#sx-jm-ttc', 'ttc']].forEach(([id, k]) => {
         const c = $(id, jm); if (!c) return;
-        c.addEventListener('input', () => { jmSx()[k] = c.value; c.removeAttribute('aria-invalid'); majJm(); });
+        c.addEventListener('input', () => { jmSx()[k] = c.value; c.removeAttribute('aria-invalid'); majJm(); signalerSaisies(); });
         c.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) { e.preventDefault(); e.stopPropagation(); enregistrerJmSx(root, dossier); } });
       });
       on('#sx-jm-lignes', () => jmEnLignesSx(root, dossier));
@@ -3871,7 +3879,7 @@
       // (1.215.0) Ce que l'IA a lu remplace la fiche, même touchée : on l'a demandé (avant, une fiche touchée gardait ses
       // champs, et la lecture ne se voyait nulle part).
       on('#sx-lire', () => fenLireCl(dossier, x, () => { sxState.fiches.delete(x.k); redessinerSx(dossier, true); }));
-      $$('input, select', zone).forEach(c => c.addEventListener('input', () => { f.touchee = true; }));
+      $$('input, select', zone).forEach(c => c.addEventListener('input', () => { f.touchee = true; signalerSaisies(); }));
     }
     on('#sx-joindre', async () => {
       try {
@@ -4605,15 +4613,16 @@
     // (audit #30, ROB-6) Un geste à la fois : deux clics rapides sur « Enregistrer et valider » écrivaient et validaient deux
     // fois la même écriture (les fenêtres et le contrôle de licence attendent, rien ne refusait le second passage). Les deux
     // boutons se grisent le temps du geste, comme « Émettre » côté entreprise ; le raccourci clavier passe par la même porte.
-    let enregistrement = false;
+    // (#28, ROB-6) La garde vit dans saisieState, par dossier, et pas dans cette fermeture : une grille redessinée pendant
+    // l'attente (une fenêtre, la licence, une relecture du livre) recréait une garde à false et des boutons vivants.
     const enregistrer = async (puisValider) => {
-      if (enregistrement) return;
-      enregistrement = true;
+      if (saisieState.enregistrement === dossier.id) return;
+      saisieState.enregistrement = dossier.id;
       const btns = ['#sa-ok', '#sa-okvalider'].map(x => $(x, el)).filter(Boolean);
       const avant = btns.map(b => b.disabled);
       btns.forEach(b => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
       try { await enregistrerUneFois(puisValider); }
-      finally { enregistrement = false; btns.forEach((b, i) => { if (b.isConnected) { b.disabled = avant[i]; b.removeAttribute('aria-busy'); } }); }
+      finally { saisieState.enregistrement = ''; if (btns.some(b => !b.isConnected) && $$('#sa-ok[aria-busy]').length) drawLivres(root, dossier); btns.forEach((b, i) => { if (b.isConnected) { b.disabled = avant[i]; b.removeAttribute('aria-busy'); } }); }
     };
     const enregistrerUneFois = async (puisValider) => {
       const ecr = ecritureSaisie(p);
@@ -4721,6 +4730,8 @@
 
     const ok = $('#sa-ok', el); if (ok) ok.onclick = () => enregistrer(false);
     const okv = $('#sa-okvalider', el); if (okv) okv.onclick = () => enregistrer(true);
+    // (#28, ROB-6) Une grille redessinée pendant l'enregistrement naît avec ses deux boutons éteints.
+    if (saisieState.enregistrement === dossier.id) [ok, okv].filter(Boolean).forEach(b => { b.disabled = true; b.setAttribute('aria-busy', 'true'); });
     // « Vider » jetait une pièce commencée sans un mot ni un retour (U-09) : ce qui se répare laisse
     // un « Annuler » sous la main (7.12.0) — on rend la pièce telle qu'elle était, lignes comprises.
     const vd = $('#sa-vider', el);

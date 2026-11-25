@@ -31964,7 +31964,7 @@ prouver "la fenetre d'acompte muette sur le deja facture" modules/socle/ecrans/e
 
 # 1.388.45 — ROB-6 : un double clic sur « Enregistrer et valider » n'écrit qu'une écriture.
 prouver "le double clic qui valide deux fois" modules/socle/ecrans/cabinet/app-2.js \
-  "      try { await enregistrerUneFois(puisValider); }" "      enregistrement = false; btns.forEach(b => { b.disabled = false; }); try { await enregistrerUneFois(puisValider); }" \
+  "      try { await enregistrerUneFois(puisValider); }" "      saisieState.enregistrement = ''; btns.forEach(b => { b.disabled = false; }); try { await enregistrerUneFois(puisValider); }" \
   "le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
 
 # 1.388.46 — ROB-3 : un poste resté ouvert dit ce qu'un autre poste a fait.
@@ -32225,6 +32225,20 @@ prouver 'la visite perdue au téléphone (1.388.65)' modules/socle/visites/visit
 prouver 'l'\''échéance ouverte écrasée à la tablette (1.388.65)' web/public/plateforme/echeances.css \
   '@media (min-width: 761px) and (max-width: 1100px) { .ec-grille { grid-template-columns: minmax(0, 1fr); } }' '' \
   'la déclaration ouverte passe sous la liste'
+# 1.388.66 (#28) — la robustesse.
+prouver "la remise de 150 % émise" serveur/v10/dossier.ts \
+  "  if (!(tauxR >= 0 && tauxR <= 100)) throw new Refus('v10.remise_hors_bornes');" "  if (tauxR < -1) throw new Refus('v10.remise_hors_bornes');" \
+  "le serveur refuse au-delà, avant le numéro"
+prouver "le 30 février dit « écris-la sous la forme »" modules/socle/ecrans/entreprise/app-1.js \
+  "    if (j < 1 || j > dernier) return" "    if (j < 1 || j > 99) return" \
+  "le 30 février se dit, avec le dernier jour du mois"
+prouver "l'image importée comme une liste" web/public/plateforme/pont.js \
+  "if (!f.size || (o0 === 0x89 && o1 === 0x50)" "if (!f.size || (o0 === 0x89 && o1 === 0x51)" \
+  "ROB-12 : un fichier vide, une image ou un PDF se disent"
+prouver "la fiche « Face à la pièce » perdue sans question" modules/socle/ecrans/cabinet/app-2.js \
+  "    if (saisieSxEnCours()) ids.push(sxState.dossier);" "    if (false) ids.push(sxState.dossier);" \
+  "ROB-1 : la ligne « Au kilomètre » et la fiche « Face à la pièce » allument la garde de fermeture"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

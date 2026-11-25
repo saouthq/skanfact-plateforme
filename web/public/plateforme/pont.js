@@ -1649,9 +1649,8 @@
       if (f.size > 5 * 1024 * 1024) {
         return { ok: false, nom: f.name, motif: `« ${f.name} » fait ${Math.round(f.size / 1048576)} Mo : ${xml ? 'une facture électronique' : 'une liste de clients ou de prix'} en fait quelques dizaines de Ko. Ce n'est probablement pas le bon fichier.` };
       }
-      // Un tableur (CSV, ou classeur Excel décompressé dans le navigateur : plateforme/tableur.js, brique 85) ;
-      // une facture électronique, telle quelle.
-      const octets = new Uint8Array(await f.arrayBuffer());
+      const octets = new Uint8Array(await f.arrayBuffer()), [o0, o1, o2] = octets; // (#28, ROB-12) un fichier vide, une photo ou un PDF se disent
+      if (!f.size || (o0 === 0x89 && o1 === 0x50) || (o0 === 0xff && o1 === 0xd8) || (o0 === 0x25 && o1 === 0x50 && o2 === 0x44)) return { ok: false, nom: f.name, motif: !f.size ? `« ${f.name} » est vide : rien à importer. Enregistre de nouveau la liste depuis ton tableur, puis choisis-la.` : `« ${f.name} » est une image ou un PDF, pas ${xml ? 'une facture électronique (un fichier .xml)' : 'une liste (un fichier .csv ou .xlsx exporté de ton tableur)'}.` };
       const lu = xml ? /** @type {any} */ (window).SkanCompta.lireFichierTexte(octets, f.name, {}) : await /** @type {any} */ (window).SkanTableur.lire(octets, f.name);
       // (27/10/2026, maquette achat « Justificatif joint : …xml ») La facture électronique lue se garde : elle se joint ensuite
       // à l'achat comme son justificatif (attachPath), telle quelle.

@@ -14,6 +14,8 @@ declarerTextes({
   'v10.avoir_ne_se_modifie_plus': 'l\'avoir {numero} est émis : il ne se modifie plus',
   'v10.avoir_ne_s_efface_pas': 'l\'avoir {numero} est émis : il ne s\'efface jamais',
   'v10.annulee': 'la facture {numero} est émise : elle ne s\'annule pas, on la corrige par un avoir (un avoir total la solde)',
+  'v10.date_absurde': 'la date de la pièce ({date}) est à plus d\'un an d\'aujourd\'hui ou avant l\'an 2000 : une faute de frappe ? Corrige-la avant d\'émettre',
+  'v10.remise_hors_bornes': 'une remise va de 0 à 100 % : corrige-la avant d\'émettre',
   'v10.reglement_sur_brouillon': 'un paiement ne s\'enregistre que sur une facture émise : émets-la d\'abord',
   'v10.reglement_sans_identifiant': 'un paiement de la facture {numero} n\'a pas d\'identifiant : rien n\'a été enregistré',
   'v10.reglement_double': 'deux paiements de la facture {numero} portent le même identifiant : rien n\'a été enregistré',

@@ -7279,3 +7279,17 @@ Restes, dits ici :
 - **IFACE-6, tolérance aux fautes** (« jasmn » ne trouve pas « jasmin ») : la recherche ne pardonne pas une lettre
   oubliée. Une recherche approchée demande sa propre version.
 - **IFACE-11, au téléphone** : la bulle des « Relances » qui déborde sous l'écran n'est pas reprise ici.
+
+## 1.388.66 — La robustesse (issue #28)
+
+- **ROB-6** : la garde de « Enregistrer et valider » au Cabinet vit dans l'état de la saisie, par dossier — une grille redessinée pendant l'attente naît avec ses deux boutons éteints.
+- **ROB-7** : une date de pièce à plus d'un an devant ou à plus de dix ans derrière s'avertit avant d'émettre ; le serveur refuse au-delà d'un an et avant 2000, en nommant la date.
+- **ROB-8** : la remise de la pièce se borne de 0 à 100 % pendant la frappe (la case le dit) ; le serveur refuse au-delà, avant le numéro.
+- **ROB-11** : « 30/02/2026 » dit « Le 30 n'existe pas en février 2026 : le mois s'arrête au 28 ».
+- **ROB-10** : au-delà de 500 pièces, la recherche des listes attend que la frappe se pose (150 ms).
+- **ROB-4** : la fiche client du serveur se crée ou se met à jour en une seule écriture (plus de 500 à l'émission simultanée).
+- **ROB-12** : à l'import, un fichier vide, une image ou un PDF se disent, rien n'est lu.
+- **ROB-5** : sans réseau, « Émettre » refuse avant le récapitulatif, sans annoncer de numéro.
+- **ROB-9** : une fenêtre où l'on a tapé (nouveau client, nouvel article) allume la question du navigateur au rechargement.
+- **ROB-1** : la ligne « Au kilomètre » et la fiche « Face à la pièce » allument la garde de fermeture du Cabinet (« quitter la page ? »).
+- Restent : **ROB-2** (le bandeau de reprise invisible quand la Saisie rouvre « Face à la pièce ») et **ROB-3** (un poste resté ouvert ne relit pas ce que l'autre a fait) — lot suivant.
