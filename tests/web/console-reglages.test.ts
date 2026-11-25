@@ -19,7 +19,7 @@ import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ajouter as ajouterALEquipe, titulaire as designerTitulaire } from '../../base/equipe.ts';
+import { ajouter as ajouterALEquipe, ouvrirAdresses, titulaire as designerTitulaire } from '../../base/equipe.ts';
 import { plusJours } from '../../serveur/abonnement/etat.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
@@ -121,6 +121,7 @@ describe('les réglages de la plateforme, à la souris', () => {
   afterAll(async () => {
     // Aucun message ne reste affiché : les parcours suivants ouvrent l'application des clients sans lui. Aucun prix à venir
     // ne reste non plus (la base laisse effacer un prix tant qu'il est à venir).
+    await admin.query('delete from plateforme.adresse_console');
     await admin.query('delete from plateforme.message_diffusion');
     await admin.query('delete from plateforme.message_clients');
     await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
@@ -1233,6 +1234,87 @@ describe('les réglages de la plateforme, à la souris', () => {
     await expect.poll(() => venir.count(), { timeout: 10_000 }).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);
+  }, 120_000);
+
+  it('1.388.79 : les adresses de la console — le titulaire la limite à son adresse, le support lit sans geste, une autre adresse est refusée en le disant, la commande du serveur la rouvre', async () => {
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
+    await admin.query('delete from plateforme.adresse_console');
+    const p = await console_(jD, 'pilotage');
+    const section = p.locator('section[aria-labelledby="rg-adresses-console"]');
+    await section.waitFor({ timeout: 15_000 });
+    await section.scrollIntoViewIfNeeded();
+    // Sans adresse : la console s'ouvre de partout ; la page dit d'où l'on parle, et propose de s'y limiter.
+    const ici = net(await section.locator('.c-pil-ici').innerText());
+    expect(ici).toMatch(/^Ton adresse en ce moment (127\.0\.0\.1|::1|::ffff:127\.0\.0\.1) La console s'ouvre de partout$/);
+    expect(net(await section.innerText())).toContain('Aucune adresse : la console s\'ouvre de partout.');
+    expect(await section.getByRole('button', { name: 'Ajouter une adresse…' }).count()).toBe(0);
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-adresses.png') });
+
+    // « Limiter à mon adresse actuelle… » : la fenêtre porte déjà l'adresse, dit ce qui va se passer et la commande de secours.
+    await cliquer(section.getByRole('button', { name: 'Limiter à mon adresse actuelle…' }));
+    const f = p.getByRole('dialog');
+    const plage = f.getByLabel('Adresse ou plage');
+    const monIp = await plage.inputValue();
+    expect(ici).toContain(monIp);
+    await f.getByLabel('Nom', { exact: true }).fill('Bureau');
+    const va = net(await f.locator('.c-al-ce-qui-va').innerText());
+    expect(va).toMatch(/^Ce qui va se passer Dès l'enregistrement, la console ne s'ouvre plus que depuis cette adresse\./);
+    expect(va).toContain('node base/equipe.ts adresses-ouvrir « motif »');
+    // Sans motif : refusé sur sa case, rien ne part.
+    await cliquer(f.getByRole('button', { name: 'Ajouter cette adresse' }));
+    expect(net(await f.locator('[role="alert"]').last().innerText())).toMatch(/trois caractères/);
+    await f.locator('textarea').fill('Essai adresse : la console depuis le bureau seulement');
+    // Le refus se lisait pour le motif vide : tapé, le motif l'efface.
+    expect(await f.locator('[role="alert"]').count()).toBe(0);
+    await f.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-adresses-fenetre.png') });
+    await cliquer(f.getByRole('button', { name: 'Ajouter cette adresse' }));
+    const ligne = section.locator(`tr[data-adresse="${monIp}"]`);
+    await expect.poll(async () => net(await ligne.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/C'est la tienne en ce moment Bureau « Essai adresse : la console depuis le bureau seulement » .+ Amira Réglages Retirer…$/);
+    expect(net(await section.locator('.c-pil-ici').innerText())).toMatch(/Dans la liste$/);
+    expect(net(await section.locator('.c-pil-histo').innerText())).toMatch(/Amira Réglages Adresse ajoutée .+ Essai adresse : la console depuis le bureau seulement/);
+    expect(await section.getByRole('button', { name: 'Ajouter une adresse…' }).count()).toBe(1);
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-adresses-liste.png') });
+
+    // Le support lit la liste, sans aucun geste.
+    const s2 = await console_(jS, 'pilotage');
+    const sect2 = s2.locator('section[aria-labelledby="rg-adresses-console"]');
+    await sect2.waitFor({ timeout: 15_000 });
+    expect(await sect2.getByRole('button', { name: /^(Ajouter|Retirer|Limiter)/ }).count()).toBe(0);
+    expect(net(await sect2.innerText())).toContain('seul le titulaire de la console (Amira Réglages) pilote le site');
+    await fermer(s2);
+
+    // L'adresse change (une box changée) : la session déjà ouverte est refusée, et l'écran dit pourquoi et comment rouvrir.
+    await admin.query("update plateforme.adresse_console set plage = '10.9.8.7/32'");
+    await p.reload();
+    await expect.poll(async () => net(await p.locator('body').innerText().catch(() => '')), { timeout: 20_000 })
+      .toMatch(/La console ne s'ouvre pas depuis cette adresse \(.+\) : son titulaire l'a limitée à ses connexions\./);
+    expect(net(await p.locator('body').innerText())).toContain('node base/equipe.ts adresses-ouvrir');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-adresses-refusee.png') });
+
+    // La commande du serveur rouvre la console ; la page le dit dans l'historique.
+    expect(await ouvrirAdresses(admin, 'Essai adresse : la box a changé')).toBe(1);
+    const q = await console_(jD, 'pilotage');
+    const sect3 = q.locator('section[aria-labelledby="rg-adresses-console"]');
+    await sect3.waitFor({ timeout: 15_000 });
+    expect(net(await sect3.locator('.c-pil-histo').innerText())).toMatch(/Depuis le serveur Rouverte depuis le serveur 10\.9\.8\.7 Essai adresse : la box a changé .+ Adresse ajoutée (127\.0\.0\.1|::1) Essai/);
+
+    // Retirer la dernière : la fenêtre dit que la console s'ouvre de nouveau de partout.
+    await admin.query(`insert into plateforme.adresse_console (plage, nom, motif, le) values ($1::inet, 'Bureau', 'Essai adresse', now())`, [monIp]);
+    await q.reload();
+    const sect4 = q.locator('section[aria-labelledby="rg-adresses-console"]');
+    await sect4.waitFor({ timeout: 15_000 });
+    await cliquer(sect4.getByRole('button', { name: `Retirer l'adresse ${monIp}` }));
+    const g = q.getByRole('dialog');
+    expect(net(await g.locator('.c-al-ce-qui-va').innerText())).toContain('C\'est la dernière : la liste est vide, et la console s\'ouvre de nouveau de partout.');
+    await g.locator('textarea').fill('Essai adresse : retour à l\'ouverture');
+    await cliquer(g.getByRole('button', { name: 'Retirer cette adresse' }));
+    await expect.poll(async () => net(await sect4.innerText().catch(() => '')), { timeout: 15_000 }).toContain('Aucune adresse : la console s\'ouvre de partout.');
+    expect(net(await sect4.locator('.c-pil-histo').innerText())).toMatch(/Adresse retirée .+ Essai adresse : retour à l'ouverture/);
+    expect(erreurs).toEqual([]);
+    await fermer(q);
+    await fermer(p);
+    await admin.query('delete from plateforme.adresse_console');
   }, 120_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {

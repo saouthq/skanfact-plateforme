@@ -111,6 +111,8 @@ describe('les réglages à distance (base et serveur)', () => {
   const poser = (cle: string, valeur: number | null, motif: string, jeton = amira.console) => appeler('POST', '/console/reglages-distants', jeton, { cle, valeur, motif });
 
   it('changer, refuser hors des bornes, freiner pour de vrai, revenir à l\'origine', async () => {
+    // Le journal se lit depuis le début de CE test : un autre fichier (le parcours à la souris) en pose aussi.
+    const debut = (await admin.query('select now() t')).rows[0]?.t as Date;
     // Le support lit (la liste et les valeurs d'origine), ne change rien ; un motif court, une clé inconnue, une valeur hors
     // des bornes, une origine déjà là : refusés.
     const lu0 = (await appeler('GET', '/console/reglages-distants', karim.console)).corps as { titulaire: boolean; reglages: { cle: string }[]; changes: Record<string, unknown> };
@@ -145,7 +147,7 @@ describe('les réglages à distance (base et serveur)', () => {
     entree.regler({ capacite: 3, parSeconde: 1 });
     await reglerLesLimites(ctx, entree, api);
     expect(entree.limite).toBe(LIMITES_PAR_ADRESSE.capacite);
-    const journal = (await admin.query("select geste from plateforme.geste_console where geste like 'reglages.distant%' and motif like 'Essai réglage%' order by le, id")).rows.map((r) => r.geste);
+    const journal = (await admin.query("select geste from plateforme.geste_console where geste like 'reglages.distant%' and motif in ('Essai réglage rafale', 'Essai réglage retour') and le >= $1 order by le, id", [debut])).rows.map((r) => r.geste);
     expect(journal).toEqual(['reglages.distant', 'reglages.distant_origine']);
   });
 

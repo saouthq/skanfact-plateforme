@@ -41,6 +41,8 @@ declarerTextes({
   'geste.console.version_minimale.poser': 'imposer la version en ligne aux écrans, ou retirer ce minimum',
   'geste.console.reglages_distants.voir': 'voir les réglages à distance (limites et délais)',
   'geste.console.reglages_distants.poser': 'changer un réglage à distance, ou le ramener à son origine',
+  'geste.console.adresses.voir': 'voir les adresses d\'où la console s\'ouvre',
+  'geste.console.adresses.poser': 'ajouter ou retirer une adresse d\'où la console s\'ouvre',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
   'geste.console.support.voir': 'lire les demandes de support',

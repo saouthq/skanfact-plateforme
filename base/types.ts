@@ -650,6 +650,14 @@ export interface BaseDeDonnees {
     levee_par: string | null;
     levee_motif: string | null;
   };
+  'plateforme.adresse_console': {
+    id: Generated<bigint>;
+    plage: string;
+    nom: string;
+    motif: string;
+    le: Date;
+    par: string | null;
+  };
   'plateforme.adresse_vue': {
     adresse: string;
     heure: Date;

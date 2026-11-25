@@ -109,6 +109,8 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.version_minimale.poser', roles: [D], ecrit: true },
   { code: 'console.reglages_distants.voir', roles: [D, S, T], ecrit: false },
   { code: 'console.reglages_distants.poser', roles: [D], ecrit: true },
+  { code: 'console.adresses.voir', roles: [D, S, T], ecrit: false },
+  { code: 'console.adresses.poser', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

@@ -82,6 +82,7 @@ import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
 import { BUDGETS } from '../service/mesures.ts';
+import { refusAdresseConsole } from '../adresses-console.ts';
 import { GESTES_CONSOLE, LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
 import { instantane, PERIME_MS } from './instantane.ts';
 import './textes.ts';
@@ -299,6 +300,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       appareil: z.object({ id: uuid.optional(), nom: z.string().min(1).max(80), type: z.enum(['navigateur', 'bureau', 'telephone']) }),
     }),
     traiter: async ({ corps, requete }) => {
+      // (1.388.79, 0234) Depuis une adresse que le titulaire n'a pas choisie, la console ne teste même pas le mot de passe.
+      const horsAdresse = await refusAdresseConsole(ctx, requete.ip);
+      if (horsAdresse) return { statut: 403, corps: { etat: 'refuse', ...horsAdresse } };
       const r = await connecterConsole(ctx, { email: corps.email, motDePasse: corps.motDePasse, ip: requete.ip,
         appareil: { nom: corps.appareil.nom, type: corps.appareil.type, ...(corps.appareil.id ? { id: corps.appareil.id } : {}) } });
       return { statut: r.etat === 'refuse' ? 401 : r.etat === 'attendre' ? 429 : 200, corps: r };
@@ -308,6 +312,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'POST', chemin: '/console/connexion/code', geste: 'public',
     corps: z.object({ defi: uuid, code: z.string().min(1).max(20) }),
     traiter: async ({ corps, requete }) => {
+      const horsAdresse = await refusAdresseConsole(ctx, requete.ip);
+      if (horsAdresse) return { statut: 403, corps: { etat: 'refuse', ...horsAdresse } };
       const r = await validerCodeConsole(ctx, { defi: corps.defi, code: corps.code, ip: requete.ip });
       return { statut: r.etat === 'connecte' ? 200 : r.etat === 'attendre' ? 429 : 401, corps: r };
     },
@@ -315,7 +321,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   ajouter({
     methode: 'POST', chemin: '/console/connexion/code/renvoyer', geste: 'public',
     corps: z.object({ defi: uuid }),
-    traiter: async ({ corps }) => {
+    traiter: async ({ corps, requete }) => {
+      const horsAdresse = await refusAdresseConsole(ctx, requete.ip);
+      if (horsAdresse) return { statut: 403, corps: horsAdresse };
       const r = await renvoyerCodeConsole(ctx, corps.defi);
       return r.ok ? { statut: 202, corps: { ok: true } } : { statut: 409, corps: { motif: r.motif } };
     },

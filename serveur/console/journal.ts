@@ -22,6 +22,8 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^modules\./, 'console.modules.poser'],
   [/^clients\.arrivee_/, 'console.clients.arrivee'],
   [/^journal\.exporte$/, 'console.journal.exporter'],
+  // Les adresses de la console (1.388.79, 0234) : le titulaire seul ajoute et retire ; la commande du serveur rouvre.
+  [/^console\.(adresse_ajoutee|adresse_retiree|adresses_ouvertes)$/, 'console.adresses.poser'],
   // Les demandes d'effacement (0144) : le support et la direction notent ; la direction seule décide et efface.
   [/^donnees\.effacement_note$/, 'console.donnees.noter'],
   [/^donnees\./, 'console.donnees.decider'],

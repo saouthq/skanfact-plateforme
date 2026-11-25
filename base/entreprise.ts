@@ -197,6 +197,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.nouveaute_entreprise': { classe: 'hors', raison: 'les nouveautés que SkanFact allume pour une entreprise volontaire (0120) : un réglage de la plateforme ; remise ailleurs, l\'entreprise repart sans' },
   'plateforme.lecture_seule': { classe: 'hors', raison: 'la lecture seule générale posée par la console (0230) : un réglage de la plateforme, commun à tous les clients' },
   'plateforme.reglage_distant': { classe: 'hors', raison: 'les réglages à distance posés par la console (0232) : des chiffres du serveur, communs à tous les clients' },
+  'plateforme.adresse_console': { classe: 'hors', raison: 'les adresses d\'où la console s\'ouvre (0234) : un réglage de la plateforme, qui ne part avec aucune entreprise' },
   'plateforme.version_minimale': { classe: 'hors', raison: 'la version minimale imposée aux écrans par la console (0231) : un réglage de la plateforme, commun à tous les clients' },
   'plateforme.module_etat': { classe: 'hors', raison: 'l\'état des modules posé par la console (0226) : un réglage de la plateforme ; remise ailleurs, l\'entreprise repart sans exception' },
   'plateforme.nouveaute_tous': { classe: 'hors', raison: 'les nouveautés ouvertes à toutes les entreprises (0120) : communes à la plateforme' },

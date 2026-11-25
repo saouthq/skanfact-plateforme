@@ -16,7 +16,7 @@ données, le message de maintenance par module, le titulaire (1.388.69 → 1.388
 | 6 | Version minimale imposée | recharger les écrans trop anciens après une correction importante | fait (1.388.76) |
 | 7 | Réglages à distance | limites, textes, délais changés sans nouvelle version | fait (1.388.77) |
 | 8 | Droits par offre | quels modules chaque offre ouvre, réglés depuis la console | fait (1.388.78) |
-| 9 | Console limitée à des adresses IP | la console ne s'ouvre que depuis les connexions du titulaire | à faire |
+| 9 | Console limitée à des adresses IP | la console ne s'ouvre que depuis les connexions du titulaire | fait (1.388.79) |
 | 10 | Historique et annulation | chaque changement d'état revu, et « revenir à l'état d'avant » d'un clic | fait (1.388.71) |
 
 Ordre retenu : 10, 3 et 4 (ils partagent la même table), 2, 1, 5, 6, 7, 8, 9. Une version par point, testée à l'écran avec

@@ -131,11 +131,30 @@ export async function titulaire(client: Client, email: string, motif: string): P
   }
 }
 
+// (1.388.79, 0234) Rouvrir la console à toutes les adresses, depuis le serveur : quand toutes les connexions du titulaire
+// ont changé (une box changée, une autre adresse donnée par le fournisseur d'accès), la console elle-même ne s'ouvre plus
+// pour la rouvrir. La liste est vidée ; le geste reste au journal, avec son motif.
+export async function ouvrirAdresses(client: Client, motif: string): Promise<number> {
+  if (motif.trim().length < 3) throw new Error('un geste sur la console demande son motif (trois caractères au moins) : il reste dans le journal');
+  await client.query('begin');
+  try {
+    const avant = (await client.query('select plateforme.plage_lisible(plage) plage, nom from plateforme.adresse_console order by le, id for update')).rows as { plage: string; nom: string }[];
+    await client.query('delete from plateforme.adresse_console');
+    await client.query(`insert into plateforme.geste_console (geste, motif, avant, apres) values ('console.adresses_ouvertes', $1, $2, null)`,
+      [motif.trim(), JSON.stringify({ adresses: avant })]);
+    await client.query('commit');
+    return avant.length;
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [geste = '', ...reste] = process.argv.slice(2);
   const adresse = process.env.PG_ADMIN;
-  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>" | urgence <adresse> "<motif>" | titulaire <adresse> "<motif>"';
-  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : (geste === 'retirer' || geste === 'urgence' || geste === 'titulaire') && reste.length === 2;
+  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>" | urgence <adresse> "<motif>" | titulaire <adresse> "<motif>" | adresses-ouvrir "<motif>"';
+  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : (geste === 'retirer' || geste === 'urgence' || geste === 'titulaire') ? reste.length === 2 : geste === 'adresses-ouvrir' && reste.length === 1;
   if (!adresse || !valable) { console.error(USAGE); process.exit(1); }
   const client = new pg.Client({ connectionString: adresse });
   await client.connect();
@@ -152,6 +171,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (geste === 'urgence') {
       const jusqua = await urgence(client, reste[0] ?? '', reste[1] ?? '');
       console.log(`Fait. Jusqu'au ${jusqua.toISOString().slice(0, 16).replace('T', ' ')} (UTC), une fois : la personne se connecte à la console avec son mot de passe, puis pose un nouveau code (une application d'authentification) ; l'ancien et ses codes de secours cesseront de valoir. Ses sessions de la console sont fermées.`);
+    } else if (geste === 'adresses-ouvrir') {
+      const n = await ouvrirAdresses(client, reste[0] ?? '');
+      console.log(n ? `Fait. ${n === 1 ? 'L\'adresse est retirée' : `Les ${n} adresses sont retirées`} : la console s'ouvre de nouveau depuis toutes les adresses (avec le mot de passe et le code). Pose les nouvelles dans Réglages › Pilotage du site.` : 'Rien à faire : la console s\'ouvrait déjà depuis toutes les adresses.');
     } else if (geste === 'titulaire') {
       await titulaire(client, reste[0] ?? '', reste[1] ?? '');
       console.log('Fait. Cette personne est le titulaire de la console : elle seule pilote les modules.');

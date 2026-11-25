@@ -32392,6 +32392,43 @@ prouver "la grille des droits se recompose quand un changement est préparé" we
   ".c-rg-droits-grille { table-layout: fixed; } .c-rg-droits-grille th:nth-child(2), .c-rg-droits-grille th:nth-child(3) { width: 12rem; }" "" \
   "1.388.78 : les droits par offre — le titulaire retire le stock d'Essentiel à une date, le client le lit sur sa carte, le support lit sans geste, puis retiré"
 
+# 1.388.79 — Les adresses de la console (pilotage, point 9 ; base 0234).
+prouver "une liste vide ferme la console au lieu de l'ouvrir" base/migrations/0234_adresses_console.sql \
+  "  if not exists (select 1 from plateforme.adresse_console) then return true; end if;" "" \
+  "sans adresse, la console s'ouvre de partout ; la page dit d'où l'on parle"
+prouver "la direction pose une adresse sans être titulaire" base/migrations/0234_adresses_console.sql \
+  $'  v_id bigint;\nbegin\n  perform pg_advisory_xact_lock(hashtext(\'plateforme.adresse_console\'));\n  if not plateforme.suis_titulaire_console() then' \
+  $'  v_id bigint;\nbegin\n  perform pg_advisory_xact_lock(hashtext(\'plateforme.adresse_console\'));\n  if false then' \
+  "seul le titulaire pose une adresse, avec un motif ; une plage qui contient tout internet est refusée"
+prouver "une plage qui contient tout internet est acceptée" base/migrations/0234_adresses_console.sql \
+  "  if masklen(v_plage) = 0 then perform socle.refus('cette plage contient tout internet : vide plutôt la liste'); end if;" "" \
+  "seul le titulaire pose une adresse, avec un motif ; une plage qui contient tout internet est refusée"
+prouver "une adresse abrégée (197.15.20) passe pour une plage" base/migrations/0234_adresses_console.sql \
+  "    v_plage := network(btrim(coalesce(p_plage, ''))::inet);" "    v_plage := btrim(coalesce(p_plage, ''))::cidr;" \
+  "seul le titulaire pose une adresse, avec un motif ; une plage qui contient tout internet est refusée"
+prouver "une plage écrite depuis une de ses adresses est refusée" base/migrations/0234_adresses_console.sql \
+  "    v_plage := network(btrim(coalesce(p_plage, ''))::inet);" "    v_plage := btrim(coalesce(p_plage, ''))::cidr;" \
+  "une plage laisse entrer ses adresses ; on ne retire pas l'adresse qui nous laisse entrer tant qu'une autre ne le fait pas"
+prouver "la première adresse ferme la console à son titulaire" base/migrations/0234_adresses_console.sql \
+  "  if not exists (select 1 from plateforme.adresse_console) and (v_ici is null or not v_plage >>= v_ici) then" "  if false then" \
+  "la première adresse doit contenir celle d'où l'on parle : la console ne ferme jamais la porte à son titulaire"
+prouver "on retire l'adresse qui nous laisse entrer" base/migrations/0234_adresses_console.sql \
+  "  if exists (select 1 from plateforme.adresse_console a where a.id <> p_id)" "  if false" \
+  "une plage laisse entrer ses adresses ; on ne retire pas l'adresse qui nous laisse entrer tant qu'une autre ne le fait pas"
+prouver "une session ouverte passe depuis n'importe quelle adresse" serveur/app.ts \
+  "          if (horsAdresse) return envoyer(403, { ...horsAdresse, qui: [], bouton: null });" "" \
+  "depuis une autre adresse : une session déjà ouverte et la connexion sont refusées, en le disant ; l'application des clients passe"
+prouver "la connexion à la console passe depuis n'importe quelle adresse" serveur/console/routes.ts \
+  $'la console ne teste même pas le mot de passe.\n      const horsAdresse = await refusAdresseConsole(ctx, requete.ip);\n      if (horsAdresse) return' \
+  $'la console ne teste même pas le mot de passe.\n      const horsAdresse = await refusAdresseConsole(ctx, requete.ip);\n      if (false) return' \
+  "depuis une autre adresse : une session déjà ouverte et la connexion sont refusées, en le disant ; l'application des clients passe"
+prouver "la commande du serveur ne rouvre pas la console" base/equipe.ts \
+  "    await client.query('delete from plateforme.adresse_console');" "" \
+  "la commande du serveur rouvre la console si toutes les adresses ont changé, et le journal le garde"
+prouver "un refus sur le motif reste affiché une fois le motif tapé" web/console/src/ecrans/Pilotage.tsx \
+  "  const setMotif = (v: string) => { setMotifBrut(v); setRefus(null); setFaute(0); };" "  const setMotif = (v: string) => { setMotifBrut(v); };" \
+  "1.388.79 : les adresses de la console — le titulaire la limite à son adresse, le support lit sans geste, une autre adresse est refusée en le disant, la commande du serveur la rouvre"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

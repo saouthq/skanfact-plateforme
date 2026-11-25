@@ -12,6 +12,7 @@ import { brancherFermeture } from './fermeture.ts';
 import { ecritPendantLectureSeule, lireLectureSeule, refusLectureSeule } from './lecture-seule.ts';
 import { refusVersionMinimale } from './version-minimale.ts';
 import { reglerLesLimites } from './reglages-distants.ts';
+import { refusAdresseConsole } from './adresses-console.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
@@ -267,6 +268,10 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         // sans repousser son inaction (0114).
         const gesteConsole = GESTES_CONSOLE.get(r.geste);
         if (gesteConsole) {
+          // (1.388.79, 0234) La console limitée à des adresses : une session ouverte ailleurs ne sert plus depuis une
+          // autre adresse. Avant même de lire la session : rien ne se fait depuis une adresse refusée.
+          const horsAdresse = await refusAdresseConsole(ctx, requete.ip);
+          if (horsAdresse) return envoyer(403, { ...horsAdresse, qui: [], bouton: null });
           const qc = jeton ? await quiEstConsole(ctx, jeton, requete.headers['x-console-auto'] !== '1') : null;
           if (!qc) return envoyer(401, { motif: motif('console.connexion_requise'), bouton: 'console.connexion' });
           if (!gesteConsole.roles.includes(qc.role)) {

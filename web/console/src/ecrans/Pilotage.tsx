@@ -7,11 +7,13 @@
 // rechargent avant d'enregistrer.
 // (1.388.77, point 7, base 0232) Les réglages à distance : des limites et des délais du serveur, changés sans nouvelle
 // version, dans des bornes que le code fixe.
+// (1.388.79, point 9, base 0234) Les adresses de la console : elle ne s'ouvre que depuis les connexions que le titulaire
+// choisit ; tant que la liste est vide, de partout.
 import { useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { heureDe, jourCourt, jourDe } from '../temps.ts';
-import { Alerte, Bouton, Champ, Dialogue, Zone, toast } from '../ui.tsx';
+import { Alerte, Bouton, Champ, Dialogue, Puce, Zone, toast } from '../ui.tsx';
 import { entier } from '../nombres.ts';
 
 const K = 'console.ecran.pilotage';
@@ -542,6 +544,155 @@ function ReglagesDistants() {
   );
 }
 
+// ── Les adresses de la console (point 9 ; base 0234) ───────────────────────────────────────────────────────────────────
+type Adresse = { id: number; plage: string; nom: string; motif: string; le: string; par: string | null; contientIci: boolean };
+type GesteAd = { id: string; le: string; geste: string; motif: string; par: string | null; avant: { plage?: string; nom?: string; adresses?: { plage: string; nom: string }[] } | null; apres: { plage?: string; nom?: string } | null };
+type DonneesAd = { titulaire: boolean; nomTitulaire: string | null; ici: string; iciPermise: boolean; adresses: Adresse[]; historique: GesteAd[] };
+type GesteAdresse = { sorte: 'ajouter'; plage: string; nom: string } | { sorte: 'retirer'; a: Adresse };
+
+function FenetreAdresse({ g, d, fermer, fait }: { g: GesteAdresse; d: DonneesAd; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const ajout = g.sorte === 'ajouter';
+  const [plage, setPlageBrute] = useState(ajout ? g.plage : '');
+  const [nom, setNomBrut] = useState(ajout ? g.nom : '');
+  const [motif, setMotifBrut] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  // Un refus se lit pour ce qui l'a fait : changer l'adresse, le nom ou le motif l'efface.
+  const setPlage = (v: string) => { setPlageBrute(v); setRefus(null); };
+  const setNom = (v: string) => { setNomBrut(v); setRefus(null); };
+  const setMotif = (v: string) => { setMotifBrut(v); setRefus(null); setFaute(0); };
+  const premiere = ajout && d.adresses.length === 0;
+  const faire = () => {
+    if (ajout && !plage.trim()) { setRefus(phrase(`${K}.ad.g.plage_vide`)); return; }
+    if (ajout && !nom.trim()) { setRefus(phrase(`${K}.ad.g.nom_vide`)); return; }
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((x) => x + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = ajout ? await api('POST', '/console/adresses', { plage: plage.trim(), nom: nom.trim(), motif: motif.trim() })
+          : await api('POST', '/console/adresses/retirer', { id: g.a.id, motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 201 || res.statut === 200) { toast(phrase(ajout ? `${K}.ad.fait_ajout` : `${K}.ad.fait_retrait`, { plage: ajout ? plage.trim() : g.a.plage })); fait(); return; }
+        setRefus(refusDe(res));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(ajout ? `${K}.ad.g.titre_ajout` : `${K}.ad.g.titre_retrait`, ajout ? {} : { plage: g.a.plage })} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={faire}>{titre(ajout ? `${K}.ad.g.bouton_ajout` : `${K}.ad.g.bouton_retrait`)}</Bouton>
+      </>}>
+      {ajout ? (
+        <div className="c-rg-dates">
+          <Champ libelle={titre(`${K}.ad.g.plage`)} valeur={plage} changer={setPlage} premier autoComplete="off" faute={!!refus && !plage.trim()}
+            aide={phrase(`${K}.ad.g.plage_aide`, { ici: d.ici || '—' })} />
+          <Champ libelle={titre(`${K}.ad.g.nom`)} valeur={nom} changer={setNom} autoComplete="off" faute={!!refus && !nom.trim()}
+            aide={phrase(`${K}.ad.g.nom_aide`)} />
+        </div>
+      ) : <p>{phrase(`${K}.ad.g.retrait_qui`, { nom: g.a.nom, plage: g.a.plage })}</p>}
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>
+          {ajout ? <>
+            <li><b>{phrase(premiere ? `${K}.ad.g.va.premiere` : `${K}.ad.g.va.ajout`)}</b></li>
+            <li>{phrase(`${K}.ad.g.va.session`)}</li>
+            <li>{phrase(`${K}.ad.g.va.change`)}</li>
+          </> : <>
+            <li><b>{phrase(d.adresses.length === 1 ? `${K}.ad.g.va.derniere` : `${K}.ad.g.va.retrait`)}</b></li>
+            <li>{phrase(`${K}.ad.g.va.garde`)}</li>
+          </>}
+          <li>{phrase(`${K}.ad.g.va.secours`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.ls.g.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function AdressesConsole() {
+  const [l, relire] = useLecture<DonneesAd>('/console/adresses', 'adresses-console');
+  const [geste, setGeste] = useState<GesteAdresse | null>(null);
+  if (l.etat === 'panne') return <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>;
+  if (l.etat !== 'lu') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
+  const d = l.donnees;
+  const peut = d.titulaire;
+  const vide = d.adresses.length === 0;
+  return (
+    <section className="c-carte c-rg" aria-labelledby="rg-adresses-console">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="rg-adresses-console">{titre(`${K}.ad.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.ad.sous`)}</p>
+        </div>
+        {peut && !vide ? <Bouton icone="plus" onClick={() => setGeste({ sorte: 'ajouter', plage: '', nom: '' })}>{titre(`${K}.ad.ajouter`)}</Bouton> : null}
+      </div>
+      {peut ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.reserve`, { nom: d.nomTitulaire ?? '—' })}</span></Alerte>}
+      <div className="c-pil-ici">
+        <span className="c-champ-libelle">{titre(`${K}.ad.ici`)}</span>
+        <b className="c-mono" data-donnee>{d.ici || '—'}</b>
+        <Puce ton={vide ? 'hors' : d.iciPermise ? 'actif' : 'urgent'}>{titre(vide ? `${K}.ad.ici_libre` : d.iciPermise ? `${K}.ad.ici_permise` : `${K}.ad.ici_refusee`)}</Puce>
+      </div>
+      {vide ? (
+        <div className="c-pil-vide">
+          <p>{phrase(`${K}.ad.vide`)}</p>
+          {peut ? <Bouton ton="principal" onClick={() => setGeste({ sorte: 'ajouter', plage: d.ici, nom: '' })}>{titre(`${K}.ad.limiter`)}</Bouton> : null}
+        </div>
+      ) : (
+        <div className="c-defile">
+          <table className="c-table c-pil-adresses">
+            <thead><tr>
+              <th scope="col">{titre(`${K}.ad.col.adresse`)}</th>
+              <th scope="col">{titre(`${K}.ad.col.nom`)}</th>
+              <th scope="col">{titre(`${K}.ad.col.pose`)}</th>
+              {peut ? <th scope="col"><span className="c-cache">{titre(`${K}.ad.col.geste`)}</span></th> : null}
+            </tr></thead>
+            <tbody>
+              {d.adresses.map((a) => (
+                <tr key={a.id} data-adresse={a.plage}>
+                  <td><b className="c-mono" data-donnee>{a.plage}</b>{a.contientIci ? <span className="c-sous c-bloc">{titre(`${K}.ad.la_tienne`)}</span> : null}</td>
+                  <td><b>{a.nom}</b><span className="c-sous c-bloc" data-donnee>« {a.motif} »</span></td>
+                  <td>{leJour(a.le)}<span className="c-sous c-bloc">{a.par ?? '—'}</span></td>
+                  {peut ? <td className="c-pil-geste"><Bouton petit onClick={() => setGeste({ sorte: 'retirer', a })} etiquette={titre(`${K}.ad.retirer_aria`, { plage: a.plage })}>{titre(`${K}.ad.retirer`)}</Bouton></td> : null}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="c-sous">{phrase(`${K}.ad.note`)}</p>
+      <h3 className="c-mod-h-titre">{titre(`${K}.rd.h.section`)}</h3>
+      {d.historique.length ? (
+        <div className="c-defile">
+          <table className="c-table c-pil-histo">
+            <thead><tr>
+              <th scope="col">{titre(`${K}.vm.h.col.quand`)}</th>
+              <th scope="col">{titre(`${K}.vm.h.col.quoi`)}</th>
+              <th scope="col">{titre(`${K}.vm.h.col.motif`)}</th>
+            </tr></thead>
+            <tbody>
+              {d.historique.map((g) => (
+                <tr key={g.id}>
+                  <td>{leJour(g.le)}<span className="c-sous c-bloc">{g.par ?? titre(`${K}.ad.h.serveur`)}</span></td>
+                  <td><b>{titre(`${K}.ad.h.${g.geste === 'console.adresse_ajoutee' ? 'ajoutee' : g.geste === 'console.adresse_retiree' ? 'retiree' : 'ouvertes'}`)}</b>
+                    <span className="c-sous c-bloc c-mono">{g.apres?.plage ?? g.avant?.plage ?? (g.avant?.adresses ?? []).map((x) => x.plage).join(', ')}</span></td>
+                  <td>{g.motif}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="c-sous c-mod-h-vide">{phrase(`${K}.ad.h.vide`)}</p>}
+      {geste ? <FenetreAdresse g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
+    </section>
+  );
+}
+
 export function Pilotage() {
-  return <><LectureSeule /><VersionMinimale /><ReglagesDistants /></>;
+  return <><LectureSeule /><VersionMinimale /><ReglagesDistants /><AdressesConsole /></>;
 }

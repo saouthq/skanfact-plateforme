@@ -36,6 +36,8 @@ const TYPES: Record<string, string> = {
   jsonb: 'Json',
   // Le contenu d'un fichier joint à un message (lot messagerie, 0078) : lu en octets, tel quel.
   bytea: 'Buffer',
+  // Une adresse ou une plage (les adresses de la console, 0234) : lue en texte, « 197.15.20.0/24 ».
+  cidr: 'string',
 };
 
 type Colonne = { schema: string; table: string; colonne: string; type: string; tableau: boolean; requis: boolean; defaut: boolean; generee: boolean; vue: boolean };

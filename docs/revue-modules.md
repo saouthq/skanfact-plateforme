@@ -7538,3 +7538,31 @@ gens qui ont du stock : si on désactive, ils ne pourront plus rien voir, attent
   d'Essentiel ne promet plus le stock ou la banque quand ils n'y sont pas.
 - Base : migration 0233 (`contenu_offre` accepte `stock` et `pilotage` ; `contenu_du_jour`, `contenu_histoire`,
   `console_preparer_contenu` et `console_retirer_contenu` les connaissent ; les lignes « module » réservées au titulaire).
+
+## 1.388.79 — Les adresses de la console (pilotage, point 9)
+
+Skander, 25/11/2026 : « la console ne s'ouvre que depuis les connexions du titulaire ».
+
+- **Dans la console, Réglages › Pilotage du site › « Les adresses de la console »** : l'adresse d'où l'on parle en ce
+  moment, puis la liste des adresses (ou des plages, comme 197.15.20.0/24) d'où la console s'ouvre, chacune avec son nom
+  (« Maison », « Bureau »), son motif, qui l'a posée et quand. **Tant que la liste est vide, la console s'ouvre de
+  partout**, avec le mot de passe et le code, comme avant : rien ne change le jour de la mise à jour.
+- **« Limiter à mon adresse actuelle… »** porte déjà l'adresse du moment ; « Ajouter une adresse… » en pose d'autres.
+  La fenêtre dit ce qui va se passer, et la commande de secours.
+- **La console ne ferme jamais la porte à son titulaire** : la première adresse doit contenir la sienne, et on ne
+  retire pas l'adresse qui le laisse entrer tant qu'aucune autre ne le fait (retirer la dernière vide la liste : la
+  console s'ouvre de nouveau de partout). Une plage qui contient tout internet est refusée ; une adresse abrégée
+  (« 197.15.20 ») aussi ; une plage écrite depuis une de ses adresses se ramène à son début.
+- **Depuis une autre adresse**, la connexion à la console (mot de passe, code, renvoi du code) et chaque geste d'une
+  session déjà ouverte sont refusés, avec une phrase qui donne l'adresse vue et la façon de rouvrir. Le mot de passe
+  n'est même pas essayé. **L'application des clients n'est jamais touchée.**
+- **Si toutes les adresses changent** (une box changée, un nouveau fournisseur d'accès) : sur le serveur,
+  `node base/equipe.ts adresses-ouvrir "<motif>"` vide la liste et laisse une ligne au journal (« Rouverte depuis le
+  serveur »). La page conseille de garder deux adresses, ou une plage.
+- Le titulaire seul ajoute et retire ; la direction, le support et la technique lisent la liste. Vingt adresses au plus.
+- Base : migration 0234 (`plateforme.adresse_console`, `adresse_console_permise`, `console_ajouter_adresse`,
+  `console_retirer_adresse`, `console_adresses`, `plage_lisible`). Serveur : `serveur/adresses-console.ts`, le contrôle
+  avant la lecture de la session (`serveur/app.ts`) et aux trois routes de l'entrée de la console. L'adresse lue est
+  celle de la requête, derrière les relais déclarés : la même que celle des limites d'appels.
+- Tests : `tests/modules/adresses-console.test.ts` (6), le parcours à la souris dans `tests/web/console-reglages.test.ts`
+  (captures `console-adresses*.png`), onze preuves.

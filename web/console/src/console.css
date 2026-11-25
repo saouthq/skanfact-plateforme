@@ -3467,3 +3467,10 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pil-valeur .c-pil-unite { padding-block-end: 10px; color: var(--c-doux-texte); }
 .c-pil-valeur .c-pil-bornes { grid-column: 1 / -1; margin: 0; }
 .c-pil-textes { margin: 12px 0 4px; }
+/* Les adresses de la console (1.388.79) : l'adresse d'où l'on parle, puis la liste. */
+.c-pil-ici { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin-block: 4px 14px; }
+.c-pil-ici b.c-mono { font-size: 15px; }
+.c-pil-vide { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; padding: 14px 16px; border-radius: 12px; background: var(--c-gris-doux); margin-block-end: 12px; }
+.c-pil-vide p { flex: 1 1 320px; min-width: 0; margin: 0; }
+.c-pil-adresses td { vertical-align: top; }
+.c-pil-adresses .c-pil-geste { text-align: end; width: 1%; }
