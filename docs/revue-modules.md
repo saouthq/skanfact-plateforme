@@ -7415,3 +7415,19 @@ Skander, 25/11/2026 : « une case "je veux essayer les nouveautés" chez le clie
   (volontaires) » est refusé chez qui n'est pas volontaire, comme un module à venir.
 - Base : migration 0228 (`entreprise.volontaire_beta`, `poser_volontaire_beta`, l'état `volontaires`,
   `console_volontaires`).
+
+## 1.388.74 — L'ouverture progressive (pilotage, point 1)
+
+Skander, 25/11/2026 : « ouvrir un module à 10 %, 50 %, 100 % des entreprises ».
+
+- **Un sixième état dans la console : « Progressif »**, avec sa part (10, 25, 50 ou 75 %). Chaque entreprise a, pour
+  chaque module, un rang stable de 0 à 99 tiré de l'empreinte du module et de l'entreprise : sous la part, elle a le
+  module en bêta ; au-dessus, elle le voit « à venir » (en pause chez qui y a déjà des données). Monter de 10 à 50 %
+  garde les 10 % du début ; les volontaires de la bêta (1.388.73) l'ont toujours. Pour aller à 100 %, on passe en
+  « Ouvert » ou « Bêta ».
+- La fenêtre dit, pour chaque part, combien d'entreprises l'auront (« 12 entreprises sur 48 »), volontaires compris ; la
+  pastille porte la part (« Progressif · 25 % »), dans le tableau comme dans l'historique.
+- Une ouverture progressive porte sur l'ensemble : elle ne se propose pas pour une seule entreprise.
+- Le même tirage vit dans la base (`plateforme.rang_module`) et dans le serveur (`rangModule`) ; un test les confronte
+  sur deux cents entreprises, et vérifie qu'une part de 50 % en prend à peu près la moitié.
+- Base : migration 0229 (`part`, `rang_module`, `console_progressif`).

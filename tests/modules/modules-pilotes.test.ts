@@ -16,7 +16,7 @@ import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
-import { etatModule, listesModules, moduleUtilisable, MODULES_PILOTES } from '../../serveur/modules-pilotes.ts';
+import { etatModule, listesModules, moduleUtilisable, MODULES_PILOTES, rangModule } from '../../serveur/modules-pilotes.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
@@ -114,7 +114,7 @@ describe('la console pose l\'état d\'un module', () => {
     expect((lu.corps.entreprise as Corps).nom).toBe('Boulangerie des essais modules');
     expect((lu.corps.poses as Corps[]).find((p) => p.entreprise === ent)).toMatchObject({ module: 'caisse', etat: 'ouvert', motif: 'La boulangerie pilote', par: amira.nom });
     const geste = (await admin.query(`select avant, apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
-    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur', message: null }, apres: { module: 'caisse', etat: 'ouvert', message: null, debut: null, fin: null } });
+    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur', message: null, part: null }, apres: { module: 'caisse', etat: 'ouvert', message: null, debut: null, fin: null, part: null } });
     // /moi : l'entreprise porte ses propres listes, sans motif ni auteur.
     const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[] } }[] };
     expect(moi.entreprises.find((e) => e.id === ent)?.modules.aVenir).not.toContain('caisse');
@@ -317,5 +317,56 @@ describe('1.388.73 : les volontaires de la bêta (Skander : « la bêta s\'ouvre
     expect(await garde(entA)).toBe('a_venir');
     const traces = (await admin.query(`select apres from socle.audit where entreprise = $1 and geste = 'socle.volontaire_beta' order by instant, id`, [entA])).rows.map((r) => r.apres.volontaire);
     expect(traces).toEqual([true, false]);
+  });
+});
+
+describe('1.388.74 : l\'ouverture progressive (Skander : « ouvrir un module à 10 %, 50 %, 100 % »)', () => {
+  it('le rang d\'une entreprise est stable, le même en TypeScript et dans la base, et se répartit sur 0..99', async () => {
+    const ids = Array.from({ length: 200 }, (_, i) => `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`);
+    const base = (await admin.query('select id::text, plateforme.rang_module($1, id) r from unnest($2::uuid[]) id', ['paie', ids])).rows as { id: string; r: number }[];
+    for (const l of base) expect(rangModule('paie', l.id)).toBe(l.r);
+    const r = base.map((l) => l.r);
+    expect(Math.min(...r)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...r)).toBeLessThan(100);
+    // Une part de 50 % prend à peu près la moitié (le tirage n'est pas biaisé).
+    const moitie = r.filter((x) => x < 50).length;
+    expect(moitie).toBeGreaterThan(70);
+    expect(moitie).toBeLessThan(130);
+    expect(rangModule('paie', ids[0] ?? '')).not.toBe(undefined);
+  });
+  it('pur : dans la part → bêta ; hors de la part → à venir ; une volontaire l\'a toujours', () => {
+    const ent = '00000000-0000-4000-8000-000000000042';
+    const rang = rangModule('stock', ent);
+    const avec = (part: number) => [{ module: 'stock', entreprise: null, etat: 'progressif' as const, part }];
+    expect(listesModules(avec(rang + 1), ent, {}).beta).toContain('stock');
+    if (rang > 0) {
+      expect(listesModules(avec(rang), ent, {}).aVenir).toContain('stock');
+      expect(listesModules(avec(rang), ent, {}, [], true).beta).toContain('stock');
+    }
+  });
+  it('la base : la part se refuse hors de 1..99 ; la garde suit le rang ; la console compte par part', async () => {
+    const a = await inscrire('prog');
+    const ent = String((await appeler('POST', '/entreprises', a.jeton, { raisonSociale: 'Atelier progressif' })).corps.id);
+    entreprises.push(ent);
+    const rang = Number((await admin.query('select plateforme.rang_module($1, $2) r', ['immos', ent])).rows[0].r);
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'progressif', motif: 'Ouverture douce' })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'progressif', part: 0, motif: 'Ouverture douce' })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'beta', part: 30, motif: 'Ouverture douce' })).statut).toBeGreaterThanOrEqual(400);
+    const garde = async () => (await admin.query('select socle.etat_module($1, $2) v', ['immos', ent])).rows[0].v;
+    expect((await poser({ module: 'immos', entreprise: ent, etat: 'progressif', part: Math.min(99, rang + 1), motif: 'Ouverture douce' })).statut).toBe(200);
+    if (rang < 99) expect(await garde()).toBe('beta');
+    if (rang > 0) {
+      expect((await poser({ module: 'immos', entreprise: ent, etat: 'progressif', part: rang, motif: 'On redescend' })).statut).toBe(200);
+      expect(await garde()).toBe('a_venir');
+      const moi = ((await appeler('GET', '/moi', a.jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[] } }[] }).entreprises.find((e) => e.id === ent);
+      expect(moi?.modules.aVenir).toContain('immos');
+    }
+    const lu = (await appeler('GET', '/console/modules', amira.console)).corps as { progressif: Record<string, { total: number; p10: number; p50: number; p75: number }> };
+    const c = lu.progressif.immos;
+    expect(c?.total).toBeGreaterThan(0);
+    expect(c?.p10).toBeLessThanOrEqual(c?.p50 ?? 0);
+    expect(c?.p50).toBeLessThanOrEqual(c?.p75 ?? 0);
+    expect(c?.p75).toBeLessThanOrEqual(c?.total ?? 0);
+    await nettoyer(ent);
   });
 });

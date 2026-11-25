@@ -5,14 +5,20 @@
 // L'ordre de décision, du plus fort au plus faible : l'état posé pour CETTE entreprise, puis l'état posé pour tout le
 // serveur, puis les variables du serveur (SKANFACT_A_VENIR, SKANFACT_BETA, a-venir.ts), puis « ouvert ».
 
+import { createHash } from 'node:crypto';
 import { aVenir, enBeta } from './a-venir.ts';
 import { t } from '../textes/index.ts';
 
 // (1.388.73, 0228) « volontaires » : bêta chez les entreprises volontaires (Paramètres › L'application), à venir chez les
 // autres. Il se résout pour une entreprise par `pourEntreprise` ; il n'arrive jamais tel quel dans les écrans.
-export const ETATS_MODULE = ['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme'] as const;
+// (1.388.74, 0229) « progressif » : bêta chez une part stable des entreprises (et chez les volontaires), à venir ailleurs.
+export const ETATS_MODULE = ['ouvert', 'beta', 'volontaires', 'progressif', 'a_venir', 'ferme'] as const;
 export type EtatModule = (typeof ETATS_MODULE)[number];
-export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') : e;
+export const pourEntreprise = (e: EtatModule, volontaire: boolean, dedans = false): EtatModule =>
+  e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') : e === 'progressif' ? (volontaire || dedans ? 'beta' : 'a_venir') : e;
+// Le rang STABLE d'une entreprise pour un module, de 0 à 99 : le même que plateforme.rang_module (0229). Monter la part
+// garde ceux qui l'avaient déjà ; le rang ne dépend que du module et de l'entreprise.
+export const rangModule = (module: string, entreprise: string) => parseInt(createHash('md5').update(`${module}:${entreprise}`).digest('hex').slice(0, 8), 16) % 100;
 
 // Ce qu'un module allume dans les écrans : ses pages (la barre latérale) ou sa fonction (un réglage, un bouton).
 // Les ventes et les fiches (clients, catalogue) n'y sont pas : sans elles, il n'y a plus d'application.
@@ -50,7 +56,7 @@ export const modulesAvecDonnees = (collections: readonly string[]) =>
 export const nomModule = (id: string) => ({ nom: t(`modules.${id}.nom`), quoi: t(`modules.${id}.quoi`) });
 export const moduleConnu = (id: string) => MODULES_PILOTES.some((m) => m.id === id);
 
-export type LigneEtat = { module: string; entreprise: string | null; etat: EtatModule; message?: string | null };
+export type LigneEtat = { module: string; entreprise: string | null; etat: EtatModule; message?: string | null; part?: number | null };
 
 // L'état d'un module par les variables du serveur (ce qui valait avant la console).
 export function etatServeur(module: string, env: Record<string, string | undefined> = process.env): EtatModule {
@@ -73,7 +79,9 @@ export function listesModules(lignes: readonly LigneEtat[], entreprise: string |
   // `messages` : le message aux clients du module (celui de l'entreprise, sinon le général), sous chacune de ses pages.
   const out = { aVenir: [] as string[], beta: [] as string[], ferme: [] as string[], pause: [] as string[], messages: {} as Record<string, string> };
   for (const m of MODULES_PILOTES) {
-    const e = pourEntreprise(etatModule(lignes, m.id, entreprise, env), volontaire);
+    const brut = etatModule(lignes, m.id, entreprise, env);
+    const portant = (entreprise ? lignes.find((l) => l.module === m.id && l.entreprise === entreprise) : undefined) ?? lignes.find((l) => l.module === m.id && l.entreprise === null);
+    const e = pourEntreprise(brut, volontaire, brut === 'progressif' && !!entreprise && rangModule(m.id, entreprise) < (portant?.part ?? 0));
     const porte = (entreprise ? lignes.find((l) => l.module === m.id && l.entreprise === entreprise) : undefined) ?? lignes.find((l) => l.module === m.id && l.entreprise === null);
     if (porte?.message) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;
     if (!moduleUtilisable(e) && avecDonnees.includes(m.id)) out.pause.push(...new Set([m.id, ...m.ids]));
@@ -93,7 +101,7 @@ export function lireLignes(brut: unknown): LigneEtat[] {
   return (brut as Record<string, unknown>[]).flatMap((x) => {
     const etat = String(x.etat) as EtatModule;
     return typeof x.module === 'string' && (ETATS_MODULE as readonly string[]).includes(etat)
-      ? [{ module: x.module, entreprise: typeof x.entreprise === 'string' ? x.entreprise : null, etat, message: typeof x.message === 'string' && x.message ? x.message : null }] : [];
+      ? [{ module: x.module, entreprise: typeof x.entreprise === 'string' ? x.entreprise : null, etat, message: typeof x.message === 'string' && x.message ? x.message : null, part: typeof x.part === 'number' ? x.part : null }] : [];
   });
 }
 

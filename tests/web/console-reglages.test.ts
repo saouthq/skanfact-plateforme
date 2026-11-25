@@ -791,7 +791,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     const p = await console_(jD, `modules&entreprise=${ent}`);
     expect(net(await p.locator('#rg-modules').innerText())).toBe('Les modules de Studio Lina Réglages');
     // Le résumé par état, au-dessus du tableau.
-    expect(await p.locator('.c-mod-resume li').count()).toBe(5);
+    expect(await p.locator('.c-mod-resume li').count()).toBe(6);
     const ligne = p.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' });
     await ligne.getByRole('button', { name: 'Changer…' }).click();
     const f = p.getByRole('dialog');
@@ -892,6 +892,29 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect((await admin.query('select etat from plateforme.module_etat where entreprise = $1', [ent])).rows[0]?.etat).toBe('volontaires');
     await admin.query('delete from plateforme.module_etat where entreprise = $1', [ent]);
     await admin.query('update socle.entreprise set volontaire_beta = null where id = $1', [ent]);
+    // (1.388.74) L'ouverture progressive se pose pour tout le monde (elle n'est pas proposée pour une seule entreprise).
+    await ligne.getByRole('button', { name: 'Changer…' }).click();
+    expect(await f.locator('.c-mod-carte').filter({ hasText: 'Progressif' }).count()).toBe(0);
+    await f.getByRole('button', { name: 'Annuler' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    await p.getByRole('link', { name: 'Voir pour toutes les entreprises' }).click();
+    await expect.poll(async () => net(await p.locator('#rg-modules').innerText())).toBe('Les modules, pour toutes les entreprises');
+    const immos = p.locator('.c-mod-table tbody tr').filter({ hasText: 'Immobilisations' });
+    await immos.getByRole('button', { name: 'Changer…' }).click();
+    await f.locator('.c-mod-carte').filter({ hasText: 'Progressif' }).click();
+    await f.locator('.c-mod-parts label').filter({ hasText: '25 %' }).click();
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/l'aur(a|ont) à 25 %|ne l'aura encore à 25 %/);
+    await f.getByLabel('Motif', { exact: true }).fill('Ouverture douce des immobilisations');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-progressif.png') });
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    try {
+      expect((await admin.query(`select etat, part from plateforme.module_etat where module = 'immos' and entreprise is null`)).rows).toEqual([{ etat: 'progressif', part: 25 }]);
+      await expect.poll(async () => net(await immos.innerText())).toContain('Progressif · 25 %');
+      await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-progressif-liste.png') });
+    } finally {
+      await admin.query(`delete from plateforme.module_etat where module = 'immos' and entreprise is null`);
+    }
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 150_000);

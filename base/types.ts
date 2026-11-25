@@ -1000,6 +1000,7 @@ export interface BaseDeDonnees {
     message: string | null;
     debut: Date | null;
     fin: Date | null;
+    part: number | null;
   };
   'plateforme.note_appel': {
     id: Generated<string>;

@@ -10,13 +10,15 @@ import { Alerte, Bouton, Champ, Dialogue, Zone, toast } from '../ui.tsx';
 
 const K = 'console.ecran.modules';
 // (1.388.73) « volontaires » : bêta chez les entreprises qui se sont déclarées volontaires, à venir chez les autres.
-export const ETATS = ['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme'] as const;
+export const ETATS = ['ouvert', 'beta', 'volontaires', 'progressif', 'a_venir', 'ferme'] as const;
+// (1.388.74) Les parts proposées pour une ouverture progressive (le rang de chaque entreprise est stable).
+const PARTS = [10, 25, 50, 75] as const;
 type Etat = (typeof ETATS)[number];
 type Module = { id: string; nom: string; quoi: string; serveur: Etat; avecDonnees: number | null };
-type Pose = { id: number; module: string; entreprise: string | null; nom: string | null; etat: Etat; motif: string; message: string | null; le: string; par: string | null; debut: string | null; fin: string | null };
+type Pose = { id: number; module: string; entreprise: string | null; nom: string | null; etat: Etat; motif: string; message: string | null; le: string; par: string | null; debut: string | null; fin: string | null; part?: number | null };
 type Trace = { id: string; le: string; geste?: string; motif: string; par: string | null; entreprise: string | null; nom: string | null;
-  avant: { module: string; etat: Etat | 'serveur'; message?: string | null } | null; apres: { module: string; etat: Etat | 'serveur'; message?: string | null; debut?: string | null; fin?: string | null } | null };
-type Donnees = { maintenant: string; modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null; historique: Trace[]; volontaires?: { n: number; noms: { id: string; nom: string; depuis: string }[] } };
+  avant: { module: string; etat: Etat | 'serveur'; message?: string | null } | null; apres: { module: string; etat: Etat | 'serveur'; message?: string | null; debut?: string | null; fin?: string | null; part?: number | null } | null };
+type Donnees = { maintenant: string; modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null; historique: Trace[]; volontaires?: { n: number; noms: { id: string; nom: string; depuis: string }[] }; progressif?: Record<string, { total: number; p10: number; p25: number; p50: number; p75: number }> };
 
 // (1.388.72) Un état posé vaut entre son début (vide : tout de suite) et sa fin (vide : sans fin) ; parmi ceux qui valent,
 // le plus récemment commencé. La même règle que la base (plateforme.module_en_vigueur), à l'heure du serveur.
@@ -39,8 +41,8 @@ const DUREES = [{ v: '', h: 0 }, { v: '1h', h: 1 }, { v: '1j', h: 24 }, { v: '7j
 // La valeur d'un champ datetime-local (heure de l'ordinateur) en instant ISO, ou null.
 const versIso = (v: string) => { if (!v) return null; const t = new Date(v); return Number.isNaN(t.getTime()) ? null : t.toISOString(); };
 
-function Pastille({ etat }: { etat: Etat }) {
-  return <span className={`c-mod-etat c-mod-${etat}`}>{titre(`${K}.etat.${etat}`)}</span>;
+function Pastille({ etat, part }: { etat: Etat; part?: number | null | undefined }) {
+  return <span className={`c-mod-etat c-mod-${etat}`}>{titre(`${K}.etat.${etat}`)}{etat === 'progressif' && part ? ` · ${part} %` : ''}</span>;
 }
 
 function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donnees; entreprise: { id: string; nom: string } | null; fermer: () => void; fait: () => void }) {
@@ -63,6 +65,10 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
   const dureeH = DUREES.find((x) => x.v === duree)?.h ?? 0;
   const finIso = duree === 'date' ? versIso(finTexte) : dureeH ? new Date(depart + dureeH * 3_600_000).toISOString() : null;
   const [message, setMessage] = useState(posee?.message ?? '');
+  // (1.388.74) La part d'une ouverture progressive : celle déjà posée, sinon 10 %.
+  const [part, setPart] = useState<number>(posee?.part ?? 10);
+  const compteProg = d.progressif?.[m.id];
+  const nProg = (p: number) => (compteProg ? Number((compteProg as Record<string, number>)[`p${p}`] ?? 0) : null);
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState(0);
   const [occupe, setOccupe] = useState(false);
@@ -74,7 +80,7 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
         if (quand === 'date' && !debutIso) { setRefus(phrase(`${K}.g.date_manque`)); return; }
     if (duree === 'date' && !finIso) { setRefus(phrase(`${K}.g.date_manque`)); return; }
     const r = await api('POST', '/console/modules', { module: m.id, entreprise: ent, etat, motif: motif.trim(), message: etat === 'serveur' ? null : message.trim() || null,
-      debut: etat === 'serveur' ? null : debutIso, fin: etat === 'serveur' ? null : finIso });
+      debut: etat === 'serveur' ? null : debutIso, fin: etat === 'serveur' ? null : finIso, part: etat === 'progressif' ? part : null });
         if (!r) return;
         if (r.statut === 200 || r.statut === 201) { toast(phrase(`${K}.fait`, { module: m.nom })); fait(); return; }
         setRefus(refusDe(r));
@@ -83,10 +89,11 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
   };
   // Les choix, en cartes : chacun dit ce qu'il fait, l'état d'aujourd'hui est marqué, et « Enregistrer » ne s'allume
   // que si l'on change quelque chose.
-  const choix: { valeur: string; etat: Etat | null }[] = [...ETATS.map((e) => ({ valeur: e, etat: e as Etat })), { valeur: 'serveur', etat: null }];
+  // Une ouverture progressive porte sur l'ensemble des entreprises : elle ne se pose pas pour une seule.
+  const choix: { valeur: string; etat: Etat | null }[] = [...ETATS.filter((e) => !(ent && e === 'progressif')).map((e) => ({ valeur: e, etat: e as Etat })), { valeur: 'serveur', etat: null }];
   const aujourdhui = actuel.source === (ent ? 'entreprise' : 'general') ? actuel.etat : 'serveur';
   const apres: Etat = etat === 'serveur' ? (ent ? etatQuiVaut(m, d.poses.filter((p) => p.entreprise !== ent), null).etat : m.serveur) : etat as Etat;
-  const change = etat !== aujourdhui || quand === 'date' || !!duree || (etat !== 'serveur' && message.trim() !== (posee?.message ?? ''));
+  const change = etat !== aujourdhui || quand === 'date' || !!duree || (etat !== 'serveur' && message.trim() !== (posee?.message ?? '')) || (etat === 'progressif' && part !== (posee?.part ?? null));
   return (
     <Dialogue titre={titre(`${K}.g.titre`)} sous={ent ? `${m.nom} · ${entreprise?.nom ?? ''}` : m.nom} sousDonnee fermer={fermer} occupe={occupe}
       pied={<>
@@ -106,6 +113,15 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
           </label>
         ))}
       </fieldset>
+      {etat === 'progressif' ? (
+        <fieldset className="c-mod-segment c-mod-parts">
+          <legend className="c-champ-libelle">{titre(`${K}.g.part`)}</legend>
+          {PARTS.map((p) => (
+            <label key={p} className={part === p ? 'c-mod-seg-on' : ''}><input type="radio" name="part-module" checked={part === p} onChange={() => setPart(p)} />{p} %
+              {nProg(p) !== null ? <span className="c-sous"> · {selon(nProg(p) ?? 0, `${K}.g.part_n`)}</span> : null}</label>
+          ))}
+        </fieldset>
+      ) : null}
       {change ? (
         <div className="c-al-ce-qui-va">
           <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
@@ -115,6 +131,7 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
             {etat !== 'serveur' && debutIso ? <li><b>{phrase(`${K}.g.va.a_partir`, { quand: leJour(debutIso), avant: dire(`${K}.etat.${actuel.etat}`) })}</b></li> : null}
             {etat !== 'serveur' && finIso ? <li><b>{phrase(`${K}.g.va.jusqua`, { quand: leJour(finIso), retour: dire(`${K}.etat.${ent ? etatQuiVaut(m, d.poses.filter((p) => p.entreprise !== ent), null, Date.parse(finIso)).etat : m.serveur}`) })}</b></li> : null}
             <li>{phrase(`${K}.g.va.effet.${apres}`)}</li>
+            {apres === 'progressif' ? <li><b>{phrase(`${K}.g.va.prog_${(nProg(part) ?? 0) === 0 ? '0' : nProg(part) === 1 ? '1' : 'n'}`, { n: nProg(part) ?? 0, total: compteProg?.total ?? 0, part })}</b></li> : null}
             {apres === 'volontaires' ? <li><b>{ent ? phrase(`${K}.g.va.vol_${d.volontaires?.noms.some((v) => v.id === ent) ? 'elle' : 'pas_elle'}`, { nom: entreprise?.nom ?? '' })
               : phrase(`${K}.g.va.vol_${(d.volontaires?.n ?? 0) === 0 ? '0' : d.volontaires?.n === 1 ? '1' : 'n'}`, { n: d.volontaires?.n ?? 0 })}</b></li> : null}
             {(apres === 'ferme' || apres === 'a_venir') && m.avecDonnees !== null && !ent ? <li><b>{phrase(`${K}.g.va.donnees_${m.avecDonnees === 0 ? '0' : m.avecDonnees === 1 ? '1' : 'n'}`, { n: m.avecDonnees })}</b></li> : null}
@@ -238,7 +255,7 @@ function FenetreAnnuler({ p, m, fermer, fait }: { p: Pose; m: Module | undefined
 }
 
 function Historique({ d, peut, reprendre }: { d: Donnees; peut: boolean; reprendre: (t: Trace, m: Module) => void }) {
-  const nomEtat = (e: string) => e === 'serveur' ? <span className="c-mod-etat c-mod-serveur">{titre(`${K}.h.serveur`)}</span> : <Pastille etat={e as Etat} />;
+  const nomEtat = (e: string, part?: number | null) => e === 'serveur' ? <span className="c-mod-etat c-mod-serveur">{titre(`${K}.h.serveur`)}</span> : <Pastille etat={e as Etat} part={part} />;
   // Le dernier changement de chaque couple (module, entreprise) : c'est le seul qui se reprend. Un changement programmé
   // s'annule dans le tableau, il ne se « reprend » pas.
   const derniers = new Set<string>();
@@ -264,7 +281,7 @@ function Historique({ d, peut, reprendre }: { d: Donnees; peut: boolean; reprend
               <tr key={t.id}>
                 <td className="c-mod-h-quand">{jourCourt(jourDe(t.le))} · {heureDe(t.le)}<span className="c-sous c-bloc">{t.par ?? '—'}</span></td>
                 <td><b>{m.nom}</b><span className="c-sous c-bloc">{t.entreprise ? t.nom ?? '—' : dire(`${K}.h.tous`)}</span></td>
-                <td>{annulation ? <span className="c-mod-h-chg">{dire(`${K}.h.annule`)} {nomEtat(t.avant?.etat ?? 'serveur')}</span> : <><span className="c-mod-h-chg">{nomEtat(t.avant?.etat ?? 'serveur')}<span aria-hidden="true">→</span><span className="c-cache">{dire(`${K}.h.vers`)}</span>{nomEtat(t.apres?.etat ?? 'serveur')}</span>
+                <td>{annulation ? <span className="c-mod-h-chg">{dire(`${K}.h.annule`)} {nomEtat(t.avant?.etat ?? 'serveur')}</span> : <><span className="c-mod-h-chg">{nomEtat(t.avant?.etat ?? 'serveur')}<span aria-hidden="true">→</span><span className="c-cache">{dire(`${K}.h.vers`)}</span>{nomEtat(t.apres?.etat ?? 'serveur', t.apres?.part)}</span>
                   {t.apres?.message ? <span className="c-mod-msg c-bloc">{`«\u00a0${t.apres.message}\u00a0»`}</span> : null}
                   {t.apres?.debut ? <span className="c-mod-prog c-bloc">{dire(`${K}.prog.a_partir`, { quand: leJour(t.apres.debut) })}</span> : null}
                   {t.apres?.fin ? <span className="c-mod-prog c-bloc">{dire(`${K}.prog.jusqua`, { quand: leJour(t.apres.fin) })}</span> : null}</>}</td>
@@ -329,7 +346,7 @@ export function Modules({ entreprise: demandee }: { entreprise: string | null })
                 <tr key={m.id} className={v.etat === 'ouvert' ? undefined : `c-mod-ligne-${v.etat}`}>
                   <td><b>{m.nom}</b><span className="c-sous c-bloc">{m.quoi}{m.avecDonnees ? ` · ${selon(m.avecDonnees, `${K}.donnees`)}` : ''}</span></td>
                   <td data-libelle={titre(ent ? `${K}.col.pour_elle` : `${K}.col.pour_tous`)}>
-                    <Pastille etat={v.etat} />
+                    <Pastille etat={v.etat} part={v.pose?.part} />
                     <span className="c-sous c-bloc">{v.source === 'serveur' ? dire(`${K}.source.serveur`)
                       : pose ? phrase(`${K}.source.pose`, { jour: jourCourt(jourDe(pose.le)), par: pose.par ?? '—', motif: pose.motif })
                         : dire(`${K}.source.${v.source}`)}</span>
@@ -337,7 +354,7 @@ export function Modules({ entreprise: demandee }: { entreprise: string | null })
                     {v.pose?.fin ? <span className="c-mod-prog c-bloc">{phrase(`${K}.prog.jusqua`, { quand: leJour(v.pose.fin) })}</span> : null}
                     {programmes(m).map((p) => (
                       <span key={p.id} className="c-mod-prog c-bloc">
-                        {dire(`${K}.prog.a_partir`, { quand: leJour(p.debut ?? '') })} <Pastille etat={p.etat} />{p.fin ? ` ${dire(`${K}.prog.puis_jusqua`, { quand: leJour(p.fin) })}` : ''}
+                        {dire(`${K}.prog.a_partir`, { quand: leJour(p.debut ?? '') })} <Pastille etat={p.etat} part={p.part} />{p.fin ? ` ${dire(`${K}.prog.puis_jusqua`, { quand: leJour(p.fin) })}` : ''}
                         {p.entreprise && !ent ? ` · ${p.nom ?? ''}` : ''}
                         {peut ? <> · <button type="button" className="c-lien c-mod-annuler" onClick={() => setAnnule(p)}>{dire(`${K}.prog.annuler`)}</button></> : null}
                       </span>

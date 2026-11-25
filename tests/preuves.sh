@@ -32261,8 +32261,8 @@ prouver "le message aux clients ne part pas" serveur/modules-pilotes.ts \
   "se pose avec l'état, arrive dans /moi"
 
 # 1.388.71 — l'historique des modules, et revenir à l'état d'avant.
-prouver "revenir à l'état d'avant perd le message d'avant" base/migrations/0228_volontaires_beta.sql \
-  "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'), 'message', v_avant.message)," "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'))," \
+prouver "revenir à l'état d'avant perd le message d'avant" base/migrations/0229_ouverture_progressive.sql \
+  "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'), 'message', v_avant.message, 'part', v_avant.part)," "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'), 'part', v_avant.part)," \
   "revenir reprend l'état ET le message d'avant"
 
 # 1.388.72 — un état programmé, et le retour automatique.
@@ -32272,7 +32272,7 @@ prouver "un état programmé vaut avant son heure" base/migrations/0227_modules_
 prouver "un état échu ne revient jamais tout seul" base/migrations/0227_modules_programmes.sql \
   "     and (m.debut is null or m.debut <= p_a) and (m.fin is null or m.fin > p_a)" "     and (m.debut is null or m.debut <= p_a)" \
   "programmé : rien ne change avant le début"
-prouver "un programmé efface l'état posé tout de suite" base/migrations/0228_volontaires_beta.sql \
+prouver "un programmé efface l'état posé tout de suite" base/migrations/0229_ouverture_progressive.sql \
   "    delete from plateforme.module_etat where module = p_module and entreprise is not distinct from p_entreprise and debut = p_debut;" "    delete from plateforme.module_etat where module = p_module and entreprise is not distinct from p_entreprise;" \
   "les refus : un début passé"
 prouver "un programmé déjà commencé s'annule encore" base/migrations/0227_modules_programmes.sql \
@@ -32281,14 +32281,25 @@ prouver "un programmé déjà commencé s'annule encore" base/migrations/0227_mo
 
 # 1.388.73 — les volontaires de la bêta.
 prouver "la bêta des volontaires s'ouvre chez tout le monde" serveur/modules-pilotes.ts \
-  "export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') : e;" "export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire || true ? 'beta' : 'a_venir') : e;" \
+  "  e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') :" "  e === 'volontaires' ? 'beta' :" \
   "pur : « volontaires » vaut bêta chez une volontaire"
-prouver "la garde de la base ouvre la bêta des volontaires à tous" base/migrations/0228_volontaires_beta.sql \
-  "then case when (select volontaire_beta from socle.entreprise where id = p_entreprise) is not null then 'beta' else 'a_venir' end" "then 'beta'" \
+prouver "la garde de la base ouvre la bêta des volontaires à tous" base/migrations/0229_ouverture_progressive.sql \
+  "           when (x.m).etat = 'volontaires' then case when x.vol then 'beta' else 'a_venir' end" "           when (x.m).etat = 'volontaires' then 'beta'" \
   "la propriétaire se déclare volontaire"
 prouver "n'importe qui déclare une entreprise volontaire" base/migrations/0228_volontaires_beta.sql \
   "    perform socle.refus('seuls la propriétaire et un administrateur décident d''essayer les nouveautés en avant-première');" "    null;" \
   "la propriétaire se déclare volontaire"
+
+# 1.388.74 — l'ouverture progressive.
+prouver "l'ouverture progressive ouvre tout le monde" serveur/modules-pilotes.ts \
+  "e === 'progressif' ? (volontaire || dedans ? 'beta' : 'a_venir') : e;" "e === 'progressif' ? 'beta' : e;" \
+  "pur : dans la part → bêta"
+prouver "la garde de la base ignore la part" base/migrations/0229_ouverture_progressive.sql \
+  "when (x.m).etat = 'progressif' then case when x.vol or plateforme.rang_module(p_module, p_entreprise) < (x.m).part then 'beta' else 'a_venir' end" "when (x.m).etat = 'progressif' then 'beta'" \
+  "la base : la part se refuse hors de 1..99"
+prouver "le rang de la base diffère de celui du serveur" base/migrations/0229_ouverture_progressive.sql \
+  "  select (('x' || substr(md5(p_module || ':' || p_entreprise::text), 1, 8))::bit(32)::bigint % 100)::int;" "  select (('x' || substr(md5(p_entreprise::text || ':' || p_module), 1, 8))::bit(32)::bigint % 100)::int;" \
+  "le rang d'une entreprise est stable"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

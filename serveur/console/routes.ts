@@ -676,17 +676,20 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const avec = await lireJson(transaction(tx), 'select plateforme.console_modules_donnees($1) v', [JSON.stringify(DONNEES_MODULE)]) as Record<string, number>;
       // (1.388.73) Les entreprises volontaires de la bêta : combien, et les plus récentes (un module « volontaires » s'ouvre chez elles).
       const vol = await lireJson(transaction(tx), 'select plateforme.console_volontaires() v', []) as { n: number; noms: unknown[] };
-      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null, historique: lu.historique ?? [], volontaires: { n: Number(vol.n ?? 0), noms: vol.noms ?? [] } } };
+      // (1.388.74) Pour chaque module : combien d'entreprises l'auraient à 10, 25, 50, 75 % (le rang est stable).
+      const progressif: Record<string, unknown> = {};
+      for (const m of MODULES_PILOTES) progressif[m.id] = await lireJson(transaction(tx), 'select plateforme.console_progressif($1) v', [m.id]);
+      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null, historique: lu.historique ?? [], volontaires: { n: Number(vol.n ?? 0), noms: vol.noms ?? [] }, progressif } };
     },
   });
   ajouter({
     methode: 'POST', chemin: '/console/modules', geste: 'console.modules.poser',
-    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional(), debut: z.string().datetime({ offset: true }).nullable().optional(), fin: z.string().datetime({ offset: true }).nullable().optional() }),
+    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'volontaires', 'progressif', 'a_venir', 'ferme', 'serveur']), part: z.number().int().min(1).max(99).nullable().optional(), motif: z.string().max(500), message: z.string().max(300).nullable().optional(), debut: z.string().datetime({ offset: true }).nullable().optional(), fin: z.string().datetime({ offset: true }).nullable().optional() }),
     traiter: async ({ corps }, tx) => {
       if (!moduleConnu(corps.module)) throw new Introuvable();
       const ent = corps.entreprise ?? null;
       if (ent !== null && !uuid.safeParse(ent).success) throw new Introuvable();
-      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5, $6, $7, $8)', [corps.module, ent, corps.etat, corps.motif, maintenant(), corps.message ?? null, corps.debut ?? null, corps.fin ?? null]);
+      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5, $6, $7, $8, $9)', [corps.module, ent, corps.etat, corps.motif, maintenant(), corps.message ?? null, corps.debut ?? null, corps.fin ?? null, corps.part ?? null]);
       return { corps: { ok: true } };
     },
   });
