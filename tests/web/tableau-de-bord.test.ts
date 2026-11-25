@@ -165,7 +165,7 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
 
     // La charge de chacun : Rim saisit la menuiserie.
     const charge = p.locator('#tb-charge');
-    expect(await charge.locator('.top-l').filter({ hasText: 'Rim Toumi' }).innerText()).toMatch(/saisie/);
+    expect(await charge.locator('.top-l').filter({ hasText: 'Rim Toumi' }).innerText()).toMatch(/· Saisie\b/); // (CE-24) le nom des Réglages
 
     // La recherche qui ne trouve rien le dit, et « Effacer la recherche » rend la grille.
     await p.locator('#tb-q').fill('zzz');

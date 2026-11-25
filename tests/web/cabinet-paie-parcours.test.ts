@@ -584,7 +584,7 @@ describe('la paie d\'un dossier au Cabinet : qui la fait, l\'accord, la vérific
     const dep = espace(await p.locator('#pa-depart').innerText());
     expect(dep).toMatch(/^Le départ de Karim Riahi, le \d\d\/\d\d\/\d{4} CDD qui arrive à son terme/);
     expect(dep).toMatch(/Indemnité de fin de contrat selon son contrat et la convention collective \(À VÉRIFIER\) —/);
-    expect(dep).toMatch(/CNSS sa sortie dans la déclaration du (1er|\de) trimestre \d{4}/);
+    expect(dep).toMatch(/CNSS sa sortie dans la déclaration du (1ᵉʳ|\dᵉ) trimestre \d{4}/); // (1.388.82) « 1ᵉʳ », « 4ᵉ » partout
     const dt = (t: string) => Number(t.replace(/[^\d,]/g, '').replace(',', '.'));
     const cells = await p.locator('#pa-depart-bul tbody td.r').allInnerTexts();
     // Il part avant la fin du mois : son salaire du mois est au prorata (le calcul du bulletin), pas un mois complet.

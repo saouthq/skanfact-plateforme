@@ -444,7 +444,8 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator('#sa-libelle').waitFor({ timeout: 15_000 });
     expect(await p.locator('.sa-depuis').innerText()).toMatch(/Saisie de « facture-farine\.png » · Pièces reçues[\s\S]*elle sort des pièces à classer[\s\S]*mets celle de la facture/);
     expect(await p.locator('#sa-journal').inputValue()).toBe('AC');
-    expect(await p.locator('#sa-libelle').inputValue()).toBe('facture-farine');
+    // (1.388.82, CE-12) Le nom du fichier se lit en libellé ; il n'y est plus recopié tel quel.
+    expect(await p.locator('#sa-libelle').inputValue()).toBe('Facture farine');
     // Une date dans un mois déjà déclaré : la page le dit avant le geste ; revenue dans un mois ouvert, l'avertissement s'en va.
     expect(await p.locator('#sa-decl').isHidden()).toBe(true);
     await p.locator('#sa-date').fill(`14/01/${annee}`);

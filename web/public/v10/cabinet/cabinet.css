@@ -478,6 +478,9 @@ tr.cp-miroir td { background: var(--info-soft); }
    « 250,000 » s'écrivait à GAUCHE sous un en-tête « Débit » aligné à droite, au-dessus d'un total
    aligné à droite (le HTML est juste, c'est la feuille qui décide — 7.23.0, encore). */
 input.sa-montant, input.montant, td > input.r { text-align: end; font-variant-numeric: tabular-nums; }
+/* (1.388.82, CE-17) Dans une fiche, un montant aligné à droite garde de l'air au bord : « 0,000 » se lisait « 0,00 », le
+   dernier chiffre sous le bord, et la valeur tapée touchait le curseur. */
+.field > input.montant { padding-inline-end: 12px; min-width: 10ch; }
 .sa-grille .sa-nom { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* 10.12.0 (U-01) — la règle générale des champs porte quatre `:not()` et la ligne compacte des
    tableaux deux classes : `.sa-grille input` et `.sa-grille td` PERDAIENT contre elles depuis la
@@ -641,22 +644,37 @@ body.dark .theme-op:hover { border-color: #3c4654; }
 .theme-op:focus-within { outline: 2px solid var(--primary); outline-offset: 2px; }
 .theme-t { font-size: 13.5px; font-weight: 650; color: var(--text); margin-block-start: 8px; }
 .theme-s { font-size: 12px; color: var(--muted); }
-/* La miniature : un cadre, une colonne à gauche, une page à droite. */
+/* La miniature : un cadre, une colonne à gauche, une page à droite — et ce qu'elles portent (un
+   repère de couleur, deux lignes de menu, une carte), pour qu'on y reconnaisse l'application et pas
+   deux aplats. (CE-34) « Comme le système » montrait deux grands triangles noirs : il est coupé en
+   deux moitiés verticales, la claire puis la sombre, chacune une vraie miniature. Et la miniature
+   sombre garde un bord visible sur un fond sombre, sinon elle y disparaît. */
 .theme-ap {
+  --sb: #ffffff; --pg: #f5f7fa; --ln: #d5dbe3; --ac: #0f9d8f;
   display: block; block-size: 58px; border-radius: 7px; overflow: hidden;
   border: 1px solid var(--border); position: relative;
 }
+.theme-ap[data-ap="dark"] { --sb: #1a2029; --pg: #12161c; --ln: #343e4c; }
+body.dark .theme-ap { border-color: #3c4654; }
 .theme-ap i, .theme-ap b { position: absolute; inset-block: 0; display: block; }
-.theme-ap i { inset-inline-start: 0; inline-size: 34%; }
-.theme-ap b { inset-inline-end: 0; inline-size: 66%; }
-.theme-ap[data-ap="light"] i { background: #ffffff; border-inline-end: 1px solid #e6eaf0; }
-.theme-ap[data-ap="light"] b { background: #f5f7fa; }
-.theme-ap[data-ap="dark"] i { background: #1a2029; border-inline-end: 1px solid #2a3340; }
-.theme-ap[data-ap="dark"] b { background: #12161c; }
-/* « Comme le système » : la moitié de chaque, en diagonale — c'est la façon la plus courte de dire
-   « l'un ou l'autre selon ton ordinateur » sans une phrase de plus. */
-.theme-ap[data-ap="auto"] i { background: linear-gradient(135deg, #ffffff 50%, #1a2029 50%); }
-.theme-ap[data-ap="auto"] b { background: linear-gradient(135deg, #f5f7fa 50%, #12161c 50%); }
+.theme-ap i { inset-inline-start: 0; inline-size: 34%; background: var(--sb); border-inline-end: 1px solid var(--ln); }
+.theme-ap b { inset-inline-end: 0; inline-size: 66%; background: var(--pg); }
+.theme-ap i::before {
+  content: ''; position: absolute; inset-inline: 7px; inset-block-start: 10px; block-size: 5px; border-radius: 3px;
+  background: var(--ac); box-shadow: 0 11px 0 var(--ln), 0 20px 0 var(--ln);
+}
+.theme-ap b::before {
+  content: ''; position: absolute; inset-inline: 9px; inset-block-start: 9px; block-size: 24px; border-radius: 4px;
+  background: var(--sb); box-shadow: 0 0 0 1px var(--ln);
+}
+.theme-ap b::after {
+  content: ''; position: absolute; inset-inline: 9px 35%; inset-block-start: 40px; block-size: 5px; border-radius: 3px;
+  background: var(--ln);
+}
+/* « Comme le système » : la moitié claire à gauche, la moitié sombre à droite. */
+.theme-ap[data-ap="auto"] i { inline-size: 50%; background: var(--pg); }
+.theme-ap[data-ap="auto"] b { inline-size: 50%; --sb: #1a2029; --pg: #12161c; --ln: #343e4c; }
+.theme-ap[data-ap="auto"] i::before { inset-inline: 9px; inset-block-start: 9px; block-size: 24px; border-radius: 4px; background: var(--sb); box-shadow: 0 0 0 1px var(--ln); }
 
 /* « Voir 4 autres lignes » — le bouton qui déplie le reste d'« À faire » (9.4.4). Il suit
    directement la liste, et rien ne l'en séparait : il se collait à la dernière ligne, donc au texte
@@ -888,3 +906,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
    plutôt que de pousser les boutons hors de la fenêtre. */
 .it-liste { display: flex; flex-direction: column; gap: 6px; max-block-size: 50vh; overflow-y: auto; margin-block: 10px 4px; }
 .it-liste .it-c { justify-content: flex-start; text-align: start; }
+
+/* (CE-36) Une date limite un samedi ou un dimanche : une ligne grise sous la date, jamais une alerte. */
+.ec-dt-g p .ec-chome { display: block; margin-block-start: 2px; font-size: 12px; color: var(--muted); }

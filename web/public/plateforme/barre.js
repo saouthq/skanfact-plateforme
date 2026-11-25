@@ -688,21 +688,40 @@
   }
   /** @param {string} d @param {{ n: string, ton: string } | null} c */
   const ligne = (d, c) => d + (c && c.n ? `<span class="d ${c.ton === 'alerte' ? 'alerte' : c.ton === 'info' ? '' : 'attire'}">${esc(c.n)}</span>` : '') + `<span class="chev">${ic('chevron', 15, 2.2)}</span>`;
+  /** @type {HTMLElement[]} */ let relais = [];
   function pagePlus() {
     const i = infos();
-    const recents = (/** @type {string[]} */ (lire('recents', []) || [])).filter((id) => lienDe(id)).slice(0, 4);
-    const familles = [...document.querySelectorAll('#nav .nav-fam')].map((f) => {
-      const nom = /** @type {HTMLElement} */ (f).dataset.famille || '';
-      const lignes = [...f.querySelectorAll('.volet .ligne')].map((l) => {
-        const a = /** @type {HTMLElement | null} */ (l.querySelector('.pl-l'));
-        if (!a) return '';
-        const id = a.dataset.route || a.dataset.aller || '';
-        const titre = a.querySelector('b')?.textContent || id;
-        const svg = a.querySelector('.tuile-ic')?.innerHTML || '';
-        return `<a href="#/${esc(id)}">${ligne(`<span class="ic">${svg}</span><span class="lib">${esc(titre)}</span>`, compteDuLien(lienDe(id)))}</a>`;
+    // (1.388.82, CE-19) Un récent qui n'a pas de nom (les écrans d'un dossier, `d-fiche`…) ne se montre pas sous son identifiant.
+    const recents = (/** @type {string[]} */ (lire('recents', []) || [])).filter((id) => lienDe(id) && dessinDe(id).titre !== id).slice(0, 4);
+    // (1.388.82, CE-20) Chaque entrée du volet, telle qu'elle mène : son adresse (une ligne sans `data-route` menait à « #/ »),
+    // ou un relais vers son bouton (Équipe, Modèles) ; les tuiles de la comptabilité du dossier aussi (elles manquaient).
+    // Au cabinet, les pages du quotidien que la barre du bas ne porte pas (Pièces reçues…) ouvrent le menu.
+    relais = [];
+    const entree = (/** @type {HTMLElement} */ a, /** @type {string} */ titre) => {
+      const route = a.dataset.route || a.dataset.aller || '';
+      if (route === 'reglages' && i.responsable) return '';
+      const svg = a.querySelector('.tuile-ic, .ic')?.innerHTML || '';
+      const corps = ligne(`<span class="ic">${svg}</span><span class="lib">${esc(titre)}</span>`, route ? compteDuLien(lienDe(route)) : null);
+      const href = a.getAttribute('href');
+      if (href) return `<a href="${esc(href)}">${corps}</a>`;
+      if (route) return `<a href="#/${esc(route)}">${corps}</a>`;
+      relais.push(a);
+      return `<button type="button" data-plus="relai" data-i="${relais.length - 1}">${corps}</button>`;
+    };
+    const bas = new Set(['production', ...(typeof w.__ongletsTel === 'function' ? w.__ongletsTel() : [])]);
+    const quotidien = auCabinet() ? [...document.querySelectorAll('#nav .nav-quotidien > a.lien[data-route]')]
+      .filter((a) => !bas.has(/** @type {HTMLElement} */ (a).dataset.route || ''))
+      .map((a) => entree(/** @type {HTMLElement} */ (a), /** @type {HTMLElement} */ (a).dataset.tip?.split(' · ')[0] || a.textContent || '')).join('') : '';
+    const familles = (quotidien ? `<div class="plus-section"><span class="plus-titre">Au quotidien</span><div class="liste-tel">${quotidien}</div></div>` : '')
+      + [...document.querySelectorAll('#nav .nav-fam')].map((f) => {
+        const nom = /** @type {HTMLElement} */ (f).dataset.famille || '';
+        const lignes = [...f.querySelectorAll('.volet .ligne .pl-l, .volet .pl-c')].map((x) => {
+          const a = /** @type {HTMLElement} */ (x);
+          return entree(a, a.querySelector('b')?.textContent || a.textContent?.trim() || '');
+        }).join('');
+        return lignes ? `<div class="plus-section"><span class="plus-titre">${esc(nom)}</span><div class="liste-tel">${lignes}</div></div>` : '';
       }).join('');
-      return lignes ? `<div class="plus-section"><span class="plus-titre">${esc(nom)}</span><div class="liste-tel">${lignes}</div></div>` : '';
-    }).join('');
+    const equipeAuVolet = relais.some((a) => a.dataset.cabAction === 'equipe');
     const fc = /** @type {HTMLAnchorElement | null} */ (document.querySelector('#nav #foot-comptable:not([hidden])'));
     const inviter = $('b-inviter-comptable');
     const abo = pastilleAbo();
@@ -715,7 +734,7 @@
       + (fc ? `<a href="#/comptable">${ligne(`<span class="ic">${ic('comptable', 19)}</span><span class="lib">Mon comptable</span>`, compteDuLien(fc))}</a>` : '')
       + (inviter ? `<button type="button" data-plus="inviter">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">${esc((inviter.querySelector('.lib-inv') || inviter).textContent || 'Inviter mon comptable')}</span>`, null)}</button>` : '')
       + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}</span><span class="d">${esc(abo && abo.show ? abo.texte : aboCalme())}</span>`, null)}</button>`
-        + `<button type="button" data-plus="equipe">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Mon équipe</span>`, null)}</button>` : '')
+        + (equipeAuVolet ? '' : `<button type="button" data-plus="equipe">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Mon équipe</span>`, null)}</button>`) : '')
       + (role() === 'caissier' && typeof w.__caissePoste === 'function' && w.__caissePoste() ? `<button type="button" data-plus="caissier">${ligne(`<span class="ic">${ic('changer', 19)}</span><span class="lib">Changer de caissier</span><span class="d">code à 4 chiffres</span>`, null)}</button>` : '')
       + `<button type="button" data-plus="onglets">${ligne(`<span class="ic">${ic('onglets', 19)}</span><span class="lib">Mes onglets</span>`, null)}</button>`
       + `<button type="button" data-plus="compte">${ligne(`<span class="ic">${ic('profil', 19)}</span><span class="lib">${esc(p.nom || 'Mon profil')}</span><span class="d">${esc(p.role)}</span>`, null)}</button>`
@@ -742,6 +761,7 @@
     const quoi = x.dataset.plus;
     if (quoi === 'onglets') { ouvrirPlus('onglets'); return; }
     fermerPlus();
+    if (quoi === 'relai') { const r = relais[Number(x.dataset.i)]; if (r) r.click(); return; }
     if (quoi === 'chercher') $('nav-search')?.click();
     else if (quoi === 'inviter') w.__inviterComptable();
     else if (quoi === 'abonnement') w.__allerAbonnement();

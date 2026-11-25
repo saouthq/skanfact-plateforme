@@ -2834,7 +2834,7 @@ prouver "une réponse à une question jamais reçue" $M28 \
 prouver "une question envoyée qui s'efface" $M28 \
   "  if cardinality(q.envois) > 0 then perform socle.refus('cette question est déjà partie" "  if false then perform socle.refus('cette question est déjà partie" \
   "$QU1"
-prouver "un envoi qui ne se compte qu'une fois" base/migrations/0162_relance_un_autre_jour.sql \
+prouver "un envoi qui ne se compte qu'une fois" base/migrations/0235_cabinet_relu.sql \
   "  update compta.question set envois = envois || now(), statut" "  update compta.question set envois = case when cardinality(envois) = 0 then envois || now() else envois end, statut" \
   "$QU1"
 prouver "une question répondue qui se réécrit" $M28 \
@@ -2968,10 +2968,10 @@ prouver "un collaborateur qui invite" $M30 \
 prouver "une personne invitée deux fois" $M30 \
   "  if exists (select 1 from socle.membre m join socle.utilisateur u on u.id = m.utilisateur" "  if false and exists (select 1 from socle.membre m join socle.utilisateur u on u.id = m.utilisateur" \
   "$EQ2"
-prouver "un associé qui se rétrograde ou se retire" $M30 \
+prouver "un associé qui se rétrograde ou se retire" base/migrations/0235_cabinet_relu.sql \
   "  if m.utilisateur = socle.moi() then perform socle.refus('personne ne change" "  if false then perform socle.refus('personne ne change" \
   "$EQ2"
-prouver "un collaborateur qui change l'équipe" $M30 \
+prouver "un collaborateur qui change l'équipe" base/migrations/0235_cabinet_relu.sql \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet change son équipe'); end if;" "" \
   "$EQ2"
 prouver "l'équipe triée selon la langue de la base" serveur/cabinet/routes.ts \
@@ -3240,8 +3240,7 @@ prouver "un matricule écrit avec des points refusé" $PC \
   'String(v == null ? '\'''\'' : v).toUpperCase().replace(/[\s/.\-_]/g, '\'''\'')' 'String(v == null ? '\'''\'' : v).toUpperCase().replace(/[\s/]/g, '\'''\'')' \
   "$WL1"
 prouver "les coordonnées d'une liste collée perdues" $PC \
-  "        await poserFiche(cree.entreprise, d, null);
-        added++;" "        added++;" \
+  ", fiche: contenuDeFiche(d) });" " });" \
   "$WL1"
 
 # ── Brique 53 : la visite « Travailler à plusieurs » (docs/cabinet.md, C43) ──
@@ -8186,12 +8185,12 @@ for t in "$WLE5" "$NDT5"; do
     "$t"
 done
 prouver 'le matricule déjà pris d'\''un nouveau dossier, dit en bas de l'\''écran seulement' modules/socle/ecrans/cabinet/app-2.js \
-  'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).
-            if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'matricule mal écrit (il ne se disait qu'\''en bas de l'\''écran).' \
+  'hors de la fenêtre.
+            if (e && (e.champ === '\''matriculeFiscal'\'' || (!e.champ && /matricule/i.test(plainError(e))))) return refus($('\''#f-mat'\'', layer), plainError(e));' 'hors de la fenêtre.' \
   "$WLE5"
 prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas de l'\''écran seulement' modules/socle/ecrans/cabinet/app-2.js \
   'refusé sur sa case.
-            if (e && e.champ === '\''matriculeFiscal'\'') return refus($('\''#f-mat'\'', layer), plainError(e));' 'refusé sur sa case.' \
+            if (e && (e.champ === '\''matriculeFiscal'\'' || (!e.champ && /matricule/i.test(plainError(e))))) return refus($('\''#f-mat'\'', layer), plainError(e));' 'refusé sur sa case.' \
   "$NDT5"
 for t in "$WLE5" "$NDT5"; do
   prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" web/public/plateforme/pont-cabinet.js \
@@ -18491,7 +18490,7 @@ prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10
 prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/rowmenu.js \
   "    bouton.setAttribute('aria-expanded', 'true');" "" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'une question partie le matin, relancée le jour même' base/migrations/0162_relance_un_autre_jour.sql \
+prouver 'une question partie le matin, relancée le jour même' base/migrations/0235_cabinet_relu.sql \
   $'     and (cardinality(envois) = 0\n          or (envois[cardinality(envois)] at time zone \'Africa/Tunis\')::date < (now() at time zone \'Africa/Tunis\')::date);' $';' \
   'posée, elle reste au cabinet ; envoyée, le client la lit et y répond ; chaque envoi se compte'
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
@@ -21114,7 +21113,7 @@ prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun
   '${l.length ? liste(trie) : `<div class="cl-rub-vide">' '${l.length ? liste(trie) : `<div hidden class="x">' \
   'un courrier se range avec le mois où il est arrivé'
 prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pièce' modules/socle/ecrans/cabinet/app-2.js \
-  "journalDe: nature, libelle: String(nom || '').replace(/\\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };" "journalDe: '', libelle: '', depuisClasseur: null };" \
+  "journalDe: nature, libelle: libelleDeFichier(nom), depuisClasseur: depuis };" "journalDe: '', libelle: '', depuisClasseur: null };" \
   'saisir une pièce depuis le classeur'
 prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' modules/socle/ecrans/cabinet/app-2.js \
   'if (dc && idE && !res.attente) {' 'if (0) {' \
@@ -27251,7 +27250,7 @@ prouver 'portefeuille 1.340.0 a : « Pièces manquantes » réclame à qui a env
   'v === '\''manque'\'' ? x.reclame && !x.pc : v === '\''tenus'\''' 'v === '\''manque'\'' ? x.reclame : v === '\''tenus'\''' \
   "$PF1340"
 prouver 'portefeuille 1.340.0 b : un mois en retard dont les écritures sont là se réclame au client' modules/socle/ecrans/cabinet/app-1.js \
-  'reclame: !d.manual && (!!mo.manque || sp.length > 0),' 'reclame: !d.manual && (!!mo.manque || !!mo.tard),' \
+  'reclame: !d.manual && (!!mo.manque || sp.length > 0) }' 'reclame: !d.manual && (!!mo.manque || !!mo.tard) }' \
   "$PF1340"
 prouver 'portefeuille 1.340.0 c : la ligne tait les pièces reçues' modules/socle/ecrans/cabinet/app-1.js \
   '${x.pc ? `<a class="cd-pc" href="#/pieces/' '${false ? `<a class="cd-pc" href="#/pieces/' \
@@ -30089,8 +30088,8 @@ prouver $'revue 1.377.4 a : une échéance d\'avance oubliée comptée comme rem
   $'if (true) reste = KC.round3(reste - x);' \
   $'1.237.0 — l\'inventaire de la maquette'
 prouver $'revue 1.377.5 a : « Pointage » coché alors qu\'il n\'est pas là' modules/personnel/ecrans/cabinet/paie.js \
-  $'        !P.duMois || P.pointe > 0 || P.n > 0],' \
-  $'        true],' \
+  $'        !!P.actifs && (!P.duMois || P.pointe > 0 || P.n > 0)],' \
+  $'        !!P.actifs],' \
   $'le mois d\'un dossier tenu : établir, valider, remettre'
 prouver $'revue 1.377.6 a : une retenue tapée sur le bulletin rangée sous « Comme le mois d\'avant »' modules/personnel/ecrans/cabinet/paie.js \
   $'(b.retenues || []).filter(x => !x.advanceId && Number(x.amount)).forEach(' \
@@ -30742,7 +30741,7 @@ prouver $'le livre neuf dépose toujours dans la Saisie' modules/socle/ecrans/ca
 # (1.387.20, issue 10, CABPAIE-25) Le taux dégressif porte son étoile, la note dit quoi faire.
 prouver $'le taux dégressif n\'a pas son étoile' modules/socle/ecrans/cabinet/app-1.js $'<label class="field obligatoire" id="im-taux-l">' $'<label class="field" id="im-taux-l">' $'un client créé demande son début de mission, sa fiche dit par où commencer, ses salariés et ses biens se collent'
 
-prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
+prouver $'bulletin-etabli-valide' web/public/plateforme/pont-cabinet.js $'issuedAt: (b.valideLe && jourDeTunis(b.valideLe)) ||' $'issuedAt: (false && b.valideLe) ||' $'validé le 31/10 : établi le 31/10, quel que soit le jour de l\'envoi'
 prouver $'frise-paie' modules/socle/ecrans/cabinet/app-1.js $"        if (s.onglet === 'paie') { s.paieMois = Number(m.slice(5, 7)); s.paieBul = null; if (s.paieVue === 'cnss') s.paieTrimestre = Math.ceil(s.paieMois / 3); }" $'' $'tenue au cabinet : envoyer pour accord, attendre le bon à payer, valider (figés)'
 prouver $'paie-sans-avis-ordinateur' modules/socle/ecrans/cabinet/app-1.js $'      if (/\\/comptabilite\\/paie(\\/|$)/.test(location.hash)) return;' $'' $'faite par le client seul : le Cabinet la lit, sans geste de paie ; au téléphone, rien ne déborde'
 prouver $'virement-dans-le-rouge' modules/socle/ecrans/entreprise/app-2.js $'            if (dep && apres < -0.0005 && !await confirmDialog(' $'            if (false && !await confirmDialog(' $'Sarra paie une dépense puis une facture de sa poche : rien ne sort de la BIAT, l\'entreprise lui doit, elle se rembourse ; au Cabinet, D 401 / C 4421 puis D 4421 / C banque'
@@ -31214,8 +31213,8 @@ prouver $'cabdeclarer26-bande-periode-au-telephone' web/public/plateforme/compta
   $'.c-barre > :is(.f-lab, #lv-mois, .grow) { display: none; }' \
   $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
 prouver $'cabdeclarer26-carte-titree-par-l-intitule' modules/socle/ecrans/cabinet/app-1.js \
-  $'<td class="nw"${s.aux || !r.label ? \'\' : \' data-tel-nomme="non"\'}>' \
-  $'<td class="nw">' \
+  $'<td class="nw"${s.aux || !r.label ? \'\' : \' data-tel-nomme="non"\'}${s.aux' \
+  $'<td class="nw"${s.aux' \
   $'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d\'ordinateur le disent'
 prouver $'cabpaie4-source-de-l-absence' modules/personnel/ecrans/cabinet/paie.js \
   $'    const absence = pointe ? \'pointage\' : conges ? \'congés\' : \'saisi sur le bulletin\';' \
@@ -32458,7 +32457,7 @@ prouver "un export fait avec les bulletins se lit par la saisie" base/migrations
   $'\n         and (not paie or entreprise in (select paie.mes_entreprises())));' ');' \
   "un bulletin de paie au classeur : lu par le rôle Paie et l'associé sous un mandat Paie, jamais par la saisie ni sans le mandat"
 prouver "le bulletin validé le soir porte le jour UTC" web/public/plateforme/pont-cabinet.js \
-  ".toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });" ".toISOString().slice(0, 10);" \
+  "new Date(quand).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });" "new Date(quand).toISOString().slice(0, 10);" \
   "validé le 31/10 à 23 h 30 UTC : c'est le 1er novembre à Tunis, le jour qu'il porte"
 
 # 1.388.82 — Le Cabinet relu, ses écrans (vérification complète, lot Cabinet).
@@ -32505,6 +32504,53 @@ prouver "un nom d'appareil photo devient le libellé de l'écriture" modules/soc
   "    if (!t || /^(img|dsc|dscn|pxl|scan|scanned|photo|image|whatsapp image|wa|screenshot|capture)\\b/i.test(t) || !/\\p{L}{3,}/u.test(t)) return '';" "" \
   "un nom parlant se lit, un nom d'appareil photo laisse le libellé vide"
 
+
+# 1.388.83 — Le Cabinet relu, fin du lot (CE-15 à CE-36).
+prouver "une ligne urgente porte encore l'étiquette « urgent »" modules/socle/ecrans/cabinet/app-1.js \
+  "      + \`\${x.retard ? '<span class=\"etat alerte\">en retard</span>' : ''}<button" "      + \`<span class=\"etat \${x.ton}\">\${x.ton === 'alerte' ? 'urgent' : 'à voir'}</span><button" \
+  "CE-32 : le groupe dit « Urgent » ; seule une déclaration en retard porte une étiquette"
+prouver "un rôle porte un autre nom au tableau de bord" modules/socle/ecrans/cabinet/app-1.js \
+  "  const nomRoleCd = r => K.LIBELLE_ROLE[r] || r || '';" "  const nomRoleCd = r => ({ supervision: 'direction du cabinet', validation: 'tenue des dossiers' })[r] || r || '';" \
+  "CE-24 : un rôle porte le nom que les Réglages lui donnent"
+prouver "le mot « Exemple » fait les initiales du dossier d'exemple" modules/socle/ecrans/cabinet/app-1.js \
+  ".normalize('NFC').replace(/^exemple\\s*·\\s*/i, '').split(/[\\s'’\\-.&·]+/)" ".normalize('NFC').split(/[\\s'’\\-.&]+/)" \
+  "CE-25 : la marque de l'exemple ne fait pas d'initiales"
+prouver "une date limite un dimanche ne se dit pas" modules/socle/ecrans/cabinet/app-2.js \
+  "return j === 6 ? 'samedi' : j === 0 ? 'dimanche' : ''; };" "return ''; };" \
+  "CE-36 : une date limite un dimanche se dit, sans être reportée"
+prouver "une carte vide porte l'infobulle « aucun dossier »" modules/socle/ecrans/cabinet/app-1.js \
+  "data-tb-etape=\"\${e}\"\${l.length ? \` title=\"\${esc(l.map(x => x.d.name).join(', '))}\"\` : ''}>" "data-tb-etape=\"\${e}\" title=\"\${esc(l.map(x => x.d.name).join(', ') || 'aucun dossier')}\">" \
+  "CE-33 : une infobulle ne se pose pas sur un chiffre pour ne rien dire"
+prouver "la miniature « Comme le système » redevient deux triangles" web/public/v10/cabinet/cabinet.css \
+  ".theme-ap[data-ap=\"auto\"] i { inline-size: 50%; background: var(--pg); }" ".theme-ap[data-ap=\"auto\"] i { background: linear-gradient(135deg, #ffffff 50%, #1a2029 50%); }" \
+  "CE-34 : les miniatures du thème montrent l'application, et la sombre se voit sur un fond sombre"
+prouver "un récent du téléphone se montre sous son identifiant" web/public/plateforme/barre.js \
+  ".filter((id) => lienDe(id) && dessinDe(id).titre !== id)" ".filter((id) => lienDe(id))" \
+  "CE-19, CE-20 : le menu « Plus » du téléphone ne montre pas d'identifiant et mène là où il dit"
+prouver "une entrée du menu « Plus » sans adresse mène à « #/ »" web/public/plateforme/barre.js \
+  "    if (quoi === 'relai') { const r = relais[Number(x.dataset.i)]; if (r) r.click(); return; }" "" \
+  "CE-19, CE-20 : le menu « Plus » du téléphone ne montre pas d'identifiant et mène là où il dit"
+prouver "le classeur renvoie à un écran « Écritures » qui n'existe pas" modules/socle/ecrans/cabinet/app-1.js \
+  ">La saisir dans Saisie</button>" ">La saisir dans Écritures</button>" \
+  "CE-15 : le bouton du classeur nomme l'écran qui existe"
+prouver "le refus du matricule part en bas de l'écran" modules/socle/ecrans/cabinet/app-2.js \
+  "hors de la fenêtre.
+            if (e && (e.champ === 'matriculeFiscal' || (!e.champ && /matricule/i.test(plainError(e))))) return" "hors de la fenêtre.
+            if (e && e.champ === 'matriculeFiscal') return" \
+  "CE-16 : un refus du matricule se dit sur sa case, dans la fenêtre"
+prouver "le dernier chiffre d'un montant est coupé" web/public/v10/cabinet/cabinet.css \
+  "padding-inline-end: 12px; min-width: 10ch;" "padding-inline-end: 4px;" \
+  "CE-17 : un montant garde son dernier chiffre"
+prouver "l'Aide dit « Déclaration vit dans chaque dossier »" modules/socle/ecrans/cabinet/app-2.js \
+  "ONGLETS_COMPTA[g.ecran] ? \`L'écran « \${ONGLETS_COMPTA[g.ecran]} »\` : 'Cet écran')} vit" "ONGLETS_COMPTA[g.ecran] || 'Cet écran')} vit" \
+  "CE-27, CE-28 : l'Aide nomme l'écran, et les compteurs s'accordent sur leur total"
+prouver "la fiche dit deux fois « Noter une relance faite ailleurs… »" modules/socle/ecrans/cabinet/app-1.js \
+  "data-fd-aller=\"fd-relances\">Toutes les relances</a></div>\`)}" "data-fd-aller=\"fd-relances\">Toutes les relances</a><button type=\"button\" class=\"btn-lien\">Noter une relance faite ailleurs…</button></div>\`)}" \
+  "CE-31 : « Noter une relance faite ailleurs… » ne se dit qu'une fois sur la fiche"
+
+prouver "le trait du seuil traverse « aucune pièce depuis 6 mois »" web/public/plateforme/tableau-de-bord.css \
+  "top: 2px; z-index: 1; font-size: 12px;" "top: 2px; font-size: 12px;" \
+  "CE-33 : une infobulle ne se pose pas sur un chiffre pour ne rien dire"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

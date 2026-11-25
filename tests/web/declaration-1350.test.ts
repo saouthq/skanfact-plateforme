@@ -164,7 +164,8 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     const fevrier = async () => plat(await p.locator('[data-fd-mois="2026-02"]').innerText());
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}`);
     // Février déposé à l'instant, sans recharger l'application : la fiche le compte déjà, et ne dit pas « payé ».
-    await expect.poll(tuile, { timeout: 15_000 }).toMatch(/^Déclaré à l'État en 2026 95,000 DT 2 déclarations déposées · aucune notée payée · sans la CNSS$/i);
+    // (1.388.82, CE-01) Janvier, déposé avec son seul montant à décaisser (190), compte aussi : 190 + 95.
+    await expect.poll(tuile, { timeout: 15_000 }).toMatch(/^Déclaré à l'État en 2026 285,000 DT 2 déclarations déposées · aucune notée payée · sans la CNSS$/i);
     expect(await fevrier()).toMatch(/déposé 95,000 DT déclarés$/i);
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/declaration/2026`);
     await p.locator('#dc-payee').waitFor({ timeout: 15_000 });

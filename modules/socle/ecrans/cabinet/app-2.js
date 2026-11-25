@@ -5986,7 +5986,9 @@
           } catch (e) {
             // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case, comme un
             // matricule mal écrit (il ne se disait qu'en bas de l'écran).
-            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            // (1.388.82, CE-16) Le refus de la base ne nomme pas de champ : un refus qui parle du matricule se dit sur sa case
+            // aussi, pas en bas de l'écran, hors de la fenêtre.
+            if (e && (e.champ === 'matriculeFiscal' || (!e.champ && /matricule/i.test(plainError(e))))) return refus($('#f-mat', layer), plainError(e));
             toast(plainError(e), 'error');
           }
         };
@@ -6254,7 +6256,7 @@
             if (opts && opts.apres && !(r.id && r.id !== dossier.id)) opts.apres();
           } catch (e) {
             // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case.
-            if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));
+            if (e && (e.champ === 'matriculeFiscal' || (!e.champ && /matricule/i.test(plainError(e))))) return refus($('#f-mat', layer), plainError(e));
             toast(plainError(e), 'error');
           }
         };
@@ -6553,6 +6555,9 @@
   }
   // Le nom d'une échéance dans une liste repliée : deux « Déclaration de juillet » (le 15 et le 28) se distinguent.
   const nomCourtEch = x => `${x.t.court}${x.t.physiques ? ' (personnes physiques)' : ''}${x.e.id === 'employeur' ? ` ${x.t.moisNom}` : ''}`;
+  // (CE-36) Une date limite qui tombe un samedi ou un dimanche : SkanFact ne la reporte pas (la règle n'est confirmée par
+  // personne) — l'écran le dit au lieu de laisser croire qu'il a regardé.
+  const jourChome = iso => { const j = new Date(String(iso || '').slice(0, 10) + 'T00:00:00Z').getUTCDay(); return j === 6 ? 'samedi' : j === 0 ? 'dimanche' : ''; };
   const quandEch = (e, fait) => e.jours === 0 ? 'aujourd\'hui' : e.jours > 0 ? `dans ${pl(e.jours, 'jour')}` : fait ? `il y a ${pl(-e.jours, 'jour')}` : `en retard de ${pl(-e.jours, 'jour')}`;
   // (1.175.0) Un dossier compté dans la CNSS sans qu'on sache s'il emploie : son trimestre n'est pas saisi ici (cabcore).
   function employeurInconnu(d, e) {
@@ -6781,7 +6786,7 @@
     const actionsTete = lecture || x.groupe === 'avenir' ? (lienPortail ? `<div class="ec-dt-a">${lienPortail}</div>` : '') : `<div class="ec-dt-a">${lienPortail}<span class="pc-menu-w"><button type="button" class="btn btn-sm btn-icone" data-ec-menu="@tete" aria-haspopup="menu" aria-expanded="${st.menu === '@tete'}" aria-label="Les gestes de la déclaration">${EC_IC.trois}</button>${st.menu === '@tete'
       ? `<div class="row-menu ec-menu" role="menu"><button type="button" role="menuitem" id="ec-pointer"${hors ? ' disabled' : ''}><b>${x.pointee ? 'Annuler « toute déposée »' : `Marquer toute la ${esc(minuscule(x.t.court))} déposée…`}</b><span>${x.pointee ? 'Chaque dossier redevient ce qu\'il était' : 'Le pense-bête pour tous les dossiers d\'un coup'}</span></button><button type="button" role="menuitem" data-ec-geste="production"><b>Voir dans le tableau de bord</b><span>Les mois de chaque dossier, de la saisie à la déclaration</span></button></div>` : ''}</span></div>`;
     const detail = `<section class="ec-det" aria-label="${esc(x.t.titre)}"><button type="button" class="pc-retour" id="ec-retour">${EC_IC.g} Échéances</button>
-      <div class="ec-dt"><div class="ec-dt-g"><h2>${esc(x.t.titre)}</h2><p>${x.groupe === 'depose' ? 'Date limite' : 'À déposer au plus tard le'} ${esc(new Date(e.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }))} <span class="ec-tag ${tonTete}">${esc(quandEch(e, x.groupe === 'depose'))}</span></p><small>${contenu}</small></div>${actionsTete}</div>
+      <div class="ec-dt"><div class="ec-dt-g"><h2>${esc(x.t.titre)}</h2><p>${x.groupe === 'depose' ? 'Date limite' : 'À déposer au plus tard le'} ${esc(new Date(e.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }))} <span class="ec-tag ${tonTete}">${esc(quandEch(e, x.groupe === 'depose'))}</span>${jourChome(e.date) && x.groupe !== 'depose' ? `<span class="ec-chome">un ${jourChome(e.date)} : le report au premier jour ouvrable n'est pas compté — À VÉRIFIER</span>` : ''}</p><small>${contenu}</small></div>${actionsTete}</div>
       ${banPP}${avert}${banPrudence}${resume}${x.groupe === 'avenir' ? '' : filtres}<div class="ec-t" role="table"><div class="ec-th" role="row"><span>Dossier</span><span>Où il en est</span><span>Montant</span><span></span></div>${lignesHtml}</div>
       <p class="ec-pied">Des pense-bêtes : SkanFact ne dépose rien à ta place et ne se connecte à aucune administration ${info('ec.depot')}. Jours proposés : le ${esc(K.deadlineSettings(S).tvaDay)} (déclaration mensuelle), le ${esc(K.deadlineSettings(S).tvaDayPP)} (personnes physiques), le ${esc(K.deadlineSettings(S).cnssDay)} (CNSS), À VÉRIFIER${estAssocie() ? ', <a href="#/reglages" class="pc-lien">réglables dans Réglages</a>' : ''}.</p></section>`;
 
@@ -9824,8 +9829,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
           <svg viewBox="0 0 120 120" aria-hidden="true"><circle class="g-an-fond" cx="60" cy="60" r="${R}"/><circle class="g-an-plein" cx="60" cy="60" r="${R}" style="--circ:${CIRC.toFixed(1)};--off:${(CIRC * (1 - pct)).toFixed(1)}"/></svg>
           <span class="g-an-t"><b>${aFait}<small> / ${aTotal}</small></b><span>${aQuoi}</span></span></div>
           <ul class="g-chiffres">
-            <li><b>${gestesFaits}<small> / ${gestes.length}</small></b><span>${gestesFaits > 1 ? 'gestes guidés réussis' : 'geste guidé réussi'}</span></li>
-            <li><b>${pagesFaites}<small> / ${pages.length}</small></b><span>${pagesFaites > 1 ? 'écrans découverts' : 'écran découvert'}</span></li>
+            <li><b>${gestesFaits}<small> / ${gestes.length}</small></b><span>${gestes.length > 1 ? 'gestes guidés réussis' : 'geste guidé réussi'}</span></li>
+            <li><b>${pagesFaites}<small> / ${pages.length}</small></b><span>${pages.length > 1 ? 'écrans découverts' : 'écran découvert'}</span></li>
             <li><b>${et.faites.decouvrir ? 'Faite' : 'À faire'}</b><span>la découverte de l'exemple</span></li>
           </ul></div>
       </section>
@@ -10391,7 +10396,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       }
       if (d) return `<button class="btn btn-primary" data-ecran="${esc(g.ecran)}" data-dossier="${esc(d.id)}">${esc(g.label)} ${esc(K.de(d.name))}</button>${pourquoi}`;
       return `<button class="btn btn-primary" data-geste="#/">Choisir le dossier</button>
-        <span class="small muted">${esc(ONGLETS_COMPTA[g.ecran] || '')} vit dans chaque dossier : ouvre un client, puis la barre de gauche.</span>`;
+        <span class="small muted">${esc(ONGLETS_COMPTA[g.ecran] ? `L'écran « ${ONGLETS_COMPTA[g.ecran]} »` : 'Cet écran')} vit dans chaque dossier : ouvre un client, puis la barre de gauche.</span>`;
     }
     return `<button class="btn btn-primary" data-geste="${esc(g.hash)}"${g.panneau ? ` data-panneau="${esc(g.panneau)}"` : ''}>${esc(g.label)}</button>${pourquoi}`;
   }

@@ -111,6 +111,7 @@ export interface BaseDeDonnees {
     cree_par: string;
     cree_le: Generated<Date>;
     expire_le: Generated<Date>;
+    paie: Generated<boolean>;
   };
   'cabinet.fiche': {
     cabinet: string;
@@ -509,6 +510,7 @@ export interface BaseDeDonnees {
     double_de: string | null;
     double_de_sorte: string | null;
     mois_classeur: string | null;
+    courriel_le: Date | null;
   };
   'messagerie.modele': {
     id: Generated<string>;

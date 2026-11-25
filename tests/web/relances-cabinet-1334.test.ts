@@ -210,9 +210,11 @@ describe('(1.334.0) les Relances et les Échéances du Cabinet, à la souris', (
     if (await p.locator('#tb-avoir[aria-expanded="false"]').count()) await p.locator('#tb-avoir').click();
     const lp = (nom: string, sous: RegExp) => p.locator('#page-bord .afaire-ligne').filter({ hasText: nom }).filter({ hasText: sous });
     await expect.poll(() => lp('Café des Nattes', /à classer/).count(), { timeout: 20_000 }).toBe(1);
-    expect(await lp('Café des Nattes', /à classer/).innerText()).toMatch(/1 mois sans écriture[\s\S]*septembre 2026 · 1 pièce reçue, à classer[\s\S]*urgent/);
+    expect(await lp('Café des Nattes', /à classer/).innerText()).toMatch(/1 mois sans écriture[\s\S]*septembre 2026 · 1 pièce reçue, à classer/);
+    // (CE-32) Le groupe dit « Urgent » : la ligne n'a plus sa propre étiquette, elle est rangée dans le groupe.
+    expect(await lp('Café des Nattes', /à classer/).getByRole('button').getAttribute('data-priorite')).toMatch(/^u:/);
     expect(await lp('Café des Nattes', /à classer/).getByRole('button').innerText()).toBe('Classer');
-    expect(await lp('Atelier Ennasr', /relancé aujourd'hui, dans la conversation/).innerText()).toMatch(/à voir/);
+    expect(await lp('Atelier Ennasr', /relancé aujourd'hui, dans la conversation/).getByRole('button').getAttribute('data-priorite')).toMatch(/^v:/);
     expect(await lp('Atelier Ennasr', /relancé aujourd'hui/).getByRole('button').innerText()).toBe('Sa conversation');
     expect(await lp('Librairie Ennour', /sans écriture/).getByRole('button').innerText()).toBe('Demander…');
 

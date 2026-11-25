@@ -2417,7 +2417,8 @@
     ['#4cb8e6', '#1d84b5'], ['#a78bfa', '#7c5ad6'], ['#7cc47f', '#3f8f45'], ['#94a3b8', '#64748b']];
   const couleurDe = id => { let n = 0; for (const c of String(id)) n = (n * 31 + c.charCodeAt(0)) >>> 0; return COULEURS_DOSSIER[n % COULEURS_DOSSIER.length]; };
   const PETITS_MOTS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'et', 'd', 'l', 'sarl', 'suarl', 'sa', 'sas', 'cabinet']);
-  const initialesDe = nom => (String(nom || '').normalize('NFC').split(/[\s'’\-.&]+/).filter(m => m && !PETITS_MOTS.has(m.toLowerCase()))
+  // (1.388.82, CE-25) « Exemple · Pâtisserie El Amal » : la marque de l'exemple et le point médian ne font pas d'initiales.
+  const initialesDe = nom => (String(nom || '').normalize('NFC').replace(/^exemple\s*·\s*/i, '').split(/[\s'’\-.&·]+/).filter(m => m && !PETITS_MOTS.has(m.toLowerCase()))
     .slice(0, 2).map(m => m[0]).join('') || 'SF').toUpperCase();
   const marqueD = (d, cl = '') => { const c = couleurDe(d.id); return `<span class="marque-s ${cl}" style="background:linear-gradient(145deg, ${c[0]}, ${c[1]})" aria-hidden="true">${esc(initialesDe(d.name))}</span>`; };
   const typeD = d => `<span class="type-d ${d.manual ? 'tenu' : 'relie'}" title="${d.manual ? 'Le cabinet tient ce dossier : le client n\'est pas sur SkanFact' : 'Le client est sur SkanFact : ses pièces arrivent seules'}">${d.manual ? 'Tenu' : 'Relié'}</span>`;
@@ -2520,10 +2521,10 @@
     // du cabinet. C'est la MÊME liste que la pastille des Échéances : un seul calcul, un seul chiffre.
     let enRetard = []; try { enRetard = declarationsEnRetard().slice().sort((a, b) => (a.e.date < b.e.date ? -1 : 1)); } catch { enRetard = []; }
     const lignesRetard = enRetard.length > 3
-      ? [{ cle: 'ech-retard', dossier: null, dossiers: [...new Set(enRetard.flatMap(x => x.lignes.filter(l => !EC_FAIT(l.st)).map(l => l.d)))], quoi: `${enRetard.length} déclarations en retard`, sous: `${enRetard.slice(0, 3).map(nomCourtEch).join(', ')}…`, ton: 'alerte', geste: 'Voir les échéances', faire: () => { echState.sel = ''; vers('#/echeances'); } }]
+      ? [{ cle: 'ech-retard', dossier: null, dossiers: [...new Set(enRetard.flatMap(x => x.lignes.filter(l => !EC_FAIT(l.st)).map(l => l.d)))], quoi: `${enRetard.length} déclarations en retard`, sous: `${enRetard.slice(0, 3).map(nomCourtEch).join(', ')}…`, ton: 'alerte', retard: true, geste: 'Voir les échéances', faire: () => { echState.sel = ''; vers('#/echeances'); } }]
       : enRetard.map(x => ({ cle: `ech-${x.cle}`, dossier: null, dossiers: x.lignes.filter(l => !EC_FAIT(l.st)).map(l => l.d), quoi: x.t.titre,
         sous: `${quandEch(x.e, false)} · ${x.afaire === x.lignes.length ? `${pl(x.afaire, 'dossier')} à faire` : `${x.afaire} sur ${pl(x.lignes.length, 'dossier')} à faire`}`,
-        ton: 'alerte', geste: 'Voir l\'échéance', faire: () => { echState.sel = x.cle; echState.filtre = 'tout'; echState.ouverte = true; vers('#/echeances'); } }));
+        ton: 'alerte', retard: true, geste: 'Voir l\'échéance', faire: () => { echState.sel = x.cle; echState.filtre = 'tout'; echState.ouverte = true; vers('#/echeances'); } }));
     urgent.splice(urgent.filter(x => x.cle === 'cle-secours' || x.cle === 'licence').length, 0, ...lignesRetard);
     // Tes premiers pas (10.14.0), tant que le cabinet démarre : l'étape suivante, guidée.
     const pas = lignePremiersPas();
@@ -2928,7 +2929,9 @@
   const marqueCab = () => `<span class="marque-s cab" aria-hidden="true">${esc(initialesDe(S.cabinet.name))}</span>`;
   function lignePriorite(x, i, groupe) {
     return `<div class="afaire-ligne">${x.dossier ? marqueD(x.dossier) : marqueCab()}<span class="afaire-txt"><b>${esc(x.quoi)}</b><span>${x.dossier ? `${esc(x.dossier.name)} · ` : ''}${esc(x.sous || '')}</span></span>`
-      + `<span class="etat ${x.ton}">${x.ton === 'alerte' ? 'urgent' : 'à voir'}</span><button type="button" class="btn btn-sm" data-priorite="${groupe}:${i}">${esc(x.geste)}</button></div>`;
+      // (CE-32) Le groupe dit déjà « Urgent » ou « À voir » : une étiquette par ligne ne trie plus rien. Seule une
+      // déclaration dont la date est passée porte la sienne, « en retard » — c'est la seule qui le soit vraiment.
+      + `${x.retard ? '<span class="etat alerte">en retard</span>' : ''}<button type="button" class="btn btn-sm" data-priorite="${groupe}:${i}">${esc(x.geste)}</button></div>`;
   }
   // ---------- Le tableau de bord (maquette docs/maquettes/cabinet/tableau-de-bord.html), Priorités comprises ----------
   // (plateforme) 1.194.0 — Skander, 30/10/2026 : « on va fusionner Priorités et Tableau de bord et on va appliquer la
@@ -3023,7 +3026,7 @@
     const pret = restent.length ? `${prets ? `${pl(prets, 'prête', 'prêtes')} à déposer` : 'aucune prête à déposer'} · ${restent.length - prets ? `${restent.length - prets} ${j === 0 ? `ne ${restent.length - prets > 1 ? 'le seront' : 'le sera'} pas aujourd'hui` : `pas encore ${restent.length - prets > 1 ? 'prêtes' : 'prête'}`}` : 'toutes peuvent partir'}` : '';
     const pp15 = [ppTard.length ? `${pl(ppTard.length, 'dossier')} au ${jourMois(dueTb(ppTard[0].d, moisC))} déjà en retard` : '',
       ppAvant.length && restent.length ? `${pl(ppAvant.length, 'personne physique', 'personnes physiques')} au ${jourMois(duePP)}, ${jPP === 0 ? 'aujourd\'hui' : `dans ${pl(jPP, 'jour')}`}` : ''].filter(Boolean).join(' · ');
-    const etape = ([e, nom, l]) => `<button type="button" class="tb-et tb-et-${e}${l.length ? '' : ' vide'}${tbState.filtre === `et:${e}` ? ' tb-et-on' : ''}" data-tb-etape="${e}" title="${esc(l.map(x => x.d.name).join(', ') || 'aucun dossier')}">
+    const etape = ([e, nom, l]) => `<button type="button" class="tb-et tb-et-${e}${l.length ? '' : ' vide'}${tbState.filtre === `et:${e}` ? ' tb-et-on' : ''}" data-tb-etape="${e}"${l.length ? ` title="${esc(l.map(x => x.d.name).join(', '))}"` : ''}>
         <span class="tb-et-t"><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${nom}</span>
         <span class="tb-et-n">${l.length}</span>
         ${l.length ? visagesTb(l) : '<span class="tb-et-0">aucun</span>'}
@@ -3393,7 +3396,9 @@
     const leg = `<div class="leg tb-leg">${['recu', 'saisi', 'revise', 'declare', 'fini', 'hors'].map(e => `<span><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${SIGNE_TB[e][1]}</span>`).join('')}${P.cols.some(m => m > P.dernier) ? '<span><span class="prod-p prod-avenir"></span>à venir</span>' : ''}</div>`;
     return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${puces}${corps}${leg}</div>${ficheMoisTb(L)}</div>`;
   }
-  const ROLE_TB = { supervision: 'direction du cabinet', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
+  // (CE-24) Un rôle porte UN nom, celui que les Réglages lui donnent (K.LIBELLE_ROLE) : « direction du cabinet » ici,
+  // « Supervision » là-bas faisaient croire à deux rôles.
+  const nomRoleCd = r => K.LIBELLE_ROLE[r] || r || '';
   // La charge de chacun : ce qui attend chaque personne (saisir revient à qui suit ; réviser et déposer, à qui valide).
   function chargeTb(L) {
     if (!estAssocie() || portee() !== 'tous') return '';
@@ -3408,7 +3413,7 @@
       return { c, n, tot: n.reduce((a, b) => a + b, 0) + bil, attend, bil };
     });
     const max = Math.max(1, ...rows.map(r => r.tot));
-    return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(ROLE_TB[r.c.role] || r.c.role || '')}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${[...r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')), r.bil ? `${r.bil} bilan ${revState.annee} en retard` : ''].filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
+    return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(nomRoleCd(r.c.role))}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${[...r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')), r.bil ? `${r.bil} bilan ${revState.annee} en retard` : ''].filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
       <p class="tb-note">Saisir revient à qui suit le dossier ; réviser et déposer, à qui valide${(() => {
         // (1.195.0) Qui valide pour qui, quand ce n'est pas la même personne (« Leïla pour les dossiers de Rim »).
         const paires = [...new Set(L.filter(x => x.eq.val && x.eq.suit && x.eq.val.id !== x.eq.suit.id).map(x => `${prenomDe(x.eq.val)} pour les dossiers de ${prenomDe(x.eq.suit)}`))];
@@ -4940,10 +4945,9 @@
     const actifs = (S.dossiers || []).filter(d => !d.archived);
     const charge = c => actifs.filter(d => equipeDe(d).suit && equipeDe(d).suit.id === c.id).length;
     const suiveurs = new Set(ds.map(d => (equipeDe(d).suit || {}).id));
-    const ROLE = { supervision: 'direction', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
     return `<div class="row-menu cd-cf" role="menu" aria-label="Confier à"><p class="cd-cf-h">Confier ${ds.length > 1 ? `les ${ds.length} dossiers` : esc(ds[0] ? ds[0].name : '')} à</p>${equipeRangee().map(c => {
       const deja = suiveurs.size === 1 && suiveurs.has(c.id);
-      return `<button type="button" role="menuitemradio" aria-checked="${deja}" class="cd-cf-i" data-cd-a="${esc(c.id)}"${deja ? ' disabled' : ''}>${persCd(c, 28)}<span class="rm-t"><span class="rm-l">${esc(c.nom)}</span><span class="rm-h">${esc(ROLE[c.role] || c.role || '')} · suit ${pl(charge(c), 'dossier')}</span></span>${deja ? '<span class="cd-cf-a">les suit</span>' : ''}</button>`;
+      return `<button type="button" role="menuitemradio" aria-checked="${deja}" class="cd-cf-i" data-cd-a="${esc(c.id)}"${deja ? ' disabled' : ''}>${persCd(c, 28)}<span class="rm-t"><span class="rm-l">${esc(c.nom)}</span><span class="rm-h">${esc(nomRoleCd(c.role))} · suit ${pl(charge(c), 'dossier')}</span></span>${deja ? '<span class="cd-cf-a">les suit</span>' : ''}</button>`;
     }).join('')}<p class="cd-cf-n">Qui valide ne change pas. La conversation de chaque client suit le dossier.</p></div>`;
   }
   // Confier : la personne choisie prend le suivi de chaque dossier (son rôle du cabinet), celle qui le suivait le quitte ;
@@ -5504,7 +5508,7 @@
       ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
         : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans sa Comptabilité › Cabinet.</small>`)}
       ${sec('La note de l\'équipe', `${d.note ? `<p class="fd-note">${esc(d.note)}</p>` : '<small class="cd-fs-n">Aucune note.</small>'}${!d.archived && (dir || eq.ids.includes(S.moi)) ? `<button type="button" class="btn-lien" id="fd-note">${FD_IC.note} ${d.note ? 'Modifier la note…' : 'Écrire une note…'}</button>` : ''}<small class="cd-fs-n">Seule l'équipe du cabinet la lit ; ${d.manual ? 'le client' : esc(prenom || 'le client')} ne la voit jamais.</small>`)}
-      ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#fd-relances" data-fd-aller="fd-relances">Toutes les relances</a>${d.archived ? '' : `<button type="button" class="btn-lien" data-cd-geste="noter" data-cd-d="${esc(d.id)}">Noter une relance faite ailleurs…</button>`}</div>`)}
+      ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#fd-relances" data-fd-aller="fd-relances">Toutes les relances</a></div>`)}
     </aside>`;
 
     // L'en-tête.
@@ -5598,7 +5602,6 @@
         e.stopPropagation();
         const g = b.dataset.cdGeste;
         if (g === 'confier') { dosState.confier = dosState.confier === d.id ? '' : d.id; redessiner(); return; }
-        if (g === 'noter') fenNoterRelance(d, [...tard]);
         if (g === 'archiver') fenArchiver([d], !d.archived);
       };
     });
@@ -7221,7 +7224,7 @@
         // propose pas ; joindre reste possible à la main, en second.
         const aucun = sansJustif.length && sel.sorte === 'piece';
         bloc = `<div class="cl-ap-b ambre"><b>À saisir</b><span>${!aucun ? 'Aucun achat de ses livres n\'attend son justificatif' : sel.lu ? 'Rien ne la relie aux achats déjà saisis (ni le total lu, ni le numéro, ni le fournisseur)' : 'Rien ne la relie aux achats déjà saisis : ni son nom, ni son message ne nomment leur fournisseur'} : c'est une dépense nouvelle. Saisie, elle arrive au brouillard ${esc(deMois(sel.mois))}.</span></div>`;
-        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir dans Écritures</button>${aucun ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Joindre à un achat déjà saisi…</button>` : ''}`;
+        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir dans Saisie</button>${aucun ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Joindre à un achat déjà saisi…</button>` : ''}`;
       }
       // (1.173.0) La lecture de la pièce : ce qu'elle dit, ou le bouton qui la lit (avec l'accord du client), ou pourquoi non.
       const L = clState.lus.get(d.id) || {};
@@ -9568,7 +9571,7 @@
         <th class="nw">${s.aux ? 'Tiers' : 'Compte'}</th><th>${s.aux ? 'Comptes' : 'Intitulé'}</th>${colOuv}
         <th class="${thN}">Mouvements débit</th><th class="${thN}">Mouvements crédit</th>
         <th class="${thN}">Solde débiteur</th><th class="${thN}">Solde créditeur</th></tr></thead>
-      <tbody>${paginate(b.rows, s).map(r => `<tr${s.aux ? '' : ` data-gl-compte="${esc(r.account)}" title="Ouvrir le grand livre du ${esc(r.account)} sur la même période"`}><td class="nw"${s.aux || !r.label ? '' : ' data-tel-nomme="non"'}>${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
+      <tbody>${paginate(b.rows, s).map(r => `<tr${s.aux ? '' : ` data-gl-compte="${esc(r.account)}"`}><td class="nw"${s.aux || !r.label ? '' : ' data-tel-nomme="non"'}${s.aux ? '' : ` title="Ouvrir le grand livre du ${esc(r.account)} sur la même période"`}>${esc(s.aux ? r.tiers : r.account)}</td><td>${esc(s.aux ? r.account : (r.label || ''))}</td>${
         avecOuv ? `<td class="r nw">${r.ouvertureD ? esc(money(r.ouvertureD)) : ''}</td><td class="r nw">${r.ouvertureC ? esc(money(r.ouvertureC)) : ''}</td>` : ''}
         <td class="r nw">${esc(money(r.debit))}</td><td class="r nw">${esc(money(r.credit))}</td>
         <td class="r nw">${r.soldeD ? esc(money(r.soldeD)) : ''}</td><td class="r nw">${r.soldeC ? esc(money(r.soldeC)) : ''}</td></tr>`).join('')}</tbody>

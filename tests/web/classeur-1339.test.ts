@@ -114,7 +114,7 @@ describe('la fiche et le classeur du dossier (1.339.0), à la souris', () => {
     await expect.poll(async () => (await bloc.first().innerText().catch(() => '')).replace(/\s+/g, ' '), { timeout: 10_000 }).toMatch(/À ranger : ce n'est pas un achat/);
     expect(await p.locator('[data-cl-ap="ranger"].btn-primary').count()).toBe(1);
     expect(await p.locator('[data-cl-ap="saisir"]').innerText()).toBe('La saisir quand même');
-    expect(await p.getByText('La saisir dans Écritures').count()).toBe(0);
+    expect(await p.getByText('La saisir dans Saisie').count()).toBe(0);
     await p.locator('[data-cl-ap="ranger"]').click();
     await expect.poll(() => p.url(), { timeout: 10_000 }).toMatch(new RegExp(`#/pieces/${boulangerie}$`));
     expect(erreurs).toEqual([]);

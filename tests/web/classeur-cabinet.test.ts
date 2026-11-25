@@ -272,7 +272,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // (Skander, 29/10 : « à quoi ça sert si la pièce n'a rien à voir ? ») ; joindre reste possible à la main, en second,
     // et la fenêtre ne fait passer aucun achat pour le bon.
     await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).click();
-    await expect.poll(() => p.locator('.cl-ap .btn-primary').innerText().catch(() => '')).toBe('La saisir dans Écritures');
+    await expect.poll(() => p.locator('.cl-ap .btn-primary').innerText().catch(() => '')).toBe('La saisir dans Saisie');
     expect(await p.locator('.cl-ap .cl-ap-b').first().innerText()).toMatch(/^À saisir\s+Rien ne la relie aux achats déjà saisis : ni son nom, ni son message ne nomment leur fournisseur/);
     expect(await p.locator('.cl-ap').innerText()).not.toMatch(/FA-0919/);
     expect(await p.locator('.cl-ap [data-cl-ap="joindre"]').count()).toBe(0);
@@ -432,7 +432,8 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // La saisie : le journal des achats, une date de septembre, le nom de la pièce, et le bandeau qui le dit.
     await p.locator('#sa-date').waitFor({ timeout: 15_000 });
     expect(await p.locator('.sa-depuis').innerText()).toMatch(/Saisie de « facture-steg-sept\.pdf » · Septembre 2026 › achats/);
-    expect(await p.locator('#sa-libelle').inputValue()).toBe('facture-steg-sept');
+    // (1.388.82, CE-12) Le nom du fichier se lit en libellé ; il n'y est plus recopié tel quel.
+    expect(await p.locator('#sa-libelle').inputValue()).toBe('Facture steg sept');
     expect(await p.locator('#sa-date').inputValue()).toMatch(/09\/2026|^30$/);
     await p.locator('input[data-k="compte"]').nth(0).fill('6061');
     await p.locator('input[data-k="debit"]').nth(0).fill('186,420');

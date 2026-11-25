@@ -7630,3 +7630,35 @@ Messages, Saisie), joué comme un comptable. Ce que les écrans disent maintenan
   (« Facture hebergement T3 »), un nom d'appareil photo (« IMG_0412 ») laisse le libellé à écrire.
 
 Tests : `tests/cabinet/ecrans-1388-82.test.ts` (17) ; quinze preuves, deux preuves existantes réajustées.
+
+## 1.388.83 — Le Cabinet relu, fin du lot (vérification complète, lot 1)
+
+La fin du lot Cabinet : les écrans qui restaient de l'audit (CE-15 à CE-36).
+
+- **Le classeur** dit « La saisir dans Saisie » : aucun écran ne s'appelle « Écritures ».
+- **Ajouter un client** : le refus d'un matricule se dit sur sa case, dans la fenêtre, même quand la base ne nomme pas le
+  champ (il partait en bas de l'écran, hors de la fenêtre).
+- **Les montants** gardent leur dernier chiffre dans leur case (« 0,000 » s'affichait « 0,00 » coupé).
+- **Au téléphone, le menu « Plus »** ne montre plus d'identifiant (« d-fiche ») dans « Récents », ouvre « Pièces reçues »
+  et la comptabilité du dossier, et ne dit plus deux fois « Équipe » ni « Réglages ».
+- **Les rôles** portent partout le nom des Réglages (« Supervision », « Saisie et validation ») : le tableau de bord
+  disait « direction du cabinet » et « tenue des dossiers ».
+- **Le dossier d'exemple** porte les initiales de son nom, pas « E· ».
+- **L'Aide** dit « L'écran « Déclaration » vit dans chaque dossier » ; « Me guider » accorde ses compteurs sur leur total.
+- **La fiche** ne propose plus deux fois « Noter une relance faite ailleurs… ».
+- **Le tableau de bord** : le groupe dit « Urgent » ou « À voir », les lignes ne portent plus chacune « urgent » ; seule
+  une déclaration dont la date est passée porte une étiquette, « en retard ».
+- **Les infobulles** ne se posent plus sur un chiffre pour ne rien dire (« aucun dossier » sur un « 0 ») ; dans la
+  balance, celle qui mène au grand livre vit sur le numéro du compte, plus sur les montants. Le trait du seuil, dans « Quand les pièces
+  arrivent », ne traverse plus « aucune pièce depuis 6 mois ».
+- **Réglages › Apparence** : les miniatures du thème montrent l'application (une barre, une page, une carte) ; « Comme le
+  système » est coupé en une moitié claire et une moitié sombre, et la miniature sombre se voit sur un fond sombre.
+- **Une date limite un samedi ou un dimanche** se dit : SkanFact ne la reporte pas au premier jour ouvrable — À VÉRIFIER
+  avec un comptable.
+
+Laissé pour le test à l'écran : l'en-tête collant de la comptabilité sur le bandeau des mois (CE-35), les textes coupés
+(CE-30) et la mise en page au téléphone (CE-21 à CE-23), la bulle de la visite « Relancer un client » (CE-29). Restent à
+décider : la devise d'une pièce en euros dans la grille de saisie (CE-13, un chantier) et le mois d'une pièce de septembre
+classée en octobre (CE-14, À VÉRIFIER avec un comptable).
+
+Tests : `tests/cabinet/ecrans-1388-83.test.ts` (12) ; treize preuves.
