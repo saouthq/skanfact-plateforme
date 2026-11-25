@@ -7159,3 +7159,39 @@ CAB2-1 et CAB2-2 (les dates de TVA de la fiche, le forfaitaire non assujetti) é
   demande que le livre porte l'auteur et le valideur, que la base garde mais que le pont ne transmet pas encore.
 - Tests : `cabinet-personnages-1388-62` ; les parcours du tableau de bord, de la saisie, des dossiers, de la coquille,
   de la tablette et du téléphone relus ; six preuves.
+
+## 1.388.63 — l'entreprise par métier : le nom exact, le titre de lot, les notes d'honoraires (#25)
+
+Issue #25 (BTP, services, profession libérale, exportateur). MET2-1 et MET2-7 étaient déjà corrigés en 1.388.44.
+
+- **MET2-3 — taper le nom exact d'un article ajoute un autre article.** Une avocate tapait « Frais et débours » puis
+  Entrée, et l'application ajoutait « Représentation en justice », dont la description contient « hors frais et
+  débours ». Maintenant, la liste propose d'abord l'article dont le nom est celui tapé. Viennent ensuite les articles
+  dont le nom contient les mots tapés, puis ceux que seule leur description fait sortir. À rang égal, l'ordre du
+  catalogue est gardé (`propositionsCatalogue`, app-1.js).
+- **MET2-8 — un titre de lot restait seul en bas de page.** C'était le cas de « LOT 2 — MAÇONNERIE » au pied de la
+  page 1. Quand la mise en page passe à la page suivante et que la dernière ligne posée est un titre de lot, ce titre
+  descend avec la ligne qui le suit (`paginate`, core-2.js ; `break-after: avoid` sur `tr.titre` pour l'impression du
+  navigateur). Le test imprime dans chromium des devis de 10 lots de 2 à 9 postes. Sans le correctif, il tombe sur
+  « 3 postes par lot : page 1 ».
+- **MET2-6 — une avocate lisait « Factures » partout, sauf sur la pièce.** Les endroits suivants disent maintenant
+  « Notes d'honoraires » quand le métier est à honoraires :
+  - le menu, la bande des vues et le titre de la fenêtre (`C.pageDuMetier`, appelé par `navPages` et `vuesDePage`) ;
+  - la page de la liste (titre, « Nouvelle note d'honoraires », état vide) ;
+  - le chemin de l'éditeur, le bouton retour et la tuile « À encaisser ».
+
+  La table `PAGES` ne bouge pas : le nom est calculé à partir du métier, il n'est pas écrit dans la table.
+- Tests : `tests/v10/metiers-1388-63.test.ts`. 3 preuves.
+
+Restes, dits ici :
+- **MET2-9** (la désignation sur plusieurs lignes dans l'éditeur) : la case est un `<input>`, et la recherche dans le
+  catalogue, le clavier de la grille et la virgule s'y branchent. La passer en zone de texte demande une version à
+  elle seule, jouée à la souris.
+- **MET2-2** (un compte bancaire en devises) : c'est une fonction nouvelle (la devise du compte, la contre-valeur, la
+  cession avec son écart). Elle est notée, mais pas faite ici.
+- **MET2-4, MET2-5 et MET2-10** sont à faire vérifier par un expert-comptable :
+  - les débours dans le chiffre d'affaires et dans la base de la retenue ;
+  - le forfait proposé à une avocate ;
+  - l'article 18 cité pour l'export.
+
+  Rien n'est changé sans son avis.

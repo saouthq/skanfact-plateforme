@@ -6364,6 +6364,7 @@
   table.lines tbody td { padding: 2mm 3mm; border-bottom: .2mm solid #eceff3; vertical-align: top; }
   table.lines tbody tr:last-child td { border-bottom: none; }
   table.lines .lbl { font-weight: 600; }
+  table.lines tr.titre { break-after: avoid; page-break-after: avoid; }
   table.lines tr.titre td { background: ${tint(0.07)}; padding-top: 5px; padding-bottom: 5px; }
   table.lines tr.titre .lbl { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 8.5pt; }
   table.lines .desc { font-size: 8.8pt; color: #6b7684; margin-top: .6mm; line-height: 1.4; }
@@ -6706,7 +6707,13 @@
           // morceau posé dans un conteneur neuf, sur une page déjà remplie, doit descendre.
           if (creux2.children.length === 1 && seul(cur)) continue;
           creux2.removeChild(morceaux[i]);
+          // (1.388.63, MET2-8) Un titre de lot ne reste pas seul en bas de page : il descend avec sa
+          // première ligne (« LOT 2 — MAÇONNERIE » au pied de la page 1, ses huit postes page 2).
+          const avant = creux2.lastElementChild;
+          const titreSeul = avant && avant.classList && avant.classList.contains('titre') && creux2.children.length > 1;
+          if (titreSeul) creux2.removeChild(avant);
           neuve();
+          if (titreSeul) creux2.appendChild(avant);
           creux2.appendChild(morceaux[i]);
         }
       };
@@ -7949,7 +7956,7 @@
     remiseEffective,
     periodBounds, issuedIn, ventesDuMetier, cessionsSur, salesTotals, revenueByMonth, topItems, clientMovement, AGING_BUCKETS, agedReceivables, releveClient, releveHtml, mailReleve, payerRanking, quoteFunnel, objectiveProgress, ventesParCanal, encaisseSur, achatsRepartis, motifsDeRefus,
     amountToWords, intToWords, intToWordsEn, documentHtml, fitToPage, paginate, pageCount,
-    MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT, FAMILLES_DU_MENU, vuesDePage,
+    MODULES, PAGES, moduleById, pageById, pageTitle, moduleCount, moduleCounts, modulesRevenus, moduleOn, moduleWhy, navPages, pageDuMetier, familleNavOuverte, FAMILLES_OUVERTES_AU_DEBUT, FAMILLES_DU_MENU, vuesDePage,
     sousModuleOn, sousModuleById, sousModules, OPTION_LABELS,
     MODULES_PAR_ACTIVITE, modulesSuggeres, wipeData, rendreLesEmprunts, estDemo, exemplePerime, verdictMotDePasse, firstSteps, reussites, liste, defaultVat, seuilRetenue, sousSeuilRetenue, newLine, tauxPourRegime, tvaRecuperable, tvaNonDeductible, achatsHorsRegime, tauxAchatArticle, fournisseurEtranger, tauxAchatPropose, articlesSansTva, sourcesSansTva, factureSansTvaSuspecte, ligneFactureeSansTva, regimePourPiece, modelesParDefaut, modeleMail,
     contrasteSurBlanc, lisibiliteMarque, ACCENTS_PROPOSES, marquePersonnalisee,

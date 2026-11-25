@@ -32183,6 +32183,15 @@ prouver 'le nom du tableau de bord coupé à 190 px (1.388.62)' web/public/plate
 prouver 'la palette qui perd la sélection au clavier (1.388.62)' modules/socle/ecrans/cabinet/app-2.js \
   'if (choisie && choisie.scrollIntoView) choisie.scrollIntoView({ block: '\''nearest'\'' });' '' \
   'la palette suit la sélection au clavier'
+prouver 'le nom exact tapé derrière une description (1.388.63)' modules/socle/ecrans/entreprise/app-1.js \
+  'const rang = c => nomExact(c) ? 0 : parNom(c) ? 1 : 2;' 'const rang = c => 0;' \
+  '« Frais et débours » tapé'
+prouver 'le titre de lot seul en bas de page (1.388.63)' modules/socle/moteur/core-2.js \
+  'const titreSeul = avant && avant.classList' 'const titreSeul = false && avant && avant.classList' \
+  'aucune page ne finit par un titre de lot'
+prouver 'les notes d'\''honoraires appelées factures au menu (1.388.63)' modules/socle/moteur/core-1.js \
+  'if (!p || p.id !== '\''factures'\'' || !estLiberal(company)) return p;' 'return p;' \
+  'le menu et la bande des vues nomment la page'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

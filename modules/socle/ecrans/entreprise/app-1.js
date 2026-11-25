@@ -1937,7 +1937,14 @@
     // (La règle de `C.normCode`, écrite ici : un test joue cette fonction seule, sans le moteur.)
     const nc = v => String(v == null ? '' : v).replace(/\s+/g, '').toUpperCase();
     const parCode = q ? (items || []).find(c => nc(c.code) && nc(c.code) === nc(q)) : null;
-    const shown = words.length ? [parCode, ...(items || []).filter(c => c !== parCode && correspond(c))].filter(Boolean).slice(0, 8) : [];
+    // (1.388.63, MET2-3) Le nom EXACT tapé passe en tête, puis les articles dont le NOM correspond, avant ceux que seule
+    // leur description fait sortir : « Frais et débours » tapé, Entrée ajoutait « Représentation en justice » (sa description
+    // dit « hors frais et débours »).
+    const nomExact = c => sansAccents(c.label).trim() === sansAccents(q);
+    const parNom = c => { const l = sansAccents(c.label), ls = l.replace(/\s+/g, ''); return words.every(w => l.includes(w) || ls.includes(w)); };
+    const rang = c => nomExact(c) ? 0 : parNom(c) ? 1 : 2;
+    const trouves = (items || []).filter(c => c !== parCode && correspond(c)).map((c, i) => ({ c, i })).sort((x, y) => rang(x.c) - rang(y.c) || x.i - y.i).map(x => x.c);
+    const shown = words.length ? [parCode, ...trouves].filter(Boolean).slice(0, 8) : [];
     const exact = shown.some(c => sansAccents(c.label).trim() === sansAccents(q));
     const creer = !!peutCreer && q.length >= 2 && !exact && (shown.length > 0 || !!demandee);
     return { shown, creer, query: q };
@@ -2538,7 +2545,7 @@
       if (route === 'contrat') { const r = (data.recurring || []).find(x => x.id === id); const t = r && objetDeContrat(r); if (t) return nom(t); }
       if (route === 'achat') { const a = (data.purchases || []).find(x => x.id === id); if (a && a.number) return nom('Achat ' + a.number); }
     }
-    return PAGE_LABELS[route] || 'Accueil';
+    return route === 'factures' && C.estLiberal(company()) ? 'Notes d\'honoraires' : PAGE_LABELS[route] || 'Accueil';
   };
   // Une page de CRÉATION qu'on vient d'enregistrer n'est pas un endroit où revenir : son adresse
   // (« #/doc/new/devis », « #/achat/new ») rouvre une pièce VIERGE. Après « Enregistrer », le
@@ -3080,7 +3087,7 @@
   }
   // L'adresse d'une page cachée, ouverte quand même : ce qui est refusé, pourquoi, et le geste qui ramène.
   function pageInterdite(name) {
-    const nom = (C.pageById(name) || {}).titre || PAGE_LABELS[name] || 'Cette page';
+    const nom = (C.pageDuMetier(C.pageById(name), company()) || {}).titre || PAGE_LABELS[name] || 'Cette page';
     const titre = nom.charAt(0).toUpperCase() + nom.slice(1);
     if (aVenir(name)) {
       // (1.381.0) L'écran d'une partie à venir : ce qu'elle fera, où on en est, quoi faire en attendant — et un geste utile.
@@ -4041,7 +4048,7 @@
       // Le titre se lisait dans le TEXTE du lien de la barre latérale. Un module masqué n'a plus de
       // lien : la fenêtre se serait appelée « SkanFact » tout court sur ses pages. Le titre vient
       // maintenant de core.PAGES, la même source que le lien.
-      t = C.pageTitle(name);
+      t = (C.pageDuMetier(C.pageById(name), company()) || {}).titre || C.pageTitle(name);
     }
     // Une page qui n'est pas au catalogue (une pièce neuve, un achat, la fiche d'un fournisseur,
     // d'un salarié, d'un bien…) prend le titre qu'elle AFFICHE (10.12.0). La fenêtre s'appelait
@@ -5491,7 +5498,7 @@
       const aRedater = brl.map(d => lfNoteBrouillon(d, dernieres)).filter(n => n.redater);
       const m = n => C.money(n, '', C.decimalsFor(base));
       return `<div class="tuiles${ttn ? '' : ' trois'}" id="lf-tuiles">
-        <button type="button" class="tuile large" data-tuile="à encaisser" aria-pressed="${on('à encaisser')}"><span class="tu-t">À encaisser <span class="mu">· ${pl(enc.length, 'facture')}, toutes années</span></span><b class="tu-m">${m(tot)} <small>${h(base)}</small></b>
+        <button type="button" class="tuile large" data-tuile="à encaisser" aria-pressed="${on('à encaisser')}"><span class="tu-t">À encaisser <span class="mu">· ${C.estLiberal(company()) ? pl(enc.length, 'note', 'notes') : pl(enc.length, 'facture')}, toutes années</span></span><b class="tu-m">${m(tot)} <small>${h(base)}</small></b>
           <span class="barre-r" role="img" aria-label="${h(`${m(aEch)} ${base} à échoir, ${m(enRet)} ${base} en retard${enBloq ? `, ${m(enBloq)} ${base} bloqués par un refus d'El Fatoora` : ''}`)}">${tot > 0 ? `${aEch > 0 ? `<i style="flex:${aEch}"></i>` : ''}${enBloq ? `<i class="b" style="flex:${enBloq}"></i>` : ''}${enRet > 0 ? `<i class="r" style="flex:${enRet}"></i>` : ''}` : '<i class="vide"></i>'}</span>
           <span class="leg"><span><i></i>${m(aEch)} à échoir</span>${enBloq ? `<span><i class="b"></i>${m(enBloq)} bloqués : refus El Fatoora</span>` : ''}<span><i class="r"></i>${m(enRet)} en retard</span></span>${devises.length ? `<span class="tu-s">dont ${devises.map(d => argentLu(lfReste(d), cur(d))).join(', ')} comptés au taux de la facture ; l'écart de change se voit au paiement</span>` : ''}</button>
         <button type="button" class="tuile alerte" data-tuile="retard" aria-pressed="${on('retard')}"><span class="tu-t">En retard <span class="mu">· ${pl(ret.length, 'facture')}</span></span><b class="tu-m">${m(enRet)} <small>${h(base)}</small></b>
@@ -5612,20 +5619,24 @@
     }
 
     const lecture = aboBloque(true);
+    // (1.388.63, MET2-6) Une profession libérale émet des notes d'honoraires : la page le dit comme la pièce et le menu.
+    const NOM_LF = C.estLiberal(company())
+      ? { titre: 'Notes d\'honoraires', nouvelle: 'Nouvelle note d\'honoraires', une: 'Une note d\'honoraires', uneMin: 'une note d\'honoraires', premiere: 'ma première note d\'honoraires' }
+      : { titre: 'Factures', nouvelle: 'Nouvelle facture', une: 'Une facture', uneMin: 'une facture', premiere: 'ma première facture' };
     const avoirPossible = !commercial && !lecture && data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number);
     $('#view').innerHTML = `
-      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Factures</span></div><h1>Factures</h1><p class="sous">Ce qu'on te doit, ce qui est payé${ttn ? ', ce qui part à El Fatoora' : ''}</p></div>
+      <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>${h(NOM_LF.titre)}</span></div><h1>${h(NOM_LF.titre)}</h1><p class="sous">Ce qu'on te doit, ce qui est payé${ttn ? ', ce qui part à El Fatoora' : ''}</p></div>
         <div class="actions">${lecture ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>`
-          : `${avoirPossible ? `<button class="btn" id="new-avoir" title="Choisis la facture qu'il corrige">${lfIc('annuler', 15)} Nouvel avoir</button>` : ''}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new" aria-keyshortcuts="N F">${lfIc('croix', 15, 2.4)} Nouvelle facture <kbd aria-hidden="true">N</kbd><kbd aria-hidden="true">F</kbd></button>`}</div></div>
+          : `${avoirPossible ? `<button class="btn" id="new-avoir" title="Choisis la facture qu'il corrige">${lfIc('annuler', 15)} Nouvel avoir</button>` : ''}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new" aria-keyshortcuts="N F">${lfIc('croix', 15, 2.4)} ${h(NOM_LF.nouvelle)} <kbd aria-hidden="true">N</kbd><kbd aria-hidden="true">F</kbd></button>`}</div></div>
       ${mine.length ? `<div class="lf" id="lf">${puces()}<div id="lf-haut"></div><div id="lf-barre"></div><div id="list-wrap"></div>
-        <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> passer d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>X</kbd> la choisir · <kbd>N</kbd> puis <kbd>F</kbd> nouvelle facture</p>
+        <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> passer d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>X</kbd> la choisir · <kbd>N</kbd> puis <kbd>F</kbd> ${h(NOM_LF.nouvelle.toLowerCase())}</p>
         <div id="lf-choix"></div><div id="lf-feuille" hidden></div></div>`
-        : lecture ? etatVide('Réclamer l\'argent du travail fait', ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et ne se modifie plus ensuite. Pour corriger après coup, on fait un avoir.',
+        : lecture ? etatVide('Réclamer l\'argent du travail fait', [`${NOM_LF.une} est la pièce officielle : elle prend son numéro au moment où tu l'émets, et ne se modifie plus ensuite. Pour corriger après coup, on fait un avoir.`,
           `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`], [['vide-abo', 'Voir l\'abonnement', true]])
         : `<div class="panel premiere"><div class="pr-t"><span class="pr-ic">${lfIc('carte', 26, 1.8)}</span><h2>Réclamer l'argent du travail fait</h2>
-          <p>Une facture est la pièce officielle : elle prend son numéro au moment où tu l'émets, et ne se modifie plus ensuite. Pour corriger après coup, on fait un avoir.</p>
-          <p>SkanFact suit ensuite tout seul ce qu'on te doit, et te le remonte dans « Relances » dès qu'une facture dépasse son échéance.</p>
-          <div class="pr-b"><button class="btn btn-primary" id="vide-new">${lfIc('croix', 15, 2.4)} Créer ma première facture</button><button class="btn" id="vide-demo">Voir un exemple rempli</button></div></div>
+          <p>${h(NOM_LF.une)} est la pièce officielle : elle prend son numéro au moment où tu l'émets, et ne se modifie plus ensuite. Pour corriger après coup, on fait un avoir.</p>
+          <p>SkanFact suit ensuite tout seul ce qu'on te doit, et te le remonte dans « Relances » dès qu'${h(NOM_LF.uneMin)} dépasse son échéance.</p>
+          <div class="pr-b"><button class="btn btn-primary" id="vide-new">${lfIc('croix', 15, 2.4)} Créer ${h(NOM_LF.premiere)}</button><button class="btn" id="vide-demo">Voir un exemple rempli</button></div></div>
           <ol class="pr-e"><li><b>1</b><span><b>Tu écris</b><small>le client, les lignes ; le brouillon se garde tout seul</small></span></li><li><b>2</b><span><b>Tu émets</b><small>le serveur donne le numéro, dans l'ordre, sans trou</small></span></li>${ttn ? '<li><b>3</b><span><b>Tu signes</b><small>par DigiGo ; elle part d\'elle-même à El Fatoora</small></span></li>' : ''}<li><b>${ttn ? 4 : 3}</b><span><b>Tu encaisses</b><small>paiement partiel, retenue à la source, relances</small></span></li></ol></div>`}`;
     // (COLLAB-15) Qui lit les pièces sans les écrire (la lecture, la comptabilité interne) ne se voit offrir aucune création :
     // le refus tombait après la saisie.
@@ -6729,7 +6740,7 @@
         </div></div>`;
     const teteCharte = () => `<div class="page-head ed-tete">
         ${retourListe(backTo, isQ ? 'devis' : isExtra ? 'autres pièces' : 'factures')}<div class="ed-titre">
-          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="${h(backTo)}" class="ed-retour">${isQ ? 'Devis' : isExtra ? 'Proforma, bons et contrats' : 'Factures'}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(doc.number || title)}</span></div>
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="${h(backTo)}" class="ed-retour">${isQ ? 'Devis' : isExtra ? 'Proforma, bons et contrats' : C.estLiberal(company()) ? 'Notes d\'honoraires' : 'Factures'}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(doc.number || title)}</span></div>
           <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee || (conflitPiece && conflitPiece.id === doc.id) ? ' hidden' : ''}><span id="ed-enreg-i" style="display:contents">${lfIc('coche', 14, 2.6)}</span><span id="ed-enreg-t">enregistré</span></span>${isNew && !figee && bridge.brouillon && bridge.brouillon(doc.type).garde() ? `<span class="ed-enreg ac-garde" id="ed-garde"${reprisDoc ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${doc.recurringId && !charte ? `<div class="small muted">Générée par un contrat récurrent — <a href="#/contrat/${h(doc.recurringId)}">voir le contrat</a></div>` : ''}
         </div>

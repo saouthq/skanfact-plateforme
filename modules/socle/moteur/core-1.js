@@ -902,8 +902,15 @@
 
   // Les pages de la barre latérale, dans l'ordre, groupées par module. `pied` sort du compte : ces
   // deux-là (Paramètres, Aide) vivent dans le pied de la barre, qui ne défile jamais.
+  // (1.388.63, MET2-6) Une profession libérale émet des « notes d'honoraires » : le menu, la bande des vues et le titre de
+  // la page le disent comme la pièce elle-même (l'éditeur, l'émission, l'imprimé et « Créer » le disaient seuls).
+  function pageDuMetier(p, company) {
+    if (!p || p.id !== 'factures' || !estLiberal(company)) return p;
+    return { ...p, titre: 'Notes d\'honoraires', vueNom: 'Les notes d\'honoraires' };
+  }
   function navPages(data) {
-    return PAGES.filter(p => !p.horsMenu && !p.pied && (!p.module || moduleOn(data, p.module)));
+    const co = data && data.company;
+    return PAGES.filter(p => !p.horsMenu && !p.pied && (!p.module || moduleOn(data, p.module))).map(p => pageDuMetier(p, co));
   }
 
   // Une famille de la barre est-elle ouverte ? (10.13.0) — pure, pour que la règle se teste sans
@@ -923,7 +930,7 @@
     if (!p) return [];
     const parent = p.vueDe ? PAGES.find(x => x.id === p.vueDe) : p;
     if (!parent) return [];
-    const l = [parent, ...PAGES.filter(x => x.vueDe === parent.id)].filter(x => !x.module || moduleOn(data, x.module));
+    const l = [parent, ...PAGES.filter(x => x.vueDe === parent.id)].filter(x => !x.module || moduleOn(data, x.module)).map(x => pageDuMetier(x, data && data.company));
     return l.length > 1 ? l : [];
   }
   function familleNavOuverte(famille, etat, active, repliIci) {
