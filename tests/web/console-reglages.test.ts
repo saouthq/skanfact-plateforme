@@ -981,7 +981,8 @@ describe('les réglages de la plateforme, à la souris', () => {
     await g.locator('textarea').fill('Migration finie plus tôt que prévu');
     await cliquer(g.getByRole('button', { name: 'Lever maintenant' }));
     await expect.poll(async () => net(await p.locator('#rg-lecture-seule-etat').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ouvert/);
-    expect(net(await p.locator('.c-pil-histo').innerText())).toMatch(/Levée le .+ par Amira Réglages.*Migration de la base vers le nouveau disque/);
+    // (1.388.85) Deux historiques à l'écran (la lecture seule, la version minimale) : on lit celui de SA section.
+    expect(net(await p.locator('section[aria-labelledby="rg-lecture-seule"] .c-pil-histo').innerText())).toMatch(/Levée le .+ par Amira Réglages.*Migration de la base vers le nouveau disque/);
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-pilotage-levee.png') });
     await c.waitForTimeout(5_500);
     await c.locator('#vol-beta-libelle').click();
@@ -1112,7 +1113,11 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect(await section.locator('tr[data-reglage]').count()).toBe(6);
     const ligne = section.locator('tr[data-reglage="connexion.lien_minutes"]');
     expect(net(await ligne.innerText())).toMatch(/^Lien « mot de passe oublié » .+ 30 minutes valeur d'origine/);
-    expect(net(await section.innerText())).toContain('Aucun réglage n\'a encore été changé : tous ont leur valeur d\'origine.');
+    // (1.388.85) La base est partagée par tout le lancement, et le journal ne s'efface pas : la recette de la console y
+    // pose un geste « réglages à distance ». La phrase « aucun changement » ne se dit que s'il n'y en a aucun.
+    const passes = Number((await admin.query("select count(*) n from plateforme.geste_console where geste = 'reglages.distant'")).rows[0]?.n ?? 0);
+    if (passes === 0) expect(net(await section.innerText())).toContain('Aucun réglage n\'a encore été changé : tous ont leur valeur d\'origine.');
+    else expect(await section.locator('.c-pil-histo').count()).toBe(1);
     expect(net(await section.locator('.c-pil-textes').innerText())).toBe('Les textes qu\'on lit chez les clients se changent dans les messages aux clients, sans nouvelle version non plus : ouvrir « Messages aux clients »');
     // La colonne Valeur commence au même endroit dans les deux familles.
     const gauches = await section.locator('.c-pil-reglages thead th:nth-child(2)').evaluateAll((ths) => ths.map((th) => Math.round(th.getBoundingClientRect().left)));

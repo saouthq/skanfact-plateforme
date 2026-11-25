@@ -374,7 +374,8 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                           </tr>
                           {j.lignes.map((l) => {
                             const famille = familleDe(l.geste);
-                            const sorte = l.sorte ?? null;
+                            // (1.388.85) Une famille que l'écran ne sait pas dire ne fait pas tomber tout le journal : elle ne s'affiche pas.
+                            const sorte = l.sorte && (SORTES as readonly string[]).includes(l.sorte) ? l.sorte : null;
                             return (
                               <tr key={l.id} className={l.systeme ? 'c-jr-systeme' : undefined}>
                                 <td className="c-mono c-jr-heure">{heureDe(l.le)}</td>

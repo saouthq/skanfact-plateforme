@@ -7686,3 +7686,21 @@ Pour le lot du pont : la réponse au cabinet qui bloquait l'enregistrement d'une
 questions.
 
 Tests : `tests/v10/entreprise-1388-84.test.ts` (8) ; onze preuves.
+
+## 1.388.85 — Le rouge GitHub de l'écran Journal de la console
+
+Le journal de la console tombait sur « Cet écran n'a pas pu s'afficher » dès qu'un geste des adresses de la console
+(« console.adresse_ajoutee », 0234) ou de l'ouverture des modules (« modules.etat », 0229) était dans la page : la
+famille d'un geste vient de `plateforme.sorte_du_geste`, qui rendait « console » et « modules », deux familles que
+l'écran ne sait pas dire (« texte inconnu du catalogue »). La migration 0236 range les adresses avec le service et les
+modules avec les réglages ; l'écran ne fait plus confiance à une famille qu'il ne connaît pas, et son écran de secours
+porte la cause (`data-cause`) pour qu'un test la lise.
+
+Un test lit la définition EN VIGUEUR de la fonction (la dernière migration qui l'écrit) et exige que chaque geste connu
+tombe dans une famille que l'écran sait dire.
+
+Deux tests rendus patients face à la base partagée par tout un lancement : la recherche par téléphone du portefeuille
+(la liste se redessine encore), et les réglages à distance (la recette de la console laisse un geste dans le journal,
+qui ne s'efface pas). L'historique de la lecture seule se lit dans SA section.
+
+Tests : `tests/console/journal.test.ts` (+1) ; une preuve.

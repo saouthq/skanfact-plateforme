@@ -258,11 +258,13 @@ describe('la recette de la console, tenue par l\'écran', () => {
     // n'y est encore passé quand ce test tourne : il en pose un, le sien.
     await admin.query(`insert into plateforme.geste_console (qui, role, geste, motif, avant, apres)
       values ($1, 'direction', 'reglages.distant', 'Essai de la recette : un geste à lire au téléphone', null, '{"cle":"connexion.lien_minutes","valeur":45}'::jsonb)`, [moi]);
+    const ditEnConsole: string[] = [];
+    p.on('console', (m) => { if (m.type() === 'error') ditEnConsole.push(m.text()); });
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const gestes = p.locator('.c-table-journal td.c-jr-geste');
     // Vu rouge sur GitHub seulement (1.388.77) : si aucun geste n'apparaît, le test dit ce que l'écran montre.
     await expect.poll(() => gestes.count(), { timeout: 20_000 }).toBeGreaterThan(0).catch(async (e: Error) => {
-      throw new Error(`${e.message} — l'écran du journal : ${(await p.locator('main').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 900)}`);
+      throw new Error(`${e.message} — l'écran du journal : ${(await p.locator('main').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 900)} — erreurs de la page : ${[...erreurs, ...ditEnConsole, await p.locator('[data-cause]').getAttribute('data-cause').catch(() => '')].join(' | ').slice(0, 1500)}`);
     });
     expect((await gestes.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().right))).every((d) => d <= 390)).toBe(true);
     expect(await gestes.first().evaluate((e) => getComputedStyle(e, '::before').content)).toBe('"Geste"');

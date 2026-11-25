@@ -32586,6 +32586,11 @@ prouver "un ticket de caisse coche « Ta première facture »" web/public/platef
   "x.type === 'facture' && !C.estTicket(x));" "x.type === 'facture');" \
   "CE2-09 : un ticket de caisse ne coche pas « Ta première facture »"
 
+
+# 1.388.85 — Le journal de la console : chaque geste tombe dans une famille que l'écran sait dire.
+prouver "les adresses de la console sans famille au journal" base/migrations/0236_journal_familles.sql \
+  " or p_geste like 'console.%' then 'service'" " then 'service'" \
+  "chacun tombe dans une famille que l'écran sait dire (plateforme.sorte_du_geste)"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

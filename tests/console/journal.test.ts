@@ -107,6 +107,26 @@ describe('les gestes du journal de la console', () => {
     const sansLibelle = [...gestes].filter((g) => !texteConnu(`console.ecran.journal.g.${g.replaceAll('-', '_')}`));
     expect(sansLibelle).toEqual([]);
   });
+  // (1.388.85) La famille d'un geste vient de plateforme.sorte_du_geste (sa définition EN VIGUEUR, la dernière migration
+  // qui l'écrit) : chacune doit être une sorte que l'écran sait dire. « console » et « modules » ne l'étaient pas, et
+  // l'écran du journal tombait sur « Cet écran n'a pas pu s'afficher » dès qu'un de ces gestes était dans la page.
+  it('chacun tombe dans une famille que l\'écran sait dire (plateforme.sorte_du_geste)', () => {
+    const defs = fs.readdirSync(MIGRATIONS).filter((x) => x.endsWith('.sql')).sort()
+      .map((f) => /function plateforme\.sorte_du_geste\(p_geste text\)[\s\S]*?\$\$([\s\S]*?)\$\$/.exec(fs.readFileSync(path.join(MIGRATIONS, f), 'utf8'))?.[1])
+      .filter((x): x is string => !!x);
+    const corps = defs.at(-1) ?? '';
+    const regles = [...corps.matchAll(/when ([^\n]+?) then '([a-z_]+)'/g)].map((m) => ({
+      motifs: [...(m[1] ?? '').matchAll(/p_geste like '([^']+)'/g)].map((x) => new RegExp(`^${(x[1] ?? '').replace(/[.]/g, '\\.').replace(/%/g, '.*')}$`)),
+      sorte: m[2] ?? '',
+    }));
+    expect(regles.length).toBeGreaterThan(3);
+    expect(corps).toMatch(/else split_part\(p_geste, '\.', 1\)/);
+    const sorte = (g: string): string => regles.find((r) => r.motifs.some((re) => re.test(g)))?.sorte ?? g.split('.')[0] ?? '';
+    const tous = new Set([...gestes, ...gestesDits]);
+    expect(tous.has('console.adresse_ajoutee') && tous.has('modules.etat')).toBe(true);
+    const hors = [...tous].filter((g) => !(SORTES as readonly string[]).includes(sorte(g)) || !texteConnu(`console.ecran.journal.s.${sorte(g)}`));
+    expect(hors).toEqual([]);
+  });
 });
 
 // Les droits de la console (serveur/console/gestes.ts) : l'écran Équipe en fait une ligne chacun, avec son libellé et sa

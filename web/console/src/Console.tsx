@@ -236,15 +236,16 @@ function Ferme({ icone, titre: t, children }: { icone: NomIcone; titre: string; 
 }
 // Un écran qui tombe (un texte qui manque, une réponse inattendue) n'emporte que lui : la barre reste, l'écran dit quoi
 // faire, et changer d'écran le remet d'aplomb (1.387.82, issue 5, CONSOLE-1). React journalise déjà l'erreur captée.
-class Filet extends Component<{ cle: string; children: ReactNode }, { panne: boolean }> {
-  override state = { panne: false };
-  static getDerivedStateFromError() { return { panne: true }; }
+class Filet extends Component<{ cle: string; children: ReactNode }, { panne: boolean; cause: string }> {
+  override state = { panne: false, cause: '' };
+  // La cause reste sur la carte (data-cause, jamais affichée) : un écran qui tombe se diagnostique sans outils.
+  static getDerivedStateFromError(e: unknown) { return { panne: true, cause: e instanceof Error ? e.message.slice(0, 300) : String(e).slice(0, 300) }; }
   override componentDidUpdate(avant: { cle: string }) { if (avant.cle !== this.props.cle && this.state.panne) this.setState({ panne: false }); }
   override render() {
     if (!this.state.panne) return this.props.children;
     return (
       <Ferme icone="alerte" titre={titre('console.ecran.panne_ecran_titre')}>
-        <p>{phrase('console.ecran.panne_ecran')}</p>
+        <p data-cause={this.state.cause}>{phrase('console.ecran.panne_ecran')}</p>
         <p><Bouton onClick={() => { location.reload(); }}>{titre('console.ecran.recharger')}</Bouton></p>
       </Ferme>
     );

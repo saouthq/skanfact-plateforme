@@ -131,10 +131,9 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await expect.poll(async () => { await p.locator('#q').fill(''); return p.locator('#page-tb tr[data-id]').filter({ hasText: 'Librairie Ennour' }).count(); }, { timeout: 20_000 }).toBe(1);
     // (CABPORTEFEUILLE-13) Un morceau du téléphone le trouve, collé ou avec ses espaces.
     const nomsLus = () => p.locator('#page-tb tr[data-id] td.cl b').allInnerTexts();
-    await p.locator('#q').fill('98765');
-    await expect.poll(nomsLus, { timeout: 10_000 }).toEqual(['Librairie Ennour']);
-    await p.locator('#q').fill('98 765 432');
-    await expect.poll(nomsLus, { timeout: 10_000 }).toEqual(['Librairie Ennour']);
+    // (1.388.85) La liste peut encore se redessiner avec la recherche vidée : on tape dans l'attente (rouge GitHub).
+    await expect.poll(async () => { await p.locator('#q').fill('98765'); return nomsLus(); }, { timeout: 20_000 }).toEqual(['Librairie Ennour']);
+    await expect.poll(async () => { await p.locator('#q').fill('98 765 432'); return nomsLus(); }, { timeout: 20_000 }).toEqual(['Librairie Ennour']);
     await expect.poll(async () => { await p.locator('#q').fill(''); return p.locator('#page-tb tr[data-id]').filter({ hasText: 'Menuiserie Ben Ali' }).count(); }, { timeout: 20_000 }).toBe(1);
 
     // (CABPORTEFEUILLE-12) Sur un portable, le menu de la dernière ligne s'ouvre AU-DESSUS : ses entrées restent dans l'écran.
