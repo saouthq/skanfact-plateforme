@@ -7300,3 +7300,7 @@ Restes, dits ici :
 - **« Ranger dans mes achats… »** ne paraît plus sous sa propre photo quand le cabinet saisit les achats : le pied dit « Ton cabinet la saisit : elle arrivera dans tes achats », et « La saisir moi-même » reste possible. Ailleurs, le bouton dit ce qu'il fait (bulle).
 - **Sans lecture des photos sur le serveur**, « Ranger dans mes achats » joint d'office la pièce du message au nouvel achat et saute « Comment arrive cette pièce ? » : on saisit en la regardant. Avant, on arrivait sur le choix, la pièce nulle part.
 - À décider (Skander) : la lecture des photos par IA n'est pas branchée sur le serveur (aucune clé) — c'est pourquoi elle ne se voit pas.
+
+## 1.388.68 — Les réglages de caisse se cachent tant que la caisse est « À venir »
+
+- Paramètres › Documents : le panneau « Caisse et tickets » n'est plus posé quand la caisse est « À venir » (réglage du serveur `SKANFACT_A_VENIR`) ; ses valeurs enregistrées ne bougent pas. Retour de Skander, 25/11/2026.

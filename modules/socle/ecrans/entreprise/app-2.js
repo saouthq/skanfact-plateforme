@@ -7380,14 +7380,15 @@
           <p class="small muted mt">SkanFact écrit le fichier TEIF de chaque facture et de chaque avoir à l'émission, avec les montants de la pièce. Soumise, ton entreprise ne peut pas émettre une pièce dont le fichier serait refusé (ton matricule, l'identifiant du client) : SkanFact le dit avant de prendre le numéro, avec le bouton qui corrige. Chaque pièce émise se signe ensuite avec DigiGo (« Signer (DigiGo)… », dans son menu « Plus ») ; signée, elle part d'elle-même à la TTN, avec le compte El Fatoora de l'entreprise. Qui est soumis, et depuis quand : À VÉRIFIER avec ton comptable (loi de finances 2026, art. 53).</p>${bridge.dessinerSignataire ? '<div id="signataire-panel"></div>' : ''}${bridge.dessinerTtn ? '<div id="ttn-panel"></div>' : ''}${!(window.__aVenir || []).includes('efacture') ? '' : '</div>'}</div>` : ''}
         ${bridge.dessinerPaiement ? `${panneau('p-paiement')}<div id="paiement-panel"></div></div>` : ''}
         ${bridge.dessinerImprimante ? `${panneau('p-imprimante')}<div id="imprimante-panel"></div></div>` : ''}
-        ${panneau('p-caisse')}
+        ${/* (1.388.68, retour de Skander) La caisse « À venir » n'a pas de réglages à montrer : ils ne servent qu'aux tickets. */''}
+        ${(window.__aVenir || []).includes('caisse') ? '' : `${panneau('p-caisse')}
           <p class="small muted mb">Ces réglages ne servent qu'aux tickets de la page Caisse : tes devis et tes factures n'en dépendent pas.</p>
           <div class="grid-2">
             <label class="field">${lbl('Largeur du papier', 'cs.largeur')}<select name="caisseLargeur"><option value="80" ${Number(c.caisseLargeur) !== 58 ? 'selected' : ''}>80 mm (le plus courant)</option><option value="58" ${Number(c.caisseLargeur) === 58 ? 'selected' : ''}>58 mm</option></select></label>
             <label class="check" style="align-self:end"><input type="checkbox" name="caisseTimbre" ${c.caisseTimbre ? 'checked' : ''}> Timbre fiscal sur chaque ticket ${info('cs.timbre')}</label>
             ${bridge.encaisser ? field(lbl('Remise permise sans code à la caisse (%)', 'cs.plafond'), 'remiseCaisseAuDela', Number(c.remiseCaisseAuDela) > 0 ? c.remiseCaisseAuDela : '', 'number', `step="0.01" min="0" max="100" class="num" placeholder="0"${estResponsable() ? '' : ' disabled title="Réglé par le propriétaire ou un administrateur"'}`) : ''}
             <label class="field span-2">${lbl('Message en bas du ticket', 'cs.pied')}<textarea name="caissePied" rows="2" placeholder="Merci de votre visite.">${h(c.caissePied || '')}</textarea></label>
-          </div></div>
+          </div></div>`}
         </section>
 
         <section data-pane="envois" hidden>
