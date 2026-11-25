@@ -30,6 +30,16 @@ export const REGLES: readonly Regle[] = [
   { nom: 'session', valeurs: { heures: SESSION_HEURES, autre: POSTE_D_UN_AUTRE_MIN } },
 ];
 
+// (1.388.77, base 0232) Les chiffres des règles qui se changent depuis la console (Réglages › Pilotage du site) : la page
+// Sécurité dit ceux qui sont EN VIGUEUR, jamais ceux du code quand la console les a changés.
+export function reglesEnVigueur(regles: readonly Regle[], changes: ReadonlyMap<string, number>): Regle[] {
+  return regles.map((r) => {
+    if (r.nom === 'sans_session') return { ...r, valeurs: { rafale: changes.get('entree.rafale') ?? r.valeurs.rafale ?? 0, parSeconde: changes.get('entree.par_seconde') ?? r.valeurs.parSeconde ?? 0 } };
+    if (r.nom === 'api') return { ...r, valeurs: { minute: changes.get('api.par_minute') ?? r.valeurs.minute ?? 0, rafale: changes.get('api.rafale') ?? r.valeurs.rafale ?? 0 } };
+    return r;
+  });
+}
+
 export type Heure = { heure: string; reussies: number; codesFaux: number };
 export type ARegarder = {
   sorte: 'code' | 'attente'; id: string; le: string; erreurs: number; qui: string | null; adresse: string | null; role: string | null;

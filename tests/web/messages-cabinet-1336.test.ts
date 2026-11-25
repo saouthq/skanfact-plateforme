@@ -133,7 +133,11 @@ describe('les Messages du Cabinet, et le pont (1.336.0)', () => {
     await ligneDe('facture-pneus.png').waitFor({ timeout: 25_000 });
     await expect.poll(async () => net(await ligneDe('facture-pneus.png').locator('.msg-pied').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/saisie par ton cabinet$/);
     expect(await ligneDe('facture-pneus.png').getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(0);
-    expect(await ligneDe('ticket-carburant.png').getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(1);
+    // (1.388.67) Le ticket, que personne n'a saisi : son cabinet saisit les achats de Yasmine, la ligne le dit, et la saisir
+    // elle-même reste possible, en toutes lettres (« Ranger dans mes achats… » sous son propre envoi menait à un doublon).
+    const ligneTicket = ligneDe('ticket-carburant.png');
+    expect(net(await ligneTicket.locator('.msg-ranger-cite').innerText())).toBe('Ton cabinet la saisit : elle arrivera dans tes achats. La saisir moi-même');
+    expect(await ligneTicket.getByRole('button', { name: 'La saisir moi-même', exact: true }).count()).toBe(1);
     expect(erreursY).toEqual([]);
     await cy.close();
   }, 180_000);

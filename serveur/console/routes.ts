@@ -60,7 +60,8 @@ import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './se
 import { aLAccueil, lireUrgences } from './urgence.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
-import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
+import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, reglesEnVigueur, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
+import { reglagesChanges } from '../reglages-distants.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { exercicesDuLancement, fichesServies, FICHES, lireExercices, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { oublierLaFermeture } from '../fermeture.ts';
@@ -1622,7 +1623,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
         corps: {
           maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
           heures: lu.heures, motsDePasseFaux: lu.motsDePasseFaux, freines: lu.freines, aRegarder: rangerARegarder(lu.aRegarder), equipe: lu.equipe,
-          regles: REGLES_DE_CONNEXION.map((r) => ({ ...r, compte: r.nom === 'mot_de_passe' ? lu.freines : null })),
+          regles: reglesEnVigueur(REGLES_DE_CONNEXION, await reglagesChanges(ctx)).map((r) => ({ ...r, compte: r.nom === 'mot_de_passe' ? lu.freines : null })),
           cles, certificat: v.dernier?.certificat ? { expire: v.dernier.certificat, jours: joursDuCertificat(v.dernier.certificat, jour) } : null,
           // Les chaînes d'empreintes, relues seules (0115) : la dernière relecture, ce qui n'a jamais été relu, ce qui est cassé.
           // Depuis 0142 (C66) : le contenu des pièces aussi, la relecture demandée (et si elle ne bouge plus), l'incident relié.

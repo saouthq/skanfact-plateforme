@@ -39,6 +39,8 @@ declarerTextes({
   'geste.console.lecture_seule.poser': 'mettre le site en lecture seule, ou la lever',
   'geste.console.version_minimale.voir': 'voir la version minimale imposée aux écrans',
   'geste.console.version_minimale.poser': 'imposer la version en ligne aux écrans, ou retirer ce minimum',
+  'geste.console.reglages_distants.voir': 'voir les réglages à distance (limites et délais)',
+  'geste.console.reglages_distants.poser': 'changer un réglage à distance, ou le ramener à son origine',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
   'geste.console.support.voir': 'lire les demandes de support',

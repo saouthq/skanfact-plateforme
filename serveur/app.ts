@@ -11,6 +11,7 @@ import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/i
 import { brancherFermeture } from './fermeture.ts';
 import { ecritPendantLectureSeule, lireLectureSeule, refusLectureSeule } from './lecture-seule.ts';
 import { refusVersionMinimale } from './version-minimale.ts';
+import { reglerLesLimites } from './reglages-distants.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
@@ -241,6 +242,8 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           const machine = MACHINE.has(requete.ip);
           const bloquee = machine ? null : ctx.adresses?.bloquee(requete.ip) ?? null;
           if (bloquee) return envoyer(403, { motif: motif('porte.adresse_bloquee', { quand: quandATunis(bloquee) }), bloqueeJusquAu: bloquee.toISOString() });
+          // (1.388.77, base 0232) Les chiffres réglés depuis la console, s'il y en a.
+          if (!machine) await reglerLesLimites(ctx, limiteurPublic, limiteur);
           const v = machine ? null : limiteurPublic.appel(requete.ip);
           if (v && !v.permis) {
             ctx.adresses?.noter(requete.ip, 'frein');
@@ -281,6 +284,7 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         const cle = jeton ? await cleValable(ctx, jeton) : null;
         // Les limites d'appels d'une clé (14 § 2.5), avant tout travail : un appel refusé ne coûte rien.
         if (cle) {
+          await reglerLesLimites(ctx, limiteurPublic, limiteur);
           const v = limiteur.appel(cle.id);
           reponse.header('ratelimit-limit', String(limiteur.limite)).header('ratelimit-remaining', String(v.restants));
           if (!v.permis) {

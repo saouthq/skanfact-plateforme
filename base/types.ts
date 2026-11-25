@@ -1098,6 +1098,13 @@ export interface BaseDeDonnees {
     pose_par: string | null;
     pose_le: Date | null;
   };
+  'plateforme.reglage_distant': {
+    cle: string;
+    valeur: number;
+    motif: string;
+    le: Date;
+    par: string;
+  };
   'plateforme.regle_abonnement': {
     id: Generated<string>;
     code: string;

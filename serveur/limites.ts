@@ -25,16 +25,28 @@ export type Verdict = { permis: true; restants: number } | { permis: false; rest
 
 export class Limiteur {
   private seaux = new Map<string, { jetons: number; vu: number }>();
-  private readonly capacite: number;
-  private readonly parSeconde: number;
+  private capacite: number;
+  private parSeconde: number;
   private readonly maintenant: () => number;
+  // (1.388.77, base 0232) Les chiffres de départ : ceux qu'on retrouve quand la console ramène le réglage à son origine.
+  private readonly origine: { capacite: number; parSeconde: number };
 
   constructor(r: ReglageLimites = LIMITES_PAR_DEFAUT) {
     if (!(r.capacite >= 1) || !(r.parSeconde > 0)) throw new Error('une limite d\'appels a une capacité d\'au moins 1 et une recharge positive');
     this.capacite = r.capacite;
     this.parSeconde = r.parSeconde;
     this.maintenant = r.maintenant ?? Date.now;
+    this.origine = { capacite: r.capacite, parSeconde: r.parSeconde };
   }
+
+  // (1.388.77) Les réglages à distance changent les chiffres sans recréer le limiteur : les seaux en cours restent, et
+  // un seau plus plein que la nouvelle capacité est ramené à elle au prochain appel.
+  regler(r: { capacite: number; parSeconde: number }): void {
+    if (!(r.capacite >= 1) || !(r.parSeconde > 0)) return;
+    this.capacite = r.capacite;
+    this.parSeconde = r.parSeconde;
+  }
+  revenir(): void { this.regler(this.origine); }
 
   get limite(): number { return this.capacite; }
 

@@ -3451,3 +3451,15 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pil-en-ligne { margin: -4px 0 12px; }
 .c-pil-apercu-bouton { display: inline-block; margin-inline-start: 8px; padding: 2px 10px; border-radius: 8px; background: var(--c-fort); color: var(--c-fort-texte); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
 .c-rg + .c-rg { margin-block-start: 16px; }
+/* (1.388.77) Les réglages à distance : une ligne par réglage (ce qu'il règle, sa valeur, le geste), la valeur et son unité
+   côte à côte dans la fenêtre. */
+.c-pil-famille + .c-pil-famille { margin-block-start: 12px; }
+.c-pil-reglages td { vertical-align: top; }
+/* Les deux familles se lisent l'une sous l'autre : la colonne Valeur a la même largeur dans les deux tableaux. */
+.c-pil-reglages th:nth-child(2), .c-pil-reglages .c-pil-val { width: 22rem; }
+.c-pil-reglages .c-pil-val > b { white-space: nowrap; }
+.c-pil-reglages .c-pil-geste { text-align: end; width: 1%; }
+.c-pil-valeur { display: grid; grid-template-columns: minmax(0, 12rem) auto; align-items: end; gap: 4px 10px; }
+.c-pil-valeur .c-pil-unite { padding-block-end: 10px; color: var(--c-doux-texte); }
+.c-pil-valeur .c-pil-bornes { grid-column: 1 / -1; margin: 0; }
+.c-pil-textes { margin: 12px 0 4px; }

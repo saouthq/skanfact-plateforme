@@ -1099,6 +1099,68 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query("delete from plateforme.version_minimale where motif in ('Correction de la retenue à la source', 'Tous les postes ont rechargé')");
   }, 150_000);
 
+  it('1.388.77 : les réglages à distance — un délai changé dans la console, son historique, une valeur hors des bornes refusée, puis le retour à l\'origine', async () => {
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
+    await admin.query("delete from plateforme.reglage_distant where motif like 'Essai réglage%'");
+    const p = await console_(jD, 'pilotage');
+    const section = p.locator('section[aria-labelledby="rg-reglages-distants"]');
+    await section.waitFor({ timeout: 15_000 });
+    await section.scrollIntoViewIfNeeded();
+    // Les six réglages, en deux familles, chacun avec sa valeur d'origine ; aucun changement encore.
+    expect(await section.locator('tr[data-reglage]').count()).toBe(6);
+    const ligne = section.locator('tr[data-reglage="connexion.lien_minutes"]');
+    expect(net(await ligne.innerText())).toMatch(/^Lien « mot de passe oublié » .+ 30 minutes valeur d'origine/);
+    expect(net(await section.innerText())).toContain('Aucun réglage n\'a encore été changé : tous ont leur valeur d\'origine.');
+    expect(net(await section.locator('.c-pil-textes').innerText())).toBe('Les textes qu\'on lit chez les clients se changent dans les messages aux clients, sans nouvelle version non plus : ouvrir « Messages aux clients »');
+    // La colonne Valeur commence au même endroit dans les deux familles.
+    const gauches = await section.locator('.c-pil-reglages thead th:nth-child(2)').evaluateAll((ths) => ths.map((th) => Math.round(th.getBoundingClientRect().left)));
+    expect(new Set(gauches).size).toBe(1);
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-distants.png') });
+
+    // Changer : la fenêtre dit ce qui va se passer (de 30 à 45 minutes) ; hors des bornes, le refus le dit et rien ne part.
+    await cliquer(ligne.getByRole('button', { name: 'Changer : lien « mot de passe oublié »' }));
+    const f = p.getByRole('dialog');
+    const valeur = f.getByLabel('Nouvelle valeur');
+    await valeur.fill('999');
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toContain('La valeur tient entre 10 minutes et 240 minutes.');
+    await f.locator('textarea').fill('Essai réglage : les clients ouvrent le mail le lendemain');
+    await cliquer(f.getByRole('button', { name: 'Changer le réglage' }));
+    expect(net(await f.locator('[role="alert"]').last().innerText())).toMatch(/entre 10 minutes et 240 minutes/);
+    await valeur.fill('45');
+    // Le refus se lisait pour 999 : corrigée, la valeur l'efface.
+    expect(await f.locator('[role="alert"]').count()).toBe(0);
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/^Ce qui va se passer De 30 minutes à 45 minutes\. Les prochains liens envoyés valent cette durée/);
+    await f.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-distants-fenetre.png') });
+    await cliquer(f.getByRole('button', { name: 'Changer le réglage' }));
+    await expect.poll(async () => net(await ligne.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/45 minutes Changé le .+ par Amira Réglages · d'origine : 30 minutes Changer…$/);
+    expect(net(await section.locator('.c-pil-histo').innerText())).toMatch(/Amira Réglages Lien « mot de passe oublié » De 30 minutes à 45 minutes Essai réglage : les clients ouvrent le mail le lendemain/);
+    const lu = (await admin.query("select valeur from plateforme.reglage_distant where cle = 'connexion.lien_minutes'")).rows[0];
+    expect(lu?.valeur).toBe(45);
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-distants-change.png') });
+
+    // Le support lit la page, sans aucun geste.
+    const s2 = await console_(jS, 'pilotage');
+    const sect2 = s2.locator('section[aria-labelledby="rg-reglages-distants"]');
+    await sect2.waitFor({ timeout: 15_000 });
+    expect(await sect2.getByRole('button', { name: /^Changer/ }).count()).toBe(0);
+    expect(net(await sect2.innerText())).toContain('45 minutes');
+    await fermer(s2);
+
+    // Revenir à l'origine : un choix de la même fenêtre ; la ligne redit « valeur d'origine ».
+    await cliquer(ligne.getByRole('button', { name: 'Changer : lien « mot de passe oublié »' }));
+    const g = p.getByRole('dialog');
+    await g.getByText('Revenir à l\'origine (30 minutes)').click();
+    expect(await g.getByLabel('Nouvelle valeur').count()).toBe(0);
+    await g.locator('textarea').fill('Essai réglage : retour');
+    await cliquer(g.getByRole('button', { name: 'Revenir à l\'origine' }));
+    await expect.poll(async () => net(await ligne.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/30 minutes valeur d'origine/);
+    expect(net(await section.locator('.c-pil-histo').innerText())).toMatch(/De 45 minutes à 30 minutes, l'origine Essai réglage : retour/);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+    await admin.query("delete from plateforme.reglage_distant where motif like 'Essai réglage%'");
+  }, 120_000);
+
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {
       const p = await console_(jD, onglet, 390, 844);

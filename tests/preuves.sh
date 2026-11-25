@@ -8607,8 +8607,8 @@ prouver "un appareil inconnu qui entre sans code par e-mail" $CX \
 prouver "l'adresse jamais prouvée par le code reçu" $CX \
   "    if (lu.methode === 'courriel') await tx.query('select socle.prouver_adresse(\$1, \$2)', [demande.defi, maintenant]);" "" \
   "$CE1"
-prouver "un code par e-mail valable une heure" $CX \
-  "const DUREE_DEFI_COURRIEL_MINUTES = 15;" "const DUREE_DEFI_COURRIEL_MINUTES = 60;" \
+prouver "un code par e-mail valable une heure" serveur/reglages-distants.ts \
+  "{ cle: 'connexion.code_minutes', famille: 'delais', defaut: 15," "{ cle: 'connexion.code_minutes', famille: 'delais', defaut: 60," \
   "$CE4"
 prouver "un code renvoyé sans attendre" $C81 \
   "coalesce(d.envoye_le, d.cree_le) <= p_maintenant - interval '30 seconds'" "coalesce(d.envoye_le, d.cree_le) <= p_maintenant" \
@@ -8696,7 +8696,7 @@ prouver "l'ancien code valable après la correction" $C76 \
   "  update socle.defi_connexion set code_empreinte = p_empreinte, envois = envois + 1," "  update socle.defi_connexion set code_empreinte = code_empreinte, envois = envois + 1," \
   "$CR"
 prouver "le code de la correction jamais envoyé" $CX \
-  "  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription');" "" \
+  "  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription', minutes);" "" \
   "$CR"
 AC1="rien ne change avant le premier code juste : une activation abandonnée ne ferme pas la porte"
 AC2="une page rechargée garde le même secret, avec de nouveaux codes de secours ; après une heure, on recommence"
@@ -32348,6 +32348,26 @@ prouver "le refus d'un écran trop ancien dit « Rien n'a été enregistré » e
 prouver "« Recharger la page » du bandeau ne recharge rien" web/public/plateforme/message.js \
   "if (recharger) recharger.onclick = () => location.reload();" "" \
   "1.388.76 : la version minimale — imposée dans la console, un onglet resté sur l'ancien code voit le bandeau, son enregistrement est refusé avec « Recharger la page », puis retirée"
+
+# 1.388.77 — Les réglages à distance (pilotage, point 7 ; base 0232).
+prouver "la limite de l'entrée réglée dans la console ne freine rien" serveur/app.ts \
+  "if (!machine) await reglerLesLimites(ctx, limiteurPublic, limiteur);" "" \
+  "changer, refuser hors des bornes, freiner pour de vrai, revenir à l'origine"
+prouver "une valeur hors des bornes acceptée" base/migrations/0232_reglages_distants.sql \
+  "if p_valeur < p_min or p_valeur > p_max then perform socle.refus('cette valeur sort des bornes de ce réglage'); end if;" "" \
+  "changer, refuser hors des bornes, freiner pour de vrai, revenir à l'origine"
+prouver "revenir à l'origine laisse le limiteur sur l'ancien chiffre" serveur/reglages-distants.ts \
+  "  } else entree.revenir();" "  }" \
+  "changer, refuser hors des bornes, freiner pour de vrai, revenir à l'origine"
+prouver "les limites de l'API restent celles du code" serveur/reglages-distants.ts \
+  "if (v.has('api.rafale') || v.has('api.par_minute')) {" "if (false) {" \
+  "les limites de l'API suivent leur réglage ; le lien « mot de passe oublié » dit sa nouvelle durée"
+prouver "le lien « mot de passe oublié » garde ses trente minutes en dur" serveur/connexion.ts \
+  "  const minutes = await valeurReglage(ctx, 'connexion.lien_minutes');" "  const minutes = 30;" \
+  "les limites de l'API suivent leur réglage ; le lien « mot de passe oublié » dit sa nouvelle durée"
+prouver "un refus reste affiché sous une valeur corrigée" web/console/src/ecrans/Pilotage.tsx \
+  "const setTexte = (v: string) => { setTexteBrut(v); setRefus(null); };" "const setTexte = setTexteBrut;" \
+  "1.388.77 : les réglages à distance — un délai changé dans la console, son historique, une valeur hors des bornes refusée, puis le retour à l'origine"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

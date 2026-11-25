@@ -254,7 +254,10 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(m.premier).toBeLessThan(m.ecran * 1.05);
     expect(m.abo).toBe(m.etat);
     expect(m.large).toBeLessThanOrEqual(390);
-    // Le journal aussi, un geste par carte : le geste tient dans l'écran, nommé.
+    // Le journal aussi, un geste par carte : le geste tient dans l'écran, nommé. Sur une base neuve (GitHub), aucun geste
+    // n'y est encore passé quand ce test tourne : il en pose un, le sien.
+    await admin.query(`insert into plateforme.geste_console (qui, role, geste, motif, avant, apres)
+      values ($1, 'direction', 'reglages.distant', 'Essai de la recette : un geste à lire au téléphone', null, '{"cle":"connexion.lien_minutes","valeur":45}'::jsonb)`, [moi]);
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const gestes = p.locator('.c-table-journal td.c-jr-geste');
     await expect.poll(() => gestes.count(), { timeout: 20_000 }).toBeGreaterThan(0);

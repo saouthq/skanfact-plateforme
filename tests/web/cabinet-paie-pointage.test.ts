@@ -164,7 +164,7 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     expect(await fenetre.locator('[name=joursAbsence]').inputValue()).toBe('3,5');
     expect(await libelles()).toEqual(['Prime de présence', 'Heures supplémentaires : 6 h à +25 %']);
     expect(await montants()).toEqual(['20,125', '44,516']);
-    expect((await fenetre.locator('#bf-mois-note').innerText()).replace(/\s/g, ' ')).toMatch(/Brut proratisé : entrée le 14\/10\/2026, 15 jours sur 26 \(1\s234,567\sDT pour un mois plein\)\. Le mois est pointé/);
+    expect((await fenetre.locator('#bf-mois-note').innerText()).replace(/\s/g, ' ')).toMatch(/Brut proratisé : entrée le 14\/10\/2026, 15 jours sur 26 \(1\s234,567\sDT pour un mois plein\)\. À VÉRIFIER avec le dossier : la méthode du prorata \(jours ouvrables, calendaires ou trentièmes\)\. Le mois est pointé/);
     const net = (await fenetre.locator('#bf-apercu b').first().innerText()).replace(/\s/g, '');
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('Bulletin enregistré.');

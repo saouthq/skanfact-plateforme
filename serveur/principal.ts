@@ -91,6 +91,7 @@ import { FRAIS_MS } from './console/instantane.ts';
 import { routesMessageClients } from './console/message-clients.ts';
 import { routesLectureSeule } from './lecture-seule.ts';
 import { routesVersionMinimale } from './version-minimale.ts';
+import { routesReglagesDistants } from './reglages-distants.ts';
 import { routesNouveautes, type Nouveaute } from './nouveautes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
@@ -276,7 +277,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
     ...routesCabinet(ctx), ...routesClasseur(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
-    ...routesMessageClients(ctx.maintenant), ...routesLectureSeule(ctx), ...routesVersionMinimale(ctx), ...routesNouveautes(ctx), ...routesPdf(ctx)];
+    ...routesMessageClients(ctx.maintenant), ...routesLectureSeule(ctx), ...routesVersionMinimale(ctx), ...routesReglagesDistants(ctx), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[]; ia?: AppelIA } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {

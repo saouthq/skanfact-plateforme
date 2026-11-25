@@ -12,6 +12,7 @@
 // Ce qui part chez le fournisseur de SMS : le numéro et le code, RIEN d'autre (03 § 6). Chez le relais d'e-mails :
 // l'adresse, l'objet et un texte qui ne porte que le code ou le lien.
 
+import { valeurReglage } from './reglages-distants.ts';
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Imprimeur } from './pdf/imprimeur.ts';
@@ -85,7 +86,8 @@ export type ResultatConnexion =
 const sha256 = (t: string) => createHash('sha256').update(t, 'utf8').digest('hex');
 const DUREE_DEFI = '10 minutes';
 // Un e-mail met plus longtemps qu'un SMS à arriver, et se lit sur un autre écran.
-const DUREE_DEFI_COURRIEL_MINUTES = 15;
+// (1.388.77) La durée du code reçu par e-mail et celle du lien « mot de passe oublié » se règlent depuis la console
+// (serveur/reglages-distants.ts, `connexion.code_minutes` et `connexion.lien_minutes`) : 15 et 30 minutes d'origine.
 const MOTIF_REFUS = () => motif('connexion.refusee');
 
 export function attenteLisible(jusqua: Date, maintenant: Date): Texte {
@@ -172,11 +174,12 @@ export async function connecter(ctx: Contexte, demande: {
       const veutCode = (await tx.query('select socle.veut_code_courriel($1) v', [u.utilisateur])).rows[0].v as boolean;
       if (!verifiee || (veutCode && !(reconnu && !posteDUnAutre))) {
         const code = codeSms();
+        const minutes = await valeurReglage(ctx, 'connexion.code_minutes');
         const defi = (await tx.query('select socle.ouvrir_defi($1, $2, $3, $4, $5, $6) id',
-          [u.utilisateur, appareil, 'courriel', sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0].id as string;
+          [u.utilisateur, appareil, 'courriel', sha256(code), maintenant, `${minutes} minutes`])).rows[0].id as string;
         const email = (await tx.query('select email from socle.lire_defi($1, $2)', [defi, maintenant])).rows[0].email as string;
         const raison = verifiee ? 'appareil' : 'inscription';
-        envoyerCodeParCourriel(ctx, email, code, raison);
+        envoyerCodeParCourriel(ctx, email, code, raison, minutes);
         return { etat: 'code', defi, methode: 'courriel', appareil: appareil as string, adresse: email, raison };
       }
     }
@@ -254,7 +257,7 @@ export async function validerCode(ctx: Contexte, demande: {
 
 // Le code par e-mail : à l'adresse du compte, sans attendre l'envoi (le relais peut prendre quelques secondes ; un
 // échec se dit dans le journal du serveur, et « Renvoyer le code » le redemande).
-function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 'inscription' | 'appareil') {
+function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 'inscription' | 'appareil', minutes: number) {
   const courriel = ctx.courriel;
   if (!courriel) return;
   // Le français : l'anglais viendra avec son catalogue (vague 4).
@@ -262,7 +265,7 @@ function envoyerCodeParCourriel(ctx: Contexte, a: string, code: string, raison: 
   void courriel.envoi.envoyer({
     a,
     objet: rendre(t('connexion.courriel_objet', { code }), langue),
-    texte: rendre(t(raison === 'inscription' ? 'connexion.courriel_inscription' : 'connexion.courriel_appareil', { code, minutes: DUREE_DEFI_COURRIEL_MINUTES }), langue),
+    texte: rendre(t(raison === 'inscription' ? 'connexion.courriel_inscription' : 'connexion.courriel_appareil', { code, minutes }), langue),
     langue,
   }).catch((e: unknown) => { console.error(`le code par e-mail n'est pas parti : ${String(e)}`); });
 }
@@ -279,7 +282,8 @@ export async function renvoyerCode(ctx: Contexte, defi: string): Promise<{ ok: t
     if (!permis) return { ok: false, motif: motif('connexion.sms_limite') };
   } else if (!ctx.courriel) return { ok: false, motif: motif('connexion.oubli_indisponible') };
   const code = codeSms();
-  const duree = lu?.methode === 'sms' ? DUREE_DEFI : `${DUREE_DEFI_COURRIEL_MINUTES} minutes`;
+  const minutes = await valeurReglage(ctx, 'connexion.code_minutes');
+  const duree = lu?.methode === 'sms' ? DUREE_DEFI : `${minutes} minutes`;
   const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.renvoyer_defi($1, $2, $3, $4)',
     [defi, sha256(code), maintenant, duree])).rows[0] as { a_email: string; a_verifiee: boolean; a_methode: string; a_telephone: string | null } | undefined);
   if (!r) return { ok: false, motif: motif(lu?.methode === 'sms' ? 'connexion.renvoi_sms_impossible' : 'connexion.renvoi_impossible') };
@@ -287,7 +291,7 @@ export async function renvoyerCode(ctx: Contexte, defi: string): Promise<{ ok: t
     if (!r.a_telephone || !await envoyerSms(ctx, r.a_telephone, code)) return { ok: false, motif: motif('connexion.sms_rate') };
     return { ok: true };
   }
-  envoyerCodeParCourriel(ctx, r.a_email, code, r.a_verifiee ? 'appareil' : 'inscription');
+  envoyerCodeParCourriel(ctx, r.a_email, code, r.a_verifiee ? 'appareil' : 'inscription', minutes);
   return { ok: true };
 }
 
@@ -298,10 +302,11 @@ export async function corrigerAdresse(ctx: Contexte, defi: string, adresse: stri
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const nouvelle = adresse.trim().toLowerCase();
   const code = codeSms();
+  const minutes = await valeurReglage(ctx, 'connexion.code_minutes');
   const ok = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.corriger_adresse_du_defi($1, $2, $3, $4, $5) ok',
-    [defi, nouvelle, sha256(code), maintenant, `${DUREE_DEFI_COURRIEL_MINUTES} minutes`])).rows[0].ok as boolean);
+    [defi, nouvelle, sha256(code), maintenant, `${minutes} minutes`])).rows[0].ok as boolean);
   if (!ok) return { ok: false, motif: motif('connexion.correction_impossible') };
-  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription');
+  envoyerCodeParCourriel(ctx, nouvelle, code, 'inscription', minutes);
   return { ok: true, adresse: nouvelle };
 }
 
@@ -391,7 +396,7 @@ export async function revoquerAppareil(ctx: Contexte, qui: Qui, appareil: string
 }
 
 // ── Le mot de passe oublié (lot entrée, 06/10/2026 ; migration 0075, docs/entree.md) ─────────────────────────────────
-const DUREE_REINITIALISATION_MINUTES = 30;
+// La durée du lien : `connexion.lien_minutes` des réglages à distance (30 minutes d'origine).
 
 // Une demande : si un compte répond à l'adresse, son lien part par e-mail. La réponse est la même dans tous les cas (on
 // ne dit jamais si une adresse a un compte), et elle n'attend pas l'e-mail : le temps de réponse ne le dirait pas non
@@ -402,8 +407,9 @@ export async function demanderReinitialisation(ctx: Contexte, email: string, pou
   if (!courriel) throw new Refus('connexion.oubli_indisponible');
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
   const jeton = randomBytes(32).toString('base64url');
+  const minutes = await valeurReglage(ctx, 'connexion.lien_minutes');
   const a = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.demander_reinitialisation($1, $2, $3, $4)',
-    [email, sha256(jeton), maintenant, `${DUREE_REINITIALISATION_MINUTES} minutes`])).rows[0] as { a_email: string } | undefined);
+    [email, sha256(jeton), maintenant, `${minutes} minutes`])).rows[0] as { a_email: string } | undefined);
   if (!a) return;
   // Le français : l'anglais viendra avec son catalogue (vague 4).
   const langue = 'fr';
@@ -411,7 +417,7 @@ export async function demanderReinitialisation(ctx: Contexte, email: string, pou
   void courriel.envoi.envoyer({
     a: a.a_email,
     objet: rendre(t(pourquoi === 'inscription' ? 'connexion.deja_inscrit_objet' : 'connexion.oubli_objet'), langue),
-    texte: rendre(t(pourquoi === 'inscription' ? 'connexion.deja_inscrit_texte' : 'connexion.oubli_texte', { lien, minutes: DUREE_REINITIALISATION_MINUTES }), langue),
+    texte: rendre(t(pourquoi === 'inscription' ? 'connexion.deja_inscrit_texte' : 'connexion.oubli_texte', { lien, minutes }), langue),
     bouton: rendre(t('connexion.oubli_bouton'), langue),
     langue,
   }).catch((e: unknown) => { console.error(`l'e-mail du mot de passe oublié n'est pas parti : ${String(e)}`); });

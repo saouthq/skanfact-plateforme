@@ -7483,3 +7483,32 @@ Skander, 25/11/2026 : « recharger les écrans trop anciens après une correctio
 - Rattrapé au passage, pour la 1.388.75 aussi : les deux tables neuves (`lecture_seule`, `version_minimale`) sont
   classées pour l'export complet d'une entreprise (des réglages de la plateforme, qui ne partent pas avec elle), et les
   droits de la console qui les lisent et les posent ont leur phrase dans l'écran Équipe.
+
+## 1.388.77 — Les réglages à distance (pilotage, point 7)
+
+Skander, 25/11/2026 : « limites, textes, délais changés sans nouvelle version ».
+
+- **Dans la console, Réglages › Pilotage du site › « Réglages à distance »** : six chiffres du serveur, en deux familles.
+  Les limites d'appels (entrée sans session : appels d'un coup et par seconde ; API : appels par minute et d'un coup) et
+  les délais (lien « mot de passe oublié », code reçu par e-mail). Chaque ligne dit ce que fait le réglage, sa valeur et,
+  s'il a été changé, quand, par qui et sa valeur d'origine.
+- **« Changer… »** (le titulaire seul) : la fenêtre dit ce que le réglage décide, ce qui va se passer (« de 30 minutes à
+  45 minutes »), les bornes que le code fixe, et demande un motif. Une valeur hors des bornes est refusée, à l'écran et
+  en base. Un réglage changé se ramène à son origine par la même fenêtre. Le serveur applique le changement dans les dix
+  secondes, sans redémarrer ; chaque geste a sa ligne au journal et dans « Les changements passés ».
+- **Ce qui est branché pour de vrai** : les limites servent à chaque appel (le treizième appel d'une même adresse est
+  freiné quand on règle la rafale à douze) ; la page Sécurité de la console dit les chiffres en vigueur ; l'e-mail
+  « mot de passe oublié » et celui du code disent la nouvelle durée, et le lien vaut cette durée.
+- **Les textes** : ce que lisent les clients se change déjà sans nouvelle version dans « Messages aux clients » ; la
+  section y renvoie au lieu d'ouvrir un second endroit pour la même chose.
+- La liste de ce qui se règle, ses bornes et ses valeurs d'origine vivent dans le code du serveur ; la base ne garde que
+  ce qui a été changé. Base : migration 0232 (`reglage_distant`, `reglages_distants_en_vigueur`,
+  `console_poser_reglage_distant`, `console_reglages_distants`).
+- Trouvé à l'écran : « Changé Le 25/11… » (majuscule mal placée), « non plus :. » (un point après les deux-points), un
+  refus « hors des bornes » qui restait affiché sous une valeur corrigée, et la colonne Valeur qui ne commençait pas au
+  même endroit dans les deux tableaux. Corrigés.
+- Rattrapé au passage (le rouge de GitHub depuis la 1.388.70) : trois tests d'écran décrivaient un état passé. La paie du
+  Cabinet dit « À VÉRIFIER » sur la méthode du prorata (1.387.12) ; la photo envoyée au cabinet qui saisit les achats dit
+  « Ton cabinet la saisit » et offre « La saisir moi-même » (1.388.67) ; le journal de la console, lu au téléphone sur une
+  base neuve, n'avait encore aucun geste à montrer — le test en pose un. Deux preuves réancrées (le code par e-mail vit
+  désormais dans les réglages à distance).
