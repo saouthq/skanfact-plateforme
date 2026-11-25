@@ -263,7 +263,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     const ligne = async (quoi: string) => net(await section.locator(`tr[data-quoi="${quoi}"]`).innerText());
     // La grille du jour : chaque ligne, ce qu'Essentiel et Complet en comprennent.
     expect(await section.locator('tbody tr').evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.quoi)))
-      .toEqual(['caisses', 'etablissements', 'salaries', 'paie', 'compta']);
+      .toEqual(['caisses', 'etablissements', 'salaries', 'paie', 'compta', 'stock', 'pilotage']);
     expect(await ligne('caisses')).toBe('Caisses comprises Au-delà, chaque caisse de plus se paie. 1 2');
     expect(await ligne('salaries')).toMatch(/^Salariés dans la paie Les employés dont l'entreprise fait la fiche de paie, pas les personnes qui utilisent SkanFact \(sans limite\)\..* 10 20$/);
     expect(await ligne('paie')).toMatch(/^La paie .* Achetée seule Comprise$/);
@@ -1159,6 +1159,80 @@ describe('les réglages de la plateforme, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
     await admin.query("delete from plateforme.reglage_distant where motif like 'Essai réglage%'");
+  }, 120_000);
+
+  it('1.388.78 : les droits par offre — le titulaire retire le stock d\'Essentiel à une date, le client le lit sur sa carte, le support lit sans geste, puis retiré', async () => {
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
+    const plusTot = plusJours(aujourdhuiATunis(), 30);
+    const enFrancais = (j: string) => `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}`;
+    const p = await console_(jD, 'pilotage');
+    const section = p.locator('section[aria-labelledby="rg-droits"]');
+    await section.waitFor({ timeout: 15_000 });
+    await section.scrollIntoViewIfNeeded();
+    // Quatre modules réglables, puis les trois qui sont toujours compris, avec leur raison ; chaque ligne dit les deux offres.
+    expect(await section.locator('tbody tr').evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.module)))
+      .toEqual(['paie', 'compta', 'stock', 'pilotage', 'ventes', 'achats', 'declarations']);
+    const ligne = async (m: string) => net(await section.locator(`tr[data-module="${m}"]`).innerText());
+    expect(await ligne('paie')).toMatch(/^La paie Non comprise, elle s'achète seule depuis la fiche de l'entreprise\. Achetée seule Comprise Changer…$/);
+    expect(await ligne('stock')).toBe('Le stock Non compris, ce qui existe se lit et rien de nouveau ne s\'y crée. Compris Compris Changer…');
+    expect(await ligne('pilotage')).toBe('La trésorerie et les affaires Non comprises, ce qui existe se lit et rien de nouveau ne s\'y crée. Comprises Comprises Changer…');
+    expect(await ligne('achats')).toBe('Achats et fournisseurs Une offre ne ferme jamais une case de déclaration : sans les achats, la TVA récupérable disparaîtrait. Compris Compris Toujours');
+    // Les colonnes des deux offres commencent au même endroit sur toutes les lignes.
+    const gauches = await section.locator('tbody tr td:nth-child(2)').evaluateAll((tds) => tds.map((td) => Math.round(td.getBoundingClientRect().left)));
+    expect(new Set(gauches).size).toBe(1);
+    const gaucheEssentiel = await section.locator('thead th:nth-child(2)').evaluate((th) => Math.round(th.getBoundingClientRect().left));
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-droits-offre.png') });
+
+    // « Changer… » sur le stock : la fenêtre part du stock d'Essentiel, et propose l'autre état (non compris).
+    await cliquer(section.getByRole('button', { name: 'Changer le stock dans une offre' }));
+    const f = p.getByRole('dialog');
+    expect(await f.getByLabel('L\'offre', { exact: true }).inputValue()).toBe('essentiel');
+    expect(await f.getByLabel('Ce qui change', { exact: true }).inputValue()).toBe('stock');
+    const etat = f.getByLabel('Le stock', { exact: true });
+    expect(await etat.inputValue()).toBe('0');
+    expect(await etat.locator('option').allInnerTexts().then((t) => t.map(net))).toEqual(['Compris dans l\'offre', 'Non compris : fermé']);
+    expect(net(await f.locator('.c-rg-prix-zone').innerText())).toMatch(/^Essentiel : le stock compris → le stock non compris /);
+    expect(await f.locator('[role="alert"], .c-alerte').filter({ hasText: 'titulaire' }).count()).toBe(0);
+    await f.locator('textarea').fill('Essai droits : le stock dans Complet seulement');
+    await f.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-droits-offre-fenetre.png') });
+    await cliquer(f.getByRole('button', { name: 'Préparer ce changement', exact: true }));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // À venir dans la case d'Essentiel, et dans la grille de l'onglet Prix (la même).
+    await expect.poll(() => section.locator('tr[data-module="stock"] td[data-offre="essentiel"]').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe(`Compris → non compris le ${enFrancais(plusTot)}`);
+    // La grille ne se recompose pas : la colonne d'Essentiel commence où elle commençait.
+    expect(await section.locator('thead th:nth-child(2)').evaluate((th) => Math.round(th.getBoundingClientRect().left))).toBe(gaucheEssentiel);
+    await section.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-droits-offre-avenir.png') });
+
+    // Le client le lit sur la carte d'Essentiel ; Complet, inchangé.
+    const c = await client();
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    await expect.poll(() => c.locator('.abo-offre[data-offre="essentiel"] .abo-avenir').allInnerTexts().then((t) => t.map(net)).catch(() => []), { timeout: 15_000 })
+      .toEqual([`À partir du ${enFrancais(plusTot)} : le stock n'est plus compris.`]);
+    expect(net(await c.locator('.abo-offre[data-offre="complet"] .abo-avenir-rien').innerText())).toBe('Aucun changement annoncé.');
+    await fermer(c);
+
+    // Le support lit la grille, sans « Changer… », et la phrase dit qui la change.
+    const s2 = await console_(jS, 'pilotage');
+    const sect2 = s2.locator('section[aria-labelledby="rg-droits"]');
+    await sect2.waitFor({ timeout: 15_000 });
+    expect(await sect2.getByRole('button', { name: /^Changer/ }).count()).toBe(0);
+    expect(net(await sect2.innerText())).toContain('Seul le titulaire de la console change les modules d\'une offre ; tu les lis ici.');
+    await fermer(s2);
+
+    // Retiré avant sa date, depuis la grille de l'onglet Prix : la case d'Essentiel ne dit plus rien à venir.
+    await p.goto(`${serveur.adresse}/console/#/reglages`);
+    const venir = p.locator('.c-rg-venir[data-offre="essentiel"][data-quoi="stock"]');
+    await venir.waitFor({ timeout: 15_000 });
+    await cliquer(venir.getByRole('button', { name: 'Le retirer avant sa date…' }));
+    const r = p.locator('[role="dialog"]');
+    await r.locator('textarea').fill('Essai droits : fini');
+    await cliquer(r.getByRole('button', { name: 'Retirer ce changement', exact: true }));
+    await expect.poll(() => venir.count(), { timeout: 10_000 }).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
   }, 120_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {

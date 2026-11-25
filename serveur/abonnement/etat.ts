@@ -23,6 +23,9 @@ export type Offre = 'essentiel' | 'complet';
 export type Periodicite = 'annuel' | 'mensuel';
 // Les modules achetés seuls sur Essentiel (14c ; 0099) : la paie, la comptabilité complète.
 export type ModuleAchete = 'paie' | 'compta';
+// (1.388.78, 0233) Les modules que le contenu d'une offre comprend ou non : ceux qui s'achètent seuls, et le stock et la
+// trésorerie (qui ne s'achètent pas seuls : une offre qui ne les comprend pas les ferme jusqu'à l'offre suivante).
+export type ModuleDeContenu = ModuleAchete | 'stock' | 'pilotage';
 export type Faits = {
   connu: boolean;
   essaiJusquAu: string | null;
@@ -52,7 +55,7 @@ export type Faits = {
   aVenir?: AVenir | null;
 };
 export type AVenir = { le: string; offre: Offre; periodicite: Periodicite; retraits: readonly ModuleAchete[] };
-export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleAchete, RegleDatee[]>>>>;
+export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleDeContenu, RegleDatee[]>>>>;
 
 // Une règle datée : les jours qu'elle dit, à partir de son jour. L'histoire d'une règle va de la plus ancienne à la plus
 // récente ; celle d'un jour est la dernière qui vaut ce jour-là. Aucune : la règle est inconnue, et rien ne se ferme sur
@@ -162,7 +165,12 @@ export function lireContenu(v: unknown): ContenuDesOffres {
   const c: ContenuDesOffres = {};
   for (const offre of ['essentiel', 'complet'] as const) {
     const m = o[offre];
-    if (m && typeof m === 'object') c[offre] = { paie: lireRegles({ grace: m.paie }).grace, compta: lireRegles({ grace: m.compta }).grace };
+    if (m && typeof m === 'object') {
+      // (1.388.78) Le stock et la trésorerie : absents d'une base d'avant 0233, ils ne se lisent pas (rien ne se ferme).
+      c[offre] = { paie: lireRegles({ grace: m.paie }).grace, compta: lireRegles({ grace: m.compta }).grace,
+        ...(m.stock !== undefined ? { stock: lireRegles({ grace: m.stock }).grace } : {}),
+        ...(m.pilotage !== undefined ? { pilotage: lireRegles({ grace: m.pilotage }).grace } : {}) };
+    }
   }
   return c;
 }

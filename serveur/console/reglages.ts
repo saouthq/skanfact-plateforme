@@ -177,7 +177,7 @@ export function lireReglesAbonnement(brut: unknown): Record<CodeRegle, RegleAbon
 
 // Ce que chaque offre comprend (0105) : le contenu du jour (un nombre ; pour un module, 1 compris, 0 acheté seul ; rien
 // quand aucune ligne ne vaut encore) et chaque changement à venir, avec qui l'a préparé et pourquoi.
-export const QUOI_CONTENU = ['caisses', 'etablissements', 'salaries', 'paie', 'compta'] as const;
+export const QUOI_CONTENU = ['caisses', 'etablissements', 'salaries', 'paie', 'compta', 'stock', 'pilotage'] as const;
 export type QuoiContenu = typeof QUOI_CONTENU[number];
 export type ContenuDuJour = Record<QuoiContenu, number | null>;
 export type ContenuAVenir = { offre: Offre; quoi: QuoiContenu; nombre: number; aPartirDu: string; motif: string | null; par: string | null; le: string | null };

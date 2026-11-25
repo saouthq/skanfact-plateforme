@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { ajouter as ajouterALEquipe, titulaire as designerTitulaire } from '../../base/equipe.ts';
 import { lireFaits, plusJours, plusMois, type Faits } from '../../serveur/abonnement/etat.ts';
 import { modulesFermes } from '../../serveur/abonnement/offre.ts';
 import { routesAbonnement } from '../../serveur/abonnement/routes.ts';
@@ -70,6 +70,7 @@ async function membre(prenom: string, role: 'direction' | 'support') {
 }
 let amira: Awaited<ReturnType<typeof membre>>;
 let karim: Awaited<ReturnType<typeof membre>>;
+let nour: Awaited<ReturnType<typeof membre>>;
 const preparer = (corps: Corps, jeton = amira.console) => appeler('POST', '/console/reglages/contenu', jeton, corps);
 const retirer = (corps: Corps) => appeler('POST', '/console/reglages/contenu/retirer', amira.console, corps);
 type ContenuLu = { duJour: Record<string, Record<string, number | null>>; aVenir: Corps[] };
@@ -90,6 +91,9 @@ beforeAll(async () => {
   await app.ready();
   amira = await membre('amira', 'direction');
   karim = await membre('karim', 'support');
+  // (1.388.78) Les modules d'une offre se changent par le titulaire seul : amira l'est, nour est à la direction sans l'être.
+  nour = await membre('nour', 'direction');
+  await designerTitulaire(admin, amira.email, 'mise en place des essais').catch((e: unknown) => { if (!/déjà le titulaire/.test(String(e))) throw e; });
 });
 // Les changements à venir ne restent pas : la base les laisse effacer tant que leur date n'est pas venue.
 afterAll(async () => {
@@ -102,8 +106,9 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     const plusTot = plusJours(jour, 30);
     // Le contenu de départ, lu par le support, qui ne le change pas.
     const lu = (await appeler('GET', '/console/reglages', karim.console)).corps.contenu as ContenuLu;
-    expect(lu.duJour).toEqual({ essentiel: { caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0 },
-      complet: { caisses: 2, etablissements: 2, salaries: 20, paie: 1, compta: 1 } });
+    // (1.388.78, 0233) Le stock et la trésorerie : compris dans les deux offres au départ, rien ne change chez personne.
+    expect(lu.duJour).toEqual({ essentiel: { caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0, stock: 1, pilotage: 1 },
+      complet: { caisses: 2, etablissements: 2, salaries: 20, paie: 1, compta: 1, stock: 1, pilotage: 1 } });
     expect((await preparer({ offre: 'essentiel', quoi: 'caisses', nombre: 2, aPartirDu: plusTot, motif: 'Deux caisses en Essentiel' }, karim.console)).statut).toBe(403);
     // La base le refuse aussi, à qui l'appellerait sans passer par la porte du serveur.
     const session = (await admin.query(`select s.id, s.utilisateur from plateforme.session_console s join socle.utilisateur u on u.id = s.utilisateur
@@ -122,7 +127,7 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     expect(await refus({ offre: 'essentiel', quoi: 'caisses', nombre: 1, aPartirDu: plusTot, motif: 'La même caisse' }))
       .toBe('C\'est déjà ce que l\'offre comprend : rien ne changerait.');
     expect(await refus({ offre: 'complet', quoi: 'paie', nombre: 2, aPartirDu: plusTot, motif: 'Deux paies' }))
-      .toBe('Ce que l\'offre comprend est un nombre de 0 à 1000 ; un module est compris ou acheté seul.');
+      .toBe('Ce que l\'offre comprend est un nombre de 0 à 1000 ; un module est compris ou non.');
     // Préparé : au journal, de ce que l'offre comprend à ce qu'elle comprendra, avec sa date et le motif.
     expect((await preparer({ offre: 'essentiel', quoi: 'caisses', nombre: 2, aPartirDu: plusTot, motif: 'Deux caisses en Essentiel' })).statut).toBe(201);
     expect(await dernierGeste('reglages.contenu_prepare')).toMatchObject({ motif: 'Deux caisses en Essentiel',
@@ -138,7 +143,7 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     const client = await inscrire('lina');
     const ent = String((await appeler('POST', '/entreprises', client.jeton, { raisonSociale: 'Épicerie Avertie' })).corps.id);
     const abo = (await appeler('GET', `/entreprises/${ent}/abonnement`, client.jeton)).corps as { contenu: ContenuLu };
-    expect(abo.contenu.duJour.essentiel).toEqual({ caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0 });
+    expect(abo.contenu.duJour.essentiel).toEqual({ caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0, stock: 1, pilotage: 1 });
     expect(abo.contenu.aVenir).toEqual([{ offre: 'essentiel', quoi: 'caisses', nombre: 2, aPartirDu: plusTot }]);
     // Retiré avant sa date : aujourd'hui reste, le client ne le lit plus, le journal garde le changement retiré.
     expect((await retirer({ offre: 'essentiel', quoi: 'caisses', aPartirDu: plusTot, motif: 'Annoncé trop tôt' })).statut).toBe(200);
@@ -213,5 +218,69 @@ describe('ce que chaque offre comprend, réglé dans la console', () => {
     // Sans l'histoire du contenu (une base qui ne la rendrait pas), rien ne se ferme.
     const sans: Faits = { ...(await faitsSi(plusJours(date, 300))), contenu: {}, regles: REGLES_DE_DEPART };
     expect(modulesFermes(sans, lendemain)).toEqual([]);
+  });
+
+  it('(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s\'y crée et ce qui existe reste', async () => {
+    const date = plusJours(jour, 30);
+    // La direction qui n'est pas titulaire : refusée pour un module, même par la base ; un nombre, oui.
+    const r = await preparer({ offre: 'essentiel', quoi: 'stock', nombre: 0, aPartirDu: date, motif: 'Le stock dans Complet seulement' }, nour.console);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(403);
+    expect(String(r.corps.motif)).toBe('Seul le titulaire de la console change les modules qu\'une offre comprend.');
+    const ns = await preparer({ offre: 'complet', quoi: 'etablissements', nombre: 3, aPartirDu: date, motif: 'Trois établissements en Complet' }, nour.console);
+    expect(ns.statut, JSON.stringify(ns.corps)).toBe(201);
+    expect((await retirer({ offre: 'complet', quoi: 'etablissements', aPartirDu: date, motif: 'Essai fini' })).statut).toBe(200);
+    // Un module se dit 1 ou 0 ; le titulaire prépare le stock hors d'Essentiel, et la trésorerie aussi.
+    expect(String((await preparer({ offre: 'essentiel', quoi: 'pilotage', nombre: 2, aPartirDu: date, motif: 'Deux trésoreries' })).corps.motif))
+      .toBe('Ce que l\'offre comprend est un nombre de 0 à 1000 ; un module est compris ou non.');
+    expect((await preparer({ offre: 'essentiel', quoi: 'stock', nombre: 0, aPartirDu: date, motif: 'Le stock dans Complet seulement' })).statut).toBe(201);
+    expect((await preparer({ offre: 'essentiel', quoi: 'pilotage', nombre: 0, aPartirDu: date, motif: 'La trésorerie dans Complet seulement' })).statut).toBe(201);
+    expect(await dernierGeste('reglages.contenu_prepare')).toMatchObject({ avant: { quoi: 'pilotage', nombre: 1 }, apres: { quoi: 'pilotage', nombre: 0, aPartirDu: date } });
+    // Le retirer : le titulaire seul aussi.
+    const k = await appeler('POST', '/console/reglages/contenu/retirer', nour.console, { offre: 'essentiel', quoi: 'pilotage', aPartirDu: date, motif: 'Essai fini' });
+    expect(k.statut).toBe(403);
+    expect((await contenuConsole()).aVenir.filter((v) => v.offre === 'essentiel' && (v.quoi === 'stock' || v.quoi === 'pilotage')).map((v) => v.quoi).sort()).toEqual(['pilotage', 'stock']);
+
+    // La porte : une période d'Essentiel commencée à la date ferme le stock et la trésorerie (la paie aussi : Essentiel ne la
+    // comprend pas ; la comptabilité s'y ouvre à la même date, test précédent) ; une période commencée avant garde le stock
+    // et la trésorerie.
+    const p = await inscrire('lina');
+    const qui = await quiEst(ctx, p.jeton);
+    const ent = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Épicerie Datée' })).corps.id);
+    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'l\'année', ligne: await ligneDe(ent), offre: 'essentiel', periodicite: 'annuel' })).statut).toBe(200);
+    const faitsSi = async (payeJusquAu: string): Promise<Faits> => {
+      await admin.query('update plateforme.abonnement set paye_jusqu_au = $2, essai_jusqu_au = $3 where entreprise = $1', [ent, payeJusquAu, plusJours(jour, -60)]);
+      const f = await enTantQue(pool, qui?.utilisateur ?? null, async (tx) => (await tx.query('select plateforme.faits_abonnement($1) f', [ent])).rows[0].f as Corps);
+      return lireFaits(f);
+    };
+    // Avant : un mouvement de stock et un compte de trésorerie entrent (la période court, tout est compris).
+    type Objet = { collection: string; cle: string; revision: number };
+    const nouveau = (collection: string, id: string, contenu: Corps = {}) => ({ collection, cle: id, rang: null, revision: null, contenu: { id, ...contenu } });
+    const ecrire = (changements: unknown[]) => appeler('POST', `/entreprises/${ent}/dossier-v10`, p.jeton, { changements });
+    await appeler('GET', `/entreprises/${ent}/dossier-v10`, p.jeton);
+    await faitsSi(plusJours(date, 300)); // la période payée a commencé avant la date (l'essai payé commence à la fin de l'essai)
+    const ouvert = await ecrire([nouveau('stockAdjustments', 'aj-1', { itemId: 'farine', qty: 10, reason: 'inventaire' }), nouveau('accounts', 'cpt-1', { name: 'BIAT' })]);
+    expect(ouvert.statut, JSON.stringify(ouvert.corps)).toBe(200);
+    const lendemain = plusJours(date, 1);
+    expect(modulesFermes(await faitsSi(plusJours(date, 300)), lendemain)).toEqual(['paie', 'compta']);
+    expect(modulesFermes(await faitsSi(plusJours(plusMois(date, 12), -1)), lendemain)).toEqual(['paie', 'stock', 'pilotage']);
+    // La période qui court commence à la date : le serveur refuse un mouvement de stock, une affaire, un compte NEUFS,
+    // en disant ce qui reste ; ce qui existe se corrige et se supprime ; les achats restent ouverts.
+    for (const [collection, module] of [['stockAdjustments', 'stock'], ['serials', 'stock'], ['depots', 'stock'], ['accounts', 'pilotage'], ['movements', 'pilotage'], ['projects', 'pilotage']]) {
+      const r = await ecrire([nouveau(collection ?? '', `${collection}-neuf`)]);
+      expect(r.statut, collection).toBe(403);
+      expect(r.corps.bouton).toBe('socle.abonnement.voir');
+      expect(String(r.corps.motif)).toMatch(module === 'stock' ? /^Le stock n'est pas dans ton offre/ : /^La trésorerie et les affaires ne sont pas dans ton offre/);
+    }
+    const lus = (await appeler('GET', `/entreprises/${ent}/dossier-v10`, p.jeton)).corps.objets as Objet[];
+    const aj = lus.find((o) => o.collection === 'stockAdjustments' && o.cle === 'aj-1');
+    const cpt = lus.find((o) => o.collection === 'accounts' && o.cle === 'cpt-1');
+    expect((await ecrire([{ collection: 'stockAdjustments', cle: 'aj-1', rang: null, revision: aj?.revision, contenu: { id: 'aj-1', itemId: 'farine', qty: 12, reason: 'inventaire' } },
+      { collection: 'accounts', cle: 'cpt-1', rang: null, revision: cpt?.revision, contenu: null }])).statut).toBe(200);
+    const achat = await ecrire([nouveau('purchases', 'ach-1', { kind: 'depense', number: 'F-1', date: jour, lines: [] })]);
+    expect(achat.statut, JSON.stringify(achat.corps)).toBe(200);
+    // Une base d'avant 0233 (l'histoire sans le stock ni la trésorerie) : rien de plus ne se ferme.
+    const f = await faitsSi(plusJours(plusMois(date, 12), -1));
+    const avant: Faits = { ...f, contenu: { essentiel: { paie: f.contenu?.essentiel?.paie ?? [], compta: f.contenu?.essentiel?.compta ?? [] } } };
+    expect(modulesFermes(avant, lendemain)).toEqual(['paie']);
   });
 });

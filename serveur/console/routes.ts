@@ -1956,6 +1956,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       return {
         corps: {
           aujourdhui: jour, role: roleDe(qui),
+          // (1.388.78) Les modules qu'une offre comprend se changent par le titulaire de la console seul.
+          titulaire: (await x.query('select plateforme.suis_titulaire_console() t')).rows[0]?.t === true,
           grille: preparesPar(grille(r.prix, entreprises, jour), (l) => l.offre, prepares.aVenir),
           essai: { jours: regles.essai?.jours[0] ?? null, enCours: essaisEnCours(entreprises) },
           // Ce qui s'ajoute à l'offre (14c) : ses prix datés, et les modules achetés seuls par les abonnés d'aujourd'hui.

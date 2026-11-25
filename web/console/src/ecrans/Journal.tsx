@@ -26,7 +26,7 @@ type Ligne = {
     prix: { quoi: string; periodicite: 'annuel' | 'mensuel'; aPartirDu: string | null; avant: string | null; apres: string | null } | null;
     preavis: { avant: number | null; apres: number | null } | null;
     regleAbonnement?: { code: 'essai' | 'grace' | 'relances'; avant: number[] | null; apres: number[] | null } | null;
-    contenu?: { offre: 'essentiel' | 'complet'; quoi: 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta'; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
+    contenu?: { offre: 'essentiel' | 'complet'; quoi: 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta' | 'stock' | 'pilotage'; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
     remise?: { code: 'groupe' | 'cabinet'; aPartirDu: string | null; avant: { taux: number; mois: number | null } | null; apres: { taux: number; mois: number | null } | null } | null;
     // Une nouveauté (0120) : son code, et son nom tant que la version en service la porte.
     nouveaute?: string | null; nomNouveaute?: string | null;

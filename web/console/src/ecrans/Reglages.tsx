@@ -57,7 +57,7 @@ function DitDiffusion({ m }: { m: Message }) {
   return <span className="c-sous c-bloc c-rg-diffusion">{maj(m.vus ? `${selon(m.vus, `${K}.m.vus`)} · ${selon(m.caches, `${K}.m.caches`)}` : selon(0, `${K}.m.vus`))}</span>;
 }
 type Donnees = {
-  aujourdhui: string; role: 'direction' | 'support' | 'technique';
+  aujourdhui: string; role: 'direction' | 'support' | 'technique'; titulaire: boolean;
   grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number | null; enCours: number };
   echeance: { relances: number[]; grace: number | null; enGrace: number }; regles: Record<CodeRegle, RegleAbonnement | null>;
   contenu: Contenus; remises: Remises; cabinets: ReglesCabinet;
@@ -81,7 +81,7 @@ type Format = {
 };
 type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' }
   | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' } | { sorte: 'regle'; code: CodeRegle }
-  | { sorte: 'contenu' } | { sorte: 'retirer_contenu'; v: ContenuAVenir } | { sorte: 'remise' } | { sorte: 'retirer_remise'; v: RemiseAVenir }
+  | { sorte: 'contenu'; offre?: Offre; quoi?: QuoiContenu } | { sorte: 'retirer_contenu'; v: ContenuAVenir } | { sorte: 'remise' } | { sorte: 'retirer_remise'; v: RemiseAVenir }
   | { sorte: 'cabinet' } | { sorte: 'retirer_cabinet'; v: CabinetAVenir }
   | { sorte: 'allumer'; n: EtatNouveaute } | { sorte: 'eteindre'; n: EtatNouveaute; a: Allumee } | { sorte: 'ouvrir'; n: EtatNouveaute } | { sorte: 'refermer'; n: EtatNouveaute };
 // Les règles de l'abonnement réglées ici (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
@@ -89,12 +89,18 @@ type CodeRegle = 'essai' | 'grace' | 'relances';
 type RegleAbonnement = { jours: number[]; aPartirDu: string; motif: string; par: string | null; le: string };
 // Ce que chaque offre comprend (0105) : un nombre (caisses, établissements, salariés avec la paie) ; pour un module, 1
 // compris, 0 acheté seul ; rien quand aucune ligne ne vaut. Chaque changement préparé, avec qui et pourquoi.
-type QuoiContenu = 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta';
-const QUOI_CONTENU: readonly QuoiContenu[] = ['caisses', 'etablissements', 'salaries', 'paie', 'compta'];
+// (1.388.78, 0233) Le stock et la trésorerie aussi : deux modules qui ne s'achètent pas seuls ; non compris, ils ferment
+// la création jusqu'à l'offre qui les comprend. Les modules se changent par le titulaire de la console seul.
+type QuoiContenu = 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta' | 'stock' | 'pilotage';
+const QUOI_CONTENU: readonly QuoiContenu[] = ['caisses', 'etablissements', 'salaries', 'paie', 'compta', 'stock', 'pilotage'];
+const MODULES_DE_CONTENU: readonly QuoiContenu[] = ['paie', 'compta', 'stock', 'pilotage'];
 type ContenuDuJour = Record<QuoiContenu, number | null>;
 type ContenuAVenir = { offre: Offre; quoi: QuoiContenu; nombre: number; aPartirDu: string; motif: string | null; par: string | null; le: string | null };
 type Contenus = { duJour: Record<Offre, ContenuDuJour>; aVenir: ContenuAVenir[] };
-const estModule = (q: QuoiContenu) => q === 'paie' || q === 'compta';
+const estModule = (q: QuoiContenu) => MODULES_DE_CONTENU.includes(q);
+// Ce que dit la case d'un module : « comprise » / « achetée seule » pour ce qui s'achète seul, « compris » / « non compris »
+// pour le reste (accordé à son nom).
+const etatDuModule = (q: QuoiContenu, n: number) => dire(q === 'paie' || q === 'compta' ? `${K}.c.module_${n === 1 ? 'compris' : 'seul'}` : `${K}.c.etat.${q}_${n === 1 ? 'oui' : 'non'}`);
 // Les remises (0106) : celle du groupe et celle du cabinet (un taux, et pour le cabinet une durée en mois), datées comme
 // un prix ; combien de sociétés sont dans un groupe aujourd'hui.
 type CodeRemise = 'groupe' | 'cabinet';
@@ -303,7 +309,70 @@ function comprisDe(option: Ajout, c: Record<Offre, ContenuDuJour>): string {
 // Ce qu'une ligne comprend, en mots : « 2 caisses comprises », « la paie comprise », « la paie achetée seule ».
 const contenuEnMots = (q: QuoiContenu, n: number) => selon(n, `${K}.c.dit.${q}`);
 // La case d'un contenu : le nombre, ou pour un module « comprise » / « achetée seule », ou « — » quand rien ne vaut.
-const caseDeContenu = (q: QuoiContenu, n: number | null) => (n === null ? '—' : estModule(q) ? dire(`${K}.c.module_${n === 1 ? 'compris' : 'seul'}`) : entier(n));
+// Ce que propose la liste de la fenêtre : « comprise dans l'offre » / « achetée seule, en plus » pour ce qui s'achète seul,
+// « compris dans l'offre » / « fermé, jusqu'à l'offre qui le comprend » pour le reste.
+const optionDuModule = (q: QuoiContenu, n: number) => dire(q === 'paie' || q === 'compta' ? `${K}.g.contenu.module_${n === 1 ? 'compris' : 'seul'}` : `${K}.g.contenu.${q}_${n === 1 ? 'oui' : 'non'}`);
+const caseDeContenu = (q: QuoiContenu, n: number | null) => (n === null ? '—' : estModule(q) ? etatDuModule(q, n) : entier(n));
+
+// ── Les droits par offre (pilotage, point 8 ; 0233) : module par module, ce que chaque offre ouvre. C'est la MÊME grille
+// que « Ce que chaque offre comprend » (onglet Prix), lue ici par module : un changement se prépare par la même fenêtre,
+// avec le même préavis. Les modules toujours compris sont dits, et pourquoi : une offre ne ferme jamais une case de
+// déclaration (les achats), ni l'application elle-même (les ventes et les fiches). Le titulaire seul les change.
+const TOUJOURS_COMPRIS = ['ventes', 'achats', 'declarations'] as const;
+function DroitsParOffre({ d, geste }: { d: Donnees; geste: (g: Geste) => void }) {
+  const c = d.contenu;
+  return (
+    <section className="c-carte c-rg c-rg-droits" aria-labelledby="rg-droits">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="rg-droits">{titre(`${K}.dr.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.dr.sous`)}</p>
+        </div>
+      </div>
+      {!d.titulaire ? <Alerte ton="info">{phrase(`${K}.dr.lecture`)}</Alerte> : null}
+      <div className="c-defile">
+        <table className="c-table c-rg-grille c-rg-droits-grille">
+          <thead><tr>
+            <th scope="col">{titre(`${K}.dr.col.module`)}</th>
+            {OFFRES_PRIX.map((o) => <th key={o} scope="col">{titre(`${K}.p.offre.${o}`)}</th>)}
+            {d.titulaire ? <th scope="col" className="c-droite"><span className="c-cache">{titre(`${K}.dr.col.geste`)}</span></th> : null}
+          </tr></thead>
+          <tbody>
+            {MODULES_DE_CONTENU.map((q) => (
+              <tr key={q} data-module={q}>
+                <td><b>{titre(`${K}.c.quoi.${q}`)}</b><span className="c-sous c-bloc">{phrase(`${K}.dr.aide.${q}`)}</span></td>
+                {OFFRES_PRIX.map((o) => {
+                  const n = c.duJour[o][q];
+                  const venir = c.aVenir.find((v) => v.offre === o && v.quoi === q) ?? null;
+                  return (
+                    <td key={o} data-libelle={titre(`${K}.p.offre.${o}`)} data-offre={o}>
+                      {n === null ? <span data-donnee>—</span> : <Puce ton={n === 1 ? 'actif' : 'hors'}>{maj(etatDuModule(q, n))}</Puce>}
+                      {venir ? <span className="c-rg-avenir">{dire(`${K}.c.a_venir`, { valeur: etatDuModule(q, venir.nombre), jour: jour(venir.aPartirDu) })}</span> : null}
+                    </td>
+                  );
+                })}
+                {d.titulaire ? (
+                  <td className="c-droite">
+                    <Bouton petit onClick={() => geste({ sorte: 'contenu', quoi: q, offre: c.duJour.essentiel[q] === 1 ? 'essentiel' : 'complet' })}
+                      etiquette={titre(`${K}.dr.changer_de`, { quoi: dire(`${K}.c.quoi.${q}`) })}>{titre(`${K}.dr.changer`)}</Bouton>
+                  </td>
+                ) : null}
+              </tr>
+            ))}
+            {TOUJOURS_COMPRIS.map((m) => (
+              <tr key={m} data-module={m} className="c-rg-toujours">
+                <td><b>{titre(`${K}.dr.toujours.${m}`)}</b><span className="c-sous c-bloc">{phrase(`${K}.dr.toujours.${m}_pourquoi`)}</span></td>
+                {OFFRES_PRIX.map((o) => <td key={o} data-libelle={titre(`${K}.p.offre.${o}`)}><Puce ton="actif">{titre(`${K}.dr.toujours.compris`)}</Puce></td>)}
+                {d.titulaire ? <td className="c-droite"><span className="c-sous">{titre(`${K}.dr.toujours.fixe`)}</span></td> : null}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="c-sous">{phrase(`${K}.dr.note`)}</p>
+    </section>
+  );
+}
 
 // ── Ce que chaque offre comprend (0105) : la grille datée que l'application dit sur ses cartes, que la facture compte
 // avant d'ajouter, et que la porte des modules lit ; un changement se prépare avec le préavis d'un prix ──────────────
@@ -1222,18 +1291,19 @@ function contenuAu(c: Contenus, offre: Offre, quoi: QuoiContenu, jourVise: strin
   const prepares = c.aVenir.filter((v) => v.offre === offre && v.quoi === quoi && v.aPartirDu <= jourVise).sort((a, b) => (a.aPartirDu < b.aPartirDu ? -1 : 1));
   return prepares.at(-1)?.nombre ?? c.duJour[offre][quoi];
 }
-function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+function FenetreContenu({ d, offreDepart, quoiDepart, fermer, fait }: { d: Donnees; offreDepart?: Offre | undefined; quoiDepart?: QuoiContenu | undefined; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   const plusTot = d.preavis ? plusJours(d.aujourdhui, d.preavis.jours) : d.aujourdhui;
   // L'offre, puis ce qui change : deux listes courtes plutôt qu'une longue. Le nombre tapé reste quand on change d'offre,
   // pas quand on change de ligne (il ne compterait plus la même chose). Un module se propose d'emblée dans l'autre état
   // que le sien aujourd'hui : c'est le seul changement possible.
-  const [offre, setOffre] = useState<Offre>('essentiel');
-  const [quoi, setQuoi] = useState<QuoiContenu>('caisses');
+  // (1.388.78) Ouverte depuis « Droits par offre », la fenêtre part de la ligne et de l'offre choisies.
+  const [offre, setOffre] = useState<Offre>(offreDepart ?? 'essentiel');
+  const [quoi, setQuoi] = useState<QuoiContenu>(quoiDepart ?? 'caisses');
   const [tape, setTape] = useState('');
   const inverseDe = (o: Offre, q: QuoiContenu): '1' | '0' => (d.contenu.duJour[o][q] === 1 ? '0' : '1');
-  const [module, setModule] = useState<'1' | '0'>(inverseDe('essentiel', 'caisses'));
+  const [module, setModule] = useState<'1' | '0'>(inverseDe(offreDepart ?? 'essentiel', quoiDepart ?? 'caisses'));
   const [refus, setRefus] = useState<string | null>(null);
   const choisir = (o: Offre, q: QuoiContenu) => {
     if (q !== quoi) setTape('');
@@ -1274,7 +1344,9 @@ function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; f
   };
   const fauteDe = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : 0 });
   const valeurs = { offre: dire(`${K}.p.offre.${offre}`), autre: dire(`${K}.p.offre.${autre}`), jour: dateLisible && date >= plusTot ? jour(date) : '…' };
-  const pret = nombre !== null && !meme && !deja;
+  // Un module se change par le titulaire de la console seul (0233) : les autres le lisent, le bouton le dit.
+  const reserve = estModule(quoi) && !d.titulaire;
+  const pret = nombre !== null && !meme && !deja && !reserve;
   return (
     <Dialogue titre={titre(`${K}.g.contenu.titre`)} fermer={fermer} occupe={occupe}
       pied={<>
@@ -1285,6 +1357,7 @@ function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; f
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
         <ul>{['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.contenu.${p}`, valeurs)}</li>)}</ul>
       </div>
+      {reserve ? <Alerte ton="info" icone="cadenas">{phrase(`${K}.dr.reserve`)}</Alerte> : null}
       <div className="c-rg-dates">
         <Choix libelle={titre(`${K}.g.contenu.offre`)} valeur={offre} changer={(v) => choisir(v === 'complet' ? 'complet' : 'essentiel', quoi)}
           options={OFFRES_PRIX.map((o) => ({ valeur: o, texte: titre(`${K}.p.offre.${o}`) }))} />
@@ -1295,7 +1368,7 @@ function FenetreContenu({ d, fermer, fait }: { d: Donnees; fermer: () => void; f
         {estModule(quoi)
           ? <Choix libelle={titre(`${K}.c.quoi.${quoi}`)} valeur={module} changer={(v) => setModule(v === '0' ? '0' : '1')}
             aide={phrase(`${K}.g.contenu.module_aide`, { quoi: dire(`${K}.c.quoi.${quoi}`), etat: caseDeContenu(quoi, avant) })}
-            options={[{ valeur: '1', texte: titre(`${K}.g.contenu.module_compris`) }, { valeur: '0', texte: titre(`${K}.g.contenu.module_seul`) }]} />
+            options={[{ valeur: '1', texte: maj(optionDuModule(quoi, 1)) }, { valeur: '0', texte: maj(optionDuModule(quoi, 0)) }]} />
           : <Champ libelle={titre(`${K}.g.contenu.nombre`)} type="number" inputMode="numeric" min={0} max={1000} autoComplete="off" valeur={tape} changer={setTape}
             premier {...fauteDe('nombre')} aide={phrase(`${K}.g.contenu.nombre_aide`, { avant: caseDeContenu(quoi, avant) })} />}
         <Champ libelle={titre(`${K}.g.prix.date`)} type="date" min={plusTot} valeur={date} changer={setDate} {...fauteDe('date')}
@@ -1557,10 +1630,10 @@ export function Reglages({ onglet: demande, entreprise = null }: { onglet: strin
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'nouveautes' ? <Nouveautes d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'modules' ? <Modules entreprise={entreprise} /> : null}
-      {d && onglet === 'pilotage' ? <Pilotage /> : null}
+      {d && onglet === 'pilotage' ? <><Pilotage /><DroitsParOffre d={d} geste={setGeste} /></> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
-        : geste.sorte === 'contenu' ? <FenetreContenu d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
+        : geste.sorte === 'contenu' ? <FenetreContenu d={d} offreDepart={geste.offre} quoiDepart={geste.quoi} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'remise' ? <FenetreRemise d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'cabinet' ? <FenetreCabinet d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
           : <FenetreGeste g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />) : null}

@@ -24,6 +24,10 @@ declarerTextes({
   // l'ouvre (règle du projet).
   'abonnement.offre.paie': 'la paie n\'est pas dans l\'offre Essentiel : les salariés, les bulletins, les absences et les avances qui existent se lisent, s\'impriment et se corrigent, mais rien de nouveau ne s\'y crée. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
   'abonnement.offre.compta': 'la comptabilité complète n\'est pas dans l\'offre Essentiel : les immobilisations qui existent se lisent, s\'impriment et se corrigent, mais aucune nouvelle ne se crée. Ta TVA, tes déclarations, tes écritures et le paquet de ton comptable restent ouverts. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
+  // (1.388.78, 0233) Le stock et la trésorerie, quand le titulaire de la console les a retirés d'une offre : ils ne
+  // s'achètent pas seuls, l'offre qui les comprend les rouvre.
+  'abonnement.offre.stock': 'le stock n\'est pas dans ton offre : les articles suivis, les mouvements, les inventaires et les numéros de série qui existent se lisent, s\'impriment et se corrigent, mais rien de nouveau ne s\'y crée. Tes ventes et tes achats restent ouverts. Le propriétaire ou un administrateur l\'ouvre en changeant d\'offre (Paramètres, Ton abonnement)',
+  'abonnement.offre.pilotage': 'la trésorerie et les affaires ne sont pas dans ton offre : les comptes, les mouvements et les affaires qui existent se lisent, s\'impriment et se corrigent, mais rien de nouveau ne s\'y crée. Tes ventes, tes achats et tes déclarations restent ouverts. Le propriétaire ou un administrateur les ouvre en changeant d\'offre (Paramètres, Ton abonnement)',
   // Choisir son offre (1.84.0, 0158) : ce qui est refusé, pourquoi, et ce qui débloque.
   'abonnement.choix.hors': 'cette entreprise n\'a pas d\'abonnement à choisir (offert par SkanFact, tenu par son cabinet, ou un exemple)',
   'abonnement.choix.facture_a_payer': 'ta facture {numero} attend déjà son paiement : règle-la dans « Tes factures », juste au-dessus. Pour changer d\'offre ensuite, écris-nous à contact@skanfact.tn',

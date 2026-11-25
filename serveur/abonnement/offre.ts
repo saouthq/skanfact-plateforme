@@ -16,12 +16,15 @@ import type { Transaction } from '../base.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { faitsDe } from './condition.ts';
-import { debutDeLaPeriode, etatAbonnement, regleAu, type Etat, type Faits, type ModuleAchete, type Offre } from './etat.ts';
+import { debutDeLaPeriode, etatAbonnement, regleAu, type Etat, type Faits, type ModuleDeContenu, type Offre } from './etat.ts';
+import { DONNEES_MODULE } from '../modules-pilotes.ts';
 import './textes.ts';
 
-export type ModuleDeLOffre = ModuleAchete;
+export type ModuleDeLOffre = ModuleDeContenu;
 // Les modules qu'une offre contient ou non (0105) ; les autres modules sont dans toutes les offres.
-export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta'];
+// (1.388.78, 0233) Le stock et la trésorerie aussi, réglés depuis la console par son titulaire. Jamais les achats : une
+// offre ne ferme jamais une case de déclaration (sans eux, la TVA récupérable disparaîtrait de la déclaration du client).
+export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta', 'stock', 'pilotage'];
 
 // Les parties du dossier où un module fermé ne crée plus rien. La comptabilité complète n'y ferme que les
 // immobilisations : ses autres écrans (le grand livre, la balance, les états financiers) se calculent à l'écran, qui
@@ -30,6 +33,9 @@ export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta'];
 export const PARTIES_DU_MODULE: Record<ModuleDeLOffre, readonly string[]> = {
   paie: ['employees', 'payslips', 'leaves', 'advances', 'socialFilings', 'timesheets'],
   compta: ['assets'],
+  // Les parties que le module garde (modules-pilotes.ts) : les mêmes que celles qu'une pause du module protège.
+  stock: DONNEES_MODULE.stock ?? [],
+  pilotage: DONNEES_MODULE.pilotage ?? [],
 };
 
 // L'offre qui décide aujourd'hui : celle de la période payée, et pendant la grâce qui la suit, toujours elle. L'essai
@@ -47,7 +53,7 @@ export function modulesFermes(f: Faits | null, jour: string): ModuleDeLOffre[] {
   // Fermé : l'offre ne le contient pas au premier jour de la période (0 ; un contenu inconnu ne ferme rien), et il n'est
   // pas acheté seul (14c, deuxième partie).
   const au = debutDeLaPeriode(f) ?? jour;
-  return MODULES_OPTIONNELS.filter((m) => regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0 && !(f.modules ?? []).includes(m));
+  return MODULES_OPTIONNELS.filter((m) => regleAu(f.contenu?.[offre]?.[m] ?? [], au)?.[0] === 0 && !(f.modules ?? []).some((x) => x === m));
 }
 
 // Pour la personne qui agit : qui n'agit ici que par son cabinet (le mandat) a tout.

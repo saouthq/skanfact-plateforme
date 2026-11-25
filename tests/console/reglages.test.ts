@@ -102,7 +102,7 @@ describe('ce qui s\'ajoute à l\'offre (14c)', () => {
     entreprise(actif('complet', 'annuel'), 'e4')];
 
   // Le contenu de départ (0105) : Essentiel sans la paie ni la comptabilité complète, Complet avec.
-  const depart = { essentiel: { caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0 }, complet: { caisses: 2, etablissements: 2, salaries: 20, paie: 1, compta: 1 } };
+  const depart = { essentiel: { caisses: 1, etablissements: 1, salaries: 10, paie: 0, compta: 0, stock: 1, pilotage: 1 }, complet: { caisses: 2, etablissements: 2, salaries: 20, paie: 1, compta: 1, stock: 1, pilotage: 1 } };
 
   it('chaque ajout, dans l\'ordre de l\'application, avec son prix en vigueur et ce qui est à venir ; une case sans prix reste vide', () => {
     const g = grilleAjouts(lireAjouts(brut), entreprises, '2026-10-13', depart);

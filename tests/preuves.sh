@@ -12294,7 +12294,7 @@ prouver 'le cabinet sous mandat privé de la paie de son client' serveur/abonnem
   '  return perimetre ? [] : fermes;' '  return fermes;' \
   "$OF2"
 prouver 'l'"'"'offre qui ne passe pas à l'"'"'écran' web/public/plateforme/abonnement.js \
-  "    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : [])];" '    const reserves = [];' \
+  "    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : [])," '    const reserves = [...[], ...[],' \
   "$OFW"
 prouver 'le grand livre ouvert en Essentiel' web/public/plateforme/abonnement.js \
   "options: fermes.includes('compta') ? [] : ['compta']," "options: ['compta']," \
@@ -12317,7 +12317,7 @@ OC1='un module acheté seul sur Essentiel : la direction l'"'"'ouvre avec son mo
 OC2='la facture compte ce qui dépasse l'"'"'offre et les modules achetés, au prix du jour de chaque ligne ; l'"'"'aperçu le dit, la pièce l'"'"'écrit, la base le rejoue'
 OCW='la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
 prouver 'un module acheté qui reste fermé chez le client' serveur/abonnement/offre.ts \
-  '=== 0 && !(f.modules ?? []).includes(m));' '=== 0);' \
+  '=== 0 && !(f.modules ?? []).some((x) => x === m));' '=== 0);' \
   "$OC1"
 prouver 'un module acheté deux fois' serveur/abonnement/gestes.ts \
   "      if (avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_deja', { valeurs: { module: t(\`abonnement.module.\${d.module}\`) } });
@@ -12629,27 +12629,27 @@ CTCJ='la règle relue et l'"'"'avis ; le message écrit ou retiré par ses deux 
 CTCW='ce que chaque offre comprend : préparé avec son aperçu, lu à venir par le client, retiré avant sa date'
 CTCW1='les offres et prix : la grille du jour, en dinars hors taxes, et la frise des échéances'
 CTCO='en Essentiel, la paie et la comptabilité complète se lisent sans se créer ; passée à Complet, tout s'"'"'ouvre'
-prouver 'un changement de contenu préparé par le support' base/migrations/0105_contenu_offres.sql \
+prouver 'un changement de contenu préparé par le support' base/migrations/0233_droits_par_offre.sql \
   '  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
   v_preavis integer' '  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   v_preavis integer' \
   "$CTC1"
-prouver 'un changement de contenu sans préavis' base/migrations/0105_contenu_offres.sql \
+prouver 'un changement de contenu sans préavis' base/migrations/0233_droits_par_offre.sql \
   '  if p_a_partir_du is null or p_a_partir_du < p_jour + v_preavis then' '  if p_a_partir_du is null or p_a_partir_du < p_jour then' \
   "$CTC1"
-prouver 'deux changements à venir sur la même ligne' base/migrations/0105_contenu_offres.sql \
+prouver 'deux changements à venir sur la même ligne' base/migrations/0233_droits_par_offre.sql \
   '  if exists (select 1 from plateforme.contenu_offre c where c.offre = p_offre and c.quoi = p_quoi and c.a_partir_du > p_jour) then' '  if false then' \
   "$CTC1"
-prouver 'un changement qui ne change rien' base/migrations/0105_contenu_offres.sql \
+prouver 'un changement qui ne change rien' base/migrations/0233_droits_par_offre.sql \
   '  if v_avant = p_nombre then perform socle.refus('"'"'c'"'"''"'"'est déjà ce que l'"'"''"'"'offre comprend : rien ne changerait'"'"'); end if;' '' \
   "$CTC1"
-prouver 'un module ni compris ni acheté seul' base/migrations/0105_contenu_offres.sql \
-  ' or (p_quoi in ('"'"'paie'"'"', '"'"'compta'"'"') and p_nombre not in (0, 1)) then' ' then' \
+prouver 'un module ni compris ni acheté seul' base/migrations/0233_droits_par_offre.sql \
+  ' or (v_module and p_nombre not in (0, 1)) then' ' then' \
   "$CTC1"
-prouver 'un changement de contenu sans sa ligne au journal' base/migrations/0105_contenu_offres.sql \
+prouver 'un changement de contenu sans sa ligne au journal' base/migrations/0233_droits_par_offre.sql \
   '    values (socle.moi(), v_role, '"'"'reglages.contenu_prepare'"'"', btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'reglages.contenu'"'"', btrim(p_motif),' \
   "$CTC1"
-prouver 'un contenu en vigueur qu'"'"'on retire' base/migrations/0105_contenu_offres.sql \
+prouver 'un contenu en vigueur qu'"'"'on retire' base/migrations/0233_droits_par_offre.sql \
   '  if p_a_partir_du <= p_jour then perform socle.refus('"'"'ce contenu est déjà en vigueur : il ne se retire plus ; prépare-en un nouveau'"'"'); end if;' '' \
   "$CTC1"
 prouver 'un contenu en vigueur que la base laisse effacer' base/migrations/0105_contenu_offres.sql \
@@ -12690,7 +12690,7 @@ prouver 'un changement de contenu absent de la carte du client' web/public/plate
   '      .concat(changements.filter((v) => v.offre === quoi).map(changementEnClair).filter(Boolean));' '      .concat([]);' \
   "$CTCW"
 prouver 'la carte d'"'"'une offre qui ne lit pas ses nombres' web/public/plateforme/abonnement.js \
-  'inclusDe(k, contenus[/** @type {'"'"'essentiel'"'"' | '"'"'complet'"'"'} */ (k)] || {})' 'inclusDe(k, {})' \
+  'inclusDe(k, contenus[/** @type {'"'"'essentiel'"'"' | '"'"'complet'"'"'} */ (k)] || {}, contenus.essentiel)' 'inclusDe(k, {}, contenus.essentiel)' \
   "$CTCW"
 prouver 'la carte de l'"'"'offre qui ne dit pas ce qu'"'"'elle ferme' serveur/abonnement/routes.ts \
   'contenu, fermes: modulesFermes(f, jour),' 'contenu, fermes: [],' \
@@ -32368,6 +32368,29 @@ prouver "le lien « mot de passe oublié » garde ses trente minutes en dur" ser
 prouver "un refus reste affiché sous une valeur corrigée" web/console/src/ecrans/Pilotage.tsx \
   "const setTexte = (v: string) => { setTexteBrut(v); setRefus(null); };" "const setTexte = setTexteBrut;" \
   "1.388.77 : les réglages à distance — un délai changé dans la console, son historique, une valeur hors des bornes refusée, puis le retour à l'origine"
+
+# 1.388.78 — Les droits par offre (pilotage, point 8 ; base 0233).
+prouver "la direction change un module d'une offre sans être titulaire" base/migrations/0233_droits_par_offre.sql \
+  "  if v_module and not plateforme.suis_titulaire_console() then" "  if false then" \
+  "(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s'y crée et ce qui existe reste"
+prouver "la direction retire un changement de module sans être titulaire" base/migrations/0233_droits_par_offre.sql \
+  "  if p_quoi in ('paie', 'compta', 'stock', 'pilotage') and not plateforme.suis_titulaire_console() then" "  if false then" \
+  "(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s'y crée et ce qui existe reste"
+prouver "le stock fermé par l'offre laisse créer des mouvements" serveur/abonnement/offre.ts \
+  "  stock: DONNEES_MODULE.stock ?? []," "  stock: []," \
+  "(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s'y crée et ce qui existe reste"
+prouver "le stock et la trésorerie ne se ferment jamais par l'offre" serveur/abonnement/offre.ts \
+  "export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta', 'stock', 'pilotage'];" "export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta'];" \
+  "(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s'y crée et ce qui existe reste"
+prouver "le contenu du stock lu dans la base est ignoré" serveur/abonnement/etat.ts \
+  "        ...(m.stock !== undefined ? { stock: lireRegles({ grace: m.stock }).grace } : {})," "" \
+  "(1.388.78) le stock et la trésorerie se règlent par offre, par le titulaire seul ; fermés, rien de nouveau ne s'y crée et ce qui existe reste"
+prouver "« Changer… » du stock ouvre la fenêtre sur les caisses" web/console/src/ecrans/Reglages.tsx \
+  "  const [quoi, setQuoi] = useState<QuoiContenu>(quoiDepart ?? 'caisses');" "  const [quoi, setQuoi] = useState<QuoiContenu>('caisses');" \
+  "1.388.78 : les droits par offre — le titulaire retire le stock d'Essentiel à une date, le client le lit sur sa carte, le support lit sans geste, puis retiré"
+prouver "la grille des droits se recompose quand un changement est préparé" web/console/src/console.css \
+  ".c-rg-droits-grille { table-layout: fixed; } .c-rg-droits-grille th:nth-child(2), .c-rg-droits-grille th:nth-child(3) { width: 12rem; }" "" \
+  "1.388.78 : les droits par offre — le titulaire retire le stock d'Essentiel à une date, le client le lit sur sa carte, le support lit sans geste, puis retiré"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

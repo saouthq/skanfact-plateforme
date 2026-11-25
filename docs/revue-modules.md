@@ -7512,3 +7512,29 @@ Skander, 25/11/2026 : « limites, textes, délais changés sans nouvelle version
   « Ton cabinet la saisit » et offre « La saisir moi-même » (1.388.67) ; le journal de la console, lu au téléphone sur une
   base neuve, n'avait encore aucun geste à montrer — le test en pose un. Deux preuves réancrées (le code par e-mail vit
   désormais dans les réglages à distance).
+
+## 1.388.78 — Les droits par offre (pilotage, point 8)
+
+Skander, 25/11/2026 : « quels modules chaque offre ouvre, réglés depuis la console », et plus tôt : « n'oublie pas les
+gens qui ont du stock : si on désactive, ils ne pourront plus rien voir, attention à ça ».
+
+- **Dans la console, Réglages › Pilotage du site › « Droits par offre »** : module par module, ce qu'Essentiel et
+  Complet ouvrent aujourd'hui, et ce qui change à une date. Quatre modules se règlent : la paie et la comptabilité
+  complète (comme avant, elles s'achètent seules quand l'offre ne les comprend pas), et désormais **le stock** et **la
+  trésorerie avec les affaires** (qui ne s'achètent pas seuls : non compris, ils attendent l'offre qui les comprend).
+- **Ce qui ne se règle jamais par offre, et la grille le dit avec sa raison** : les ventes, les clients et le catalogue
+  (sans eux, il n'y a plus d'application) ; les achats et les fournisseurs (une offre ne ferme jamais une case de
+  déclaration : sans eux, la TVA récupérable disparaîtrait) ; les déclarations et les écritures.
+- **Un module fermé par l'offre ne cache rien** : ce qui existe se lit, s'imprime, s'exporte et se corrige ; seule la
+  création attend. Le serveur refuse un mouvement de stock, un numéro de série, un dépôt, un compte, un mouvement de
+  trésorerie ou une affaire NEUFS, avec une phrase qui dit ce qui reste ouvert et mène à « Ton abonnement ». Pour masquer
+  un module à tous ou le mettre en maintenance, c'est l'état des modules (1.388.69), juste au-dessus.
+- **« Changer… »** : le titulaire de la console seul (la base le refuse aussi à la direction). La fenêtre est celle de
+  « Ce que chaque offre comprend » (onglet Prix), partie du module et de l'offre choisis : même préavis qu'un prix, même
+  aperçu (combien d'entreprises ont cette offre), même retrait avant la date, même ligne au journal. Une période déjà
+  commencée garde ce qu'elle comprend.
+- **Au départ, rien ne change chez personne** : le stock et la trésorerie sont compris dans les deux offres. Le client
+  lit tout changement préparé sur la carte de son offre (« À partir du … : le stock n'est plus compris »), et la carte
+  d'Essentiel ne promet plus le stock ou la banque quand ils n'y sont pas.
+- Base : migration 0233 (`contenu_offre` accepte `stock` et `pilotage` ; `contenu_du_jour`, `contenu_histoire`,
+  `console_preparer_contenu` et `console_retirer_contenu` les connaissent ; les lignes « module » réservées au titulaire).

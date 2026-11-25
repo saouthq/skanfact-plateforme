@@ -72,7 +72,7 @@
   // offre — pas un paragraphe qu'on ne relit pas. Les fonctions sont celles de l'application ; les nombres (caisses,
   // établissements, salariés) et les modules (la paie, la comptabilité complète) viennent du serveur, que la direction
   // règle dans la console (0105) : aucun nombre n'est écrit ici.
-  /** @typedef {{ caisses?: number | null, etablissements?: number | null, salaries?: number | null, paie?: number | null, compta?: number | null }} Contenu */
+  /** @typedef {{ caisses?: number | null, etablissements?: number | null, salaries?: number | null, paie?: number | null, compta?: number | null, stock?: number | null, pilotage?: number | null }} Contenu */
   const OFFRES = /** @type {Record<string, { nom: string, pour: string, de: string }>} */ ({
     essentiel: { nom: 'Essentiel', pour: 'Tout ce qu\'il faut pour vendre, encaisser et déclarer.', de: 'd\'Essentiel' },
     complet: { nom: 'Complet', pour: 'Pour une entreprise qui paie des salariés et tient sa comptabilité.', de: 'de Complet' },
@@ -89,20 +89,29 @@
   const compte = (n, un, plusieurs, feminin) => `${enMots(n, feminin)} ${n > 1 ? plusieurs : un}`;
   /** @param {unknown} v @returns {number | null} */
   const nombreDe = (v) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null);
-  const MODULES = /** @type {Record<string, string>} */ ({ paie: 'la paie', compta: 'la comptabilité complète' });
+  const MODULES = /** @type {Record<string, string>} */ ({ paie: 'la paie', compta: 'la comptabilité complète', stock: 'le stock', pilotage: 'la trésorerie et les affaires' });
+  // (1.388.78) Ceux qui s'achètent seuls ; le stock et la trésorerie, eux, viennent avec l'offre qui les comprend.
+  const ACHETABLES = ['paie', 'compta'];
   /** @param {string[]} ms */
   const enListe = (ms) => ms.map((m) => MODULES[m] || m).join(' et ');
 
   // Les lignes d'une carte : les fonctions de l'offre, puis ce qu'elle compte. Un nombre inconnu ne se dit pas.
-  /** @param {string} k @param {Contenu} c */
-  function inclusDe(k, c) {
+  /** @param {string} k @param {Contenu} c @param {Contenu} [essentiel] */
+  function inclusDe(k, c, essentiel) {
     const caisses = nombreDe(c.caisses), etab = nombreDe(c.etablissements), salaries = nombreDe(c.salaries);
     const paie = c.paie === 1 ? `La paie${salaries !== null ? `, jusqu'à ${compte(salaries, 'salarié', 'salariés')}` : ''}` : '';
     const compta = c.compta === 1 ? 'La comptabilité complète' : '';
     const lesCaisses = caisses === null ? '' : caisses === 0 ? 'Pas de caisse au comptoir' : majuscule(`${compte(caisses, 'caisse', 'caisses', true)} au comptoir`);
     const equipe = `Des utilisateurs sans limite${etab === null ? '' : `, ${etab === 0 ? 'sans établissement' : compte(etab, 'établissement', 'établissements')}`}`;
-    if (k === 'complet') return ['Tout Essentiel', paie, compta, lesCaisses, equipe].filter(Boolean);
-    return ['Devis, factures, avoirs, clients et catalogue', 'Achats, fournisseurs et stock', lesCaisses, 'La banque et la trésorerie',
+    // (1.388.78) Le stock et la trésorerie se règlent par offre : une offre qui ne les comprend pas ne les annonce pas, et
+    // Complet les nomme quand Essentiel ne les a pas.
+    const sansStock = c.stock === 0, sansTreso = c.pilotage === 0;
+    if (k === 'complet') {
+      const e = essentiel || {};
+      return ['Tout Essentiel', paie, compta, !sansStock && e.stock === 0 ? 'Le stock' : '', !sansTreso && e.pilotage === 0 ? 'La banque, la trésorerie et les affaires' : '',
+        lesCaisses, equipe].filter(Boolean);
+    }
+    return ['Devis, factures, avoirs, clients et catalogue', sansStock ? 'Achats et fournisseurs' : 'Achats, fournisseurs et stock', lesCaisses, sansTreso ? '' : 'La banque et la trésorerie',
       'La facture électronique, la retenue à la source et la déclaration du mois', 'L\'espace client et le paiement en ligne',
       'Ton comptable dans les mêmes données', paie, compta, equipe].filter(Boolean);
   }
@@ -115,7 +124,9 @@
     const quoi = v.quoi === 'caisses' ? (n === 0 ? 'plus aucune caisse comprise' : `${compte(n, 'caisse', 'caisses', true)} comprise${n > 1 ? 's' : ''}`)
       : v.quoi === 'etablissements' ? (n === 0 ? 'plus aucun établissement compris' : `${compte(n, 'établissement', 'établissements')} compris`)
         : v.quoi === 'salaries' ? `la paie compte jusqu'à ${compte(n, 'salarié', 'salariés')}`
-          : MODULES[v.quoi] ? (n === 1 ? `${MODULES[v.quoi]} comprise` : `${MODULES[v.quoi]} n'est plus comprise : elle s'achète seule`) : '';
+          : v.quoi === 'stock' ? (n === 1 ? 'le stock compris' : 'le stock n\'est plus compris')
+            : v.quoi === 'pilotage' ? (n === 1 ? 'la trésorerie et les affaires comprises' : 'la trésorerie et les affaires ne sont plus comprises')
+              : MODULES[v.quoi] ? (n === 1 ? `${MODULES[v.quoi]} comprise` : `${MODULES[v.quoi]} n'est plus comprise : elle s'achète seule`) : '';
     return quoi ? `À partir du ${jour(v.aPartirDu)} : ${quoi}.` : '';
   }
 
@@ -168,8 +179,10 @@
       const la = contenus[/** @type {'essentiel' | 'complet'} */ (autre)] || {};
       const ailleurs = ferme.every((m) => la[/** @type {'paie' | 'compta'} */ (m)] === 1);
       const sujet = majuscule(enListe(ferme)), plus = ferme.length > 1;
+      // (1.388.78) « s'achète seule » ne se dit que de ce qui s'achète seul (la paie, la comptabilité complète).
+      const achetable = ferme.every((m) => ACHETABLES.includes(m));
       phrases.push(ailleurs ? `${sujet} ${plus ? 'sont' : 'est'} dans ${nomOffre(autre)} : ce qui existe se lit, mais rien de nouveau ne s'y crée.`
-        : `${sujet} ${plus ? 'ne sont pas' : 'n\'est pas'} dans ${o.nom} : ce qui existe se lit, mais rien de nouveau ne s'y crée ; ${plus ? 'elles s\'achètent seules' : 'elle s\'achète seule'}.`);
+        : `${sujet} ${plus ? 'ne sont pas' : 'n\'est pas'} dans ${o.nom} : ce qui existe se lit, mais rien de nouveau ne s'y crée${achetable ? ` ; ${plus ? 'elles s\'achètent seules' : 'elle s\'achète seule'}` : ''}.`);
     }
     return phrases.join(' ');
   }
@@ -188,7 +201,9 @@
     // de la v10) et la comptabilité complète (le module « immos », et l'option « compta » : le grand livre, la balance, les
     // états financiers). Les portes de la v10 retiennent la création AVANT le geste, et disent ce qui reste ouvert.
     const fermes = e && Array.isArray(e.fermes) ? e.fermes : [];
-    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : [])];
+    // (1.388.78) Le stock et la trésorerie fermés par l'offre : les portes « stock » et « pilotage » de la v10.
+    const reserves = [...(fermes.includes('paie') ? ['paie'] : []), ...(fermes.includes('compta') ? ['immos'] : []),
+      ...(fermes.includes('stock') ? ['stock'] : []), ...(fermes.includes('pilotage') ? ['pilotage'] : [])];
     const base = { state: 'libre', locked: false, label: '', detail: '', offre: 'entreprise', offreLabel: e && e.offre ? nomOffre(e.offre) : '',
       reserves, options: fermes.includes('compta') ? [] : ['compta'], editeur: false };
     if (!e || e.etat === 'hors') return base;
@@ -753,7 +768,7 @@
         ${avecAnnonces ? `<div class="abo-avenir-bloc">${aVenir.length ? aVenir.map((t) => `<p class="abo-avenir">${esc(t)}</p>`).join('')
           : '<p class="abo-avenir-rien">Aucun changement annoncé.</p>'}</div>` : ''}
         <div class="abo-offre-gestes">${boutons ? `<div class="abo-offre-boutons">${boutons}</div>` : ''}</div>
-        <div class="abo-offre-corps"><ul class="abo-inclus">${inclusDe(k, contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {}).map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
+        <div class="abo-offre-corps"><ul class="abo-inclus">${inclusDe(k, contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {}, contenus.essentiel).map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
         ${pas ? `<p class="abo-pas">${esc(pas)}</p>` : ''}</div>
       </article>`;
     }).join('');
