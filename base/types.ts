@@ -1402,6 +1402,14 @@ export interface BaseDeDonnees {
     remboursement_montant: bigint | null;
     remboursement_rendu_le: string | null;
   };
+  'plateforme.version_minimale': {
+    id: Generated<bigint>;
+    version: string | null;
+    message: string | null;
+    motif: string;
+    posee_le: Date;
+    posee_par: string;
+  };
   'socle.abonnement_avis': {
     id: Generated<string>;
     entreprise: string;

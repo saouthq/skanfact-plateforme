@@ -10,6 +10,7 @@ import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { brancherFermeture } from './fermeture.ts';
 import { ecritPendantLectureSeule, lireLectureSeule, refusLectureSeule } from './lecture-seule.ts';
+import { refusVersionMinimale } from './version-minimale.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
@@ -312,6 +313,10 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           const ici = (ctx.maintenant ?? (() => new Date()))();
           const l = await lireLectureSeule(ctx, ici);
           if (l) return envoyer(503, refusLectureSeule(l, ici));
+          // (1.388.76, base 0231) Un écran plus ancien que la version imposée n'enregistre plus : il recharge d'abord.
+          const v = await refusVersionMinimale(ctx, requete.headers['x-skanfact-code']);
+          // 426 (« mise à jour requise »), jamais 409 : l'application lit 409 comme un conflit entre deux postes et fusionne.
+          if (v) return envoyer(426, v);
         }
 
         try {

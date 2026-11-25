@@ -322,9 +322,26 @@
     clearTimeout(lectureSeuleMinuteur);
     lectureSeuleMinuteur = setTimeout(() => save(true), Math.max(5_000, Math.min(120_000, Date.parse(fin) - Date.now() + 5_000)));
   }
+  // (1.388.76, base 0231) Cet écran est plus ancien que la version que SkanFact impose après une correction importante :
+  // le serveur refuse ce qu'il enregistre (un vieux code n'écrit plus de travers). Une seule fenêtre, qui dit la vérité :
+  // rien n'est parti, il faut recharger, puis refaire le dernier geste.
+  function versionTropAncienne(e) {
+    if (echecOuvert) return;
+    echecOuvert = true;
+    modal(`<h2>Une correction importante est en ligne</h2>
+      <p>${h(plainError(e))}</p>
+      <p class="small muted">Recharger installe la version corrigée ; refais ensuite ton dernier geste, il n'a pas été enregistré.</p>
+      <div class="modal-actions">
+        <button class="btn" data-close>Plus tard</button>
+        <button class="btn btn-primary" id="recharger-version">Recharger la page</button>
+      </div>`, (root) => {
+      $('#recharger-version', root).onclick = () => location.reload();
+    }, () => { echecOuvert = false; });
+  }
   function echecEnregistrement(e) {
     // Une pièce ouverte dit le refus dans sa page ; en lecture seule, l'enregistrement repart en plus de lui-même.
     if (e && e.lectureSeule && e.lectureSeule.fin) { attendreLectureSeule(e, !!(echecDansLaPage && echecDansLaPage(e))); return; }
+    if (e && e.versionTropAncienne) { versionTropAncienne(e); return; }
     if (echecDansLaPage && echecDansLaPage(e)) return;
     if (echecOuvert) return;
     echecOuvert = true;

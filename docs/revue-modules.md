@@ -7457,3 +7457,29 @@ Skander, 25/11/2026 : « tout le site en lecture pendant une grosse opération s
 - Base : migration 0230 (`lecture_seule`, `lecture_seule_en_cours`, `lecture_seule_prevue`, `console_poser_lecture_seule`,
   `console_lever_lecture_seule`, `console_lectures_seules`). Rien ne tourne en tâche de fond : le serveur compare à
   son heure à chaque requête (relue au plus toutes les cinq secondes).
+
+## 1.388.76 — La version minimale imposée (pilotage, point 6)
+
+Skander, 25/11/2026 : « recharger les écrans trop anciens après une correction importante ».
+
+- **Le problème** : un onglet ouvert lundi garde le code de lundi tant qu'on ne le recharge pas ; une correction publiée
+  mardi ne l'atteint pas, et il continue d'enregistrer avec l'ancien calcul.
+- **Dans la console, Réglages › Pilotage du site › « Version minimale des écrans »** : « Imposer la version en ligne… »
+  (le titulaire seul, avec un motif et un message facultatif aux clients). La console n'impose jamais un autre numéro que
+  celui qui tourne : on ne peut pas imposer une version qui n'existe pas encore, ce qui bloquerait tout le monde. La
+  fenêtre dit ce qui va se passer et montre le bandeau exact. L'état se lit en orange (qui, quand, pourquoi) ;
+  « Retirer ce minimum… » le lève. Les gestes passés restent listés.
+- **Chez le client, sur un écran plus ancien** : un bandeau « Correction importante » en haut de chaque page, avec un
+  bouton « Recharger la page » (il ne se cache pas). S'il essaie d'enregistrer, le serveur refuse (réponse 426, « mise à
+  jour requise ») : une seule fenêtre dit que rien n'a été enregistré, propose « Recharger la page » ou « Plus tard ».
+  Rien de ce qu'il a déjà n'est touché ; il lit toutes ses pages.
+- **Qui n'est jamais gêné** : un écran déjà à jour (ou plus récent), une intégration par l'API qui ne dit pas sa
+  version, un serveur d'essai sans numéro, la console.
+- Chaque écran dit sa version au serveur (l'en-tête `x-skanfact-code`, lu dans la marque de la page).
+- Trouvé en testant à l'écran : le premier refus partait avec le code 409, que l'application lit comme « un autre poste
+  a modifié le dossier » — elle affichait « le dossier partagé bouge en permanence ». Le refus utilise désormais 426.
+- Base : migration 0231 (`version_minimale`, `version_minimale_en_vigueur`, `console_poser_version_minimale`,
+  `console_version_minimale`). Relue au plus toutes les cinq secondes ; aucune tâche de fond.
+- Rattrapé au passage, pour la 1.388.75 aussi : les deux tables neuves (`lecture_seule`, `version_minimale`) sont
+  classées pour l'export complet d'une entreprise (des réglages de la plateforme, qui ne partent pas avec elle), et les
+  droits de la console qui les lisent et les posent ont leur phrase dans l'écran Équipe.

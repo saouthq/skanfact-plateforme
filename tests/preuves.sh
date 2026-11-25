@@ -32323,6 +32323,32 @@ prouver "le bandeau tait la lecture seule" serveur/console/message-clients.ts \
   "if (lecture) return { corps: { aujourdhui: jour, message: lecture } };" "if (lecture && false) return { corps: { aujourdhui: jour, message: lecture } };" \
   "poser, refuser, annoncer, lever — et la console reste ouverte"
 
+# 1.388.76 — La version minimale imposée (pilotage, point 6 ; base 0231).
+prouver "un écran trop ancien enregistre quand même" serveur/app.ts \
+  "if (v) return envoyer(426, v);" "if (v && false) return envoyer(426, v);" \
+  "imposer la version en ligne, refuser un écran plus ancien, laisser passer les autres, retirer"
+prouver "le refus d'un vieil écran pris pour un conflit entre deux postes" serveur/app.ts \
+  "if (v) return envoyer(426, v);" "if (v) return envoyer(409, v);" \
+  "imposer la version en ligne, refuser un écran plus ancien, laisser passer les autres, retirer"
+prouver "les versions comparées à l'envers" serveur/version-minimale.ts \
+  "return (a[i] ?? 0) < (b[i] ?? 0);" "return (a[i] ?? 0) > (b[i] ?? 0);" \
+  "plus ancien se compare nombre par nombre (1.9.10 vient après 1.9.9) ; une version illisible ne l'est jamais"
+prouver "la console impose une autre version que celle en ligne" serveur/version-minimale.ts \
+  "const version = corps.retirer ? null : enLigne();" "const version = corps.retirer ? null : '9.9.9';" \
+  "imposer la version en ligne, refuser un écran plus ancien, laisser passer les autres, retirer"
+prouver "le bandeau tait la version minimale" serveur/console/message-clients.ts \
+  "if (version) return { corps: { aujourdhui: jour, message: version } };" "if (version && false) return { corps: { aujourdhui: jour, message: version } };" \
+  "imposer la version en ligne, refuser un écran plus ancien, laisser passer les autres, retirer"
+prouver "la même version imposée deux fois" base/migrations/0231_version_minimale.sql \
+  "perform socle.refus('cette version est déjà imposée');" "null;" \
+  "imposer la version en ligne, refuser un écran plus ancien, laisser passer les autres, retirer"
+prouver "le refus d'un écran trop ancien dit « Rien n'a été enregistré » et propose de réessayer" modules/socle/ecrans/entreprise/app-1.js \
+  "if (e && e.versionTropAncienne) { versionTropAncienne(e); return; }" "" \
+  "1.388.76 : la version minimale — imposée dans la console, un onglet resté sur l'ancien code voit le bandeau, son enregistrement est refusé avec « Recharger la page », puis retirée"
+prouver "« Recharger la page » du bandeau ne recharge rien" web/public/plateforme/message.js \
+  "if (recharger) recharger.onclick = () => location.reload();" "" \
+  "1.388.76 : la version minimale — imposée dans la console, un onglet resté sur l'ancien code voit le bandeau, son enregistrement est refusé avec « Recharger la page », puis retirée"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

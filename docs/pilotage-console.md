@@ -13,7 +13,7 @@ données, le message de maintenance par module, le titulaire (1.388.69 → 1.388
 | 3 | État programmé | « la caisse s'ouvre le 1er décembre à 8 h », une maintenance de 22 h à 23 h qui se lève seule | fait (1.388.72) |
 | 4 | Retour automatique | un état posé pour un essai revient de lui-même après N jours | fait (1.388.72) |
 | 5 | Lecture seule générale | tout le site en lecture pendant une grosse opération sur la base | fait (1.388.75) |
-| 6 | Version minimale imposée | recharger les écrans trop anciens après une correction importante | à faire |
+| 6 | Version minimale imposée | recharger les écrans trop anciens après une correction importante | fait (1.388.76) |
 | 7 | Réglages à distance | limites, textes, délais changés sans nouvelle version | à faire |
 | 8 | Droits par offre | quels modules chaque offre ouvre, réglés depuis la console | à faire |
 | 9 | Console limitée à des adresses IP | la console ne s'ouvre que depuis les connexions du titulaire | à faire |

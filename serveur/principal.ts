@@ -90,6 +90,7 @@ import { routesConsole } from './console/routes.ts';
 import { FRAIS_MS } from './console/instantane.ts';
 import { routesMessageClients } from './console/message-clients.ts';
 import { routesLectureSeule } from './lecture-seule.ts';
+import { routesVersionMinimale } from './version-minimale.ts';
 import { routesNouveautes, type Nouveaute } from './nouveautes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
@@ -275,7 +276,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
     ...routesCabinet(ctx), ...routesClasseur(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
-    ...routesMessageClients(ctx.maintenant), ...routesLectureSeule(ctx), ...routesNouveautes(ctx), ...routesPdf(ctx)];
+    ...routesMessageClients(ctx.maintenant), ...routesLectureSeule(ctx), ...routesVersionMinimale(ctx), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[]; ia?: AppelIA } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
@@ -284,7 +285,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   let publique = c.adresse ?? '';
   // Le fournisseur de SMS (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun SMS ne part.
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
-  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, factureAuChoix: c.factureAuChoix, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
+  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, version: c.version, factureAuChoix: c.factureAuChoix, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteurIA: creerLecteurIA(dependances.ia ?? (c.ia ? appelAnthropic(c.ia.cle, c.ia.modele) : null)), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.

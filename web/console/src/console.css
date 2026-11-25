@@ -3446,3 +3446,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pil-prevues li { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 /* L'aperçu du bandeau des clients, dans le même orange que chez eux (message.css, `.sk-message-lecture`). */
 .c-mod-bandeau.c-pil-bandeau-lecture { background: var(--c-orange-doux); color: var(--c-orange-texte); border-color: color-mix(in srgb, var(--c-orange) 35%, transparent); }
+/* (1.388.76) La version minimale : la version en ligne sous l'état, et le bouton « Recharger la page » de l'aperçu, dessiné
+   comme chez le client (un bouton plein), sans être cliquable ici. */
+.c-pil-en-ligne { margin: -4px 0 12px; }
+.c-pil-apercu-bouton { display: inline-block; margin-inline-start: 8px; padding: 2px 10px; border-radius: 8px; background: var(--c-fort); color: var(--c-fort-texte); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.c-rg + .c-rg { margin-block-start: 16px; }

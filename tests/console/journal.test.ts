@@ -66,6 +66,8 @@ describe('les gestes du journal de la console', () => {
   // Les gestes sur l'abonnement d'un cabinet (0220) se calculent aussi : la liste que la route accepte.
   for (const g of ['gratuits', 'gratuits-retirer', 'offrir', 'retirer-offert', 'delai', 'reporter', 'reporter-retirer', 'suspendre', 'reprendre',
     'prix', 'prix-retirer', 'plafond', 'plafond-retirer']) gestes.add(`abonnement.cabinet-${g}`);
+  // La lecture seule générale (0230) se lève ou s'annule, la version minimale (0231) s'impose ou se retire.
+  for (const g of ['service.lecture_seule_levee', 'service.lecture_seule_annulee', 'service.version_minimale', 'service.version_minimale_retiree']) gestes.add(g);
 
   it('la lecture des migrations trouve les gestes (un instrument qui ne lit rien ne prouve rien)', () => {
     expect(gestes.size).toBeGreaterThanOrEqual(20);
@@ -84,7 +86,11 @@ describe('les gestes du journal de la console', () => {
       // Et la même redéfinie en 0121 : ce qu'une période payée d'avance change attend son jour (l'audit C01).
       expect.stringMatching(/^0121_droits_a_leur_date\.sql : 'abonnement\.' \|\| p_geste$/),
       // Et les gestes sur l'abonnement d'UN cabinet (0220) : « abonnement.cabinet- » suivi du geste.
-      expect.stringMatching(/^0220_gestes_cabinet\.sql : 'abonnement\.cabinet-' \|\| p_geste$/)]);
+      expect.stringMatching(/^0220_gestes_cabinet\.sql : 'abonnement\.cabinet-' \|\| p_geste$/),
+      // Et la lecture seule générale (0230), levée en cours ou annulée avant de commencer.
+      expect.stringMatching(/^0230_lecture_seule\.sql : case when v\.debut > p_maintenant then 'service\.lecture_seule_annulee' else 'service\.lecture_seule_levee' end$/),
+      // Et la version minimale (0231), imposée ou retirée.
+      expect.stringMatching(/^0231_version_minimale\.sql : case when p_version is null then 'service\.version_minimale_retiree' else 'service\.version_minimale' end$/)]);
   });
 
   it('chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue', () => {

@@ -58,7 +58,7 @@
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
     /** @type {Record<string, string>} */
-    const entetes = { authorization: `Bearer ${jeton}` };
+    const entetes = { authorization: `Bearer ${jeton}`, 'x-skanfact-code': (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || '').split(' ')[0]?.replace(/[^\w.-]/g, '') || '' }; // (1.388.76) la version de cet écran (base 0231)
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     let r;
     try {

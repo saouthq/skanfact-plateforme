@@ -142,7 +142,7 @@
   async function appel(methode, chemin, corps, survivre = false) {
     if (LECTURE) return appelLecture(methode, chemin);
     /** @type {Record<string, string>} */
-    const entetes = { authorization: `Bearer ${jeton}` };
+    const entetes = { authorization: `Bearer ${jeton}`, 'x-skanfact-code': (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || '').split(' ')[0]?.replace(/[^\w.-]/g, '') || '' }; // (1.388.76) la version de cet écran (base 0231)
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     const texte = corps === undefined ? undefined : JSON.stringify(corps);
     const taille = texte === undefined ? 0 : new TextEncoder().encode(texte).length;
@@ -174,7 +174,7 @@
       // Le bouton qui débloque, quand le serveur le nomme (brique 81 : « Désigner le signataire »…).
       /** @type {any} */ (e).bouton = typeof lu.bouton === 'string' ? lu.bouton : null;
       // Le champ qu'un refus désigne (E5 : le matricule de la fiche, déjà celui d'une autre entreprise).
-      /** @type {any} */ (e).champ = typeof lu.champ === 'string' ? lu.champ : null; /** @type {any} */ (e).lectureSeule = lu.lectureSeule || null; // (1.388.75) jusqu'à quand
+      /** @type {any} */ (e).champ = typeof lu.champ === 'string' ? lu.champ : null; /** @type {any} */ (e).lectureSeule = lu.lectureSeule || null; /** @type {any} */ (e).versionTropAncienne = lu.versionTropAncienne || null; // (1.388.75) jusqu'à quand ; (1.388.76) écran trop ancien
       throw e;
     }
     return lu;
@@ -1916,7 +1916,7 @@
     // En lecture pour le support : rien du compte de celui qui lit ne passe par ici.
     if (LECTURE) throw Object.assign(new Error(EN_LECTURE), { statut: 403, bouton: null, champ: null, lecture: true });
     /** @type {Record<string, string>} */
-    const entetes = { authorization: `Bearer ${jeton}` };
+    const entetes = { authorization: `Bearer ${jeton}`, 'x-skanfact-code': (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || '').split(' ')[0]?.replace(/[^\w.-]/g, '') || '' }; // (1.388.76) la version de cet écran (base 0231)
     if (corps !== undefined) entetes['content-type'] = 'application/json';
     let r;
     try {

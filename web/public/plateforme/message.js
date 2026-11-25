@@ -15,9 +15,10 @@
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', '\'': '&#39;' })[c] || c);
   // (1.388.75) « lecture » : le site est en lecture seule (base 0230) — le bandeau ne se cache pas, il dit jusqu'à quand ;
   // « lecture_prevue » : elle commence dans les vingt-quatre heures. Ni l'un ni l'autre ne se compte dans la diffusion.
-  const SORTES = /** @type {Record<string, string>} */ ({ nouveaute: 'Nouveauté', maintenance: 'Maintenance prévue', lecture: 'Lecture seule', lecture_prevue: 'Lecture seule prévue' });
+  // (1.388.76) « version » : cet écran est plus ancien que la version imposée (base 0231) — un bouton recharge la page.
+  const SORTES = /** @type {Record<string, string>} */ ({ nouveaute: 'Nouveauté', maintenance: 'Maintenance prévue', lecture: 'Lecture seule', lecture_prevue: 'Lecture seule prévue', version: 'Correction importante' });
   /** @param {string} sorte */
-  const classeDe = (sorte) => (sorte === 'lecture' || sorte === 'lecture_prevue' || sorte === 'maintenance' ? sorte.replace('_', '-') : 'nouveaute');
+  const classeDe = (sorte) => (sorte === 'version' ? 'lecture' : sorte === 'lecture' || sorte === 'lecture_prevue' || sorte === 'maintenance' ? sorte.replace('_', '-') : 'nouveaute');
   // Cachés pendant cette visite, même quand le navigateur refuse de garder le choix (navigation privée).
   /** @type {Set<string>} */ const cachesIci = new Set();
   function cache() { try { return localStorage.getItem(CLE); } catch { return null; } }
@@ -31,8 +32,8 @@
    *  @param {{ vu: (id: string) => void, cache: (id: string) => void } | null} [suivi] */
   function poser(view, m, suivi) {
     const deja = /** @type {HTMLElement | null} */ (view.querySelector(':scope > .sk-message'));
-    const lecture = !!m && m.sorte === 'lecture';
-    if (m && (m.sorte === 'lecture' || m.sorte === 'lecture_prevue')) suivi = null;
+    const lecture = !!m && (m.sorte === 'lecture' || m.sorte === 'version');
+    if (m && (m.sorte === 'lecture' || m.sorte === 'lecture_prevue' || m.sorte === 'version')) suivi = null;
     if (!m || (!lecture && (cachesIci.has(m.id) || cache() === m.id))) { if (deja) deja.remove(); return; }
     if (deja && deja.dataset.message === m.id) return;
     if (deja) deja.remove();
@@ -41,8 +42,11 @@
     el.setAttribute('role', 'status');
     el.dataset.message = m.id;
     el.innerHTML = `<span class="sk-message-sorte">${esc(SORTES[m.sorte] || SORTES.nouveaute)}</span>
-      <span class="sk-message-texte">${esc(m.texte)}</span>${lecture ? '' : `
+      <span class="sk-message-texte">${esc(m.texte)}</span>${m.sorte === 'version' ? `
+      <button type="button" class="btn btn-sm btn-primary sk-message-recharger">Recharger la page</button>` : lecture ? '' : `
       <button type="button" class="btn btn-sm sk-message-plus-tard" title="Le cacher sur cet appareil ; un nouveau message reparaîtra">Plus tard</button>`}`;
+    const recharger = /** @type {HTMLElement | null} */ (el.querySelector('.sk-message-recharger'));
+    if (recharger) recharger.onclick = () => location.reload();
     const plusTard = /** @type {HTMLElement | null} */ (el.querySelector('.sk-message-plus-tard'));
     if (plusTard) plusTard.onclick = () => {
       cacher(m.id);

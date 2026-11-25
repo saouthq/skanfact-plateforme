@@ -3,6 +3,8 @@
 // toute l'équipe lit.
 // (1.388.75, point 5, base 0230) La lecture seule générale : pendant une grosse opération sur la base, les clients lisent
 // tout et rien ne s'enregistre, jusqu'à l'heure dite.
+// (1.388.76, point 6, base 0231) La version minimale : après une correction importante, les écrans ouverts avant elle
+// rechargent avant d'enregistrer.
 import { useState } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
@@ -222,6 +224,164 @@ function LectureSeule() {
   );
 }
 
+type LigneVm = { id: number; version: string | null; message: string | null; motif: string; le: string; par: string | null };
+type DonneesVm = { titulaire: boolean; nomTitulaire: string | null; enLigne: string | null; lignes: LigneVm[] };
+
+function FenetreImposer({ version, fermer, fait }: { version: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [message, setMessage] = useState('');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', '/console/version-minimale', { motif: motif.trim(), message: message.trim() || null });
+        if (!r) return;
+        if (r.statut === 200 || r.statut === 201) { toast(phrase(`${K}.vm.fait`, { version })); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${K}.vm.g.titre`, { version })} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={faire}>{titre(`${K}.vm.g.bouton`, { version })}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>
+          <li><b>{phrase(`${K}.vm.g.va.bandeau`, { version })}</b></li>
+          <li>{phrase(`${K}.vm.g.va.refus`)}</li>
+          <li>{phrase(`${K}.vm.g.va.rien`)}</li>
+          <li>{phrase(`${K}.vm.g.va.retour`)}</li>
+        </ul>
+      </div>
+      <div className="c-mod-message">
+        <Zone libelle={titre(`${K}.vm.g.message`)} aide={phrase(`${K}.vm.g.message_aide`)} valeur={message} changer={setMessage} max={300} placeholder={dire(`${K}.vm.g.message_exemple`)} />
+        <div className="c-mod-apercu" aria-label={titre(`${K}.vm.g.apercu`)}>
+          <span className="c-champ-libelle">{titre(`${K}.vm.g.apercu`)}</span>
+          <p className="c-mod-bandeau c-pil-bandeau-lecture">
+            <b>{dire(`${K}.vm.g.apercu_sorte`)}</b> {dire(`${K}.vm.g.apercu_texte`)}{message.trim() ? ` ${message.trim()}` : ''}
+            <span className="c-pil-apercu-bouton">{dire(`${K}.vm.g.apercu_bouton`)}</span>
+          </p>
+        </div>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.ls.g.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreRetirer({ version, fermer, fait }: { version: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const faire = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const r = await api('POST', '/console/version-minimale', { motif: motif.trim(), retirer: true });
+        if (!r) return;
+        if (r.statut === 200) { toast(phrase(`${K}.vm.retire`)); fait(); return; }
+        setRefus(refusDe(r));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${K}.vm.r.titre`)} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={faire}>{titre(`${K}.vm.r.bouton`)}</Bouton>
+      </>}>
+      <p>{phrase(`${K}.vm.r.quoi`, { version })}</p>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${K}.ls.g.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier />
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Le numéro le plus récent des deux (« 1.388.77 » avant « 1.388.76 ») : la version en ligne plus récente que le minimum.
+const avant = (a: string, b: string) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return (x[i] ?? 0) < (y[i] ?? 0);
+  return false;
+};
+
+function VersionMinimale() {
+  const [l, relire] = useLecture<DonneesVm>('/console/version-minimale', 'version-minimale');
+  const [imposer, setImposer] = useState(false);
+  const [retirer, setRetirer] = useState(false);
+  if (l.etat === 'panne') return <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte>;
+  if (l.etat !== 'lu') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
+  const d = l.donnees;
+  const peut = d.titulaire;
+  const actuelle = d.lignes[0] && d.lignes[0].version ? d.lignes[0] : null;
+  const enLigne = d.enLigne;
+  const aImposer = !!enLigne && (!actuelle || avant(actuelle.version as string, enLigne));
+  return (
+    <section className="c-carte c-rg" aria-labelledby="rg-version-minimale">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="rg-version-minimale">{titre(`${K}.vm.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${K}.vm.sous`)}</p>
+        </div>
+        {peut && aImposer ? <Bouton ton="principal" onClick={() => setImposer(true)}>{titre(`${K}.vm.imposer`)}</Bouton> : null}
+      </div>
+      {peut ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.reserve`, { nom: d.nomTitulaire ?? '—' })}</span></Alerte>}
+      {actuelle ? (
+        <div className="c-pil-etat c-pil-en-cours" id="rg-version-minimale-etat">
+          <span className="c-mod-etat c-pil-lecture">{titre(`${K}.vm.etat.imposee`)}</span>
+          <p><b>{phrase(`${K}.vm.imposee`, { version: actuelle.version ?? '' })}</b>
+            <span className="c-sous c-bloc">{phrase(`${K}.vm.pose_par`, { quand: leJour(actuelle.le), par: actuelle.par ?? '—', motif: actuelle.motif })}</span>
+            {actuelle.message ? <span className="c-mod-msg c-bloc">{`«\u00a0${actuelle.message}\u00a0»`}</span> : null}</p>
+          {peut ? <Bouton onClick={() => setRetirer(true)}>{titre(`${K}.vm.retirer`)}</Bouton> : null}
+        </div>
+      ) : (
+        <div className="c-pil-etat c-pil-ouvert" id="rg-version-minimale-etat">
+          <span className="c-mod-etat c-mod-ouvert">{titre(`${K}.vm.etat.aucune`)}</span>
+          <p>{phrase(`${K}.vm.aucune`)}</p>
+        </div>
+      )}
+      <p className="c-sous c-pil-en-ligne">{enLigne
+        ? (actuelle && aImposer ? phrase(`${K}.vm.plus_recente`, { enLigne }) : phrase(`${K}.vm.en_ligne`, { version: enLigne }))
+        : phrase(`${K}.vm.en_ligne_inconnue`)}</p>
+      <h3 className="c-mod-h-titre">{titre(`${K}.vm.h.section`)}</h3>
+      {d.lignes.length ? (
+        <div className="c-defile">
+          <table className="c-table c-pil-histo">
+            <thead><tr>
+              <th scope="col">{titre(`${K}.vm.h.col.quand`)}</th>
+              <th scope="col">{titre(`${K}.vm.h.col.quoi`)}</th>
+              <th scope="col">{titre(`${K}.vm.h.col.motif`)}</th>
+            </tr></thead>
+            <tbody>
+              {d.lignes.map((x) => (
+                <tr key={x.id}>
+                  <td>{leJour(x.le)}<span className="c-sous c-bloc">{x.par ?? '—'}</span></td>
+                  <td>{x.version ? titre(`${K}.vm.h.imposee`, { version: x.version }) : titre(`${K}.vm.h.retiree`)}</td>
+                  <td>{x.motif}{x.message ? <span className="c-mod-msg c-bloc">{`«\u00a0${x.message}\u00a0»`}</span> : null}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <p className="c-sous c-mod-h-vide">{phrase(`${K}.vm.h.vide`)}</p>}
+      {imposer && enLigne ? <FenetreImposer version={enLigne} fermer={() => setImposer(false)} fait={() => { setImposer(false); relire(); }} /> : null}
+      {retirer && actuelle ? <FenetreRetirer version={actuelle.version ?? ''} fermer={() => setRetirer(false)} fait={() => { setRetirer(false); relire(); }} /> : null}
+    </section>
+  );
+}
+
 export function Pilotage() {
-  return <LectureSeule />;
+  return <><LectureSeule /><VersionMinimale /></>;
 }

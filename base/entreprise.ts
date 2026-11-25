@@ -195,6 +195,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.
   'plateforme.relecture_regle': { classe: 'hors', raison: 'la relecture d\'une règle commune par un comptable : le registre de la plateforme, commun à toutes les entreprises' },
   'plateforme.nouveaute_entreprise': { classe: 'hors', raison: 'les nouveautés que SkanFact allume pour une entreprise volontaire (0120) : un réglage de la plateforme ; remise ailleurs, l\'entreprise repart sans' },
+  'plateforme.lecture_seule': { classe: 'hors', raison: 'la lecture seule générale posée par la console (0230) : un réglage de la plateforme, commun à tous les clients' },
+  'plateforme.version_minimale': { classe: 'hors', raison: 'la version minimale imposée aux écrans par la console (0231) : un réglage de la plateforme, commun à tous les clients' },
   'plateforme.module_etat': { classe: 'hors', raison: 'l\'état des modules posé par la console (0226) : un réglage de la plateforme ; remise ailleurs, l\'entreprise repart sans exception' },
   'plateforme.nouveaute_tous': { classe: 'hors', raison: 'les nouveautés ouvertes à toutes les entreprises (0120) : communes à la plateforme' },
   'plateforme.message_clients': { classe: 'hors', raison: 'le message affiché à tous les clients, écrit par l\'équipe SkanFact : commun à la plateforme' },

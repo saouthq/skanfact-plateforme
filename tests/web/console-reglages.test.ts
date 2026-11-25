@@ -1001,6 +1001,104 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query("delete from plateforme.lecture_seule where motif = 'Migration de la base vers le nouveau disque'");
   }, 120_000);
 
+  it('1.388.76 : la version minimale — imposée dans la console, un onglet resté sur l\'ancien code voit le bandeau, son enregistrement est refusé avec « Recharger la page », puis retirée', async () => {
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
+    // Une entreprise neuve : son premier chargement enregistre son dossier, c'est l'enregistrement que l'ancien écran tente.
+    const neuve = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Atelier version minimale' })).corps.id);
+    const neuve2 = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Atelier version ancienne' })).corps.id);
+    const p = await console_(jD, 'pilotage');
+    const section = p.locator('section[aria-labelledby="rg-version-minimale"]');
+    await section.waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#rg-version-minimale-etat').innerText())).toBe('Aucun minimum Aucun minimum : chaque écran enregistre, quelle que soit sa version.');
+    const enLigne = (/Version en ligne : (\d+\.\d+\.\d+)/.exec(net(await section.innerText())) ?? [])[1] ?? '';
+    expect(enLigne).toMatch(/^\d+\.\d+\.\d+$/);
+    await section.scrollIntoViewIfNeeded();
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-version.png') });
+    await cliquer(section.getByRole('button', { name: 'Imposer la version en ligne…' }));
+    const f = p.getByRole('dialog');
+    expect(net(await f.locator('h2').first().innerText())).toBe(`Imposer la version ${enLigne}`);
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(new RegExp(`^Ce qui va se passer Un onglet ouvert avant la ${enLigne.replace(/\./g, '\\.')} voit un bandeau « Recharger la page », à sa prochaine page\\. Tant qu'il n'a pas rechargé`));
+    await f.locator('textarea').first().fill('Elle corrige le calcul de la retenue à la source.');
+    expect(net(await f.locator('.c-mod-bandeau').innerText())).toMatch(/^Correction importante Une correction importante est en ligne : recharge la page pour continuer d'enregistrer\. Elle corrige le calcul de la retenue à la source\.\s?Recharger la page$/);
+    // Sans motif : refusé, rien ne part.
+    await cliquer(f.getByRole('button', { name: `Imposer la ${enLigne}`, exact: true }));
+    expect(net(await f.locator('.c-alerte, [role="alert"]').last().innerText())).toMatch(/motif/i);
+    await f.locator('textarea').last().fill('Correction de la retenue à la source');
+    await f.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-version-fenetre.png') });
+    await cliquer(f.getByRole('button', { name: `Imposer la ${enLigne}`, exact: true }));
+    await expect.poll(async () => net(await p.locator('#rg-version-minimale-etat').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(new RegExp(`^Imposée Les écrans plus anciens que la ${enLigne.replace(/\./g, '\\.')} rechargent avant d'enregistrer\\. Imposée le .+ par Amira Réglages · Correction de la retenue à la source\\. « Elle corrige le calcul de la retenue à la source\\. » Retirer ce minimum…$`));
+    // Le bouton disparaît tant que la version en ligne est imposée.
+    expect(await section.getByRole('button', { name: 'Imposer la version en ligne…' }).count()).toBe(0);
+    await section.scrollIntoViewIfNeeded();
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-version-imposee.png') });
+
+    // Le client, un onglet resté sur l'ancien code (la marque de sa page dit 1.0.0) : le bandeau, et la fenêtre qui
+    // explique le refus de son premier enregistrement, avec « Recharger la page ».
+    const c = await client(neuve);
+    await c.context().addInitScript(() => {
+      if (sessionStorage.getItem('essai.ancien') !== '1') return;
+      const poser = () => { const m = document.querySelector('meta[name="skanfact-code"]'); if (m && m.getAttribute('content') !== '1.0.0 · ancien') m.setAttribute('content', '1.0.0 · ancien'); };
+      new MutationObserver(poser).observe(document, { childList: true, subtree: true });
+    });
+    await c.evaluate(() => sessionStorage.setItem('essai.ancien', '1'));
+    // Une seconde entreprise neuve, ouverte dans cet onglet « ancien » : son premier chargement enregistre son dossier.
+    await c.goto(`${serveur.adresse}/v10/?e=${neuve2}#/dashboard`);
+    // L'enregistrement du dossier au chargement, refusé : une seule fenêtre, qui dit la vérité et propose de recharger.
+    const fen = c.locator('#modal-root .modal').filter({ hasText: 'Une correction importante est en ligne' });
+    await expect.poll(() => fen.count(), { timeout: 20_000 }).toBe(1);
+    expect(await c.locator('#modal-root .modal').count()).toBe(1);
+    expect(net(await fen.innerText())).toMatch(/^Une correction importante est en ligne Une correction importante de SkanFact vient d'être mise en ligne : recharge la page pour continuer\. Rien n'a été enregistré.+Elle corrige le calcul de la retenue à la source\. Recharger installe la version corrigée ; refais ensuite ton dernier geste, il n'a pas été enregistré\. Plus tard Recharger la page$/);
+    await c.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-version-refus.png') });
+    await cliquer(fen.getByRole('button', { name: 'Plus tard' }));
+    await expect.poll(() => fen.count(), { timeout: 5_000 }).toBe(0);
+    // Le bandeau, en haut de chaque page, sans « Plus tard ».
+    const bandeau = c.locator('#view > .sk-message');
+    await expect.poll(() => bandeau.count(), { timeout: 20_000 }).toBe(1);
+    expect(net(await bandeau.innerText())).toBe('Correction importante Une correction importante est en ligne : recharge la page pour continuer d\'enregistrer. Elle corrige le calcul de la retenue à la source. Recharger la page');
+    expect(await bandeau.locator('.sk-message-plus-tard').count()).toBe(0);
+    await c.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-version-bandeau.png') });
+    // Un geste qui enregistre (une case des Paramètres) : le refus le dit sur place, la case revient à sa place.
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await c.locator('#set-tabs [data-tab="app"]').click();
+    const caseVol = c.locator('#vol-beta');
+    await caseVol.waitFor({ timeout: 10_000 });
+    const avant = await caseVol.isChecked();
+    await c.locator('#p-volontaire').scrollIntoViewIfNeeded();
+    await c.locator('#vol-beta-libelle').click();
+    await expect.poll(async () => net(await c.locator('#vol-beta-dit').innerText()), { timeout: 10_000 }).toMatch(/^Une correction importante de SkanFact vient d'être mise en ligne : recharge la page pour continuer\. Rien n'a été enregistré/);
+    expect(await caseVol.isChecked()).toBe(avant);
+    expect(await c.locator('#view > .sk-message[data-message^="version-"]').count()).toBe(1);
+    // « Recharger la page » du bandeau : la page se recharge sur le code du jour, le bandeau part, l'enregistrement passe.
+    await c.evaluate(() => sessionStorage.setItem('essai.ancien', '0'));
+    await Promise.all([c.waitForEvent('load'), cliquer(c.locator('#view > .sk-message .sk-message-recharger'))]);
+    await expect.poll(() => c.locator('#view .page-head h1').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await c.waitForTimeout(1_500);
+    expect(await c.locator('#view > .sk-message[data-message^="version-"]').count()).toBe(0);
+    expect(await c.locator('#modal-root .modal').count()).toBe(0);
+
+    // Retirer : la console demande un motif ; l'historique garde les deux gestes.
+    await cliquer(section.getByRole('button', { name: 'Retirer ce minimum…' }));
+    const g = p.getByRole('dialog');
+    expect(net(await g.innerText())).toContain(`la ${enLigne} est imposée. Retirer ce minimum laisse de nouveau enregistrer les écrans plus anciens, sans recharger.`.replace(/^l/, 'L'));
+    await g.locator('textarea').fill('Tous les postes ont rechargé');
+    await cliquer(g.getByRole('button', { name: 'Retirer le minimum' }));
+    await expect.poll(async () => net(await p.locator('#rg-version-minimale-etat').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Aucun minimum/);
+    expect(net(await section.locator('.c-pil-histo').innerText())).toMatch(new RegExp(`Minimum retiré Tous les postes ont rechargé.*La ${enLigne.replace(/\./g, '\\.')} imposée Correction de la retenue à la source`));
+    // Le support lit la section, sans aucun geste.
+    const s2 = await console_(jS, 'pilotage');
+    const sec2 = s2.locator('section[aria-labelledby="rg-version-minimale"]');
+    await sec2.waitFor({ timeout: 15_000 });
+    expect(await sec2.getByRole('button').count()).toBe(0);
+    expect(net(await sec2.innerText())).toContain('seul le titulaire de la console (Amira Réglages) pilote le site');
+    expect(erreurs).toEqual([]);
+    await fermer(s2);
+    await fermer(c);
+    await fermer(p);
+    await admin.query("delete from plateforme.version_minimale where motif in ('Correction de la retenue à la source', 'Tous les postes ont rechargé')");
+  }, 150_000);
+
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {
       const p = await console_(jD, onglet, 390, 844);

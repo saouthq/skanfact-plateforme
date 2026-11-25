@@ -15,6 +15,7 @@ import { etatAbonnement } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { lireCible, publicsDe, vise as viseLesPublics } from './diffusion.ts';
 import { bandeauLectureSeule } from '../lecture-seule.ts';
+import { bandeauVersionMinimale } from '../version-minimale.ts';
 
 export type MessageClients = { id: string; sorte: 'nouveaute' | 'maintenance'; texte: string; du: string; au: string };
 
@@ -43,9 +44,12 @@ export function routesMessageClients(maintenant: () => Date = () => new Date()):
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/message', geste: 'socle.accueil.voir',
-    traiter: async ({ params }, tx) => {
+    traiter: async ({ params, requete }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const jour = aujourdhuiATunis(maintenant());
+      // (1.388.76, base 0231) Un écran plus ancien que la version imposée : « recharge la page » passe devant tout.
+      const version = await bandeauVersionMinimale(tx, requete.headers['x-skanfact-code'], jour);
+      if (version) return { corps: { aujourdhui: jour, message: version } };
       // (1.388.75, base 0230) La lecture seule générale, en cours ou prévue dans les vingt-quatre heures, passe avant le
       // message du jour : elle dit à chacun pourquoi rien ne s'enregistre, et jusqu'à quand.
       const lecture = await bandeauLectureSeule(tx, maintenant());

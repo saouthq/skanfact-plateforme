@@ -36,6 +36,8 @@ export type Contexte = {
   listeVolee: ListeVolee;
   sms: EnvoiSms;
   maintenant?: () => Date;
+  // (1.388.76) La version du code en ligne (« 1.388.76 · abc1234 », serveur/ecrans.ts) : la console l'impose comme minimum.
+  version?: string;
   // Le paiement en ligne (brique 78) : l'adresse de l'API du prestataire, la clé du coffre du serveur
   // (serveur/coffre.ts), et l'adresse publique du serveur (où reviennent l'avis et le client).
   paiement?: { konnect: string; coffre: Buffer; adresse: () => string };
