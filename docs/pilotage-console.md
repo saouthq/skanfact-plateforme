@@ -10,8 +10,8 @@ données, le message de maintenance par module, le titulaire (1.388.69 → 1.388
 |---|------|----------------|------|
 | 1 | Ouverture progressive | ouvrir un module à 10 %, 50 %, 100 % des entreprises (tirage stable par entreprise) | à faire |
 | 2 | Volontaires bêta | une case « je veux essayer les nouveautés » chez le client ; la bêta s'ouvre à eux seuls | à faire |
-| 3 | État programmé | « la caisse s'ouvre le 1er décembre à 8 h », une maintenance de 22 h à 23 h qui se lève seule | à faire |
-| 4 | Retour automatique | un état posé pour un essai revient de lui-même après N jours | à faire |
+| 3 | État programmé | « la caisse s'ouvre le 1er décembre à 8 h », une maintenance de 22 h à 23 h qui se lève seule | fait (1.388.72) |
+| 4 | Retour automatique | un état posé pour un essai revient de lui-même après N jours | fait (1.388.72) |
 | 5 | Lecture seule générale | tout le site en lecture pendant une grosse opération sur la base | à faire |
 | 6 | Version minimale imposée | recharger les écrans trop anciens après une correction importante | à faire |
 | 7 | Réglages à distance | limites, textes, délais changés sans nouvelle version | à faire |

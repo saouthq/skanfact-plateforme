@@ -114,7 +114,7 @@ describe('la console pose l\'état d\'un module', () => {
     expect((lu.corps.entreprise as Corps).nom).toBe('Boulangerie des essais modules');
     expect((lu.corps.poses as Corps[]).find((p) => p.entreprise === ent)).toMatchObject({ module: 'caisse', etat: 'ouvert', motif: 'La boulangerie pilote', par: amira.nom });
     const geste = (await admin.query(`select avant, apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
-    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur', message: null }, apres: { module: 'caisse', etat: 'ouvert', message: null } });
+    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur', message: null }, apres: { module: 'caisse', etat: 'ouvert', message: null, debut: null, fin: null } });
     // /moi : l'entreprise porte ses propres listes, sans motif ni auteur.
     const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[] } }[] };
     expect(moi.entreprises.find((e) => e.id === ent)?.modules.aVenir).not.toContain('caisse');
@@ -232,5 +232,46 @@ describe('1.388.71 : l\'historique des changements, et revenir à l\'état d\'av
     expect((await poser({ module: 'immos', entreprise: ent, etat: 'beta', motif: 'Retour à l\'essai', message: 'Les biens sont en essai cette semaine.' })).statut).toBe(200);
     const ligne = (await admin.query('select etat, message from plateforme.module_etat where entreprise = $1 and module = $2', [ent, 'immos'])).rows[0];
     expect(ligne).toEqual({ etat: 'beta', message: 'Les biens sont en essai cette semaine.' });
+  });
+});
+
+describe('1.388.72 : un état programmé, et le retour automatique', () => {
+  const dans = (min: number) => new Date(Date.now() + min * 60_000).toISOString();
+  const caisseDe = async (jeton: string, ent: string) => ((await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[]; ferme: string[] } }[] }).entreprises.find((e) => e.id === ent)?.modules;
+  it('programmé : rien ne change avant le début ; à l\'heure dite, il vaut — sans tâche de fond', async () => {
+    const { jeton } = await inscrire('prog');
+    const ent = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Boulangerie programmée' })).corps.id);
+    entreprises.push(ent);
+    expect((await poser({ module: 'stock', entreprise: ent, etat: 'ferme', motif: 'Maintenance du soir', debut: dans(60), fin: dans(120), message: 'Le stock se met à jour de 22 h à 23 h.' })).statut).toBe(200);
+    expect((await caisseDe(jeton, ent))?.ferme).not.toContain('stock');
+    const lu = (await appeler('GET', `/console/modules?entreprise=${ent}`, amira.console)).corps as { poses: { module: string; entreprise: string | null; debut: string | null; fin: string | null }[] };
+    expect(lu.poses.find((p) => p.module === 'stock' && p.entreprise === ent)?.debut).toBeTruthy();
+    // L'heure arrive (on avance la ligne au lieu de l'horloge) : le stock est fermé, avec son message.
+    await admin.query(`update plateforme.module_etat set debut = now() - interval '1 minute' where entreprise = $1 and module = 'stock'`, [ent]);
+    expect((await caisseDe(jeton, ent))?.ferme).toContain('stock');
+    // La fin passe : il revient tout seul à ce qui vaudrait sans lui.
+    await admin.query(`update plateforme.module_etat set fin = now() - interval '1 second' where entreprise = $1 and module = 'stock'`, [ent]);
+    expect((await caisseDe(jeton, ent))?.ferme).not.toContain('stock');
+  });
+  it('les refus : un début passé, une fin avant le début, « serveur » avec une date ; l\'annulation avant le début, pas après', async () => {
+    const { jeton } = await inscrire('progr');
+    const ent = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Atelier programmé' })).corps.id);
+    entreprises.push(ent);
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'beta', motif: 'Essai', debut: dans(-5) })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'beta', motif: 'Essai', debut: dans(60), fin: dans(30) })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'serveur', motif: 'Essai', fin: dans(30) })).statut).toBeGreaterThanOrEqual(400);
+    // Un état tout de suite ET un programmé cohabitent : le programmé ne remplace pas l'actuel avant son heure.
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'beta', motif: 'Pilote de la paie' })).statut).toBe(200);
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'ouvert', motif: 'Ouverture prévue', debut: dans(60) })).statut).toBe(200);
+    expect(Number((await admin.query('select count(*) n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n)).toBe(2);
+    const id = Number((await admin.query('select id from plateforme.module_etat where entreprise = $1 and debut is not null', [ent])).rows[0].id);
+    expect((await appeler('POST', '/console/modules/annuler', amira.console, { id, motif: 'Pas encore prêt' })).statut).toBe(200);
+    expect(Number((await admin.query('select count(*) n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n)).toBe(1);
+    expect((await admin.query(`select geste from plateforme.geste_console where entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0].geste).toBe('modules.annuler');
+    // Un programmé déjà commencé ne s'annule plus : on change le module à la place.
+    expect((await poser({ module: 'paie', entreprise: ent, etat: 'ouvert', motif: 'Ouverture prévue', debut: dans(60) })).statut).toBe(200);
+    const id2 = Number((await admin.query('select id from plateforme.module_etat where entreprise = $1 and debut is not null', [ent])).rows[0].id);
+    await admin.query(`update plateforme.module_etat set debut = now() - interval '1 minute' where id = $1`, [id2]);
+    expect((await appeler('POST', '/console/modules/annuler', amira.console, { id: id2, motif: 'Trop tard' })).statut).toBeGreaterThanOrEqual(400);
   });
 });

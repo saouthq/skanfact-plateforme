@@ -848,9 +848,39 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.locator('#rg-modules-histo').scrollIntoViewIfNeeded();
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-historique.png') });
     await admin.query('delete from plateforme.module_etat where entreprise = $1', [ent]);
+    // (1.388.72) Une maintenance programmée : demain à 22 h, pendant 1 heure, avec son message ; puis l'annuler.
+    await p.reload();
+    await p.locator('.c-mod-table').waitFor();
+    await ligne.getByRole('button', { name: 'Changer…' }).click();
+    await f.locator('.c-mod-carte').filter({ hasText: 'Fermé' }).click();
+    await f.getByText('À une date', { exact: true }).click();
+    const demain = new Date(Date.now() + 86_400_000);
+    const jour = `${demain.getFullYear()}-${String(demain.getMonth() + 1).padStart(2, '0')}-${String(demain.getDate()).padStart(2, '0')}`;
+    await f.getByLabel('À partir du').fill(`${jour}T22:00`);
+    await f.getByText('1 heure', { exact: true }).click();
+    await f.getByLabel('Message aux clients (facultatif)').fill('Le stock se met à jour ce soir de 22 h à 23 h.');
+    // L'heure tapée est celle de l'ordinateur ; la console l'écrit à l'heure de Tunis (le navigateur du test est en UTC).
+    const aTunis = (d: Date) => new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', hour: '2-digit', minute: '2-digit' }).format(d);
+    const h1 = aTunis(new Date(`${jour}T22:00`)), h2 = aTunis(new Date(new Date(`${jour}T22:00`).getTime() + 3_600_000));
+    const va = net(await f.locator('.c-al-ce-qui-va').innerText());
+    expect(va).toContain(`à ${h1} seulement ; d'ici là, il reste « ouvert »`);
+    expect(va).toContain(`à ${h2} ; ensuite il revient de lui-même à « ouvert »`);
+    await f.getByLabel('Motif', { exact: true }).fill('Mise à jour du stock');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-programme.png') });
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    // Le module reste ouvert d'ici là ; le changement programmé se lit sous son état, et s'annule.
+    await expect.poll(async () => net(await ligne.innerText())).toMatch(new RegExp(`Ouvert.*Programmé : à partir du .* à ${h1}, Fermé jusqu'au .* à ${h2}`, 'i'));
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-programme-liste.png') });
+    await ligne.getByRole('button', { name: 'Annuler…' }).click();
+    const af = p.getByRole('dialog');
+    await af.getByLabel('Motif', { exact: true }).fill('Reportée à la semaine prochaine');
+    await af.getByRole('button', { name: 'Annuler le changement programmé' }).click();
+    await af.waitFor({ state: 'detached', timeout: 10_000 });
+    expect((await admin.query('select count(*)::int n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);
-  }, 90_000);
+  }, 120_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {

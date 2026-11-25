@@ -7373,3 +7373,27 @@ Le premier des dix points notés le 25/11/2026 (`docs/pilotage-console.md`).
   à son tour. Titulaire seul, comme le reste.
 - Le journal garde désormais aussi le **message d'avant** (`avant.message`) : sans lui, revenir en arrière aurait effacé
   le bandeau de maintenance qu'on voulait retrouver.
+
+## 1.388.72 — Un état programmé, et le retour automatique (pilotage, points 3 et 4)
+
+Les deux points suivants de `docs/pilotage-console.md` (Skander, 25/11/2026 : « la caisse s'ouvre le 1er décembre à
+8 h », « une maintenance de 22 h à 23 h qui se lève toute seule »).
+
+- **La fenêtre « Changer… » gagne deux questions** : *Quand* (« Tout de suite » ou « À une date », avec le jour et
+  l'heure) et *Jusqu'à quand* (« Sans fin », 1 heure, 1 jour, 7 jours, 30 jours, ou « Jusqu'à une date »). « Ce qui va se
+  passer » le dit avant le geste : « à partir du 26/11/2026 à 22:00 seulement ; d'ici là, il reste ouvert », « jusqu'au
+  27/11/2026 à 23:00 ; ensuite il revient de lui-même à ouvert » — le retour est calculé, il nomme l'état qui vaudra.
+- **Dans le tableau**, sous l'état d'aujourd'hui : la fin s'il y en a une (« jusqu'au …, puis retour automatique ») et
+  chaque changement programmé qui attend son heure, avec **« annuler… »** (motivé, au journal, titulaire seul). Un
+  programmé déjà commencé ne s'annule plus : on change le module.
+- **Rien ne tourne en tâche de fond** : chaque lecture compare l'heure du serveur aux dates de l'état
+  (`plateforme.module_en_vigueur`), donc rien ne peut « oublier » de basculer — ni pour l'application, ni pour la console,
+  ni pour la garde de la base (`etat_module`).
+- Un état tout de suite et des programmés **cohabitent** : poser un programmé ne remplace jamais l'état actuel avant son
+  heure ; poser « tout de suite » remplace l'actuel et ce qui est échu, et laisse attendre les programmés.
+- Les refus disent leur raison : un début déjà passé (« choisis tout de suite »), une fin avant le début, « revenir au
+  réglage du serveur » avec une date.
+- L'historique montre les dates d'un changement programmé et les annulations ; « Revenir à l'état d'avant… » ne se
+  propose pas sur un programmé, qui s'annule dans le tableau.
+- Les heures s'écrivent à l'heure de Tunis, comme tout le reste de la console.
+- Base : migration 0227 (`debut`, `fin`, `module_en_vigueur`, `console_annuler_programme`).

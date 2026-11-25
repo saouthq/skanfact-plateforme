@@ -3422,3 +3422,12 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-mod-serveur { background: var(--c-papier-2); color: var(--c-gris); border: 1px dashed var(--c-trait-fort); }
 .c-mod-h-vide { margin: 6px 0 0; }
 .c-mod-h-quand { white-space: nowrap; }
+.c-mod-quand { display: grid; gap: 10px; }
+.c-mod-segment { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.c-mod-segment legend { width: 100%; margin-bottom: 4px; }
+.c-mod-segment label { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--c-trait-fort); border-radius: 999px; cursor: pointer; font-size: 13.5px; background: var(--c-papier); }
+.c-mod-segment label input { margin: 0; accent-color: var(--c-btn); }
+.c-mod-segment label.c-mod-seg-on { border-color: var(--c-btn); background: var(--c-doux); font-weight: 600; }
+.c-mod-segment label:focus-within { outline: 2px solid var(--c-anneau); outline-offset: 2px; }
+.c-mod-prog { margin-top: 3px; font-size: 12.5px; color: var(--c-gris); display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.c-mod-annuler { font-size: 12.5px; }

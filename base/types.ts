@@ -998,6 +998,8 @@ export interface BaseDeDonnees {
     le: Date;
     par: string;
     message: string | null;
+    debut: Date | null;
+    fin: Date | null;
   };
   'plateforme.note_appel': {
     id: Generated<string>;

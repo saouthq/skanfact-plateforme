@@ -679,12 +679,21 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'POST', chemin: '/console/modules', geste: 'console.modules.poser',
-    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional() }),
+    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional(), debut: z.string().datetime({ offset: true }).nullable().optional(), fin: z.string().datetime({ offset: true }).nullable().optional() }),
     traiter: async ({ corps }, tx) => {
       if (!moduleConnu(corps.module)) throw new Introuvable();
       const ent = corps.entreprise ?? null;
       if (ent !== null && !uuid.safeParse(ent).success) throw new Introuvable();
-      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5, $6)', [corps.module, ent, corps.etat, corps.motif, maintenant(), corps.message ?? null]);
+      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5, $6, $7, $8)', [corps.module, ent, corps.etat, corps.motif, maintenant(), corps.message ?? null, corps.debut ?? null, corps.fin ?? null]);
+      return { corps: { ok: true } };
+    },
+  });
+  // (1.388.72) Annuler un changement programmé qui n'a pas encore commencé.
+  ajouter({
+    methode: 'POST', chemin: '/console/modules/annuler', geste: 'console.modules.poser',
+    corps: z.object({ id: z.number().int().positive(), motif: z.string().max(500) }),
+    traiter: async ({ corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_annuler_programme($1, $2, $3)', [corps.id, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });
