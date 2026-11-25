@@ -94,7 +94,8 @@
         quoi: 'La facture de ton fournisseur ou une dépense du comptoir : la TVA payée dessus se déduit de celle que tu dois.' });
     }
     const unDevis = docs.some((/** @type {any} */ x) => x.type === 'devis');
-    const uneFacture = docs.some((/** @type {any} */ x) => x.type === 'facture');
+    // (1.388.84, CE2-09) Un ticket de caisse est rangé en « facture » : il ne coche pas « Ta première facture ».
+    const uneFacture = docs.some((/** @type {any} */ x) => x.type === 'facture' && !C.estTicket(x));
     lesEtapes.push({ id: 'devis', titre: !unDevis && uneFacture ? 'Ta première facture' : 'Ton premier devis', fait: unDevis || uneFacture, action: 'devis',
       quoi: 'Un devis annonce un prix avant de travailler. Il se transforme en facture en un clic.' });
 

@@ -213,7 +213,10 @@ export function routesBoutique(): Route<never>[] {
       // Deux chemins, un chiffre : le total de la facture est celui que la boutique a annoncé (ou fait payer). Sinon
       // rien n'est émis, et aucun numéro n'est pris (tout s'annule).
       const net = (await resultat(tx, ent, corps.reference, false))?.facture.netAPayer ?? '';
-      const timbre = corps.timbre ? 1000n : 0n;
+      // (1.388.84, CE2-07) Le timbre que la facture a SCELLÉ (sa règle datée), jamais un dinar écrit ici : le jour où le
+      // timbre change, une commande juste ne doit pas être refusée pour un écart qui n'existe pas.
+      const scelle = corps.timbre ? await requetes(tx).selectFrom('ventes.piece').select('timbre').where('entreprise', '=', ent).where('ref_v10', '=', cle).where('statut', '=', 'emise').executeTakeFirst() : null;
+      const timbre = scelle?.timbre ?? 0n;
       const attendu = corps.totalAttendu ?? (ttcTotal !== null ? versTexte(ttcTotal + timbre, 3) : null);
       if (attendu !== null && attendu !== net) throw new Refus('boutique.ecart', { valeurs: { attendu, serveur: net } });
       if (corps.paiement) await ajouterPaiement(tx, ent, qui.utilisateur, cle, idDuPaiement(cle, corps.paiement.id), corps.paiement, rendre(t('boutique.note_paiement'), 'fr'));

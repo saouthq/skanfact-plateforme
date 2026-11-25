@@ -1410,6 +1410,13 @@
       + (apres < 0 ? `<span class="warn-text">Il prendrait ${j(-apres)} de plus qu'il n'en a acquis : ce n'est pas interdit, mais il faut le savoir.</span>` : '');
   }
 
+  // (1.388.84, CE2-06) Les jours de repos se règlent (offDays) : la phrase les nomme, elle ne dit plus « dimanches » à une
+  // entreprise fermée le samedi et le dimanche.
+  const NOMS_JOURS = ['dimanches', 'lundis', 'mardis', 'mercredis', 'jeudis', 'vendredis', 'samedis'];
+  function joursDeRepos() {
+    const off = C.payrollSettings(data).offDays, l = (Array.isArray(off) ? off : [0]).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map(i => NOMS_JOURS[i]).filter(Boolean);
+    return !l.length ? '' : l.length === 1 ? l[0] : `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}`;
+  }
   // (1.355.1) Ce que l'absence fait, en un tableau de la MÊME hauteur que le solde d'un congé : changer la nature ne fait plus
   // rapetisser la fenêtre (le bouton remontait de 82 px sous la souris), et une absence non payée dit combien elle retient.
   function effetAbsence(emp, jours, paid, v, bal) {
@@ -1420,8 +1427,12 @@
     if (!paid && emp) {
       const y = Number((v.from || C.today()).slice(0, 4)), m = Number((v.from || C.today()).slice(5, 7)), cur = company().currency;
       const brut = C.brutDuMois(emp, y, m) || Number(emp.grossSalary) || 0;
-      const retenu = C.round3(brut / (Number(C.payrollSettings(data).workedDays) || 26) * jours);
-      return t(['Son brut du mois', C.money(brut, cur)], [`${j(jours)} non payé${sPl(jours)}`, `− ${C.money(retenu, cur)}`], ['Son brut après', C.money(C.round3(brut - retenu), cur)]);
+      // (1.388.84, CE2-05) Le bulletin répartit une absence mois par mois (leaveDaysInMonth) : l'annonce aussi. Une absence à
+      // cheval sur deux mois ne retire du brut du premier que SES jours, et dit que le reste ira sur le mois suivant.
+      const ici = v.to ? C.leaveDaysInMonth({ from: v.from, to: v.to }, y, m, C.payrollSettings(data).offDays) : jours, reste = Math.max(0, jours - ici);
+      const retenu = C.round3(brut / (Number(C.payrollSettings(data).workedDays) || 26) * ici);
+      // Le reste se dit DANS la ligne : une phrase de plus sous le tableau pousserait « Poser l'absence » sous le curseur.
+      return t(['Son brut du mois', C.money(brut, cur)], [`${j(ici)} non payé${sPl(ici)}${reste ? ` · ${j(reste)} le mois suivant` : ''}`, `− ${C.money(retenu, cur)}`], ['Son brut après', C.money(C.round3(brut - retenu), cur)]);
     }
     if (bal) return t(['Son solde de congés', j(bal.remaining)], ['Cette absence', 'n\'y touche pas'], ['Son solde après', j(bal.remaining)]);
     return '';
@@ -1480,7 +1491,7 @@
           const paid = v.paid === '' ? C.leaveIsPaid(v.kind) : v.paid === '1';
           const bal = v.employeeId ? C.leaveBalance(data, v.employeeId, Number((v.from || C.today()).slice(0, 4))) : null;
           $('#lf-hint', root).innerHTML = `<span class="small ${days ? 'muted' : 'warn-text'}">`
-            + (days ? `<b>${pct(days)} jour${sPl(days)} ouvrable${sPl(days)}</b>, dimanches exclus. ` : 'Aucun jour ouvrable dans cette période — vérifie les dates. ')
+            + (days ? `<b>${pct(days)} jour${sPl(days)} ouvrable${sPl(days)}</b>${joursDeRepos() ? `, ${joursDeRepos()} exclus` : ', tous les jours de la semaine comptés'}. ` : 'Aucun jour ouvrable dans cette période — vérifie les dates. ')
             + (paid ? 'Payée : le salaire du mois n\'est pas réduit.' : (b => b ? `Non payée, mais son bulletin de ${h(`${MONTHS_LONG[Number(b.month) - 1]} ${b.year}`)} est déjà ${b.paidDate ? 'payé' : b.valideLe ? 'validé par ton cabinet' : 'dans une période clôturée'} : il ne change pas. La retenue est à régulariser sur un prochain bulletin (une retenue « Absence du … »). ` : 'Non payée : retenue sur le brut du mois.')(bulletinTenuDe(v.employeeId, v.from)))
             + (bal && v.kind === 'conges' ? soldeApresConge(bal.remaining, days, leave, v) : days ? effetAbsence(employeeById(v.employeeId), days, paid, v, bal) : '')
             + '</span>'

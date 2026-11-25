@@ -7662,3 +7662,27 @@ décider : la devise d'une pièce en euros dans la grille de saisie (CE-13, un c
 classée en octobre (CE-14, À VÉRIFIER avec un comptable).
 
 Tests : `tests/cabinet/ecrans-1388-83.test.ts` (12) ; treize preuves.
+
+## 1.388.84 — L'application entreprise relue (CE2-01 à CE2-09)
+
+Le lot Entreprise de la vérification complète : le code relu, puis l'écran.
+
+- **Le pont dit l'écriture vivante d'une facture** : quand une écriture validée a été contre-passée puis réécrite, la
+  fiche de la facture lisait encore l'ancienne (« validée ») au lieu de la nouvelle.
+- **Un gros enregistrement qui échoue au milieu** le dit : les changements partent par lots de 500 ; un refus au deuxième
+  lot laisse le premier sur le serveur. La fenêtre disait « Rien n'a été enregistré » : elle dit « Une partie seulement a
+  été enregistrée » et combien.
+- **« Vue le » et « envoyée le »** se disent au jour de Tunis : une facture vue à 0 h 30 le 5 ne se dit plus « vue le 4 ».
+- **Une absence à cheval sur deux mois** ne retire du premier bulletin que ses jours à lui, et dit combien iront sur le
+  bulletin suivant (l'annonce retirait tout du premier, le bulletin, lui, répartissait).
+- **« N jours ouvrables »** nomme les jours de repos réglés dans les barèmes (« samedis et dimanches exclus ») : la phrase
+  disait « dimanches exclus » à une entreprise fermée le samedi aussi.
+- **Une commande en ligne** se compare au timbre que la facture a scellé, plus à un dinar écrit dans le code : le jour où
+  le timbre change, une commande juste ne sera pas refusée.
+- **Le refus d'un achat lié** écrit sa date « 04/03/2026 », plus « 2026-03-04 ».
+- **Un ticket de caisse** ne coche plus « Ta première facture » dans « Tes premiers pas ».
+
+Pour le lot du pont : la réponse au cabinet qui bloquait l'enregistrement d'une pièce (CE2-03) part avec la refonte des
+questions.
+
+Tests : `tests/v10/entreprise-1388-84.test.ts` (8) ; onze preuves.

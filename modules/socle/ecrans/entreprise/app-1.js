@@ -346,8 +346,10 @@
     if (echecOuvert) return;
     echecOuvert = true;
     const code = codeErreur(e);
-    modal(`<h2>Rien n'a été enregistré</h2>
-      <p>${h(plainError(e))}</p>
+    // (1.388.84, CE2-02) Un gros enregistrement part par lots : un refus au deuxième lot laisse le premier sur le serveur.
+    const deja = Number(e && e.dejaEnregistres) || 0;
+    modal(`<h2>${deja ? 'Une partie seulement a été enregistrée' : 'Rien n\'a été enregistré'}</h2>
+      <p>${h(plainError(e))}</p>${deja ? `<p>Les ${deja} premiers changements sont enregistrés ; le reste ne l'est pas encore.</p>` : ''}
       <p class="small muted">Ce que tu vois à l'écran est intact : rien n'est perdu tant que
       l'application reste ouverte.${code ? ` <span class="mono">${h(code)}</span>` : ''}</p>
       <div class="modal-actions">
@@ -10597,7 +10599,7 @@
         if (!v) return;
         const fi = friseIci(), d = fi && $('li.fait[data-k=envoyee] .ed-fr-txt > span', fi);
         if (!v.vues) { if (d && !/vue/.test(d.textContent)) d.insertAdjacentHTML('beforeend', ' · pas encore vue'); return; }
-        const quand = lfJm(v.vuLe.slice(0, 10));
+        const quand = lfJm(new Date(v.vuLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })); // (1.388.84, CE2-04) le jour de Tunis, pas l'UTC
         const lv = lpVueIci && lpVueIci.isConnected ? lpVueIci : null; if (lv) lv.innerHTML = ` · <b>vue le ${quand}</b> par le lien`;
         if (d && !/vue le/.test(d.textContent)) d.insertAdjacentHTML('beforeend', ` · vue le ${quand}`);
       }, () => {});
@@ -10606,7 +10608,7 @@
         const fi = friseIci(), li = fi && $('li[data-k=vu]', fi); if (!li || !v || !v.vues) return;
         li.classList.add('fait');
         const rond = $('.rond', li); if (rond) rond.innerHTML = lfIc('coche', 13, 3);
-        const d = $('.ed-fr-txt > span', li); if (d) d.textContent = `${lfJm(v.vuLe.slice(0, 10))} · ${v.vues > 1 ? `${v.vues} fois` : 'une fois'} par le lien`;
+        const d = $('.ed-fr-txt > span', li); if (d) d.textContent = `${lfJm(new Date(v.vuLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} · ${v.vues > 1 ? `${v.vues} fois` : 'une fois'} par le lien`;
         const vh = $('.vh', li); if (vh) vh.textContent = ' : fait';
       }, () => {});
       // (maquette « émise · entreprise d'essai ») Une facture de l'exemple ne part jamais à El Fatoora : on le dit.
@@ -18171,7 +18173,7 @@
       const montres = env.slice(0, 5);
       z.className = 'panel la-envoyees'; z.hidden = false;
       z.innerHTML = `<div class="a-bloc-t"><h2>Envoyées à ton cabinet</h2><span class="small muted">${attente ? `${pl(attente, 'photo')} qu'il saisit` : 'toutes rangées'}</span></div>
-        <ul class="la-env-l">${montres.map(m => `<li><span>${lfIc('photo', 16)}<b>${h(m.fichier.nom)}</b><small>${C.fmtDate(String(m.ecritLe).slice(0, 10))}</small></span>
+        <ul class="la-env-l">${montres.map(m => `<li><span>${lfIc('photo', 16)}<b>${h(m.fichier.nom)}</b><small>${C.fmtDate(new Date(m.ecritLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))}</small></span>
           <span class="small">${m.achat ? `rangée : ${h(m.achat.libelle)}` : m.saisieParCabinet ? 'saisie par ton cabinet' : 'ton cabinet la saisit'}</span></li>`).join('')}</ul>
         <p class="small"><a href="#/comptable">${env.length > montres.length ? `Les ${env.length} envois` : 'Voir dans « Mon comptable »'}</a></p>`;
     }, () => {});

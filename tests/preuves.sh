@@ -6524,7 +6524,7 @@ prouver "un total de commande qui ne tombe pas juste, facturé quand même" serv
   "      if (attendu !== null && attendu !== net) throw" "      if (false) throw" \
   "$BQ"
 prouver "le timbre oublié dans le total attendu" serveur/v10/boutique.ts \
-  "      const timbre = corps.timbre ? 1000n : 0n;" "      const timbre = 0n;" \
+  "      const timbre = scelle?.timbre ?? 0n;" "      const timbre = 0n;" \
   "$BQ"
 prouver "le timbre posé sur une commande qui n'en veut pas" serveur/v10/boutique.ts \
   "discountRate: 0, applyStamp: corps.timbre, withholdingRate: 0," "discountRate: 0, applyStamp: true, withholdingRate: 0," \
@@ -27790,7 +27790,7 @@ prouver 'absence 1.355.1 b : la fenêtre rapetisse quand la nature change' modul
   ' : days ? effetAbsence(employeeById(v.employeeId), days, paid, v, bal) : '\'''\'')' ' : '\'''\'')' \
   "$PS1355W"
 prouver 'absence 1.355.1 c : le brut retenu ne se dit pas' modules/personnel/ecrans/entreprise/paie.js \
-  '[`${j(jours)} non payé${sPl(jours)}`, `− ${C.money(retenu, cur)}`]' '[`${j(jours)} non payé${sPl(jours)}`, '\''au prorata'\'']' \
+  '`− ${C.money(retenu, cur)}`], ['\''Son brut après'\''' "'au prorata'], ['Son brut après'" \
   "$PS1355W"
 prouver 'absence 1.355.1 d : « Octobre n'\''est pas fini » le 11 novembre' modules/personnel/ecrans/entreprise/paie.js \
   '<b>${h(`La paie ${/^[aeiouyéè]/i.test(nom) ? `d'\''${nom}` : `de ${nom}`} n'\''est pas finie`)}</b>' '<b>${h(capi(nom))} n'\''est pas fini</b>' \
@@ -31921,7 +31921,7 @@ prouver $'la piece validee rouverte sans un mot' modules/socle/ecrans/entreprise
   "if (x && x.statut === 'validee') {" "if (false) {" \
   $'Sarra relit PK-2611-07 : l\'écriture au brouillard puis validée par Leila, la frise qui le suit, l\'affaire rangée et retirée, et les lignes au téléphone'
 prouver $'la correction d\'une piece validee dite Validee' web/public/plateforme/pont.js \
-  "m.origine.type === 'contre_passation' && m.origine.id === e.id" "false" \
+  "=== 'achat'), corr = (/** @type {any} */ e) => e.contrepassee || (r.ecritures || []).some((/** @type {any} */ m) => m.origine && m.origine.type === 'contre_passation' && m.origine.id === e.id)" "=== 'achat'), corr = (/** @type {any} */ e) => e.contrepassee || (r.ecritures || []).some((/** @type {any} */ m) => m.origine && false)" \
   $'Sarra relit PK-2611-07 : l\'écriture au brouillard puis validée par Leila, la frise qui le suit, l\'affaire rangée et retirée, et les lignes au téléphone'
 
 # 1.388.42 — FISC-1/2 : la FODEC suit le devis jusqu'à la facture, et la comptabilité la dit.
@@ -32551,6 +32551,41 @@ prouver "la fiche dit deux fois « Noter une relance faite ailleurs… »" modul
 prouver "le trait du seuil traverse « aucune pièce depuis 6 mois »" web/public/plateforme/tableau-de-bord.css \
   "top: 2px; z-index: 1; font-size: 12px;" "top: 2px; font-size: 12px;" \
   "CE-33 : une infobulle ne se pose pas sur un chiffre pour ne rien dire"
+# 1.388.84 — Le lot Entreprise de la vérification complète (CE2-01, 02, 04 à 09).
+prouver "l'écriture d'une pièce reprend la validée contre-passée" web/public/plateforme/pont.js \
+  "x = tous.find((/** @type {any} */ e) => !corr(e)) || tous[0];" "x = tous[0];" \
+  "CE2-01 : l'écriture d'une pièce est la vente VIVANTE, pas la validée contre-passée"
+prouver "un refus au deuxième lot ne dit pas ce qui est déjà parti" web/public/plateforme/pont.js \
+  "(refusHorsLigne(e)), i ? { dejaEnregistres: i } : {});" "(refusHorsLigne(e)), {});" \
+  "CE2-02 : un refus au milieu d'un gros envoi dit ce qui est déjà enregistré"
+prouver "la fenêtre d'échec dit « rien » quand une partie est enregistrée" modules/socle/ecrans/entreprise/app-1.js \
+  "    const deja = Number(e && e.dejaEnregistres) || 0;" "    const deja = 0;" \
+  "CE2-02 : un refus au milieu d'un gros envoi dit ce qui est déjà enregistré"
+prouver "« envoyée le » prend le jour UTC" modules/socle/ecrans/entreprise/app-1.js \
+  "<small>\${C.fmtDate(new Date(m.ecritLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))}</small>" "<small>\${C.fmtDate(String(m.ecritLe).slice(0, 10))}</small>" \
+  "CE2-04 : « vue le » et « envoyée le » disent le jour de Tunis"
+prouver "« vue le » prend le jour UTC" modules/socle/ecrans/entreprise/app-1.js \
+  "const quand = lfJm(new Date(v.vuLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }));" "const quand = lfJm(v.vuLe.slice(0, 10));" \
+  "CE2-04 : « vue le » et « envoyée le » disent le jour de Tunis"
+prouver "une absence à cheval retire tous ses jours du premier mois" modules/personnel/ecrans/entreprise/paie.js \
+  "|| 26) * ici);" "|| 26) * jours);" \
+  "CE2-05 : une absence à cheval sur deux mois ne retire que SES jours du premier bulletin"
+prouver "le reste d'une absence à cheval se dit sous le tableau" modules/personnel/ecrans/entreprise/paie.js \
+  "\${reste ? \` · \${j(reste)} le mois suivant\` : ''}\`, \`− \${C.money(retenu, cur)}\`]" "\`, \`− \${C.money(retenu, cur)}\`]" \
+  "CE2-05 : une absence à cheval sur deux mois ne retire que SES jours du premier bulletin"
+prouver "la phrase des jours ouvrables dit toujours « dimanches »" modules/personnel/ecrans/entreprise/paie.js \
+  "\${joursDeRepos() ? \`, \${joursDeRepos()} exclus\` : ', tous les jours de la semaine comptés'}. \`" ", dimanches exclus. \`" \
+  "CE2-06 : la phrase des jours ouvrables nomme les jours de repos réglés"
+prouver "le timbre d'une commande en ligne est un dinar écrit en dur" serveur/v10/boutique.ts \
+  "const timbre = scelle?.timbre ?? 0n;" "const timbre = corps.timbre ? 1000n : 0n;" \
+  "CE2-07 : le timbre d'une commande en ligne est celui que la facture a scellé"
+prouver "la date d'un achat lié se dit en ISO dans le refus" serveur/v10/achats.ts \
+  "\`du \${jjmmaaaa(faux.date_piece)}\`" "\`du \${faux.date_piece}\`" \
+  "CE2-08 : la date d'un achat dans un refus s'écrit JJ/MM/AAAA"
+prouver "un ticket de caisse coche « Ta première facture »" web/public/plateforme/premiers-pas.js \
+  "x.type === 'facture' && !C.estTicket(x));" "x.type === 'facture');" \
+  "CE2-09 : un ticket de caisse ne coche pas « Ta première facture »"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

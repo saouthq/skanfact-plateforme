@@ -25,7 +25,9 @@ const DEC = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 const CENT_POUR_CENT = 1_000_000n;   // un taux à quatre décimales : 100 % = 1 000 000
 
 // Le nom d'un achat dans un refus : le numéro du fournisseur, sinon sa date.
-const nomDe = (p: Json) => (typeof p.number === 'string' && p.number.trim() !== '' ? p.number.trim() : `du ${String(p.date ?? '?')}`);
+// (1.388.84, CE2-08) La date d'un refus s'écrit comme l'écran : JJ/MM/AAAA, jamais l'ISO.
+const jjmmaaaa = (d: unknown) => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d ?? '')); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d ?? '?'); };
+const nomDe = (p: Json) => (typeof p.number === 'string' && p.number.trim() !== '' ? p.number.trim() : `du ${jjmmaaaa(p.date)}`);
 
 // ── Les fournisseurs ─────────────────────────────────────────────────────────────────────────────
 // La fiche du serveur suit celle du dossier. Un fournisseur retiré du dossier garde sa fiche (D7) :
@@ -224,7 +226,7 @@ export async function suivreAchats(tx: Transaction, entreprise: string, utilisat
       .where((eb) => eb.or([eb('f.devise', '<>', eb.ref('p.devise')), eb.not(eb('f.nature', 'in', ['facture', 'depense']))]))
       .executeTakeFirst();
     if (faux) {
-      const numero = faux.numero_fournisseur ?? `du ${faux.date_piece}`;
+      const numero = faux.numero_fournisseur ?? `du ${jjmmaaaa(faux.date_piece)}`;
       if (faux.devise_facture !== faux.devise) throw new Refus('v10.achat_lie_devise', { valeurs: { numero, devise: faux.devise_facture } });
       throw new Refus('v10.achat_lie_nature', { valeurs: { numero } });
     }

@@ -373,7 +373,7 @@
         if (gardableHorsLigne(e)) return await mettreEnAttente(data);
         // Le matricule de la fiche, seul refusé : la fiche reprend le sien, et le reste repart.
         if (!matriculeRepris && garderLeMatricule(e, lot, data)) return envoyer(data, true);
-        throw refusHorsLigne(e);
+        throw Object.assign(/** @type {object} */ (refusHorsLigne(e)), i ? { dejaEnregistres: i } : {}); // (1.388.84, CE2-02) les lots d'avant sont sur le serveur : l'écran le dit
       }
       for (const [j, c] of lot.entries()) {
         const k = `${c.collection}\u0000${c.cle}`;
@@ -1264,7 +1264,7 @@
         /** @type {any} */
         let r;
         try { r = await appel('GET', `/compta/ecritures?journal=VT&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
-        const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
+        const tous = (r.ecritures || []).filter((/** @type {any} */ e) => e.origine && e.origine.type === 'vente'), corr = (/** @type {any} */ e) => e.contrepassee || (r.ecritures || []).some((/** @type {any} */ m) => m.origine && m.origine.type === 'contre_passation' && m.origine.id === e.id), x = tous.find((/** @type {any} */ e) => !corr(e)) || tous[0]; // (1.388.84, CE2-01) la vente VIVANTE : une validée contre-passée (famille réécrite) ne dit plus « validée »
         return x ? { statut: x.statut, numero: x.numero, date: x.date, libelle: x.libelle, lignes: (x.lignes || []).map((/** @type {any} */ l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit, credit: l.credit })), valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
       },
       // (1.155.12) L'écriture née d'un achat : la frise et le résumé de l'achat disent ce qu'en a fait le cabinet. Son origine est l'id SERVEUR
