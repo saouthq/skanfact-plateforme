@@ -490,6 +490,16 @@
         (root, close) => { const b = $('#go-lic', root); if (b) b.onclick = () => { close(); allerParametres('app', 'p-licence'); }; });
       return true;
     }
+    if (module && enPause(module)) {
+      modal(`<h2>Cette partie est en pause</h2>
+        <p>${h(what)} attend un peu : l'équipe SkanFact a mis cette partie en pause, le temps de la corriger.</p>
+        <ul class="small">
+          <li><strong>Rien de ce que tu y as saisi n'est perdu</strong> : tout reste lisible, imprimable, exportable, et part à ton comptable comme avant.</li>
+          <li>La création reviendra ici d'elle-même, sans rien installer.</li>
+        </ul>
+        <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+      return true;
+    }
     if (!module || !(licence.reserves || []).includes(module)) return false;
     modal(`<h2>Offre ${h(licence.offreLabel || 'Essentiel')}</h2>
       <p>${h(what)} fait partie de l'offre <strong>Complet</strong> (module « ${h(libelleOffre(module))} »).</p>
@@ -3117,6 +3127,10 @@
   const aVenir = id => (window.__aVenir || []).includes(id);
   // (1.388.69) « Fermé » depuis la console (un défaut grave, le temps de le corriger) : la page ne se voit plus, rien ne se perd.
   const fermeParConsole = id => (window.__ferme || []).includes(id === 'salarie' ? 'paie' : id);
+  // (1.388.70) « En pause » : fermé (ou à venir) depuis la console chez une entreprise qui y a déjà des données (Skander :
+  // « les gens qui ont du stock, si on désactive ils ne pourront plus rien voir »). La page reste : tout se lit, s'imprime
+  // et s'exporte ; seule la création attend (licenceBlock, la même porte que l'offre).
+  const enPause = id => (window.__pause || []).includes(id === 'salarie' ? 'paie' : id);
   // (1.381.0) « Bêta » : la partie marche, on la finit avec les premiers essais (la paie). Le serveur le dit, comme « À venir ».
   const enBeta = id => (window.__beta || []).includes(id === 'salarie' ? 'paie' : id);
   const PASTILLE_BETA = '<span class="pastille-beta" title="Version bêta : cette partie marche, on la finit avec vos retours. Vérifie tes premiers chiffres avec ton comptable.">Bêta</span>';
@@ -3143,6 +3157,7 @@
           <span class="avenir-ic" aria-hidden="true">${icone(name)}</span>
           <h2>${h(titre)} arrive bientôt</h2>
           ${mod.quoi ? `<p class="avenir-quoi">${h(mod.quoi)}</p>` : ''}
+          ${messageModule(name) ? `<p class="avenir-quoi"><b>${h(messageModule(name))}</b></p>` : ''}
           <ul class="avenir-points">
             <li><b>Où on en est</b><span>On finit de la brancher et de la vérifier. Tu n'as rien à faire, et rien à payer en plus.</span></li>
             <li><b>En attendant</b><span>${h(enAttendant)}</span></li>
@@ -3157,6 +3172,7 @@
     if (fermeParConsole(name)) {
       $('#view').innerHTML = `<div class="page-head"><h1>${h(titre)}</h1></div>
         <div class="panel vide-utile" id="page-fermee"><h2>Cette partie est fermée pour l'instant</h2>
+          ${messageModule(name) ? `<p><b>${h(messageModule(name))}</b></p>` : ''}
           <p class="small">L'équipe SkanFact la corrige : elle reviendra ici d'elle-même, sans rien installer. Rien de ce que tu y as saisi n'est perdu.</p>
           <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
       $('#pi-accueil').onclick = () => navigate('#/dashboard');
@@ -3618,6 +3634,27 @@
     $('#offre-voir').onclick = () => allerParametres('app', 'p-licence');
   }
 
+  // (1.388.70) Une partie en pause (fermée depuis la console, avec des données chez toi) : le dire en haut de la page.
+  // Le message de SkanFact sur un module (« Le stock revient vers 14 h ») : posé depuis la console, sur ses pages, quel que
+  // soit son état — une maintenance annoncée sur une partie ouverte se dit aussi (bandeau d'information).
+  const messageModule = id => { const m = window.__msgModules || {}; const p = C.pageById(id); return m[id === 'salarie' ? 'paie' : id] || (p && m[p.module]) || ''; };
+  function bandeauPause(active) {
+    const p = C.pageById(active);
+    const pause = enPause(active) || !!(p && enPause(p.module));
+    const msg = messageModule(active);
+    if (!pause && !msg) return;
+    const view = $('#view');
+    if ($('#pause-banner', view)) return;
+    const el = document.createElement('div');
+    el.className = `banner ${pause ? 'warn' : 'info'} pause-banner`;
+    el.id = 'pause-banner';
+    el.innerHTML = pause
+      ? `<span><b>Cette partie est en pause</b> — ${msg ? `${h(msg)} ` : 'l\'équipe SkanFact la corrige. '}Tout ce que tu y as saisi reste là : tu peux le lire, l'imprimer et l'exporter. Seule la création attend ; elle reviendra d'elle-même.</span>`
+      : `<span><b>Le mot de l'équipe SkanFact</b> — ${h(msg)}</span>`;
+    const head = $('.page-head', view);
+    if (head && head.parentNode) head.parentNode.insertBefore(el, head.nextSibling); else view.appendChild(el);
+  }
+
   // Tant que le jeu d'exemple est chargé, l'application le DIT — sur chaque page, en permanence.
   // Sans ça, rien à l'écran ne distingue cinq ans d'activité fictive de vraies données : on peut
   // relancer un client qui n'existe pas, ou pire, envoyer une facture au nom d'une société inventée.
@@ -4000,6 +4037,7 @@
     if (bridge.lecture) bridge.lecture.poser(view);
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
+    bandeauPause(name); Promise.resolve(dessine).then(() => { if (routeOf(location.hash) === name) bandeauPause(name); }, () => {}); // (1.388.70) en pause : lire oui, créer non
     if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe

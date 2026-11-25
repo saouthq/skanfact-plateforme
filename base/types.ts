@@ -800,6 +800,7 @@ export interface BaseDeDonnees {
     actif: Generated<boolean>;
     ajoute_le: Generated<Date>;
     retire_le: Date | null;
+    titulaire: Generated<boolean>;
   };
   'plateforme.evenement_abonnement': {
     id: Generated<string>;
@@ -996,6 +997,7 @@ export interface BaseDeDonnees {
     motif: string;
     le: Date;
     par: string;
+    message: string | null;
   };
   'plateforme.note_appel': {
     id: Generated<string>;

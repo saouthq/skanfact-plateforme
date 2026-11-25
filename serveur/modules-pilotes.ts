@@ -26,11 +26,28 @@ export const MODULES_PILOTES: readonly { id: string; ids: readonly string[] }[] 
   { id: 'pilotage', ids: ['tresorerie', 'marges', 'stats'] },
   { id: 'compta', ids: ['compta'] },
 ];
+// (1.388.70) Les parties du dossier où un module garde des données (socle.dossier_v10, les collections de la v10). Skander,
+// 25/11/2026 : « n'oublie pas les gens qui ont du stock : si on désactive, ils ne pourront plus rien voir ». Un module
+// fermé ou à venir chez une entreprise qui y a déjà saisi quelque chose ne disparaît pas : il passe EN PAUSE — la page
+// reste, tout se lit, s'imprime et s'exporte ; seule la création attend (la même porte que l'offre, licenceBlock).
+// Un module sans données à lui (une fonction : la facture électronique, le paiement, la lecture par l'IA) n'en a pas.
+export const DONNEES_MODULE: Readonly<Record<string, readonly string[]>> = {
+  paie: ['employees', 'payslips', 'leaves', 'advances', 'timesheets'],
+  achats: ['purchases', 'suppliers', 'supplierOrders', 'receptions'],
+  stock: ['stockAdjustments', 'serials', 'depots'],
+  immos: ['assets'],
+  pieces: ['recurring'],
+  pilotage: ['accounts', 'movements', 'projects'],
+  compta: ['ecrituresOD'],
+};
+export const COLLECTIONS_DES_MODULES = [...new Set(Object.values(DONNEES_MODULE).flat())];
+export const modulesAvecDonnees = (collections: readonly string[]) =>
+  Object.entries(DONNEES_MODULE).filter(([, cs]) => cs.some((c) => collections.includes(c))).map(([m]) => m);
 // Leur nom et ce qu'ils font : au catalogue des textes (serveur/console/textes.ts, la console les lit).
 export const nomModule = (id: string) => ({ nom: t(`modules.${id}.nom`), quoi: t(`modules.${id}.quoi`) });
 export const moduleConnu = (id: string) => MODULES_PILOTES.some((m) => m.id === id);
 
-export type LigneEtat = { module: string; entreprise: string | null; etat: EtatModule };
+export type LigneEtat = { module: string; entreprise: string | null; etat: EtatModule; message?: string | null };
 
 // L'état d'un module par les variables du serveur (ce qui valait avant la console).
 export function etatServeur(module: string, env: Record<string, string | undefined> = process.env): EtatModule {
@@ -47,12 +64,17 @@ export function etatModule(lignes: readonly LigneEtat[], module: string, entrepr
   return general ? general.etat : etatServeur(module, env);
 }
 
-// Ce que les écrans reçoivent : trois listes d'identifiants (pages ou fonctions).
-export function listesModules(lignes: readonly LigneEtat[], entreprise: string | null, env: Record<string, string | undefined> = process.env) {
-  const out = { aVenir: [] as string[], beta: [] as string[], ferme: [] as string[] };
+// Ce que les écrans reçoivent : des listes d'identifiants (pages ou fonctions). `avecDonnees` : les modules où cette
+// entreprise a déjà saisi quelque chose ; fermés ou à venir, ils passent en `pause` (pages et module), jamais cachés.
+export function listesModules(lignes: readonly LigneEtat[], entreprise: string | null, env: Record<string, string | undefined> = process.env, avecDonnees: readonly string[] = []) {
+  // `messages` : le message aux clients du module (celui de l'entreprise, sinon le général), sous chacune de ses pages.
+  const out = { aVenir: [] as string[], beta: [] as string[], ferme: [] as string[], pause: [] as string[], messages: {} as Record<string, string> };
   for (const m of MODULES_PILOTES) {
     const e = etatModule(lignes, m.id, entreprise, env);
-    if (e === 'a_venir') out.aVenir.push(...m.ids);
+    const porte = (entreprise ? lignes.find((l) => l.module === m.id && l.entreprise === entreprise) : undefined) ?? lignes.find((l) => l.module === m.id && l.entreprise === null);
+    if (porte?.message) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;
+    if (!moduleUtilisable(e) && avecDonnees.includes(m.id)) out.pause.push(...new Set([m.id, ...m.ids]));
+    else if (e === 'a_venir') out.aVenir.push(...m.ids);
     else if (e === 'beta') out.beta.push(...m.ids);
     else if (e === 'ferme') out.ferme.push(...m.ids);
   }
@@ -68,7 +90,7 @@ export function lireLignes(brut: unknown): LigneEtat[] {
   return (brut as Record<string, unknown>[]).flatMap((x) => {
     const etat = String(x.etat) as EtatModule;
     return typeof x.module === 'string' && (ETATS_MODULE as readonly string[]).includes(etat)
-      ? [{ module: x.module, entreprise: typeof x.entreprise === 'string' ? x.entreprise : null, etat }] : [];
+      ? [{ module: x.module, entreprise: typeof x.entreprise === 'string' ? x.entreprise : null, etat, message: typeof x.message === 'string' && x.message ? x.message : null }] : [];
   });
 }
 

@@ -19,7 +19,7 @@ import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { ajouter as ajouterALEquipe, titulaire as designerTitulaire } from '../../base/equipe.ts';
 import { plusJours } from '../../serveur/abonnement/etat.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
@@ -57,8 +57,10 @@ describe('les réglages de la plateforme, à la souris', () => {
     return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
   };
   // Un membre de l'équipe : son compte, le code de son téléphone, son rôle, et une session de la console.
+  const adresses: Record<string, string> = {};
   const membre = async (nom: string, role: 'direction' | 'support') => {
     const email = `console-reglages-${role}-${Date.now()}@exemple.tn`;
+    adresses[nom] = email;
     await api('POST', '/inscription', undefined, { email, nom, motDePasse: MDP });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
@@ -782,35 +784,56 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
-  it('1.388.69 : les modules — pour une entreprise, avec motif ; le support lit sans geste ; l\'exception se retire', async () => {
+  it('1.388.69 et 1.388.70 : les modules — le titulaire seul les change, en cartes, avec ce qui va se passer ; les autres lisent', async () => {
+    // Amira pilote les modules (le titulaire, 0226) ; Leïla, aussi à la direction, lit la page sans geste.
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
     const p = await console_(jD, `modules&entreprise=${ent}`);
     expect(net(await p.locator('#rg-modules').innerText())).toBe('Les modules de Studio Lina Réglages');
+    // Le résumé par état, au-dessus du tableau.
+    expect(await p.locator('.c-mod-resume li').count()).toBe(4);
     const ligne = p.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' });
     await ligne.getByRole('button', { name: 'Changer…' }).click();
     const f = p.getByRole('dialog');
-    await f.locator('select').selectOption('ferme');
+    // Rien de changé : « Enregistrer » reste éteint, et l'état d'aujourd'hui est marqué.
+    expect(await f.getByRole('button', { name: 'Enregistrer' }).isDisabled()).toBe(true);
+    expect(await f.locator('.c-mod-carte-on .c-mod-actuel').count()).toBe(1);
+    await f.locator('.c-mod-carte').filter({ hasText: 'Fermé' }).click();
+    // Le message aux clients (la maintenance), avec ce qu'ils verront.
+    await f.getByLabel('Message aux clients (facultatif)').fill('Le stock revient vers 14 h, après une correction.');
+    expect(net(await f.locator('.c-mod-apercu').innerText())).toContain('Cette partie est en pause — Le stock revient vers 14 h');
+    // Ce qui va se passer, avant le geste.
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/Stock passe de « .+ » à « fermé ».*Pour Studio Lina Réglages seulement.*disparaît du menu/s);
     await f.getByRole('button', { name: 'Enregistrer' }).click();
     expect(net(await f.innerText())).toContain('motif');
-    await f.locator('textarea').fill('Un défaut grave dans le stock');
+    await f.getByLabel('Motif', { exact: true }).fill('Un défaut grave dans le stock');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-fenetre.png') });
     await f.getByRole('button', { name: 'Enregistrer' }).click();
     await f.waitFor({ state: 'detached', timeout: 10_000 });
-    await expect.poll(async () => net(await ligne.innerText())).toMatch(/Fermé.*Un défaut grave dans le stock/);
+    await expect.poll(async () => net(await ligne.innerText())).toMatch(/Fermé.*Un défaut grave dans le stock.*« Le stock revient vers 14 h, après une correction. »/);
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-modules.png') });
     // Le support lit la page, sans bouton « Changer… ».
     const q = await console_(jS, 'modules');
     expect(await q.getByRole('button', { name: 'Changer…' }).count()).toBe(0);
     expect(net(await q.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' }).innerText())).toContain('Studio Lina Réglages');
     await fermer(q);
+    // Une autre personne de la direction lit aussi, et la page nomme le titulaire.
+    const jL = await membre('Leïla Réglages', 'direction');
+    const l = await console_(jL, 'modules');
+    expect(await l.getByRole('button', { name: 'Changer…' }).count()).toBe(0);
+    expect(net(await l.locator('#rg-modules').locator('xpath=ancestor::section').innerText())).toContain('seul le titulaire de la console (Amira Réglages)');
+    await l.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-lecture.png') });
+    await fermer(l);
     // Retirer l'exception : « comme tout le monde ».
     await ligne.getByRole('button', { name: 'Changer…' }).click();
-    await f.locator('select').selectOption('serveur');
-    await f.locator('textarea').fill('Corrigé');
+    await f.locator('.c-mod-carte').filter({ hasText: 'Comme tout le monde' }).click();
+    await f.getByLabel('Motif', { exact: true }).fill('Corrigé');
     await f.getByRole('button', { name: 'Enregistrer' }).click();
     await f.waitFor({ state: 'detached', timeout: 10_000 });
     expect((await admin.query('select count(*)::int n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);
-  }, 60_000);
+  }, 90_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {

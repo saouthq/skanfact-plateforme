@@ -13,6 +13,10 @@
 //   PG_ADMIN=… node base/equipe.ts ajouter <adresse> <direction|support|technique> "<motif>"
 //   PG_ADMIN=… node base/equipe.ts retirer <adresse> "<motif>"
 //   PG_ADMIN=… node base/equipe.ts urgence <adresse> "<motif>"
+//   PG_ADMIN=… node base/equipe.ts titulaire <adresse> "<motif>"
+//
+// Le TITULAIRE (0226) : une seule personne, à la direction, qui pilote seule les modules de la plateforme. Il ne se
+// désigne qu'ici, jamais depuis la console : un collaborateur ne peut pas se le donner.
 //
 // Sur un serveur : exploitation/equipe.sh, avec les mêmes arguments.
 
@@ -25,10 +29,10 @@ export type Role = 'direction' | 'support' | 'technique';
 const ROLES: readonly string[] = ['direction', 'support', 'technique'];
 
 // `urgence` : jusqu'à quand vaut l'accès d'urgence qui l'attend (0135), sinon rien.
-export type Membre = { email: string; nom: string; role: Role; actif: boolean; code: string | null; urgence: Date | null };
+export type Membre = { email: string; nom: string; role: Role; actif: boolean; code: string | null; urgence: Date | null; titulaire: boolean };
 
 export async function voir(client: Client): Promise<Membre[]> {
-  return (await client.query(`select u.email, u.nom, e.role, e.actif, case when u.code_methode in ('sms', 'application') then u.code_methode end as code,
+  return (await client.query(`select u.email, u.nom, e.role, e.actif, e.titulaire, case when u.code_methode in ('sms', 'application') then u.code_methode end as code,
       (select a.jusqua from plateforme.acces_urgence a where a.membre = u.id and a.servi_le is null and a.annule_le is null and a.jusqua > now()) as urgence
       from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur order by e.actif desc, e.role, u.nom`)).rows as Membre[];
 }
@@ -58,6 +62,8 @@ export async function ajouter(client: Client, email: string, role: string, motif
       on conflict (utilisateur) do update set role = excluded.role, actif = true, ajoute_le = now(), retire_le = null`, [u, role]);
     await client.query(`insert into plateforme.geste_console (geste, membre, motif, avant, apres) values ($1, $2, $3, $4, $5)`,
       [avant?.actif ? 'equipe.role' : 'equipe.ajouter', u, motif.trim(), avant ? JSON.stringify(avant) : null, JSON.stringify({ role, actif: true })]);
+    // La première personne à la direction devient le titulaire : une équipe neuve n'en est jamais privée.
+    if (role === 'direction') await client.query('update plateforme.equipe set titulaire = true where utilisateur = $1 and not exists (select 1 from plateforme.equipe where titulaire)', [u]);
     await client.query('commit');
   } catch (e) {
     await client.query('rollback');
@@ -102,11 +108,34 @@ export async function urgence(client: Client, email: string, motif: string, main
   }
 }
 
+// Désigner le titulaire : une personne active, à la direction ; l'ancien titulaire le reste jusque-là. S'il quitte la
+// direction sans successeur désigné, la plus ancienne personne de la direction le devient d'office (plateforme.titulaire_console).
+export async function titulaire(client: Client, email: string, motif: string): Promise<void> {
+  if (motif.trim().length < 3) throw new Error('un geste sur l\'équipe demande son motif (trois caractères au moins) : il reste dans le journal');
+  await client.query('begin');
+  try {
+    await client.query('select plateforme.verrou_equipe()');
+    const u = await personne(client, email);
+    const m = (await client.query('select role, actif, titulaire from plateforme.equipe where utilisateur = $1 for update', [u])).rows[0] as { role: string; actif: boolean; titulaire: boolean } | undefined;
+    if (!m?.actif || m.role !== 'direction') throw new Error('le titulaire est une personne de l\'équipe, active, à la direction');
+    if (m.titulaire) throw new Error('cette personne est déjà le titulaire');
+    const avant = (await client.query('select utilisateur from plateforme.equipe where titulaire')).rows[0]?.utilisateur as string | undefined;
+    await client.query('update plateforme.equipe set titulaire = false where titulaire');
+    await client.query('update plateforme.equipe set titulaire = true where utilisateur = $1', [u]);
+    await client.query(`insert into plateforme.geste_console (geste, membre, motif, avant, apres) values ('equipe.titulaire', $1, $2, $3, $4)`,
+      [u, motif.trim(), JSON.stringify({ titulaire: avant ?? null }), JSON.stringify({ titulaire: u })]);
+    await client.query('commit');
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [geste = '', ...reste] = process.argv.slice(2);
   const adresse = process.env.PG_ADMIN;
-  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>" | urgence <adresse> "<motif>"';
-  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : (geste === 'retirer' || geste === 'urgence') && reste.length === 2;
+  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>" | urgence <adresse> "<motif>" | titulaire <adresse> "<motif>"';
+  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : (geste === 'retirer' || geste === 'urgence' || geste === 'titulaire') && reste.length === 2;
   if (!adresse || !valable) { console.error(USAGE); process.exit(1); }
   const client = new pg.Client({ connectionString: adresse });
   await client.connect();
@@ -115,7 +144,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const membres = await voir(client);
       if (!membres.length) console.log('Personne dans l\'équipe : pose le premier membre avec « ajouter ».');
       for (const m of membres) {
-        console.log(`  ${m.actif ? '' : '(retiré) '}${m.nom} <${m.email}> : ${m.role}${m.actif && !m.code ? ' — sans code du téléphone : la console le lui demandera (Ton compte, sur l\'application)' : ''}${m.actif && m.urgence ? ` — accès d'urgence ouvert jusqu'au ${m.urgence.toISOString().slice(0, 16).replace('T', ' ')} (UTC)` : ''}`);
+        console.log(`  ${m.actif ? '' : '(retiré) '}${m.nom} <${m.email}> : ${m.role}${m.titulaire ? ' (titulaire : pilote les modules)' : ''}${m.actif && !m.code ? ' — sans code du téléphone : la console le lui demandera (Ton compte, sur l\'application)' : ''}${m.actif && m.urgence ? ` — accès d'urgence ouvert jusqu'au ${m.urgence.toISOString().slice(0, 16).replace('T', ' ')} (UTC)` : ''}`);
       }
     } else if (geste === 'ajouter') {
       await ajouter(client, reste[0] ?? '', reste[1] ?? '', reste[2] ?? '');
@@ -123,6 +152,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     } else if (geste === 'urgence') {
       const jusqua = await urgence(client, reste[0] ?? '', reste[1] ?? '');
       console.log(`Fait. Jusqu'au ${jusqua.toISOString().slice(0, 16).replace('T', ' ')} (UTC), une fois : la personne se connecte à la console avec son mot de passe, puis pose un nouveau code (une application d'authentification) ; l'ancien et ses codes de secours cesseront de valoir. Ses sessions de la console sont fermées.`);
+    } else if (geste === 'titulaire') {
+      await titulaire(client, reste[0] ?? '', reste[1] ?? '');
+      console.log('Fait. Cette personne est le titulaire de la console : elle seule pilote les modules.');
     } else {
       await retirer(client, reste[0] ?? '', reste[1] ?? '');
       console.log('Fait. Ses sessions de la console sont fermées.');

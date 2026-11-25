@@ -1,14 +1,15 @@
 // 1.388.64 (#26) — le pont client ↔ cabinet : la question arrivée page ouverte, le mandat qu'on change, l'archivage, l'arrêt,
 // les déclarations et la paie hors d'atteinte, et les finitions du fil.
 import { describe, it, expect } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 
 const racine = path.join(import.meta.dirname, '../..');
 const lire = (f: string) => fs.readFileSync(path.join(racine, f), 'utf8');
 const MSG = lire('web/public/plateforme/messagerie.js');
-const PONT = lire('web/public/plateforme/pont.js');
-const PC = lire('web/public/plateforme/pont-cabinet.js');
+const PONT = lireEcran('plateforme/pont.js');
+const PC = lireEcran('plateforme/pont-cabinet.js');
 const APP2 = lire('modules/socle/ecrans/entreprise/app-2.js');
 const CAB = lire('modules/socle/ecrans/cabinet/app-1.js');
 const PAIE = lire('modules/personnel/ecrans/cabinet/paie.js');

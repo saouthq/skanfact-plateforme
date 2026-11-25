@@ -1903,7 +1903,7 @@
   let moiLu = null;
   function lireMoi() {
     if (moiLu && Date.now() - moiLu.le < 2000) return moiLu.lu;
-    const lu = appelCompte('GET', '/moi').then((/** @type {any} */ m) => { const w = /** @type {any} */ (window), ici = m && (m.entreprises || []).find((/** @type {any} */ e) => e.id === ent), l = (ici && ici.modules) || (m && m.compte) || {}; w.__aVenir = l.aVenir || []; w.__beta = l.beta || []; w.__ferme = l.ferme || []; return m; });
+    const lu = appelCompte('GET', '/moi').then((/** @type {any} */ m) => { const w = /** @type {any} */ (window), ici = m && (m.entreprises || []).find((/** @type {any} */ e) => e.id === ent), l = (ici && ici.modules) || (m && m.compte) || {}; w.__aVenir = l.aVenir || []; w.__beta = l.beta || []; w.__ferme = l.ferme || []; w.__pause = l.pause || []; w.__msgModules = l.messages || {}; return m; });
     moiLu = { le: Date.now(), lu };
     // Un échec ne se garde pas : le geste suivant redemande.
     lu.catch(() => { if (moiLu && moiLu.lu === lu) moiLu = null; });

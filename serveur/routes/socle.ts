@@ -2,7 +2,7 @@
 // son geste (03 D2). Les écritures sensibles passent par les fonctions de la base, qui appliquent
 // les règles de l'équipe (D4 à D6) et tracent.
 
-import { lireLignes, listesModules } from '../modules-pilotes.ts';
+import { COLLECTIONS_DES_MODULES, lireLignes, listesModules, modulesAvecDonnees } from '../modules-pilotes.ts';
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
@@ -179,7 +179,11 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const compte = { codeExige: c.code_exige && !ctx.courriel, codeExigeLe: c.code_exige_le && !ctx.courriel ? new Date(c.code_exige_le).toISOString() : null, comptable: c.code_exige || cabinets.length > 0, adresseVerifiee: c.adresse_verifiee, codesSecours: c.codes_secours,
         codeCourriel: (await tx.query('select socle.veut_code_courriel($1) v', [qui.utilisateur])).rows[0].v as boolean,
         aVenir: modulesGeneraux.aVenir, beta: modulesGeneraux.beta, ferme: modulesGeneraux.ferme, courriel: !!ctx.courriel, sms: ctx.sms.disponible !== false, telephone: telephone ? numeroMasque(String(telephone)) : null, motDePasseMin: LONGUEUR_MINIMALE };
-      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises: entreprises.map((e) => ({ ...e, modules: listesModules(lignesModules, String(e.id)) })), cabinets, compte } };
+      // (1.388.70) Les modules où chaque entreprise a déjà des données : fermés, ils passent en pause au lieu de disparaître.
+      const donnees = new Map(((await tx.query(`select entreprise::text e, array_agg(distinct collection) c from socle.dossier_v10
+         where entreprise = any($1::uuid[]) and collection = any($2::text[]) group by entreprise`, [entreprises.map((e) => String(e.id)), COLLECTIONS_DES_MODULES])).rows as { e: string; c: string[] }[])
+        .map((r) => [r.e, modulesAvecDonnees(r.c)]));
+      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises: entreprises.map((e) => ({ ...e, modules: listesModules(lignesModules, String(e.id), process.env, donnees.get(String(e.id)) ?? []) })), cabinets, compte } };
     },
   });
 

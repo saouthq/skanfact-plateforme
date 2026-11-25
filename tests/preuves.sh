@@ -32249,6 +32249,17 @@ prouver "une page fermée reste dans le menu" modules/socle/ecrans/entreprise/ap
   "    if (aVenir(id) || fermeParConsole(id)) return true;" "    if (aVenir(id)) return true;" \
   "Stock quitte le menu et sa page le dit"
 
+# 1.388.70 — le titulaire, la pause (jamais dans le noir), le message aux clients d'un module.
+prouver "un module fermé cache les données de qui s'en sert" serveur/modules-pilotes.ts \
+  "    if (!moduleUtilisable(e) && avecDonnees.includes(m.id)) out.pause.push(...new Set([m.id, ...m.ids]));" "    if (false) out.pause.push(...new Set([m.id, ...m.ids]));" \
+  "pur : fermé ou à venir avec des données"
+prouver "un collaborateur de la direction se croit titulaire" serveur/console/routes.ts \
+  "titulaire: lu.titulaire === true," "titulaire: true," \
+  "une autre personne de la direction lit, et se voit refuser le geste"
+prouver "le message aux clients ne part pas" serveur/modules-pilotes.ts \
+  "    if (porte?.message) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;" "    if (false) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;" \
+  "se pose avec l'état, arrive dans /moi"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

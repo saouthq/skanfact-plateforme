@@ -7329,3 +7329,33 @@ le monde, la retirer d'un clic si elle casse, sans publier de version.
   « Paiement en ligne » des Paramètres se cache tant qu'il l'est.
 - Base : migration 0226 (`plateforme.module_etat`, `console_poser_module`, `console_modules`, `socle.modules_pour_moi`,
   `socle.etat_module`, `ventes.etat_paiement_espace`).
+
+## 1.388.70 — Le titulaire de la console, et un module fermé qui ne cache jamais les données de quelqu'un
+
+Skander, 25/11/2026 : « la main sur presque tout à partir de la console, mais que pour moi, pas pour les collaborateurs »,
+puis « n'oublie pas les gens qui ont du stock : si on désactive, ils ne pourront plus rien voir — et pas que le stock,
+n'importe quel module ».
+
+- **Le titulaire de la console** : une seule personne de l'équipe, à la direction, change l'état d'un module. Les autres
+  (direction comprise) lisent la page ; elle nomme le titulaire et dit pourquoi le bouton « Changer… » n'y est pas. Le
+  titulaire se désigne par l'outil de l'exploitation (`node base/equipe.ts titulaire <adresse> "<motif>"`), jamais depuis
+  la console : un collaborateur ne peut pas se le donner. S'il quitte la direction sans successeur, la plus ancienne
+  personne de la direction le devient d'office — une équipe n'est jamais sans titulaire, et retirer quelqu'un ne bloque
+  rien (`plateforme.titulaire_console`). Au journal : « titulaire de la console désigné ».
+- **Fermé, mais jamais dans le noir** : un module fermé (ou « à venir ») chez une entreprise qui y a déjà des données —
+  salariés, achats, stock, biens, contrats, comptes, écritures — passe **en pause** au lieu de disparaître. La page reste
+  dans le menu, tout se lit, s'imprime et s'exporte, un bandeau orange le dit ; seule la création attend, par la même
+  porte que l'offre (« Cette partie est en pause : rien de ce que tu y as saisi n'est perdu »). Sans données, il disparaît
+  comme avant. Les données de chaque module : `DONNEES_MODULE` (serveur/modules-pilotes.ts), lues dans `socle.dossier_v10`.
+- **Le message aux clients d'un module** (la maintenance) : un texte facultatif posé avec l'état (« Le stock revient
+  vers 14 h ») s'affiche en bandeau sur les pages de ce module, chez les entreprises concernées — orange quand la partie
+  est en pause, en information quand elle reste ouverte (une maintenance annoncée). La fenêtre de la console montre
+  « Ce que verront les clients » pendant la frappe ; le motif, lui, reste au journal et ne part jamais chez le client.
+- **La fenêtre de la console, refaite** : des cartes avec leur pastille au lieu d'une liste, l'état d'aujourd'hui marqué,
+  « Ce qui va se passer » avant le geste (avant → après, pour qui, l'effet, et **combien d'entreprises ont déjà des
+  données dans ce module** et le garderont en lecture), « Enregistrer » éteint tant que rien ne change. Au-dessus du
+  tableau, le compte par état ; à côté de chaque module, combien d'entreprises s'en servent.
+- Base : migration 0226 complétée (`equipe.titulaire`, `titulaire_console`, `suis_titulaire_console`,
+  `console_modules_donnees`).
+- Au passage : deux tests lisaient `pont.js` en direct au lieu de `lireEcran` (règle de l'assemblage), et deux infobulles
+  de la paie du Cabinet disaient « À VÉRIFIER avec le comptable » à un comptable.

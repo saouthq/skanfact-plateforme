@@ -17,7 +17,7 @@ import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
 import { enMots, envoyerInvitation, etatVu, lienConsole, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { etatServeur, moduleConnu, MODULES_PILOTES, nomModule } from '../modules-pilotes.ts';
+import { etatServeur, moduleConnu, MODULES_PILOTES, nomModule, DONNEES_MODULE } from '../modules-pilotes.ts';
 import { etatAbonnement, lireDelai, lireAVenir, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
@@ -670,18 +670,21 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     methode: 'GET', chemin: '/console/modules', geste: 'console.modules.voir',
     traiter: async ({ query }, tx) => {
       const ent = typeof query.entreprise === 'string' && uuid.safeParse(query.entreprise).success ? query.entreprise : null;
-      const lu = await lireJson(transaction(tx), 'select plateforme.console_modules($1) v', [ent]) as { poses: unknown[]; entreprise: unknown };
-      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id) })), poses: lu.poses, entreprise: lu.entreprise } };
+      const lu = await lireJson(transaction(tx), 'select plateforme.console_modules($1) v', [ent]) as { poses: unknown[]; entreprise: unknown; titulaire: boolean; nomTitulaire: string | null };
+      // `titulaire` : seule cette personne change un module (0226) ; les autres lisent, et l'écran nomme le titulaire.
+      // (1.388.70) Combien d'entreprises ont des données dans chaque module : fermé, il passe chez elles en pause, pas dans le noir.
+      const avec = await lireJson(transaction(tx), 'select plateforme.console_modules_donnees($1) v', [JSON.stringify(DONNEES_MODULE)]) as Record<string, number>;
+      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null } };
     },
   });
   ajouter({
     methode: 'POST', chemin: '/console/modules', geste: 'console.modules.poser',
-    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500) }),
+    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional() }),
     traiter: async ({ corps }, tx) => {
       if (!moduleConnu(corps.module)) throw new Introuvable();
       const ent = corps.entreprise ?? null;
       if (ent !== null && !uuid.safeParse(ent).success) throw new Introuvable();
-      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5)', [corps.module, ent, corps.etat, corps.motif, maintenant()]);
+      await transaction(tx).query('select plateforme.console_poser_module($1, $2, $3, $4, $5, $6)', [corps.module, ent, corps.etat, corps.motif, maintenant(), corps.message ?? null]);
       return { corps: { ok: true } };
     },
   });

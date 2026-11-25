@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
-import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { ajouter as ajouterALEquipe, titulaire as designerTitulaire } from '../../base/equipe.ts';
 import { declarerGestesAchats } from '../../serveur/achats/gestes.ts';
 import { routesAchats } from '../../serveur/achats/routes.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
@@ -67,6 +67,10 @@ beforeAll(async () => {
   await app.ready();
   amira = await membre('amira', 'direction');
   karim = await membre('karim', 'support');
+  // Amira pilote les modules : c'est le titulaire (0226) ; une autre personne de la direction ne le peut pas.
+  if (!(await admin.query('select titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [amira.email])).rows[0]?.titulaire) {
+    await designerTitulaire(admin, amira.email, 'mise en place des essais');
+  }
 });
 afterAll(async () => {
   for (const e of entreprises) await nettoyer(e);
@@ -110,7 +114,7 @@ describe('la console pose l\'état d\'un module', () => {
     expect((lu.corps.entreprise as Corps).nom).toBe('Boulangerie des essais modules');
     expect((lu.corps.poses as Corps[]).find((p) => p.entreprise === ent)).toMatchObject({ module: 'caisse', etat: 'ouvert', motif: 'La boulangerie pilote', par: amira.nom });
     const geste = (await admin.query(`select avant, apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
-    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur' }, apres: { module: 'caisse', etat: 'ouvert' } });
+    expect(geste).toEqual({ avant: { module: 'caisse', etat: 'serveur' }, apres: { module: 'caisse', etat: 'ouvert', message: null } });
     // /moi : l'entreprise porte ses propres listes, sans motif ni auteur.
     const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { aVenir: string[] } }[] };
     expect(moi.entreprises.find((e) => e.id === ent)?.modules.aVenir).not.toContain('caisse');
@@ -140,5 +144,76 @@ describe('un module à venir ou fermé se refuse aussi côté serveur', () => {
     expect(await etat()).toBe(null);
     await poser({ module: 'paiement', entreprise: ent, etat: 'ferme', motif: 'Konnect jamais essayé' });
     expect(await etat()).toBe('ferme');
+  });
+});
+
+describe('le titulaire de la console (« pour moi, pas pour les collaborateurs »)', () => {
+  it('une autre personne de la direction lit, et se voit refuser le geste', async () => {
+    const leila = await membre('leila', 'direction');
+    const lu = await appeler('GET', '/console/modules', leila.console);
+    expect(lu.statut).toBe(200);
+    expect(lu.corps.titulaire).toBe(false);
+    expect(lu.corps.nomTitulaire).toBe(amira.nom);
+    expect((await appeler('GET', '/console/modules', amira.console)).corps.titulaire).toBe(true);
+    const r = await poser({ module: 'stock', entreprise: null, etat: 'beta', motif: 'Essai du titulaire' }, leila.console);
+    expect(r.statut).toBe(403);
+    expect(JSON.stringify(r.corps)).toContain('titulaire');
+  });
+  it('il n\'y a jamais deux titulaires, et la console suit celui qui est désigné', async () => {
+    await expect(admin.query(`update plateforme.equipe set titulaire = true where role = 'direction' and actif and not titulaire`)).rejects.toThrow();
+    expect(Number((await admin.query('select count(*) n from plateforme.equipe where titulaire')).rows[0].n)).toBe(1);
+    const en = (await admin.query('select u.email from socle.utilisateur u where u.id = plateforme.titulaire_console()')).rows[0]?.email;
+    expect(en).toBe(amira.email);
+  });
+});
+describe('en pause plutôt que caché (Skander : « les gens qui ont du stock, si on désactive ils ne verront plus rien »)', () => {
+  it('pur : fermé ou à venir avec des données → pause (pages et module) ; sans données → caché', () => {
+    const env = { SKANFACT_A_VENIR: '', SKANFACT_BETA: '' };
+    const lignes = [{ module: 'stock', entreprise: null, etat: 'ferme' as const }, { module: 'paie', entreprise: null, etat: 'a_venir' as const }, { module: 'achats', entreprise: null, etat: 'ferme' as const }];
+    const l = listesModules(lignes, 'E1', env, ['stock', 'paie']);
+    expect(l.pause).toEqual(expect.arrayContaining(['stock', 'garanties', 'paie']));
+    expect(l.ferme).not.toContain('stock');
+    expect(l.aVenir).not.toContain('paie');
+    expect(l.ferme).toEqual(['achats', 'fournisseurs']);
+    // Un module ouvert ne passe jamais en pause, même plein.
+    expect(listesModules([], 'E1', env, ['stock']).pause).toEqual([]);
+  });
+  it('/moi : une entreprise qui a du stock garde Stock en pause ; une autre ne le voit plus ; la console compte qui s\'en sert', async () => {
+    const { jeton } = await inscrire('stock');
+    const avec = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Quincaillerie avec stock' })).corps.id);
+    const sans = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Atelier sans stock' })).corps.id);
+    entreprises.push(avec, sans);
+    await admin.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'stockAdjustments', 'adj-1', '{"id":"adj-1"}')`, [avec]);
+    expect((await poser({ module: 'stock', entreprise: avec, etat: 'ferme', motif: 'Défaut du stock' })).statut).toBe(200);
+    expect((await poser({ module: 'stock', entreprise: sans, etat: 'ferme', motif: 'Défaut du stock' })).statut).toBe(200);
+    const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { ferme: string[]; pause: string[] } }[] };
+    const mA = moi.entreprises.find((e) => e.id === avec)?.modules;
+    const mS = moi.entreprises.find((e) => e.id === sans)?.modules;
+    expect(mA?.pause).toContain('stock');
+    expect(mA?.ferme).not.toContain('stock');
+    expect(mS?.ferme).toContain('stock');
+    expect(mS?.pause).not.toContain('stock');
+    const lu = (await appeler('GET', '/console/modules', amira.console)).corps as { modules: { id: string; avecDonnees: number | null }[] };
+    expect(lu.modules.find((m) => m.id === 'stock')?.avecDonnees).toBeGreaterThanOrEqual(1);
+    expect(lu.modules.find((m) => m.id === 'efacture')?.avecDonnees).toBeNull();
+    await admin.query(`delete from socle.dossier_v10 where entreprise = $1`, [avec]);
+  });
+});
+
+describe('le message aux clients d\'un module (la maintenance annoncée)', () => {
+  it('se pose avec l\'état, arrive dans /moi sous chaque page du module, sans le motif ; « serveur » ne le prend pas', async () => {
+    const { jeton } = await inscrire('message');
+    const ent = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Librairie du message' })).corps.id);
+    entreprises.push(ent);
+    expect((await poser({ module: 'pilotage', entreprise: ent, etat: 'ouvert', motif: 'Maintenance du soir', message: 'ok' })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'pilotage', entreprise: ent, etat: 'serveur', motif: 'Retour', message: 'Un message qui ne va nulle part' })).statut).toBeGreaterThanOrEqual(400);
+    expect((await poser({ module: 'pilotage', entreprise: ent, etat: 'ouvert', motif: 'Maintenance du soir', message: 'Les statistiques se recalculent ce soir entre 22 h et 23 h.' })).statut).toBe(200);
+    const moi = (await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; modules: { messages: Record<string, string> } }[] };
+    const msg = moi.entreprises.find((e) => e.id === ent)?.modules.messages ?? {};
+    expect(msg.stats).toBe('Les statistiques se recalculent ce soir entre 22 h et 23 h.');
+    expect(msg.tresorerie).toBe(msg.stats);
+    expect(JSON.stringify(moi)).not.toContain('Maintenance du soir');
+    const geste = (await admin.query(`select apres from plateforme.geste_console where geste = 'modules.etat' and entreprise = $1 order by le desc, id desc limit 1`, [ent])).rows[0];
+    expect(geste.apres.message).toBe('Les statistiques se recalculent ce soir entre 22 h et 23 h.');
   });
 });

@@ -2,6 +2,7 @@
 // d'émettre, une remise reste entre 0 et 100 % (écran et serveur), un jour qui n'existe pas se nomme, et la recherche
 // d'une grosse liste attend que la frappe se pose.
 import { describe, it, expect } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -79,7 +80,7 @@ describe('ROB-10 : la recherche d\'une grosse liste attend la frappe', () => {
 });
 
 describe('ROB-1, 4, 5, 9, 12', () => {
-  const PONT = code(lire('web/public/plateforme/pont.js'));
+  const PONT = code(lireEcran('plateforme/pont.js'));
   it('ROB-1 : la ligne « Au kilomètre » et la fiche « Face à la pièce » allument la garde de fermeture', () => {
     expect(CAB2).toMatch(/const saisiesGardees = \(\) => !!brouillonE && !saisieSxEnCours\(\)/);
     expect(CAB2).toMatch(/if \(saisieSxEnCours\(\)\) ids\.push\(sxState\.dossier\);/);

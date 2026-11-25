@@ -104,4 +104,37 @@ describe('1.388.69 : un module posé depuis la console, pour une entreprise', ()
       await admin.end();
     }
   }, 120_000);
+
+  it('1.388.70 : fermée chez une entreprise qui a des salariés, la paie passe EN PAUSE — la page reste, tout se lit, seule la création attend', async () => {
+    const x = await monter();
+    const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+    await admin.connect();
+    try {
+      const par = String((await admin.query('select id from socle.utilisateur limit 1')).rows[0]?.id);
+      await admin.query(`insert into plateforme.module_etat (module, entreprise, etat, motif, le, par, message) values ('paie', $1, 'ferme', 'Un défaut grave', now(), $2, 'La paie revient demain matin, après une correction.')`, [x.ent, par]);
+      const p = await ouvrir(x);
+      expect(await p.evaluate(() => (window as unknown as { __pause: string[] }).__pause)).toEqual(expect.arrayContaining(['paie']));
+      expect(await p.evaluate(() => (window as unknown as { __ferme: string[] }).__ferme)).not.toContain('paie');
+      // La page est là, avec ses salariés, et le bandeau le dit.
+      expect(await p.locator('#page-fermee').count()).toBe(0);
+      await p.locator('#pause-banner').waitFor({ timeout: 10_000 });
+      expect(espace(await p.locator('#pause-banner').innerText())).toContain('Tout ce que tu y as saisi reste là');
+      expect(espace(await p.locator('#pause-banner').innerText())).toContain('La paie revient demain matin, après une correction.');
+      expect(espace(await p.locator('#view').innerText())).toContain('Mourad Trabelsi');
+      await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-module-en-pause.png') });
+      // Créer un salarié : refusé, avec la même phrase rassurante.
+      const b = p.locator('#p-embaucher, #new-emp').first();
+      if (await b.count()) {
+        await b.click();
+        await p.getByRole('heading', { name: 'Cette partie est en pause' }).waitFor({ timeout: 5_000 });
+        expect(espace(await p.locator('.modal').last().innerText())).toContain('Rien de ce que tu y as saisi n\'est perdu');
+        await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-module-en-pause-creer.png') });
+      }
+      expect(erreurs).toEqual([]);
+      await p.context().close();
+    } finally {
+      await admin.query('delete from plateforme.module_etat where entreprise = $1', [x.ent]);
+      await admin.end();
+    }
+  }, 120_000);
 });
