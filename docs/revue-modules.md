@@ -7134,3 +7134,28 @@ SOCIAL-1 (l'indemnité de congés non pris sur un mois complet, et posée sur le
   partagée, à reprendre à part).
 - Tests : `chiffres-1388-61`, la prévision (`tresorerie-1266`, `tresorerie-paie-urgence`), les Statistiques, l'accueil et
   la Comptabilité du grossiste relus ; huit preuves.
+
+## 1.388.62 — Le Cabinet par personnage (rapport #24 : CAB2-3 → CAB2-10)
+
+CAB2-1 et CAB2-2 (les dates de TVA de la fiche, le forfaitaire non assujetti) étaient corrigés en 1.388.47.
+
+- **CAB2-7** — Un dossier retiré à la Saisie pendant qu'elle tape (confié à un autre, ou elle quitte le cabinet) ne
+  répond plus « Introuvable. » : la fenêtre dit que le dossier ne lui est plus ouvert, que rien n'a été écrit, et recopie
+  la pièce tapée (journal, date, référence, lignes) pour qu'elle la transmette.
+- **CAB2-6** — Une écriture validée par un autre poste pendant qu'on la corrige : la fenêtre dit qu'elle a été validée et
+  sous quel numéro, que la correction n'y est pas, comment la contre-passer, et recopie la version tapée ; le livre se
+  relit, et le brouillard ne la montre plus comme modifiable.
+- **CAB2-4** — La Saisie ne se voit plus proposer « Enregistrer et valider » : son geste principal est « Enregistrer en
+  brouillard », à côté de « Karima valide le brouillard » ; la touche de validation enregistre au brouillard. La fiche ne
+  lui attribue plus la révision et les déclarations.
+- **CAB2-3** — Un collaborateur à qui rien n'est encore confié lit « Aucun dossier ne t'est encore confié » et le nom des
+  associés qui les confient, sans le code du cabinet ni la reprise d'un dossier.
+- **CAB2-9** — Au tableau de bord, le nom d'un dossier prend la place de sa cellule (il était coupé à 190 px) et se lit
+  entier au survol.
+- **CAB2-10** — Ctrl K garde la ligne choisie au clavier à l'écran, et dit quand la recherche trouve plus de dossiers que
+  la liste n'en montre.
+- *Restes* : **CAB2-5** (renvoyer une écriture à la Saisie avec un motif) est un geste neuf, à concevoir avec le cabinet
+  pilote ; **CAB2-8** (le nom d'un collaborateur parti sur ses brouillards, le valideur dans la fenêtre d'une écriture)
+  demande que le livre porte l'auteur et le valideur, que la base garde mais que le pont ne transmet pas encore.
+- Tests : `cabinet-personnages-1388-62` ; les parcours du tableau de bord, de la saisie, des dossiers, de la coquille,
+  de la tablette et du téléphone relus ; six preuves.

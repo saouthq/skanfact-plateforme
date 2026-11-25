@@ -32163,6 +32163,26 @@ prouver 'Relancer N factures qui compte les reportées (1.388.61)' modules/socle
 prouver 'la balance du cabinet dite identique (1.388.61)' modules/socle/ecrans/entreprise/app-2.js \
   ' Sa balance peut différer de celle-ci sur deux points : la déclaration du mois n\'\''y est que lorsqu\'\''il l\'\''a passée, et ce que cette page range en soldes de départ (compte 12), il le range lui-même, souvent au compte d\'\''attente 471.' '' \
   'la Comptabilité dit en quoi la balance du cabinet peut différer'
+prouver 'la Saisie à qui la grille propose de valider (1.388.62)' modules/socle/ecrans/cabinet/app-2.js \
+  '${peutValiderCl(dossier)
+            ? `' '${true
+            ? `' \
+  'la grille ne propose de valider qu'\''à qui valide'
+prouver 'la touche qui valide pour une Saisie (1.388.62)' modules/socle/ecrans/cabinet/app-2.js \
+  'enregistrer(peutValiderCl(dossier)); return; }' 'enregistrer(true); return; }' \
+  'la grille ne propose de valider qu'\''à qui valide'
+prouver 'le dossier retiré qui dit « Introuvable. » (1.388.62)' modules/socle/ecrans/cabinet/app-2.js \
+  '} catch (e) { await refusEnregistrement(e, p, dossier, root); }' '} catch (e) { await infoDialog('\''Enregistrement impossible'\'', plainError(e)); }' \
+  'un dossier retiré et une écriture validée entre-temps se disent'
+prouver 'le collaborateur sans dossier à qui on donne le code du cabinet (1.388.62)' modules/socle/ecrans/cabinet/app-1.js \
+  'const collabSansDossier = vide && !estAssocie();' 'const collabSansDossier = false;' \
+  'le collaborateur sans dossier lit qui les lui confie'
+prouver 'le nom du tableau de bord coupé à 190 px (1.388.62)' web/public/plateforme/tableau-de-bord.css \
+  'text-overflow: ellipsis; max-width: 100%; }' 'text-overflow: ellipsis; max-width: 190px; }' \
+  'le nom au tableau de bord n'\''est plus coupé à 190 px'
+prouver 'la palette qui perd la sélection au clavier (1.388.62)' modules/socle/ecrans/cabinet/app-2.js \
+  'if (choisie && choisie.scrollIntoView) choisie.scrollIntoView({ block: '\''nearest'\'' });' '' \
+  'la palette suit la sélection au clavier'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

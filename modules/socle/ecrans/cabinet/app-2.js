@@ -4108,8 +4108,11 @@
         </div>
         <div class="sa-actions">
           <button type="button" class="btn btn-sm" id="sa-vider">Vider</button>
-          <button type="button" class="btn" id="sa-ok">Enregistrer en brouillard</button>
-          <button type="button" class="btn btn-primary" id="sa-okvalider">Enregistrer et valider</button>
+          ${/* (1.388.62, issue 24, CAB2-4) Un rôle qui ne valide pas ne se voit pas proposer de valider : le refus se disait
+                après le clic. Le brouillard devient le geste principal, et la phrase nomme qui valide. */''}${peutValiderCl(dossier)
+            ? `<button type="button" class="btn" id="sa-ok">Enregistrer en brouillard</button>
+          <button type="button" class="btn btn-primary" id="sa-okvalider">Enregistrer et valider</button>`
+            : `<span class="fd-qui" id="sa-qui-valide">${esc(cap(reviseurCl(dossier)))} valide le brouillard</span><button type="button" class="btn btn-primary" id="sa-ok">Enregistrer en brouillard</button>`}
         </div>
       </div>
       ${/* Les touches : sous la grille, là où les doigts les cherchent pendant qu'ils tapent — et
@@ -4197,6 +4200,31 @@
     </tr>`).join('');
   }
 
+  // (1.388.62, issue 24, CAB2-7 et CAB2-6) Un enregistrement refusé dit POURQUOI, et ce que devient la pièce tapée.
+  // — Le dossier ne t'est plus ouvert (confié à un autre, ou tu as quitté l'équipe) : le serveur répond « Introuvable », pour ne
+  //   rien dire de ce qui existe ; l'écran, lui, sait que c'était ton dossier. La pièce est recopiée dans la fenêtre, pour ne
+  //   pas la retaper de mémoire.
+  // — L'écriture a été validée par un autre poste pendant que tu la corrigeais : on relit le livre, on nomme son numéro, et
+  //   le brouillard ne la montre plus comme modifiable.
+  async function refusEnregistrement(e, p, dossier, root) {
+    const msg = plainError(e);
+    const lignes = lignesReelles(p || {});
+    const recopie = lignes.length ? `<table class="list compact"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>${lignes.map(l => `<tr><td>${esc(l.compte)}</td><td>${esc(l.libelle || p.libelle || '')}</td><td class="r">${l.debit ? esc(money(l.debit)) : ''}</td><td class="r">${l.credit ? esc(money(l.credit)) : ''}</td></tr>`).join('')}</tbody></table>` : '';
+    if (/^introuvable\.?$/i.test(String(msg).trim())) {
+      await infoHtml('Ce dossier ne t\'est plus ouvert', `<p>Ta pièce <b>n'est pas enregistrée</b> : ${esc(dossier.name || 'ce dossier')} a été confié à quelqu'un d'autre, ou tu ne fais plus partie de l'équipe du cabinet. Rien n'a été écrit dans le livre.</p><p>La voici, pour la transmettre à qui tient maintenant le dossier :</p><p class="small">${esc([p.journal, fmtJour(p.date), p.piece, p.libelle].filter(Boolean).join(' · '))}</p>${recopie}<p class="small muted">Demande à la direction du cabinet de te rendre le dossier si tu dois continuer.</p>`);
+      return;
+    }
+    if (p && p.id && /validée ne se modifie pas/i.test(msg)) {
+      const s = livresState;
+      try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre se relira au prochain dessin */ }
+      const v = ((s.livre && s.livre.ecritures) || []).find(x => x.id === p.id);
+      await infoHtml('Validée pendant que tu la corrigeais', `<p>Cette écriture a été <b>validée</b> par quelqu'un d'autre${v && v.numero ? ` sous le n° ${esc(String(v.numero))}` : ''} pendant que tu la corrigeais : <b>ta correction n'y est pas</b>. Une écriture validée ne se modifie plus ; pour la corriger, contre-passe-la depuis le livre-journal, puis écris la bonne version.</p>${recopie ? `<p>Ta version, pour la réécrire :</p>${recopie}` : ''}`);
+      saisieState.piece = pieceVide(p.journal, p.date);
+      drawLivres(root, dossier);
+      return;
+    }
+    await infoDialog('Enregistrement impossible', msg);
+  }
   function brancherSaisie(el, root, dossier) {
     const s = livresState;
     // (1.384.4, issue 11, CABSAISIE-27) L'exercice clos dit « Rouvre-le » : le bouton y mène.
@@ -4378,7 +4406,7 @@
             return;
           }
           if (touche === t.dupliquer) { ev.preventDefault(); dupliquerPiece(); return; }
-          if (touche === t.valider) { ev.preventDefault(); enregistrer(true); return; }
+          if (touche === t.valider) { ev.preventDefault(); enregistrer(peutValiderCl(dossier)); return; }
           if (touche === t.ligneSuivante) {
             ev.preventDefault();
             // Sur la dernière ligne, Entrée en AJOUTE une : la grille suit la saisie, on ne clique
@@ -4688,7 +4716,7 @@
         drawLivres(root, dossier);
         const d2 = $('#sa-piece'); if (d2) d2.focus();
         majAValider(dossier);
-      } catch (e) { await infoDialog('Enregistrement impossible', plainError(e)); }
+      } catch (e) { await refusEnregistrement(e, p, dossier, root); }
     };
 
     const ok = $('#sa-ok', el); if (ok) ok.onclick = () => enregistrer(false);
@@ -10049,7 +10077,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     function draw() {
       const brut = $('#pal-q', root).value.trim();
       const q = brut.toLowerCase();
-      const rows = K.dossierList(S, null, { q, withArchived: true }).slice(0, 30).map(r => ({
+      const tousLesDossiers = K.dossierList(S, null, { q, withArchived: true });
+      const rows = tousLesDossiers.slice(0, 30).map(r => ({
         kind: 'dossier', main: r.name,
         sub: [r.matricule, r.missingCount ? pl(r.missingCount, 'mois', 'mois') + ' manquant' + (r.missingCount > 1 ? 's' : '') : ''].filter(Boolean).join(' · '),
         go: () => { location.hash = '#/dossier/' + encodeURIComponent(r.id); }
@@ -10095,6 +10124,11 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       $$('.res[data-i]', root).forEach(el => {
         el.onclick = () => { const x = items[Number(el.dataset.i)]; close(); if (x) x.go(); };
       });
+      // (1.388.62, issue 24, CAB2-10) La ligne choisie au clavier reste à l'écran : sans ça, Entrée ouvrait un dossier jamais
+      // affiché. Et une recherche qui en trouve plus que la liste n'en montre le dit.
+      const choisie = $('.res.sel', root);
+      if (choisie && choisie.scrollIntoView) choisie.scrollIntoView({ block: 'nearest' });
+      if (tousLesDossiers.length > rows.length) $('#pal-res', root).insertAdjacentHTML('beforeend', `<div class="res" id="pal-plus"><span class="main muted">${pl(tousLesDossiers.length, 'dossier')} correspondent, ${rows.length} montrés : affine ta recherche.</span></div>`);
     }
     const onKey = e => {
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); return close(); }

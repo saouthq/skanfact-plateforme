@@ -79,7 +79,8 @@
 #page-bord .lf table.tb-t td.cl { padding-left: 10px; min-width: 210px; }
 #page-bord .lf table.tb-t .cl-i { display: flex; align-items: center; gap: 10px; min-width: 0; }
 #page-bord .lf table.tb-t .cl-i > span:last-child { display: grid; min-width: 0; }
-#page-bord .lf table.tb-t td.cl b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
+/* (1.388.62, issue 24, CAB2-9) Le nom prend la place de sa cellule : couper à 190 px cachait ce qui distingue deux dossiers. */
+#page-bord .lf table.tb-t td.cl b { font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #page-bord .lf table.tb-t td.cl small { font-size: 12px; color: var(--sb-gris-2); white-space: nowrap; }
 #page-bord .lf table.tb-t th.c, #page-bord .lf table.tb-t td.tb-c, #page-bord .lf table.tb-t tfoot td.c { width: 58px; text-align: center; }
 #page-bord .tb-th-av { color: var(--sb-gris-2); opacity: .7; }

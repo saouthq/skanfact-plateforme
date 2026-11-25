@@ -3119,7 +3119,7 @@
   }
   const filtreQTb = L => { const q = tbState.q.trim().toLowerCase(); return L.filter(x => !q || x.d.name.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q)) || String(x.d.matricule || '').toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').includes(sansAccentsCl(q))); };
   const videQTb = () => `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`;
-  const celDossierTb = x => `<td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${estAssocie() && portee() === 'tous' && !tbState.qui && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>`;
+  const celDossierTb = x => `<td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b title="${esc(x.d.name)}">${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${estAssocie() && portee() === 'tous' && !tbState.qui && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>`;
   const menuTb = x => `<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td>`;
   function revisionTb(L, P, vues) {
     const moisC = P.dernier;
@@ -3354,7 +3354,7 @@
       if (!vus.some(m => m <= P.dernier)) return '<td class="tb-av"><small class="muted">hors mission</small></td>';
       return `<td class="tb-av"><span class="tb-seg${vus.length > 7 ? ' long' : ''}" title="${f} mois déclarés sur ${dus.length}${tard ? ` · ${tard} en retard` : ''}">${vus.map(m => `<i class="${ton(m)}"></i>`).join('')}</span><b class="tb-seg-n${tard ? ' tard' : ''}">${f}<small>/${dus.length}</small></b></td>`;
     };
-    const ligne = x => `<tr class="clickable" data-tb-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${tousCab && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>${P.cols.map(m => cell(x, m)).join('')}${tel ? '' : avance(x)}<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td></tr>`;
+    const ligne = x => `<tr class="clickable" data-tb-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b title="${esc(x.d.name)}">${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${tousCab && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>${P.cols.map(m => cell(x, m)).join('')}${tel ? '' : avance(x)}<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td></tr>`;
     const pied = `<tr class="tb-pied-l"><td><b>Déclarés</b><small>${pl(fl.length, 'dossier')}</small></td>${P.cols.map(m => {
       if (m > P.dernier) return '<td class="c"><small class="muted">à venir</small></td>';
       const dus = fl.filter(x => x.mois.has(m) && x.mois.get(m).etape !== 'hors'), f = dus.filter(x => x.mois.get(m).etape === 'fini').length;
@@ -3480,14 +3480,19 @@
     const fait = moisC ? L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape === 'fini').length : 0;
     const sur = moisC ? L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors').length : 0;
     const nRetard = L.reduce((t, x) => t + x.retard.length, 0);
-    const phrase = etat === 'chargement' ? 'Lecture des dossiers…' : vide ? 'Ton portefeuille est vide. Pour le remplir :'
+    // (1.388.62, issue 24, CAB2-3) Un collaborateur sans dossier confié n'a pas un cabinet neuf : il attend qu'un associé lui en
+    // confie. On ne lui propose ni le code du cabinet ni une reprise de dossier, et on nomme qui confie.
+    const collabSansDossier = vide && !estAssocie();
+    const associes = equipeRangee().filter(c => c.actif !== false && (c.role === 'supervision' || (c.roles || []).includes('supervision'))).map(prenomDe).filter(Boolean);
+    const phrase = etat === 'chargement' ? 'Lecture des dossiers…' : collabSansDossier ? 'Aucun dossier ne t\'est encore confié.' : vide ? 'Ton portefeuille est vide. Pour le remplir :'
       : moisC ? `${cap(moisLong(moisC))} : ${pl(fait, 'déclaration déposée', 'déclarations déposées')} sur ${sur} · ${nRetard ? `${pl(nRetard, 'mois échu', 'mois échus')} pas encore déclaré${nRetard > 1 ? 's' : ''}` : 'aucun mois échu en retard'}.`
         : 'Ce qui attend dans tes dossiers, le plus pressé d\'abord.';
     const equipe = equipeRangee().filter(c => c.actif !== false);
     const parPersonne = id => lignesTb().filter(x => (x.eq.suit || {}).id === id).length;
     const qui = estAssocie() && portee() === 'tous' && equipe.length > 1 && !etat && !vide
       ? `<div class="tb-qui"><div class="tb-puces" role="group" aria-label="Le travail de qui">${[['', 'Tout le cabinet'], ...equipe.map(c => [c.id, prenomDe(c)])].map(([id, t]) => `<button type="button" class="t-puce" data-tb-qui="${esc(id)}" aria-pressed="${tbState.qui === id}">${esc(t)}${id ? ` <b>${parPersonne(id)}</b>` : ''}</button>`).join('')}</div></div>` : '';
-    const corps = vide ? etapesCabinetNeuf()
+    const corps = collabSansDossier ? `<div class="panel tb-p"><div class="tb-vide" id="tb-collab-vide"><b>Tes dossiers arrivent quand on te les confie</b><span>${associes.length ? `${esc(associes.join(', ').replace(/, ([^,]*)$/, ' ou $1'))} te les confie` : 'Un associé du cabinet te les confie'}, depuis la fiche de chaque dossier (« Confier à… »). Ils apparaîtront ici, avec leurs mois à saisir et à déclarer.</span></div></div>`
+      : vide ? etapesCabinetNeuf()
       : etat === 'chargement' ? `${aFaireTb(pri)}<div class="panel tb-hero tb-hero-sq"><div class="tb-sq"><i></i><i></i><i></i></div></div>`
         : etat === 'refus' ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="bandeau rouge" id="tb-refus">${icB('cadenas', 18, 2)}<span class="txt"><b>La grille ne s'est pas lue</b><span>${esc(prodState.erreur)}</span></span><button type="button" class="btn" id="tb-relire">Réessayer</button></div></div>`
           : L.length && !P.cols.length ? `${aFaireTb(pri)}<div class="panel tb-p" id="tb-dossiers"><div class="tb-vide" id="tb-sans-mois"><b>Aucun mois fini à suivre pour l'instant</b><span>${(() => { const debut = L.map(x => String(x.d.from || '').slice(0, 7)).filter(Boolean).sort()[0]; return debut ? `Le cabinet tient ces dossiers depuis ${esc(moisLong(debut))} : ${esc(moisLong(debut))} entrera dans la grille le 1er ${esc(moisLong(moisApres(debut)))}.` : 'Le début de mission de ces dossiers n\'est pas encore précisé : dis à partir de quand tu les tiens, et leurs mois entreront dans la grille.'; })()} Un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client : ${esc(L.slice(0, 3).map(x => x.d.name).join(', '))}${L.length > 3 ? '…' : ''}.</span>${L.some(x => !x.d.from) ? '<button type="button" class="btn btn-sm" id="tb-debut">Préciser le début…</button>' : ''}<button type="button" class="btn btn-sm" id="tb-vers-dossiers">Voir mes dossiers</button></div></div>`
@@ -5440,7 +5445,9 @@
     const sec = (t, h) => `<section class="cd-fs fd-fs"><h3>${t}</h3>${h}</section>`;
     const kv = (a, b) => `<span class="cd-kv"><span>${a}</span><b>${b}</b></span>`;
     const eqL = [];
-    if (eq.suit) eqL.push([eq.suit, `${prenomDe(eq.suit)} suit le dossier`, d.manual ? 'la saisie, la révision, les déclarations' : 'la révision, les pièces, la conversation']);
+    // (1.388.62, issue 24, CAB2-4) Ce qu'on attribue suit le rôle sur le dossier : une Saisie saisit, elle ne révise ni ne déclare.
+    const suitSaisie = eq.suit && d.droits && d.droits[eq.suit.id] === 'saisie';
+    if (eq.suit) eqL.push([eq.suit, `${prenomDe(eq.suit)} suit le dossier`, suitSaisie ? (d.manual ? 'la saisie, au brouillard : un autre la valide' : 'les pièces, la conversation') : d.manual ? 'la saisie, la révision, les déclarations' : 'la révision, les pièces, la conversation']);
     if (eq.val) eqL.push([eq.val, `${prenomDe(eq.val)} valide`, 'les déclarations, avant le dépôt']);
     for (const id of eq.ids) { const c = collabDe(id); if (c && c !== eq.suit && c !== eq.val) eqL.push([c, `${prenomDe(c)} ${d.droits[id] === 'saisie' ? 'saisit' : 'travaille sur le dossier'}`, d.droits[id] === 'saisie' ? 'les pièces papier et les relevés' : '']); }
     const employeur = Object.values(employeursConnus()[d.id] || {}).some(Boolean);
