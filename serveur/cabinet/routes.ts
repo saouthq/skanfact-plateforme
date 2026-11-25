@@ -15,6 +15,16 @@ import { enTantQue, requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import './textes.ts';
+
+// Une valeur JSON écrite avec ses clés triées à chaque niveau (deux contenus égaux s'écrivent pareil, quel que soit l'ordre).
+const canonique = (v: unknown): string => {
+  if (Array.isArray(v)) return `[${v.map(canonique).join(',')}]`;
+  if (v && typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    return `{${Object.keys(o).filter((k) => o[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonique(o[k])}`).join(',')}}`;
+  }
+  return JSON.stringify(v ?? null);
+};
 import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, lienDossier, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
@@ -389,7 +399,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           })),
           declarations: (declarations.rows as { entreprise: string; periode: string; deposee: boolean; preparee_le: Date; preparee_par: string; deposee_le: string | null;
             deposee_par: string; payee_le: string | null; montant: string | null }[]).map((d) => ({
-            entreprise: d.entreprise, periode: d.periode, deposee: d.deposee, prepareeLe: d.preparee_le.toISOString().slice(0, 10), preparePar: d.preparee_par,
+            entreprise: d.entreprise, periode: d.periode, deposee: d.deposee, prepareeLe: d.preparee_le.toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }), preparePar: d.preparee_par,
             deposeeLe: d.deposee_le, deposeePar: d.deposee_par, payeeLe: d.payee_le, montant: d.montant,
           })),
           revisions: revisions.rows as { entreprise: string; periode: string; faite: boolean }[],
@@ -524,13 +534,24 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       raisonSociale: z.string().trim().min(1).max(200),
       // Écrit comme on le recopie : le serveur le garde sous sa forme lisible (serveur/matricule.ts ; E4).
       matriculeFiscal: z.string().max(40).optional(),
+      // Sa fiche (vérification du Cabinet), écrite dans la même transaction : refusée, rien n'est créé.
+      fiche: FICHE.optional(),
     }),
-    traiter: async ({ params, corps }, tx) => {
-      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui || !uuid.safeParse(params.cabinet).success) return introuvable;
       const matricule = matriculeCanonique(corps.matriculeFiscal);
       if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
       const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [params.cabinet, corps.raisonSociale, matricule])).rows[0].id as string;
       await tracer(tx, id, 'cabinet.dossier_tenu.creer', id, null, { cabinet: params.cabinet, raisonSociale: corps.raisonSociale });
+      if (corps.fiche) {
+        const fiche = corps.fiche as Record<string, unknown> & { paie?: Record<string, unknown> };
+        if (fiche.paie) {
+          delete fiche.paie.copieDe;
+          const par = String((await tx.query('select coalesce(nom, \'\') nom from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0]?.nom ?? '');
+          fiche.paie.regle = { le: new Date().toISOString(), par };
+        }
+        await requetes(tx).insertInto('cabinet.fiche').values({ cabinet: params.cabinet ?? '', entreprise: id, contenu: JSON.stringify(fiche), modifie_par: qui.utilisateur }).execute();
+      }
       // Au-delà des dossiers gratuits, la facture de l'abonnement du cabinet part dans la minute (1.120.0).
       facturerCabinetBientot(ctx, params.cabinet ?? '');
       return { statut: 201, corps: { entreprise: id } };
@@ -737,7 +758,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const avant = ((deja?.contenu ?? {}) as { paie?: Paie }).paie;
       const apres = corps.contenu.paie as Paie | undefined;
       if (apres) {
-        const sans = (x: Paie | undefined) => { if (!x) return ''; const reste = Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'regle' && k !== 'copieDe')); return JSON.stringify(reste, Object.keys(reste).sort()); };
+        const sans = (x: Paie | undefined) => { if (!x) return ''; return canonique(Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'regle' && k !== 'copieDe'))); };
         const copieDe = apres.copieDe;
         delete apres.copieDe;
         if (sans(avant) !== sans(apres)) {
@@ -802,7 +823,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       // Les réglages qui valent pour tous les dossiers (la fiche du cabinet, les échéances, les régimes, la méthode) sont
       // ceux de la direction, comme le nom : un autre rôle enregistre le reste (ses banques, sa grille, son thème) tel quel.
       const avant = (deja?.contenu ?? {}) as Record<string, unknown>;
-      const changes = REGLAGES_DE_DIRECTION.filter((k) => k in corps.contenu && JSON.stringify(corps.contenu[k] ?? null) !== JSON.stringify(avant[k] ?? null));
+      // Une clé absente du contenu envoyé disparaît (le contenu remplace tout) : elle compte comme changée, présente ou non.
+      const changes = REGLAGES_DE_DIRECTION.filter((k) => canonique(corps.contenu[k] ?? null) !== canonique(avant[k] ?? null));
       if (changes.length && !(await tx.query('select socle.suis_associe($1) ok', [cabinet])).rows[0]?.ok) {
         return { statut: 403, corps: { motif: motif('cabinet.reglages_associe', { champs: changes.map((k) => t(`cabinet.reglage.${k}`)).join(', ') }) } };
       }

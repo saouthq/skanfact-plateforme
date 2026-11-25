@@ -7572,3 +7572,32 @@ Skander, 25/11/2026 : « la console ne s'ouvre que depuis les connexions du titu
 Le test « au téléphone, Clients » de la recette de la console tombe sur GitHub seulement (le journal ne montre
 aucun geste), et passe ici dans tous les ordres. Plutôt que de deviner : s'il retombe, il écrit dans son échec ce
 que l'écran du journal montre. Aucun changement de l'application.
+
+## 1.388.81 — Le Cabinet relu (vérification complète, lot 1)
+
+Vérification complète demandée par Skander le 25/11/2026 (« fais-le en trois fois : Cabinet, puis entreprise, puis
+pont »). Lot 1, le Cabinet : relecture du code et parcours à l'écran. Ce que le code a gagné :
+
+- **Les questions d'un cabinet d'avant restent les siennes** : le cabinet qui reprend un dossier ne les envoie pas, ne
+  les ferme ni ne les réécrit, et son « À faire » ne les compte pas (base 0235).
+- **Une entreprise n'a qu'un cabinet à la fois, quel que soit le chemin** qui écrit le mandat (proposer, rejoindre par
+  une invitation, créer un dossier tenu) : la règle se tient maintenant à l'écriture du mandat, verrou pris.
+- **Le cabinet garde toujours un associé** : deux gestes simultanés sur l'équipe passent l'un après l'autre.
+- **Les réglages de tous les dossiers** se comparent entiers : un réglage absent du contenu envoyé compte comme changé.
+- **La trace « paie réglée par… le… »** voit aussi un changement des seuls taux par contrat (CDD, CIVP…).
+- **Un export du classeur fait avec les bulletins** suit la règle des bulletins.
+- **« Nouveau client »** écrit le dossier et sa fiche ensemble : une fiche refusée ne laisse plus un dossier sans fiche,
+  qu'un second essai doublait (et facturait). Le collage d'une liste de clients aussi.
+- **L'e-mail d'une demande de pièce** part une fois par jour au plus pour la même demande (un second clic le même jour
+  le dit), et la trace s'écrit avant l'e-mail.
+- **Les jours se lisent à Tunis** : la date de lettrage (le FEC), la date de préparation d'une déclaration, la date
+  d'établissement d'un bulletin, le lettrage automatique, le mois courant de la liste des mois, « aujourd'hui » du rappel.
+  Entre minuit et une heure, l'UTC disait la veille.
+- **Un montant tapé au-delà du millime** est refusé à la saisie au lieu d'être arrondi en silence.
+- **Ce que le poste gardait d'un dossier qui a quitté le portefeuille** s'efface à la lecture suivante du portefeuille.
+- **Les listes du classeur** (documents, lectures, pièces rangées) ne s'arrêtent plus à 1 000 ou 2 000 lignes.
+- Laissé à vérifier : les à-nouveaux après la reclôture d'une année rouverte (une exception de 0217, voulue ou non) et
+  le fuseau des mandats (`current_date`).
+
+Tests : `tests/cabinet/relu-1388.test.ts` (3), et des cas ajoutés à `fiche`, `paie`, `classeur` et au bulletin du
+Cabinet ; dix preuves.

@@ -180,6 +180,11 @@ describe('la paie tenue par le cabinet', () => {
     // Une fiche réécrite sans changer la paie garde le réglage d'avant (et ne dit pas « réglé à l'instant »).
     const r2 = await poser(d.ent, { email: 'sarra@exemple.tn', paie: { regimesContrat: {}, tfpRate: '1', regle: { le: '2030-01-01T00:00:00.000Z', par: 'Moi' } } }, 1);
     expect(r2.corps.paieRegle).toEqual(regle1);
+    // (Vérification du Cabinet) Un changement des SEULS taux par contrat est un changement de la paie : il se date et se signe.
+    await admin.query(`update cabinet.fiche set contenu = jsonb_set(contenu, '{paie,regle,le}', '"2001-01-01T00:00:00.000Z"') where cabinet = $1 and entreprise = $2`, [d.cabinet, d.ent]);
+    const r2b = await poser(d.ent, { email: 'sarra@exemple.tn', paie: { regimesContrat: { cdd: { cnssEmployer: '11.57' } }, tfpRate: '1', regle: { le: '2001-01-01T00:00:00.000Z', par: 'associe' } } }, 2);
+    expect(r2b.statut, JSON.stringify(r2b.corps)).toBe(200);
+    expect(Date.now() - Date.parse((r2b.corps.paieRegle as { le: string }).le)).toBeLessThan(60_000);
     // Un autre dossier du même cabinet : la copie dit d'où elle vient, sous son nom.
     const client2 = await personne('client2');
     const ent2 = String((await appeler('POST', '/entreprises', client2.jeton, { raisonSociale: 'Garage Ennasr' })).corps.id);
@@ -313,8 +318,11 @@ describe('la paie tenue par le cabinet', () => {
     expect((await enTantQue(pool, voisin.utilisateur, (tx) => tx.query(`select cle from socle.dossier_v10 where entreprise = $1`, [garage]))).rows).toEqual([]);
     // Même sous un mandat de paie sur ce dossier (posé ici à la main : un dossier tenu n'en donne qu'au cabinet qui le
     // tient), le voisin lit ses congés sans les écrire : seul le cabinet qui TIENT le dossier les écrit.
+    // (0235 : la base refuse un second mandat en cours ; il se pose ici règles coupées, pour éprouver la défense d'après.)
+    await admin.query('set session_replication_role = replica');
     await admin.query(`insert into socle.mandat (cabinet, entreprise, accorde_par, debut, perimetre, statut) values ($1, $2, $3, current_date, array['paie'], 'actif')`,
       [String(c.corps.id), garage, voisin.utilisateur]);
+    await admin.query('set session_replication_role = origin');
     expect((await enTantQue(pool, voisin.utilisateur, (tx) => tx.query(`select cle from socle.dossier_v10 where entreprise = $1 and collection = 'leaves'`, [garage]))).rows)
       .toEqual([{ cle: 'l2' }]);
     expect((await ecrire(garage, voisin, [{ collection: 'leaves', cle: 'l9', rang: null, revision: null, contenu: conge }])).corps.motif)
@@ -359,8 +367,11 @@ describe('la paie tenue par le cabinet', () => {
     expect((await ecrire(garage, associe, [objet('advances', avance)])).statut).toBe(200);
     const voisin = await personne('voisin');
     const c = await appeler('POST', '/cabinets', voisin.jeton, { nom: 'Cabinet Voisin' });
+    // (0235 : la base refuse un second mandat en cours ; il se pose ici règles coupées, pour éprouver la défense d'après.)
+    await admin.query('set session_replication_role = replica');
     await admin.query(`insert into socle.mandat (cabinet, entreprise, accorde_par, debut, perimetre, statut) values ($1, $2, $3, current_date, array['paie'], 'actif')`,
       [String(c.corps.id), garage, voisin.utilisateur]);
+    await admin.query('set session_replication_role = origin');
     expect((await avances(voisin)).map(([cle]) => cle)).toEqual(['a1']);
     expect((await ecrire(garage, voisin, [objet('advances', { ...avance, id: 'a9' })])).corps.motif)
       .toBe('Les avances d\'un client sur SkanFact se saisissent dans son SkanFact (c\'est lui qui verse l\'argent) : son cabinet les lit, en retient l\'échéance sur les bulletins, et ne les écrit que dans un dossier qu\'il tient.');

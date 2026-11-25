@@ -32429,6 +32429,38 @@ prouver "un refus sur le motif reste affiché une fois le motif tapé" web/conso
   "  const setMotif = (v: string) => { setMotifBrut(v); setRefus(null); setFaute(0); };" "  const setMotif = (v: string) => { setMotifBrut(v); };" \
   "1.388.79 : les adresses de la console — le titulaire la limite à son adresse, le support lit sans geste, une autre adresse est refusée en le disant, la commande du serveur la rouvre"
 
+# 1.388.81 — Le Cabinet relu (vérification complète, lot Cabinet ; base 0235).
+prouver "le cabinet d'aujourd'hui réécrit la question d'un cabinet d'avant" base/migrations/0235_cabinet_relu.sql \
+  "  select * into q from compta.question where id = p_id and entreprise = p_entreprise and cabinet = v_cabinet for update;" "  select * into q from compta.question where id = p_id and entreprise = p_entreprise for update;" \
+  "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
+prouver "le cabinet d'aujourd'hui envoie les questions d'un cabinet d'avant" base/migrations/0235_cabinet_relu.sql \
+  "   where entreprise = p_entreprise and cabinet = v_cabinet and left(periode, 4) = p_annee::text and statut in ('ouverte', 'envoyee')" "   where entreprise = p_entreprise and left(periode, 4) = p_annee::text and statut in ('ouverte', 'envoyee')" \
+  "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
+prouver "le cabinet compte les questions d'un autre cabinet" serveur/compta/questions.ts \
+  "        where q.cabinet = \$1 and q.entreprise in" "        where q.entreprise in" \
+  "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
+prouver "un second mandat en cours s'écrit à côté du premier" base/migrations/0235_cabinet_relu.sql \
+  $'  if exists (select 1 from socle.mandat d where d.entreprise = new.entreprise and d.id <> new.id and d.statut in (\'propose\', \'actif\')) then\n    perform socle.refus(\'cette entreprise a déjà un cabinet : arrête d\'\'abord son mandat\');\n  end if;' "" \
+  "une entreprise n'a qu'un cabinet à la fois, quel que soit le chemin qui écrit le mandat"
+prouver "un réglage de tous les dossiers, omis, s'efface sans un associé" serveur/cabinet/routes.ts \
+  "REGLAGES_DE_DIRECTION.filter((k) => canonique(" "REGLAGES_DE_DIRECTION.filter((k) => k in corps.contenu && canonique(" \
+  "l'associé renomme le cabinet ; un collaborateur ne le peut pas ; un nom vide est refusé ; le changement se trace"
+prouver "un changement des seuls taux par contrat ne se date pas" serveur/cabinet/routes.ts \
+  "return canonique(Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'regle' && k !== 'copieDe')));" "const reste = Object.fromEntries(Object.entries(x).filter(([k]) => k !== 'regle' && k !== 'copieDe')); return JSON.stringify(reste, Object.keys(reste).sort());" \
+  "(1.246.0) le paramétrage de la paie : qui l'a réglé et quand, écrit par le serveur quand il change ; copié d'un autre dossier du portefeuille, jamais d'un étranger"
+prouver "la fiche d'un nouveau client s'écrit à part, après le dossier" serveur/cabinet/routes.ts \
+  "      fiche: FICHE.optional()," "" \
+  "un nouveau client et sa fiche : une fiche refusée ne crée aucun dossier ; acceptée, elle est écrite avec lui"
+prouver "l'e-mail d'une demande repart au second clic du même jour" base/migrations/0235_cabinet_relu.sql \
+  "  if v_le is not null and v_le > now() - interval '1 day' then" "  if false then" \
+  "une demande envoyée par e-mail à l'adresse de la fiche : le texte de la demande et le lien, rien d'autre"
+prouver "un export fait avec les bulletins se lit par la saisie" base/migrations/0235_cabinet_relu.sql \
+  $'\n         and (not paie or entreprise in (select paie.mes_entreprises())));' ');' \
+  "un bulletin de paie au classeur : lu par le rôle Paie et l'associé sous un mandat Paie, jamais par la saisie ni sans le mandat"
+prouver "le bulletin validé le soir porte le jour UTC" web/public/plateforme/pont-cabinet.js \
+  "  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });" "  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toISOString().slice(0, 10);" \
+  "validé le 31/10 à 23 h 30 UTC : c'est le 1er novembre à Tunis, le jour qu'il porte"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -395,6 +395,8 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un modèle de ton cabinet porte déjà ce titre', cle: 'base.messagerie.modele_double', fr: 'un modèle de ton cabinet porte déjà ce titre : choisis-en un autre' },
   { base: 'un cabinet garde cinquante modèles au plus', cle: 'base.messagerie.modele_trop', fr: 'un cabinet garde cinquante modèles au plus : retire ceux qui ne servent plus' },
   { base: 'ce modèle n\'est plus là', cle: 'base.messagerie.modele_absent', fr: 'ce modèle n\'est plus là : un collègue l\'a retiré' },
+  { base: 'cette demande n\'existe plus', cle: 'base.messagerie.demande_absente', fr: 'cette demande n\'existe plus : relis la conversation' },
+  { base: 'cette demande est déjà partie par e-mail aujourd\'hui : le client l\'a reçue', cle: 'base.messagerie.courriel_deja_parti', fr: 'cette demande est déjà partie par e-mail aujourd\'hui : le client l\'a reçue' },
   // La console de SkanFact (0083, docs/console.md) : sa session, ses rôles, son journal, ses gestes.
   { base: 'un geste de la console ne se modifie pas et ne s\'efface pas', cle: 'base.console.geste_intouchable', fr: 'un geste de la console ne se modifie pas et ne s\'efface pas' },
   { base: 'la console demande une session de la console : connecte-toi à la console', cle: 'base.console.session', fr: 'la console demande une session de la console : connecte-toi à la console' },

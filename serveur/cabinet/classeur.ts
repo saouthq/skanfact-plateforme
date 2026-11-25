@@ -95,7 +95,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
           d.classee_raison, d.jointe_ecriture, d.double_de, d.double_de_sorte, d.paie
         from cabinet.document d left join socle.utilisateur u on u.id = d.depose_par
        where d.cabinet = $1 and d.entreprise = $2
-       order by d.depose_le desc, d.id desc limit 1000`, [cabinet, entreprise])).rows as Ligne[];
+       order by d.depose_le desc, d.id desc limit 20000`, [cabinet, entreprise])).rows as Ligne[];
       const ferme = await refusDuDossierTenu(tx, entreprise);
       return {
         corps: {
@@ -266,7 +266,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       const l = (await tx.query(`select l.message, l.document, l.fournisseur, l.numero, to_char(l.date_piece, 'YYYY-MM-DD') date, l.total, l.devise, l.lu_le, u.nom lu_nom,
             l.source, l.detail
           from cabinet.lecture l left join socle.utilisateur u on u.id = l.lu_par
-         where l.cabinet = $1 and l.entreprise = $2 order by l.lu_le desc limit 2000`, [cabinet, entreprise])).rows as
+         where l.cabinet = $1 and l.entreprise = $2 order by l.lu_le desc limit 20000`, [cabinet, entreprise])).rows as
         { message: string | null; document: string | null; fournisseur: string | null; numero: string | null; date: string | null; total: string | null; devise: string | null; lu_le: Date; lu_nom: string | null;
           source: 'ia' | 'teif'; detail: DetailEfacture | null }[];
       // La lecture par l'IA se propose-t-elle ici : la clé du serveur, et le client ne l'a pas coupée (le même accord que
@@ -351,8 +351,11 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       if (!zip.length) return { statut: 400, corps: { motif: motif('commun.introuvable'), champ: 'contenu' } };
       if (zip.length > LIMITE_EXPORT) return { statut: 413, corps: { motif: motif('cabinet.classeur.export_lourd'), bouton: null } };
       await tx.query('delete from cabinet.export where cabinet = $1 and expire_le < now()', [cabinet]);
-      const e = (await tx.query(`insert into cabinet.export (cabinet, entreprise, nom, quoi, taille, contenu, cree_par) values ($1, $2, $3, $4, $5, $6, $7)
-        returning id, expire_le`, [cabinet, entreprise, corps.nom, corps.quoi, zip.length, zip, qui.utilisateur])).rows[0] as { id: string; expire_le: Date };
+      // Qui lit les bulletins du classeur peut les y avoir mis : l'export suit alors leur règle (0235), lu sous la sécurité par
+      // ligne de la personne (qui ne lit pas la paie ne voit aucun bulletin, donc n'en exporte aucun).
+      const paie = Boolean((await tx.query('select exists (select 1 from cabinet.document where cabinet = $1 and entreprise = $2 and paie) v', [cabinet, entreprise])).rows[0]?.v);
+      const e = (await tx.query(`insert into cabinet.export (cabinet, entreprise, nom, quoi, taille, contenu, cree_par, paie) values ($1, $2, $3, $4, $5, $6, $7, $8)
+        returning id, expire_le`, [cabinet, entreprise, corps.nom, corps.quoi, zip.length, zip, qui.utilisateur, paie])).rows[0] as { id: string; expire_le: Date };
       // Noté dans l'historique du dossier (la maquette) : qui l'a fait, quand, et ce qu'il contient.
       await tx.query('select socle.tracer($1, $2, $3, $4, null, $5)', [entreprise, 'cabinet.export', 'export', e.id, JSON.stringify({ nom: corps.nom, quoi: corps.quoi, taille: zip.length })]);
       return { statut: 201, corps: { id: e.id, expireLe: e.expire_le.toISOString(), taille: zip.length } };
@@ -402,6 +405,9 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
       const a = String(fiche?.email?.trim() || client?.email || '').trim();
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a)) return { statut: 409, corps: { motif: motif('cabinet.classeur.sans_adresse'), bouton: null } };
       const nomCabinet = String((await tx.query('select nom from socle.organisation where id = $1', [cabinet])).rows[0]?.nom ?? '');
+      // La règle (qui écrit au client, une fois par jour pour la même demande) et la trace, AVANT l'e-mail : un e-mail qui
+      // ne part pas annule la transaction, donc la trace (un second essai reste possible).
+      await tx.query('select messagerie.noter_courriel_demande($1, $2)', [entreprise, params.message]);
       await ctx.courriel.envoi.envoyer({
         a,
         objet: rendre(t('cabinet.classeur.courriel.objet', { cabinet: nomCabinet }), 'fr'),
@@ -409,7 +415,6 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
         bouton: rendre(t('cabinet.classeur.courriel.bouton'), 'fr'),
         langue: 'fr',
       });
-      await tx.query('select socle.tracer($1, $2, $3, $4, null, null)', [entreprise, 'cabinet.demande_courriel', 'message', params.message]);
       return { corps: { envoye: true } };
     },
   });
@@ -435,7 +440,7 @@ export function routesClasseur(ctx?: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/entreprises/:entreprise/cabinet/range', geste: 'messagerie.lire',
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.entreprise).success) return introuvable;
-      const l = (await tx.query('select * from cabinet.ce_que_mon_cabinet_a_range($1) order by depose_le desc limit 2000', [params.entreprise])).rows as
+      const l = (await tx.query('select * from cabinet.ce_que_mon_cabinet_a_range($1) order by depose_le desc limit 20000', [params.entreprise])).rows as
         { sorte: string; id: string; rubrique: string; categorie: string | null; periode: string | null; titre: string; nom: string; type: string; taille: number;
           depose_le: Date; depose_nom: string | null; cabinet_nom: string; jointe_le: Date | null; achat: string | null; achat_ref: string | null; ecriture_piece: string | null; fichier: string | null }[];
       return {

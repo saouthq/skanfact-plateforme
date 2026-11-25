@@ -93,6 +93,11 @@ describe('la fiche du cabinet', () => {
     expect((await reg(associe.jeton, { theme: 'light', deadlines: { tvaDay: 5, cnssDay: 15 } }, 2)).statut).toBe(200);
     // Ce qu'un associé a posé, le collaborateur le renvoie tel quel avec son propre changement.
     expect((await reg(amine.jeton, { theme: 'dark', deadlines: { tvaDay: 5, cnssDay: 15 } }, 3)).statut).toBe(200);
+    // (Vérification du Cabinet) Le contenu envoyé remplace tout : en OMETTRE un réglage de la direction l'effacerait. Il
+    // compte donc comme changé, et seul un associé peut l'effacer.
+    const omis = await reg(amine.jeton, { theme: 'light' }, 4);
+    expect([omis.statut, omis.corps.motif]).toEqual([403, 'Seul un associé du cabinet change les jours de dépôt (TVA, CNSS) : ce sont des réglages de tous les dossiers ; rien n\'a été enregistré.']);
+    expect((await admin.query('select contenu from cabinet.reglages where cabinet = $1', [cabinet])).rows[0].contenu.deadlines).toEqual({ tvaDay: 5, cnssDay: 15 });
     // Une personne hors du cabinet non plus.
     const autre = await personne('autre');
     expect((await appeler('PUT', `/cabinets/${cabinet}/nom`, autre.jeton, { nom: 'Cabinet Volé' })).statut).toBe(403);

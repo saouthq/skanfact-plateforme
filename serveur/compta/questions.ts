@@ -171,7 +171,7 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
           count(*) filter (where q.statut in ('ouverte', 'envoyee') and cardinality(q.envois) >= 2) a_relancer,
           count(*) filter (where q.statut = 'repondue') repondues
         from compta.question q
-        where q.entreprise in (select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif')
+        where q.cabinet = $1 and q.entreprise in (select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif')
         group by q.entreprise order by q.entreprise`, [params.cabinet]);
       return {
         corps: {

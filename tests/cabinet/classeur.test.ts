@@ -257,6 +257,11 @@ describe('le classeur d\'un dossier', () => {
     expect((await d.envoyer('_racine', 'company', { email: 'contact@elamal.tn' })).statut).toBe(200);
     expect((await courriel()).statut).toBe(200);
     expect(envoyes.map((x) => x.a)).toEqual(['contact@elamal.tn']);
+    // (Vérification du Cabinet) Un second clic le même jour ne renvoie pas le même e-mail : refusé en le disant.
+    const encore = await courriel();
+    expect([encore.statut, encore.corps.motif]).toEqual([403, 'Cette demande est déjà partie par e-mail aujourd\'hui : le client l\'a reçue.']);
+    expect(envoyes.length).toBe(1);
+    await admin.query(`update messagerie.message set courriel_le = now() - interval '25 hours' where id = $1`, [dem]);
     envoyes.length = 0;
     expect((await appeler('PUT', `/cabinets/${d.cab}/fiches/${d.ent}`, d.associe.jeton, { contenu: { email: 'sarra@boulangerie.tn' }, revision: null })).statut).toBeLessThan(300);
     expect((await courriel()).statut).toBe(200);
@@ -313,6 +318,15 @@ describe('le classeur d\'un dossier', () => {
     expect((await pdf(rim.jeton)).statut).toBe(200);
     expect((await pdf(d.associe.jeton)).statut).toBe(200);
     expect((await pdf(anis.jeton)).statut).toBe(404);
+    // (Vérification du Cabinet) Un export du classeur fait par qui lit les bulletins suit leur règle : la saisie ne le liste
+    // ni ne l'ouvre ; celui que fait la saisie (qui ne voit aucun bulletin) reste à tout le cabinet.
+    const unZip = Buffer.from('PK\u0003\u0004export').toString('base64');
+    const exp = String((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, rim.jeton, { nom: 'paie.zip', quoi: 'octobre', contenu: unZip })).corps.id);
+    const expSaisie = String((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, anis.jeton, { nom: 'pieces.zip', quoi: 'octobre', contenu: unZip })).corps.id);
+    const exportsDe = async (jeton: string) => ((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, jeton)).corps.exports as { id: string }[]).map((x) => x.id).sort();
+    expect(await exportsDe(d.associe.jeton)).toEqual([exp, expSaisie].sort());
+    expect(await exportsDe(anis.jeton)).toEqual([expSaisie]);
+    expect((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports/${exp}`, anis.jeton)).statut).toBe(404);
     // Pièces reçues › classées, sur tout le portefeuille (le classeur d'UN dossier lit ses documents à part) : le bulletin
     // n'y est pas pour la saisie.
     const classeesDe = async (jeton: string) => ((await appeler('GET', `/cabinets/${d.cab}/pieces?classees=1`, jeton)).corps.pieces as { id: string }[] | undefined ?? []).map((x) => x.id);

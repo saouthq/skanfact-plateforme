@@ -53,6 +53,10 @@
   if (poste) poste.pourLeCabinet();
   // Le dernier appel a manqué le réseau : « Enregistrer et valider » le dit avant d'écrire quoi que ce soit.
   let sansReseau = false;
+  // Le jour de Tunis d'un instant (maintenant par défaut) : un jour de calendrier, jamais le jour UTC (entre minuit et
+  // une heure à Tunis, l'UTC dit encore la veille).
+  /** @param {string | number | Date} [quand] */
+  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
   // La plus ancienne lecture relue sur le poste depuis l'ouverture : le bandeau dit de quand date ce qu'on voit.
   /** @type {number | null} */ let copieLe = null;
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
@@ -302,6 +306,8 @@
     try { localStorage.setItem('skanfact.entreprise', String(cabinetId)); } catch { /* sans stockage : l'entrée choisit */ }
     code = String(cab.code || '');
     proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');
+    // Lu en ligne, le portefeuille fait foi : ce que ce poste gardait d'un dossier qui n'y est plus s'efface.
+    if (poste && !sansReseau) poste.oublierAutresDossiers(cabinetId, (porte.dossiers || []).map((/** @type {any} */ d) => String(d.entreprise))).catch(() => { /* la prochaine lecture */ });
     dossiers.clear();
     const liste = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'actif').map((/** @type {any} */ d) => {
       dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });
@@ -484,7 +490,7 @@
     const presents = [...new Set([...toutes.map((e) => String(e.date).slice(0, 7)), ...ouverts.map((x) => String(x.du).slice(0, 7))])].sort();
     // Plus de paquets, donc plus de mois « manquants » : les livres du client sont à jour en direct.
     // Tous les mois, de janvier de la première année jusqu'au mois en cours (ou au dernier mois écrit).
-    const courant = new Date().toISOString().slice(0, 7);
+    const courant = jourDeTunis().slice(0, 7);
     const plusTard = presents.at(-1) ?? courant;
     const dernier = plusTard > courant ? plusTard : courant;
     /** @type {string[]} */ const mois = [];
@@ -822,7 +828,7 @@
     gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul,
     // 1.63.0 — le prorata avec lequel le bulletin a été calculé : un brut retouché au Cabinet n'en a plus (le moteur l'a dit).
     prorata: b.prorata || null,
-    paidDate: b.payeLe || '', issuedAt: (b.valideLe && String(b.valideLe).slice(0, 10)) || (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10), // (1.387.21) validé = établi ce jour-là
+    paidDate: b.payeLe || '', issuedAt: (b.valideLe && jourDeTunis(b.valideLe)) || (avant && avant.issuedAt) || jourDeTunis(), // (1.387.21) validé = établi ce jour-là
   });
   // Les congés et absences du dossier, dans la forme de l'entreprise.
   /** @param {any[]} objets */
@@ -947,7 +953,14 @@
   // Une écriture de la grille de saisie, pour le serveur : ses lignes remplies (la grille en garde
   // une vide au bout), ses montants en texte exact.
   /** @param {unknown} n */
-  const montant = (n) => (Number(n) ? (Math.round(Number(n) * 1000) / 1000).toFixed(3) : '');
+  // Un montant au millime près ; plus de décimales se refuse (la règle du serveur), il ne s'arrondit pas en silence : la
+  // grille montrerait une pièce juste que le serveur refuserait, ou un autre montant que celui tapé.
+  const montant = (n) => {
+    const x = Number(n);
+    if (!x) return '';
+    if (Math.abs(Math.round(x * 1000) - x * 1000) > 1e-6) throw new Error(`Un montant s'écrit au millime près (trois décimales) : ${String(n).replace('.', ',')} en a plus.`);
+    return (Math.round(x * 1000) / 1000).toFixed(3);
+  };
   /** @param {any} ec */
   function versLeServeur(ec) {
     return {
@@ -959,8 +972,8 @@
   }
 
   // La fiche : les champs de la liste, rien d'autre ; les honoraires en millimes.
-  /** @param {string} ent @param {Record<string, unknown>} f @param {number | null} revision */
-  async function poserFiche(ent, f, revision) {
+  /** @param {Record<string, unknown>} f */
+  function contenuDeFiche(f) {
     /** @type {Record<string, unknown>} */ const contenu = {};
     for (const k of TEXTES_FICHE) if (f[k] != null) contenu[k] = String(f[k]);
     if (f.archived != null) contenu.archived = !!f.archived;
@@ -995,6 +1008,11 @@
       if (pa.regle && typeof pa.regle === 'object') /** @type {any} */ (contenu.paie).regle = pa.regle;
       if (pa.copieDe) /** @type {any} */ (contenu.paie).copieDe = String(pa.copieDe);
     }
+    return contenu;
+  }
+  /** @param {string} ent @param {Record<string, unknown>} f @param {number | null} revision */
+  async function poserFiche(ent, f, revision) {
+    const contenu = contenuDeFiche(f);
     const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
     if (contenu.paie) {
       delete /** @type {any} */ (contenu.paie).copieDe;
@@ -1357,7 +1375,7 @@
         const e = encodeURIComponent(entreprise);
         const suivi = /** @type {any} */ (await appel('GET', `/cabinets/${cabinetId}/suivi/${e}`)) || {};
         const deja = suivi.rappel ? String(suivi.rappel).slice(0, 10) : '';
-        const auj = new Date().toISOString().slice(0, 10);
+        const auj = jourDeTunis();
         const garde = deja && deja > auj && deja <= le ? deja : '';
         if (!garde) await appel('PUT', `/cabinets/${cabinetId}/rappels/${e}`, { le });
         await appel('POST', `/cabinets/${cabinetId}/notes/${e}`, { texte: `Rappel du ${le.slice(8, 10)}/${le.slice(5, 7)} : ${texte}` });
@@ -2586,8 +2604,9 @@
       const nom = String(f.name || '').trim();
       if (!nom) throw new Error('Donne au moins un nom à ce client.');
       const matricule = String(f.matricule || '').trim();
-      const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: nom, ...(matricule ? { matriculeFiscal: matricule } : {}) });
-      await poserFiche(cree.entreprise, f, null);
+      // (Vérification du Cabinet) Le dossier et sa fiche dans la même transaction : une fiche refusée ne laisse pas un
+      // dossier sans fiche, qu'un second essai doublerait.
+      const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: nom, ...(matricule ? { matriculeFiscal: matricule } : {}), fiche: contenuDeFiche(f) });
       return { state: await construireEtat(), id: cree.entreprise };
     },
     // Une liste de clients collée (brique 52 ; docs/cabinet.md, C42) : lue par la v10 (parseDossierLines,
@@ -2606,7 +2625,7 @@
       for (const { d, matricule } of /** @type {any[]} */ (lus)) {
         let cree;
         try {
-          cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}) });
+          cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}), fiche: contenuDeFiche(d) });
         } catch (e) {
           // Une ligne que le serveur refuse (son matricule déjà celui d'une entreprise sur SkanFact : E5) arrête la liste :
           // le refus nomme la ligne, et dit ce qui est déjà entré (la liste s'arrêtait au milieu, sans un mot de plus).
@@ -2615,7 +2634,7 @@
           const entres = added ? (added === 1 ? 'Le client d\'avant est ajouté' : `Les ${added} clients d'avant sont ajoutés`) : 'Aucun client n\'a été ajouté';
           throw new Error(`« ${d.name} » : ${raison} ${entres} ; ${x.champ ? 'retire ou corrige cette ligne, puis ajoute' : 'ajoute'} la liste de nouveau : les clients déjà dans ton portefeuille seront ignorés.`, { cause: e });
         }
-        await poserFiche(cree.entreprise, d, null);
+        void cree;
         added++;
       }
       return { added, ignorés: r.ignorés, state: await construireEtat() };
@@ -2753,7 +2772,7 @@
     lettrageAuto: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
-      const r = KC.lettrageAuto(livre, o.compte, { jours: o.jours, par: 'auto', date: new Date().toISOString().slice(0, 10) });
+      const r = KC.lettrageAuto(livre, o.compte, { jours: o.jours, par: 'auto', date: jourDeTunis() });
       /** @type {any[]} */ const poses = [];
       for (const p of r.poses) {
         const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: p.ecritures });

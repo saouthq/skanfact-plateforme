@@ -107,6 +107,18 @@
   }
   /** @param {string} cabinet @param {string} chemin */
   const relireLecture = async (cabinet, chemin) => (garde() ? relire('copies', `c:${cabinet}:${chemin}`) : null);
+  // Le portefeuille lu en ligne fait foi : ce que le Cabinet gardait d'un dossier qui n'y est plus (le mandat arrêté, un
+  // dossier repris par un autre membre) s'efface ; sans réseau, ce dossier ne se relit donc plus sur ce poste.
+  /** @param {string} cabinet @param {string[]} gardes les dossiers du portefeuille */
+  async function oublierAutresDossiers(cabinet, gardes) {
+    if (enLecture) return;
+    const garder = new Set(gardes);
+    const prefixe = `c:${cabinet}:`;
+    /** @type {IDBValidKey[]} */ const cles = (await faire('copies', 'readonly', (s) => s.getAllKeys())) || [];
+    const dossierDe = (/** @type {string} */ chemin) => (/^\/entreprises\/([0-9a-f-]{36})/.exec(chemin) || /^\/cabinets\/[^/]+\/[a-z-]+\/([0-9a-f-]{36})/.exec(chemin) || [])[1];
+    const parties = cles.map(String).filter((k) => k.startsWith(prefixe)).filter((k) => { const d = dossierDe(k.slice(prefixe.length)); return !!d && !garder.has(d); });
+    if (parties.length) await faire('copies', 'readwrite', (s) => { for (const k of parties) s.delete(k); return s.count(); });
+  }
   // (27/10/2026, maquette achat « brouillon gardé à chaque frappe ») Un achat commencé, pas encore enregistré : gardé sur
   // « mon ordinateur », chiffré comme la copie, pour le reprendre si l'onglet se ferme. Un achat enregistré compte (TVA,
   // stock, écritures) : un brouillon ne peut donc pas vivre parmi les achats ; il vit ici, et jamais pendant une lecture
@@ -433,7 +445,7 @@
   window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
-    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, garderBrouillon, relireBrouillon, effacerBrouillon, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure, refuser,
+    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, oublierAutresDossiers, garderBrouillon, relireBrouillon, effacerBrouillon, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure, refuser,
     horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse, ouverture, finOuverture, echecOuverture,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
     pourLeCabinet: () => { cabinet = true; },

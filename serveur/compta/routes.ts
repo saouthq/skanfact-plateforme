@@ -99,7 +99,7 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
       const corrigee = (id: string, type: string) => miroirs.some((x) => x.origine === id && x.origine_type === type);
       // La lettre de chaque ligne lettrée (brique 38).
       // (1.378.3) Et le jour où elle a été posée : le FEC le porte (DateLet).
-      const jourLettre = (le: Date | string | undefined) => (le ? new Date(le).toISOString().slice(0, 10) : null);
+      const jourLettre = (le: Date | string | undefined) => (le ? new Date(le).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null); // le jour de Tunis
       const lettres = new Map(lignes.length
         ? (await db.selectFrom('compta.ligne_lettree as t').innerJoin('compta.lettrage as g', 'g.id', 't.lettrage')
           .select(['t.ligne', 'g.lettre', 'g.cree_le']).where('t.ligne', 'in', lignes.map((l) => l.id)).execute()).map((x) => [x.ligne, { lettre: x.lettre, le: x.cree_le }] as const)
