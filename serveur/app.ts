@@ -9,6 +9,7 @@ import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, 
 import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
 import { brancherFermeture } from './fermeture.ts';
+import { ecritPendantLectureSeule, lireLectureSeule, refusLectureSeule } from './lecture-seule.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
@@ -305,6 +306,12 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
         if (qui.caisseDe) {
           if (!GESTES.has(r.geste) && r.geste !== 'compte.deconnecter') return envoyer(403, { motif: motif('porte.session_de_caisse'), qui: [], bouton: 'session_de_caisse' });
           if (GESTES.has(r.geste) && params.entreprise !== qui.caisseDe) return envoyer(404, { motif: motif('commun.introuvable') });
+        }
+        // (1.388.75, base 0230) La lecture seule générale : tout se lit, rien de ce qui écrit ne passe, jusqu'à l'heure dite.
+        if (ecritPendantLectureSeule(r.geste, r.methode)) {
+          const ici = (ctx.maintenant ?? (() => new Date()))();
+          const l = await lireLectureSeule(ctx, ici);
+          if (l) return envoyer(503, refusLectureSeule(l, ici));
         }
 
         try {

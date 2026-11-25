@@ -951,6 +951,17 @@ export interface BaseDeDonnees {
     courriel: string | null;
     courriel_le: Date | null;
   };
+  'plateforme.lecture_seule': {
+    id: Generated<bigint>;
+    message: string | null;
+    motif: string;
+    debut: Date;
+    fin: Date;
+    posee_le: Date;
+    posee_par: string;
+    levee_le: Date | null;
+    levee_par: string | null;
+  };
   'plateforme.lecture_support': {
     id: Generated<string>;
     acces: string;

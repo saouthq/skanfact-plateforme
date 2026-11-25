@@ -13,11 +13,12 @@ import { entier } from '../nombres.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { Modules } from './Modules.tsx';
+import { Pilotage } from './Pilotage.tsx';
 
 const K = 'console.ecran.reglages';
 
-export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages' | 'nouveautes' | 'modules';
-export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages', 'nouveautes', 'modules'];
+export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages' | 'nouveautes' | 'modules' | 'pilotage';
+export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages', 'nouveautes', 'modules', 'pilotage'];
 
 type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
@@ -1556,6 +1557,7 @@ export function Reglages({ onglet: demande, entreprise = null }: { onglet: strin
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'nouveautes' ? <Nouveautes d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'modules' ? <Modules entreprise={entreprise} /> : null}
+      {d && onglet === 'pilotage' ? <Pilotage /> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'contenu' ? <FenetreContenu d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />

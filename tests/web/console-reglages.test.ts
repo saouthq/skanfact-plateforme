@@ -919,6 +919,88 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 150_000);
 
+  it('1.388.75 : la lecture seule générale — posée dans la console, le client lit, son enregistrement est refusé avec l\'heure du retour, puis levée', async () => {
+    const tit = (await admin.query('select e.titulaire from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur where u.email = $1', [adresses['Amira Réglages']])).rows[0];
+    if (!tit?.titulaire) await designerTitulaire(admin, adresses['Amira Réglages'] ?? '', 'essai des réglages à la souris');
+    // Une entreprise neuve, créée avant (créer une entreprise est un enregistrement, que la lecture seule refuserait).
+    const neuve = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Atelier lecture seule' })).corps.id);
+    const p = await console_(jD, 'pilotage');
+    await p.locator('#rg-lecture-seule').waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#rg-lecture-seule-etat').innerText())).toBe('Ouvert Le site est ouvert : les clients lisent et enregistrent normalement.');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-pilotage.png') });
+    await cliquer(p.getByRole('button', { name: 'Mettre en lecture seule…' }));
+    const f = p.getByRole('dialog');
+    // Ce qui va se passer est dit avant le geste ; la durée choisie (2 h) se lit dans la première ligne, et l'aperçu suit.
+    await f.getByText('2 h', { exact: true }).click();
+    await f.locator('textarea').first().fill('Nous déplaçons vos données vers un serveur plus rapide.');
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/^Ce qui va se passer Tout de suite, et jusqu'au .+ : le site revient de lui-même à cette heure, même si personne ne le lève\. Les clients et les cabinets lisent tout/);
+    expect(net(await f.locator('.c-mod-bandeau').innerText())).toMatch(/^Lecture seule Jusqu'à .+ : tu peux tout consulter, mais rien ne s'enregistre pour l'instant\. Nous déplaçons vos données vers un serveur plus rapide\.$/);
+    // Sans motif : le refus le dit, rien ne part.
+    await cliquer(f.getByRole('button', { name: 'Mettre en lecture seule', exact: true }));
+    expect(net(await f.locator('.c-alerte, [role="alert"]').last().innerText())).toMatch(/motif/i);
+    await f.locator('textarea').last().fill('Migration de la base vers le nouveau disque');
+    await f.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-pilotage-fenetre.png') });
+    await cliquer(f.getByRole('button', { name: 'Mettre en lecture seule', exact: true }));
+    await expect.poll(async () => net(await p.locator('#rg-lecture-seule-etat').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Lecture seule Le site est en lecture seule jusqu'au .+ : les clients lisent, et chaque enregistrement leur est refusé avec l'heure du retour\. Posée le .+ par Amira Réglages · Migration de la base vers le nouveau disque\. « Nous déplaçons vos données vers un serveur plus rapide\. » Lever la lecture seule…$/);
+    // Le bouton « Mettre en lecture seule… » disparaît tant qu'elle court ; le journal de la console la nomme.
+    expect(await p.getByRole('button', { name: 'Mettre en lecture seule…' }).count()).toBe(0);
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-pilotage-en-cours.png') });
+
+    // Le client, sur une entreprise neuve (le premier chargement enregistre son dossier : refusé, sans fenêtre d'alarme) :
+    // le bandeau orange en haut de chaque page, sans « Plus tard » ; il lit ses pages.
+    const c = await client(neuve);
+    const bandeau = c.locator('#view > .sk-message');
+    await expect.poll(() => bandeau.count(), { timeout: 20_000 }).toBe(1);
+    // L'application enregistre son dossier au premier chargement : refusé, ce n'est pas une panne — aucune fenêtre
+    // « Rien n'a été enregistré », une phrase calme qui dit que ce qui est à l'écran est gardé et repartira seul.
+    await expect.poll(async () => net(await c.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^SkanFact est en lecture seule jusqu'à .+ : ce qui est à l'écran est gardé, et l'application l'enregistre d'elle-même dès la fin, tant qu'elle reste ouverte\.$/);
+    expect(await c.locator('#modal-root .modal').count()).toBe(0);
+    expect(await bandeau.getAttribute('class')).toContain('sk-message-lecture');
+    expect(net(await bandeau.innerText())).toMatch(/^Lecture seule Jusqu'à .+ : tu peux tout consulter, mais rien ne s'enregistre pour l'instant\. Nous déplaçons vos données vers un serveur plus rapide\.$/);
+    expect(await bandeau.locator('.sk-message-plus-tard').count()).toBe(0);
+    await c.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-lecture-seule-bandeau.png') });
+    // Il essaie d'enregistrer (une case des Paramètres) : le refus dit pourquoi et jusqu'à quand ; la case revient à sa place.
+    await c.evaluate(() => { location.hash = '#/parametres'; });
+    await c.locator('#set-tabs [data-tab="app"]').click();
+    const caseVol = c.locator('#vol-beta');
+    await caseVol.waitFor({ timeout: 10_000 });
+    // Le bandeau reste en haut des Paramètres (une page en deux temps l'emportait).
+    expect(await c.locator('#view > .sk-message.sk-message-lecture').count()).toBe(1);
+    const avant = await caseVol.isChecked();
+    await c.locator('#p-volontaire').scrollIntoViewIfNeeded();
+    await c.locator('#vol-beta-libelle').click();
+    await expect.poll(async () => net(await c.locator('#vol-beta-dit').innerText()), { timeout: 10_000 }).toMatch(/^SkanFact est en lecture seule jusqu'à .+ : tu peux tout consulter, mais rien ne s'enregistre pour l'instant\. Réessaie après .+\. Nous déplaçons vos données vers un serveur plus rapide\.$/);
+    expect(await caseVol.isChecked()).toBe(avant);
+    await c.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-lecture-seule-refus.png') });
+
+    // Lever : la console demande un motif, le site rouvre, le client enregistre de nouveau.
+    await cliquer(p.getByRole('button', { name: 'Lever la lecture seule…' }));
+    const g = p.getByRole('dialog');
+    expect(net(await g.innerText())).toContain('La lever rouvre l\'enregistrement aux clients tout de suite.');
+    await g.locator('textarea').fill('Migration finie plus tôt que prévu');
+    await cliquer(g.getByRole('button', { name: 'Lever maintenant' }));
+    await expect.poll(async () => net(await p.locator('#rg-lecture-seule-etat').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ouvert/);
+    expect(net(await p.locator('.c-pil-histo').innerText())).toMatch(/Levée le .+ par Amira Réglages.*Migration de la base vers le nouveau disque/);
+    await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(RACINE, 'dist/photos', 'console-reglages-pilotage-levee.png') });
+    await c.waitForTimeout(5_500);
+    await c.locator('#vol-beta-libelle').click();
+    await expect.poll(async () => net(await c.locator('#vol-beta-dit').innerText()), { timeout: 10_000 }).toMatch(/^C'est noté/);
+    await c.reload();
+    await expect.poll(() => c.locator('#view .page-head h1').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await c.waitForTimeout(1_000);
+    expect(await c.locator('#view > .sk-message.sk-message-lecture').count()).toBe(0);
+    // Le support lit la page, sans aucun geste.
+    const s2 = await console_(jS, 'pilotage');
+    await s2.locator('#rg-lecture-seule').waitFor({ timeout: 15_000 });
+    expect(await s2.getByRole('button', { name: 'Mettre en lecture seule…' }).count()).toBe(0);
+    expect(net(await s2.locator('section[aria-labelledby="rg-lecture-seule"]').innerText())).toContain('seul le titulaire de la console (Amira Réglages) pilote le site');
+    expect(erreurs).toEqual([]);
+    await fermer(s2);
+    await fermer(c);
+    await fermer(p);
+    await admin.query("delete from plateforme.lecture_seule where motif = 'Migration de la base vers le nouveau disque'");
+  }, 120_000);
+
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {
       const p = await console_(jD, onglet, 390, 844);

@@ -35,6 +35,8 @@ declarerTextes({
   'modules.compta.nom': 'Comptabilité', 'modules.compta.quoi': 'les écritures et les déclarations',
   'geste.console.modules.voir': 'voir l\'état des modules (ouvert, bêta, à venir, fermé) et leurs exceptions',
   'geste.console.modules.poser': 'changer l\'état d\'un module, pour tous ou pour une entreprise',
+  'geste.console.lecture_seule.voir': 'voir si le site est en lecture seule',
+  'geste.console.lecture_seule.poser': 'mettre le site en lecture seule, ou la lever',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
   'geste.console.support.voir': 'lire les demandes de support',

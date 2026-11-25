@@ -16,3 +16,10 @@ body.dark .banner.info.sk-message-nouveaute { color: var(--primary-hover); }
 /* Quatre classes : il passe devant le fond de `.banner.info` et du vert d'une nouveauté. */
 .banner.info.sk-message.sk-message-cache { align-items: center; background: transparent; border: 1px dashed var(--line); }
 .sk-message-cache .sk-message-texte { color: var(--muted); }
+/* (1.388.75) La lecture seule (base 0230) : dans l'orange d'avertissement de la v10 (clair comme sombre, ses variables) —
+   rien ne s'enregistre, c'est la chose à savoir avant de taper. Prévue, elle garde le bleu d'information. Elle ne se cache
+   pas : le texte prend la ligne entière. */
+.banner.info.sk-message-lecture { background: var(--warning-soft); color: var(--warning); }
+/* La pastille garde sa taille : la règle des bandeaux de la charte (charte.css, `.banner > span:first-of-type`) étirait
+   le premier `span` — ici la pastille, sur la moitié du bandeau. Cinq sélecteurs, pour passer devant ses quatre. */
+.banner.sk-message > span.sk-message-sorte:not(.db-ico):first-of-type { flex: 0 0 auto; }

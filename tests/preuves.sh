@@ -11708,7 +11708,7 @@ prouver "« Plus tard » qui fait remonter la page sous le curseur" web/public/p
   '      el.style.minHeight = getComputedStyle(el).height;' "" \
   "$RGW4"
 prouver "les deux sortes de message dans la même couleur" web/public/plateforme/message.js \
-  'el.className = `banner info sk-message sk-message-${m.sorte === '"'"'maintenance'"'"' ? '"'"'maintenance'"'"' : '"'"'nouveaute'"'"'}`;' "el.className = 'banner info sk-message';" \
+  'el.className = `banner info sk-message sk-message-${classeDe(m.sorte)}`;' "el.className = 'banner info sk-message';" \
   "$RGW4"
 prouver "« Écrit par » fini d'un point après les deux-points" $RGE \
   '{titre(`${K}.m.ecrit_par`, { nom: m.par' '{phrase(`${K}.m.ecrit_par`, { nom: m.par' \
@@ -32300,6 +32300,28 @@ prouver "la garde de la base ignore la part" base/migrations/0229_ouverture_prog
 prouver "le rang de la base diffère de celui du serveur" base/migrations/0229_ouverture_progressive.sql \
   "  select (('x' || substr(md5(p_module || ':' || p_entreprise::text), 1, 8))::bit(32)::bigint % 100)::int;" "  select (('x' || substr(md5(p_entreprise::text || ':' || p_module), 1, 8))::bit(32)::bigint % 100)::int;" \
   "le rang d'une entreprise est stable"
+# 1.388.75 — La lecture seule générale (pilotage, point 5 ; base 0230).
+prouver "la lecture seule ne refuse rien" serveur/app.ts \
+  "if (l) return envoyer(503, refusLectureSeule(l, ici));" "if (l && false) return envoyer(503, refusLectureSeule(l, ici));" \
+  "poser, refuser, annoncer, lever — et la console reste ouverte"
+prouver "un geste personnel écrit pendant la lecture seule" serveur/lecture-seule.ts \
+  "return PERSONNELS.has(geste) && geste !== 'public';" "return false;" \
+  "se déconnecter, configurer son code et faire un PDF restent permis ; créer une entreprise, non"
+prouver "se déconnecter est refusé pendant la lecture seule" serveur/lecture-seule.ts \
+  "const PERMIS = new Set(['compte.deconnecter', 'compte.code.configurer', 'compte.pdf.imprimer', 'compte.voir']);" "const PERMIS = new Set(['compte.code.configurer', 'compte.pdf.imprimer', 'compte.voir']);" \
+  "se déconnecter, configurer son code et faire un PDF restent permis ; créer une entreprise, non"
+prouver "une lecture seule dure plus de douze heures" base/migrations/0230_lecture_seule.sql \
+  "if p_fin > v_debut + interval '12 hours' then" "if p_fin > v_debut + interval '1200 hours' then" \
+  "poser, refuser, annoncer, lever — et la console reste ouverte"
+prouver "une lecture seule levée court encore" base/migrations/0230_lecture_seule.sql \
+  "where l.levee_le is null and l.debut <= p_maintenant and l.fin > p_maintenant" "where l.debut <= p_maintenant and l.fin > p_maintenant" \
+  "poser, refuser, annoncer, lever — et la console reste ouverte"
+prouver "deux lectures seules au même moment" base/migrations/0230_lecture_seule.sql \
+  "where levee_le is null and fin > p_maintenant and debut < p_fin and fin > v_debut" "where false" \
+  "poser, refuser, annoncer, lever — et la console reste ouverte"
+prouver "le bandeau tait la lecture seule" serveur/console/message-clients.ts \
+  "if (lecture) return { corps: { aujourdhui: jour, message: lecture } };" "if (lecture && false) return { corps: { aujourdhui: jour, message: lecture } };" \
+  "poser, refuser, annoncer, lever — et la console reste ouverte"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

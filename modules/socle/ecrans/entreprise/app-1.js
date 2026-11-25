@@ -307,7 +307,24 @@
   // (1.155.0, maquette « enregistrement en échec ») Sur la page d'une pièce de la charte, l'échec se dit dans la page :
   // un bandeau, « pas encore enregistré », et un nouvel essai tout seul ; la fenêtre reste pour le reste de l'application.
   let echecDansLaPage = null;
+  // (1.388.75, base 0230) La lecture seule générale : le serveur refuse ce qui écrit, jusqu'à l'heure dite. Ce n'est pas
+  // une panne : pas de fenêtre d'alarme (elle s'ouvrait même au chargement, pour un enregistrement que personne n'avait
+  // demandé), une phrase calme une fois par lecture seule — le bandeau dit déjà jusqu'à quand —, et l'enregistrement
+  // repart de lui-même toutes les deux minutes, puis à la fin : levée plus tôt, rien n'attend l'heure prévue.
+  let lectureSeuleDite = '', lectureSeuleMinuteur = 0;
+  function attendreLectureSeule(e, ditDansLaPage) {
+    const fin = String(e.lectureSeule.fin);
+    if (!ditDansLaPage && lectureSeuleDite !== fin) {
+      lectureSeuleDite = fin;
+      const heure = new Date(fin).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: '2-digit', minute: '2-digit' }).replace(':', ' h ');
+      toast(`SkanFact est en lecture seule jusqu'à ${heure} : ce qui est à l'écran est gardé, et l'application l'enregistre d'elle-même dès la fin, tant qu'elle reste ouverte.`, 'info');
+    }
+    clearTimeout(lectureSeuleMinuteur);
+    lectureSeuleMinuteur = setTimeout(() => save(true), Math.max(5_000, Math.min(120_000, Date.parse(fin) - Date.now() + 5_000)));
+  }
   function echecEnregistrement(e) {
+    // Une pièce ouverte dit le refus dans sa page ; en lecture seule, l'enregistrement repart en plus de lui-même.
+    if (e && e.lectureSeule && e.lectureSeule.fin) { attendreLectureSeule(e, !!(echecDansLaPage && echecDansLaPage(e))); return; }
     if (echecDansLaPage && echecDansLaPage(e)) return;
     if (echecOuvert) return;
     echecOuvert = true;
@@ -1122,13 +1139,14 @@
     ko: '<svg class="toast-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>',
     annuler: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
   };
+  // (1.388.75) `isError === 'info'` : ni réussite ni panne (la lecture seule) — le cercle d'information, sans le rouge.
   function toast(msg, isError) {
     const t = $('#toast');
     // (plateforme) 1.81.0 — 2,6 s pour tout message : un refus de deux phrases disparaissait avant la fin de sa lecture.
     // Le temps de le lire (environ 60 ms par caractère), jamais moins de 6 s (la charte, 1.153.0) ni plus de 8 s.
     const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));
     t.innerHTML = `${isError ? TOAST_IC.ko : TOAST_IC.ok}<span class="toast-txt">${h(msg)}</span><span class="temps" style="--toast-duree:${duree}ms"></span>`;
-    t.className = 'show' + (isError ? ' error' : '');
+    t.className = 'show' + (isError === 'info' ? '' : isError ? ' error' : '');
     clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', duree);
   }
 
@@ -4029,6 +4047,9 @@
     Promise.resolve(dessine).then(() => { if (!$('#view > .demo-banner') && routeOf(location.hash) === name) bandeauDemo(name); }, () => {});
     // (plateforme) Le message de SkanFact à tous ses clients (0093), posé APRÈS l'exemple pour passer au-dessus de lui.
     if (bridge.poserMessage) bridge.poserMessage(view);
+    // (1.388.75) Comme le bandeau de l'exemple : une page en deux temps (les Paramètres) emportait aussi le message — et la
+    // lecture seule ne se lisait plus là où l'on tente justement d'enregistrer un réglage.
+    Promise.resolve(dessine).then(() => { if (bridge.poserMessage && routeOf(location.hash) === name) bridge.poserMessage(view); }, () => {});
     // (plateforme, Support S1) Une réponse du support à lire : le bandeau passe au-dessus de tout (il appelle un geste).
     if (bridge.support) bridge.support.poser(view);
     // (plateforme, Support S2) La demande d'accès de l'équipe SkanFact, ou l'accès qui court : en haut de tout (on y décide).

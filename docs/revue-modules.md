@@ -7431,3 +7431,29 @@ Skander, 25/11/2026 : « ouvrir un module à 10 %, 50 %, 100 % des entreprises �
 - Le même tirage vit dans la base (`plateforme.rang_module`) et dans le serveur (`rangModule`) ; un test les confronte
   sur deux cents entreprises, et vérifie qu'une part de 50 % en prend à peu près la moitié.
 - Base : migration 0229 (`part`, `rang_module`, `console_progressif`).
+
+## 1.388.75 — La lecture seule générale (pilotage, point 5)
+
+Skander, 25/11/2026 : « tout le site en lecture pendant une grosse opération sur la base ».
+
+- **Dans la console, un septième onglet des Réglages : « Pilotage du site »**, réservé au titulaire pour les gestes (toute
+  l'équipe lit). « Mettre en lecture seule… » : tout de suite ou à une date, pour 30 min, 1 h, 2 h, 4 h ou 12 h (douze
+  heures au plus), avec un message facultatif aux clients et un motif. La fenêtre dit ce qui va se passer et montre
+  le bandeau exact que verront les clients. Pendant qu'elle court, l'état se lit en orange avec qui l'a posée et
+  pourquoi ; « Lever la lecture seule… » la termine tout de suite (avec un motif). Une prévue s'annule. Les lectures
+  seules passées restent listées (levée, annulée, finie d'elle-même).
+- **Chez les clients et les cabinets** : tout se lit (pages, pièces, comptes, PDF). Chaque geste qui écrit reçoit une
+  réponse 503 avec la phrase « SkanFact est en lecture seule jusqu'à 18 h 30 : tu peux tout consulter, mais rien ne
+  s'enregistre pour l'instant. Réessaie après 18 h 30. » (et le message, s'il y en a un). Se connecter, se déconnecter,
+  configurer son code et faire un PDF restent possibles ; la console reste ouverte.
+- **Un bandeau orange en haut de chaque page** (« Lecture seule » — jusqu'à quand), qui ne se cache pas ; une lecture
+  seule prévue s'annonce dans les vingt-quatre heures qui précèdent, en bleu. Il passe avant le message du jour.
+- **Ce qui est à l'écran n'est pas perdu** : l'enregistrement automatique de l'application, refusé, ne montre plus la
+  fenêtre « Rien n'a été enregistré » (elle s'ouvrait même au chargement, sans que personne ait rien demandé) ; une
+  phrase calme le dit une fois, et l'application réessaie d'elle-même toutes les deux minutes, puis à la fin.
+- Trouvé en testant à l'écran : sur une page qui se dessine en deux temps (les Paramètres), le message de SkanFact
+  disparaissait ; il revient une fois la page posée. Et la pastille du message (« Nouveauté », « Lecture seule ») ne
+  s'étire plus sur la moitié du bandeau.
+- Base : migration 0230 (`lecture_seule`, `lecture_seule_en_cours`, `lecture_seule_prevue`, `console_poser_lecture_seule`,
+  `console_lever_lecture_seule`, `console_lectures_seules`). Rien ne tourne en tâche de fond : le serveur compare à
+  son heure à chaque requête (relue au plus toutes les cinq secondes).

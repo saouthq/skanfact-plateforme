@@ -14,6 +14,7 @@ import { faitsDe } from '../abonnement/condition.ts';
 import { etatAbonnement } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { lireCible, publicsDe, vise as viseLesPublics } from './diffusion.ts';
+import { bandeauLectureSeule } from '../lecture-seule.ts';
 
 export type MessageClients = { id: string; sorte: 'nouveaute' | 'maintenance'; texte: string; du: string; au: string };
 
@@ -45,6 +46,10 @@ export function routesMessageClients(maintenant: () => Date = () => new Date()):
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const jour = aujourdhuiATunis(maintenant());
+      // (1.388.75, base 0230) La lecture seule générale, en cours ou prévue dans les vingt-quatre heures, passe avant le
+      // message du jour : elle dit à chacun pourquoi rien ne s'enregistre, et jusqu'à quand.
+      const lecture = await bandeauLectureSeule(tx, maintenant());
+      if (lecture) return { corps: { aujourdhui: jour, message: lecture } };
       const m = lireMessageClients((await tx.query('select plateforme.message_du_jour($1::date) m', [jour])).rows[0]?.m);
       return { corps: { aujourdhui: jour, message: m && await vise(tx, params.entreprise ?? '', m.id, jour) ? m : null } };
     },

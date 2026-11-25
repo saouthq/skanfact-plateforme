@@ -174,7 +174,7 @@
       // Le bouton qui débloque, quand le serveur le nomme (brique 81 : « Désigner le signataire »…).
       /** @type {any} */ (e).bouton = typeof lu.bouton === 'string' ? lu.bouton : null;
       // Le champ qu'un refus désigne (E5 : le matricule de la fiche, déjà celui d'une autre entreprise).
-      /** @type {any} */ (e).champ = typeof lu.champ === 'string' ? lu.champ : null;
+      /** @type {any} */ (e).champ = typeof lu.champ === 'string' ? lu.champ : null; /** @type {any} */ (e).lectureSeule = lu.lectureSeule || null; // (1.388.75) jusqu'à quand
       throw e;
     }
     return lu;

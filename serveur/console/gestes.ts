@@ -101,6 +101,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // avec son motif, au journal.
   { code: 'console.modules.voir', roles: [D, S], ecrit: false },
   { code: 'console.modules.poser', roles: [D], ecrit: true },
+  // (1.388.75) La lecture seule générale (0230) : toute l'équipe lit l'état ; le titulaire seul la pose et la lève (la base
+  // le revérifie), avec son motif, au journal.
+  { code: 'console.lecture_seule.voir', roles: [D, S, T], ecrit: false },
+  { code: 'console.lecture_seule.poser', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {
