@@ -7566,3 +7566,9 @@ Skander, 25/11/2026 : « la console ne s'ouvre que depuis les connexions du titu
   celle de la requête, derrière les relais déclarés : la même que celle des limites d'appels.
 - Tests : `tests/modules/adresses-console.test.ts` (6), le parcours à la souris dans `tests/web/console-reglages.test.ts`
   (captures `console-adresses*.png`), onze preuves.
+
+## 1.388.80 — Un test d'écran qui dit ce qu'il voit
+
+Le test « au téléphone, Clients » de la recette de la console tombe sur GitHub seulement (le journal ne montre
+aucun geste), et passe ici dans tous les ordres. Plutôt que de deviner : s'il retombe, il écrit dans son échec ce
+que l'écran du journal montre. Aucun changement de l'application.
