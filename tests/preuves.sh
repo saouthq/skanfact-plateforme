@@ -3608,7 +3608,7 @@ prouver "rouverte, le conflit passé sous silence" $PONT \
 " "" \
   "$HE3"
 prouver "se déconnecter sans demander, des changements en attente" $PONT \
-  "    if (attenteGardee && !(await poste.demander(" "    if (false && !(await poste.demander(" \
+  "    if ((attenteGardee || nonEnregistre) && !(await poste.demander(" "    if (false && !(await poste.demander(" \
   "$HE4"
 prouver "les réglages du dossier comptés comme des changements" $PONT \
   "  const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;" "  const compter = (changements) => changements.length;" \
@@ -3651,8 +3651,7 @@ prouver "l'appareil retiré qui garde ce qu'il gardait" $PONT \
     location.replace('/');" \
   "$AW1"
 prouver "l'entrée qui tait que l'appareil est retiré" web/src/App.tsx \
-  "        if (r.corps.effacer) toast(r.corps.motif ?? '', true);
-" "" \
+  'if (r.corps.effacer) try { sessionStorage.setItem('"'"'skanfact.sortie'"'"', '"'"'retire'"'"');' 'if (false) try { sessionStorage.setItem('"'"'skanfact.sortie'"'"', '"'"'retire'"'"');' \
   "$AW1"
 # Depuis le lot onboarding (0076), la liste vit dans compte.js, partagé avec le Cabinet.
 prouver "retirer un appareil sans demander" web/public/plateforme/compte.js \
@@ -7813,7 +7812,7 @@ prouver "« Guide-moi » qui propose encore d'envoyer le paquet du mois" $PONT \
   ", 'recevoir-cloture', 'paquet'];" ", 'recevoir-cloture'];" \
   "$VMA"
 prouver "le panneau du mandat sans cadre pour ce qu'on confie" $PONT \
-  "<div id=\"mandat-perimetre\">" "<div>" \
+  '<div id="mandat-perimetre">${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === '"'"'paie'"'"'' '<div>${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === '"'"'paie'"'"'' \
   "$VMA"
 prouver "les premiers pas d'une entreprise d'essai essayée avant l'exemple" web/public/plateforme/premiers-pas.js \
   "    const exemple = !!C.estDemo(d) || !!e.essai;" "    const exemple = !!C.estDemo(d);" \
@@ -17814,7 +17813,7 @@ prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/sr
     comptable.oublier();' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'le comptable invité qui arrive sur la porte de l'"'"'entreprise' 'web/src/ecrans/Porte.tsx' \
-  'useState<Etape>(pourUnClient || profil === '"'"'cabinet'"'"' ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
+  'useState<Etape>(pourUnClient || profil === '"'"'cabinet'"'"' ? '"'"'cabinet'"'"' : lu && lu.etape !== '"'"'porte'"'"' ? lu.etape : '"'"'porte'"'"')' \
   'useState<Etape>('"'"'porte'"'"')' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'la vitrine de la première facture pour le comptable invité' 'web/src/ecrans/Inscription.tsx' \
@@ -19734,7 +19733,7 @@ prouver 'abo 122 : la prochaine facture sans son total TTC' $AJ122 \
   "\${netDeLaProchaine ? \`, soit" "\${false ? \`, soit" \
   "$T122R"
 prouver 'abo 122 : la prochaine facture qui tait le module acheté' $AJ122 \
-  "\${modulesEnPlus.length ? \`, avec" "\${false ? \`, avec" \
+  '${modulesEnPlus.length && p.offre !== '"'"'complet'"'"' ? `, avec' '${false ? `, avec' \
   "$T122Y"
 prouver 'abo 122 : la carte qui déborde au téléphone' web/public/plateforme/abonnement.css \
   "  .abo-offre-boutons .btn { white-space: normal; text-align: center; line-height: 1.3; }" "" \
@@ -23148,7 +23147,7 @@ prouver 'paie 10.1-7 i : le rappel porté sur un mois clos' modules/personnel/ec
   'if ((!b || (!b.paidDate && !b.valideLe)) && !C.isClosedDate(data, C.payslipDate({ year: yy, month: mm }))) return' 'if (!b || (!b.paidDate && !b.valideLe)) return' \
   "$PCE"
 prouver 'paie 10.1-7 j : les primes d'"'"'un mois clos ouvertes à la saisie' modules/personnel/ecrans/entreprise/paie.js \
-  'return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ?' 'return b && (b.paidDate || b.valideLe) ?' \
+  'return b && (b.paidDate || b.valideLe || C.isClosedDate(data, C.payslipDate(b))) ? (b.paidDate' 'return b && (b.paidDate || b.valideLe) ? (b.paidDate' \
   "$PCE"
 prouver 'paie 10.1-7 k : une demande de congé d'"'"'un mois clos acceptée sans prévenir' modules/personnel/ecrans/entreprise/paie.js \
   "pas à l'envoi.
@@ -30414,13 +30413,13 @@ prouver $'issue 13 1.379.2 e : une casse plus grosse que le stock passe sans que
   $'un article déjà commandé ne se recommande pas'
 # (1.379.3) « À venir » : la caisse et la facture électronique, tant que le serveur ne les ouvre pas.
 prouver $'une page à venir ouverte comme si elle était prête' modules/socle/ecrans/entreprise/app-1.js \
-  $'    if (aVenir(id)) return true;\n' \
-  $'' \
+  '    if (aVenir(id) || fermeParConsole(id)) return true;' \
+  '    if (fermeParConsole(id)) return true;' \
   $'à venir : la ligne « Caisse » est grisée avec sa pastille'
 prouver $'la production qui ouvre tout sans qu\'on l\'ait décidé' serveur/a-venir.ts \
   $'v === undefined ? A_VENIR_CONNUS.join(\',\') : v' \
   $'v === undefined ? \'\' : v' \
-  $'absent : la caisse et la facture électronique'
+  'absent : la caisse, la facture électronique et le paiement en ligne'
 # (1.379.4, issue 5 CONSOLE-1) La console : une règle connue sans nom blanchissait tout l'écran.
 prouver $'la FODEC sans nom dans la console' web/console/src/textes.ts \
   $'  \'console.ecran.reglages.r.nom.fodec_taux\': \'le taux de la FODEC\',\n' \
