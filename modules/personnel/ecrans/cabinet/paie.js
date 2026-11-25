@@ -33,6 +33,11 @@
     // (1.388.22) Les mois du trimestre déclaré, que la frise du socle cercle : la paie les pose, le socle les lit (17 § 2).
     s.paieTriMois = null;
     if (paieHorsMandat(dossier, L)) return paieNonConfiee(dossier);
+    // (#26, PONT-14) Le rôle de ce collaborateur ne lui ouvre pas la paie : le serveur l'a refusée à la lecture. L'écran disait
+    // « 0 salarié » avec « Déclarer un salarié… » en vert, et le refus n'arrivait qu'après avoir tout rempli.
+    const refusRole = api.paieRefusee ? api.paieRefusee(dossier.id) : '';
+    if (refusRole && !(L.salaries || []).length && !(L.bulletins || []).length) return `<div class="panel" id="pa-refus-role"><h2>La paie de ce dossier ne t'est pas ouverte</h2>
+      <p>${esc(refusRole)}</p><p class="small muted">Les salariés et les bulletins existent peut-être : ils ne s'affichent pas ici. Un associé du cabinet voit la paie, et peut changer ton rôle dans Le cabinet › L'équipe.</p></div>`;
     // U-12 — le dernier mois qui a des bulletins, sinon le mois courant : jamais décembre en
     // septembre, un mois futur qui avait l'air d'un dossier vide.
     // (1.355.4) Mais d'abord le mois terminé dont un salarié attend encore son bulletin (la règle de l'entreprise).

@@ -4608,7 +4608,15 @@
         const p = data.purchases.find(x => x.number === numero);
         return p ? { genre: 'achat', id: p.id } : null;
       },
+      // (#26, PONT-1) Une question arrivée pendant que la page est ouverte se lit dans le fil (relu toutes les 30 s) avant
+      // d'entrer dans les données (relues toutes les deux minutes) : on la relit d'abord, au lieu de dire « n'existe plus ».
+      questionConnue: async id => {
+        const ici = () => (data.questionsCabinet || []).some(q => q.id === id);
+        if (!ici() && typeof window.__relireQuestions === 'function') await window.__relireQuestions().catch(() => {});
+        return ici();
+      },
       repondre: async (id, texte) => {
+        if (!(data.questionsCabinet || []).some(q => q.id === id) && typeof window.__relireQuestions === 'function') await window.__relireQuestions().catch(() => {});
         const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte }, Date.now());
         if (!r.ok) throw new Error(r.motif);
         data.questionsCabinet = r.liste;

@@ -454,6 +454,7 @@
    *   libelleClassee?: (classee: { raison: string | null, le: string }) => string,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
    *   repondre?: (question: string, texte: string) => Promise<void>,
+   *   questionConnue?: (question: string) => Promise<boolean>,
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
    *   achatCite?: (texte: string) => { id: string, libelle: string } | null,
    *   joindreAchat?: (message: { id: string, nom: string, type: string, contenu: string }, achat: string) => Promise<string>,
@@ -483,6 +484,9 @@
    */
   function conversation(el, o) {
     const entreprise = o.cote === 'entreprise';
+    // (#26, PONT-15) Le client ne lit pas un numéro de compte : une question posée « sur le compte 411 » prend chez lui le titre de
+    // sa pièce (« Ta pièce FAC-2026-002 »), ou sa question ; le compte reste dit au cabinet.
+    const titreQ = (/** @type {any} */ q) => (entreprise && /^\s*compte\b/i.test(String(q.objet || '')) ? (q.piece ? `Ta pièce ${q.piece}` : q.texte) : (q.objet || q.texte)) || '';
     /** @type {any} */ let lu = null;              // la dernière lecture du serveur (première page)
     /** @type {any[]} */ let anciensMessages = [];  // les pages plus anciennes, demandées
     /** @type {any[]} */ let anciennesQuestions = [];
@@ -744,7 +748,7 @@
         if (vus.has(q.id)) continue;
         vus.add(q.id);
         const pose = q.poseePar === 'moi' ? 'Le cabinet' : q.poseePar || 'Le cabinet';
-        lignes.push({ quand: q.envoyeeLe, de: `${pose} (cabinet)`, quoi: `<b>Question de la révision${q.piece ? ` sur ${esc(q.piece)}` : ''}</b> : ${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}${q.objet ? `<br>${esc(q.texte)}` : ''}<br><i>Attendu : ${esc(ATTENDUS[q.attendu] || 'une réponse')}${q.statut === 'close' ? ' — close par le cabinet' : ''}</i>` });
+        lignes.push({ quand: q.envoyeeLe, de: `${pose} (cabinet)`, quoi: `<b>Question de la révision${q.piece ? ` sur ${esc(q.piece)}` : ''}</b> : ${esc(titreQ(q))}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}${titreQ(q) !== q.texte ? `<br>${esc(q.texte)}` : ''}<br><i>Attendu : ${esc(ATTENDUS[q.attendu] || 'une réponse')}${q.statut === 'close' ? ' — close par le cabinet' : ''}</i>` });
         if (q.reponse && q.reponduLe) lignes.push({ quand: q.reponduLe, de: `${o.contactPrenom || o.nom || 'Le client'} (client)`, quoi: `<b>Réponse à la question</b> : ${esc(q.reponse)}` });
       }
       lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
@@ -1060,8 +1064,8 @@
         <div class="msg-question${attend ? ' attend' : ''}">
           <span class="msg-q-ic">${dessin('question')}</span>
           <div class="msg-q-txt"><span class="msg-q-qui">${q.piece ? `Question sur ${esc(q.piece)}` : 'Question de la révision'} · posée par ${esc(pose === 'Toi' ? 'toi' : prenomDe(pose))} · ${esc(heure(q.envoyeeLe))}</span>
-            <b class="msg-q-objet">${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · <span class="msg-montant">${esc(montant(q.montant))}</span>` : ''}</b>
-            <div class="msg-q-corps">${q.objet ? `<span>${esc(q.texte)}</span>` : ''}
+            <b class="msg-q-objet">${esc(titreQ(q))}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · <span class="msg-montant">${esc(montant(q.montant))}</span>` : ''}</b>
+            <div class="msg-q-corps">${titreQ(q) !== q.texte ? `<span>${esc(q.texte)}</span>` : ''}
               <span class="msg-q-attendu">${entreprise ? 'Ton cabinet attend' : 'Tu attends'} : ${esc(ATTENDUS[q.attendu] || 'une réponse')}.</span>
               ${attend && jours ? `<span class="msg-q-depuis">sans réponse depuis ${esc(pl(jours, 'jour'))}</span>` : ''}
               ${etat}${repondre}</div></div>
@@ -1242,7 +1246,8 @@
       if (promessePop === 'menu') html += popPromesse(null);
       if (!ev.length) {
         html += `<div class="msg-vide"><b>${entreprise ? 'Aucun message encore.' : 'Aucun échange encore avec ce client.'}</b>
-          <span>${entreprise ? 'Écris à ton cabinet ici, joins une photo de facture ou demande-lui ce qu\'il te faut : chaque message garde sa date et son auteur, dans ton dossier.'
+          <span>${entreprise && !(lu && lu.fil && lu.fil.actif) ? 'Aucun cabinet ne tient ton dossier pour l\'instant : invite le tien (à côté, « Inviter mon comptable ») et ce fil s\'ouvre avec lui dès qu\'il accepte.'
+            : entreprise ? 'Écris à ton cabinet ici, joins une photo de facture ou demande-lui ce qu\'il te faut : chaque message garde sa date et son auteur, dans ton dossier.'
             : 'Écris-lui ici, demande-lui une pièce, ou pose tes questions pendant la révision : elles arrivent dans ce fil, avec sa réponse.'}</span></div>`;
       }
       fil.innerHTML = html;
@@ -1305,7 +1310,7 @@
         const ds = [...demandes().values()].filter((m) => !m.demande.recueLe);
         const jours = (/** @type {string} */ iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000));
         const items = [
-          ...qs.map((q) => ({ quand: q.envoyeeLe, html: `<li>${dessin('question')}<span><b>${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}</b><small>question de la révision · depuis ${esc(pl(jours(q.envoyeeLe), 'jour'))}</small></span></li>` })),
+          ...qs.map((q) => ({ quand: q.envoyeeLe, html: `<li>${dessin('question')}<span><b>${esc(titreQ(q))}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}</b><small>question de la révision · depuis ${esc(pl(jours(q.envoyeeLe), 'jour'))}</small></span></li>` })),
           ...ds.map((m) => ({ quand: m.ecritLe, html: `<li class="${m.demande.enRetard ? 'retard' : ''}">${dessin('piece')}<span><b>${esc(m.demande.texte)}</b><small>pièce demandée${m.demande.pour ? ` · pour le ${esc(dateCourte(m.demande.pour))}` : ''}${m.demande.enRetard ? ' · en retard' : ''}${m.demande.relances ? ` · relancée ${m.demande.relances > 1 ? `${m.demande.relances} fois` : 'une fois'}` : ''}</small></span></li>` })),
         ].sort((x, y) => (x.quand < y.quand ? -1 : 1));
         if (promesse && !promesse.tenue) items.push({ quand: promesse.noteeLe, html: `<li class="${promesse.echue ? 'retard' : 'promise'}">${dessin('reveil')}<span><b>${esc(promesse.quoi.charAt(0).toUpperCase() + promesse.quoi.slice(1))}</b><small>${promesse.echue ? `promis pour ${esc(jourLong(promesse.pour))} · le jour est passé` : `promis pour ${esc(jourLong(promesse.pour))}`}</small></span></li>` });
@@ -1326,8 +1331,11 @@
           ${mois.action ? `<button type="button" class="msg-lien" data-msg-mois-aller>${esc(mois.action.libelle)}</button>` : ''}</div>` : '';
       cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span>${aller}</div>` : ''}
         ${carteMois}
-        ${entreprise && o.range ? '<div class="msg-encart msg-range" data-msg-range hidden></div>' : ''}
-        ${entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
+        ${entreprise && o.range && f && f.actif ? '<div class="msg-encart msg-range" data-msg-range hidden></div>' : ''}
+        ${entreprise && !(f && f.actif) ? `<div class="msg-encart attend" data-msg-sans-cabinet><b>Aucun cabinet ne tient ton dossier</b><span>Pour en confier un, tape le code de son cabinet ou invite-le par e-mail : ce fil s'ouvre avec lui dès qu'il accepte.</span>
+          ${o.voirMandat ? '<button type="button" class="btn btn-primary btn-sm" data-msg-mandat>Inviter mon comptable</button>' : ''}</div>`
+        // (#26, PONT-11) Sans mandat actif, plus de « Ce que voit ton cabinet » ni de « Voir le mandat » : la porte pour en inviter un.
+        : entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
           ${o.voirMandat ? '<button type="button" class="msg-lien" data-msg-mandat>Voir le mandat</button>' : ''}</div>`
           // (1.98.0) « C'est traité » seulement quand ce client est « À traiter » : après une réponse du cabinet, il ne
           // l'est plus, et le bouton promettait de l'en sortir.
@@ -1597,11 +1605,14 @@
           return;
         }
         try {
+          // (#26, PONT-1) La question se retrouve AVANT que le fichier parte : sinon la photo partait seule dans le fil, la
+          // réponse était refusée, et un second essai l'envoyait une deuxième fois (deux pièces de plus à saisir au cabinet).
+          if (o.questionConnue && !(await o.questionConnue(id))) throw new Error('Cette question vient d\'arriver et ta page ne l\'a pas encore lue : ta réponse reste dans la case, réessaie dans un instant.');
           // (1.191.0) Le fichier part d'abord, dans le fil, en face de la pièce que la question vise ; la réponse ensuite.
           if (f) {
             const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === id) || {};
             const cible = q.piece && o.pieceDuNumero ? o.pieceDuNumero(q.piece) : null;
-            await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question « ${q.objet || q.texte || ''} ».`, cible ? { ...cible, libelle: String(q.piece) } : null);
+            await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question « ${titreQ(q)} ».`, cible ? { ...cible, libelle: String(q.piece) } : null);
             if (!texte) texte = `Le fichier : ${f.name}`;
           }
           if (o.repondre) await o.repondre(id, texte);
@@ -1720,7 +1731,7 @@
           <ul class="msg-pretes-l">${l.map((q) => {
             const hors = pasCetteFois.has(q.id);
             const m = q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : '';
-            return `<li class="${hors ? 'hors' : ''}"><span class="msg-prete-txt"><b>${esc(q.objet || q.texte)}${m}</b><small>${esc(q.objet ? q.texte : `Tu attends ${ATTENDUS[q.attendu] || 'une réponse'}`)}</small></span>
+            return `<li class="${hors ? 'hors' : ''}"><span class="msg-prete-txt"><b>${esc(titreQ(q))}${m}</b><small>${esc(q.objet ? q.texte : `Tu attends ${ATTENDUS[q.attendu] || 'une réponse'}`)}</small></span>
               <button type="button" class="msg-lien" data-msg-prete="${esc(q.id)}" aria-pressed="${hors}"${off ? ' disabled' : ''}>${hors ? 'La remettre' : 'Pas cette fois'}</button></li>`;
           }).join('')}</ul>` : '';
         zPretes.querySelectorAll('[data-msg-prete]').forEach((b) => {

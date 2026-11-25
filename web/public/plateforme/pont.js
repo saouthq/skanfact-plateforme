@@ -645,7 +645,7 @@
     garderLaCopie();
     window.dispatchEvent(new CustomEvent('skanfact-questions', { detail: q }));
   }
-  setInterval(() => { void relireLesQuestions(); }, 120_000);
+  setInterval(() => { void relireLesQuestions(); }, 120_000); /** @type {any} */ (window).__relireQuestions = relireLesQuestions; // (#26, PONT-1) l'écran la relit avant de dire qu'une question n'existe plus
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void relireLesQuestions(); });
   // À l'ouverture, avec le réseau : ce qui attendait part d'abord, par rapport à la copie ; ce qui
   // avait changé ailleurs se fusionne comme la v10 le fait (version du serveur gardée, l'autre mise de
@@ -931,8 +931,8 @@
       : `<p>${nom} est relié à ton dossier depuis le ${esc(jour(m.debut))} : ${esc(lesPerimetres(m.perimetre))}.</p>
          <p class="small muted">Il lit tes écritures à jour et valide tes mois ; il ne touche jamais à tes factures, à ta caisse ni à ton équipe.</p>`}
       <p class="small" role="alert"></p>
-      <div class="inline mt"><button type="button" class="btn btn-danger" id="mandat-arreter">${m.statut === 'propose' ? 'Retirer ma proposition' : 'Arrêter le mandat…'}</button></div>`);
-    const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-arreter'));
+      <div class="inline mt">${m.statut === 'actif' ? '<button type="button" class="btn" id="mandat-changer">Changer ce que je lui confie…</button>' : ''}<button type="button" class="btn btn-danger" id="mandat-arreter">${m.statut === 'propose' ? 'Retirer ma proposition' : 'Arrêter le mandat…'}</button></div>`);
+    const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-arreter')); /* (#26, PONT-3) changer ce qu'on confie sans arrêter le mandat */ const ch = /** @type {HTMLElement | null} */ (el.querySelector('#mandat-changer')); if (ch) ch.onclick = () => { poser(`<p>Ce que tu confies à ${nom} :</p><div id="mandat-perimetre">${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${(m.perimetre || []).includes(k) ? ' checked' : ''}> ${esc(l)} <span class="muted small">— ${esc(d)}</span></label>`).join('')}</div><p class="small muted mt">Ce que tu retires, ton cabinet ne le voit plus dès que tu enregistres ; ce que tu ajoutes, il le voit aussitôt. Ce qu'il a déjà validé reste validé.</p><p class="small" role="alert"></p><div class="inline mt"><button type="button" class="btn btn-primary" id="mandat-perim-ok">Enregistrer ce que je lui confie</button><button type="button" class="btn" id="mandat-perim-non">Annuler</button></div>`); /** @type {HTMLElement} */ (el.querySelector('#mandat-perim-non')).onclick = () => { void dessinerMandat(el); }; const ok = /** @type {HTMLElement} */ (el.querySelector('#mandat-perim-ok')); ok.onclick = () => agir(async () => { const perimetre = [...el.querySelectorAll('[data-perimetre]')].filter((x) => /** @type {HTMLInputElement} */ (x).checked).map((x) => String(/** @type {HTMLElement} */ (x).dataset.perimetre)); if (!perimetre.length) throw new Error('Coche au moins une chose : pour ne plus rien lui confier, arrête le mandat.'); await appel('PUT', '/mandat/perimetre', { perimetre }); }, ok); };
     b.onclick = () => {
       // Arrêter un mandat se demande : le cabinet ne verra plus tes livres.
       if (m.statut === 'actif' && !b.dataset.confirme) {

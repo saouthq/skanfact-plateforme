@@ -522,7 +522,8 @@
 .msg-gestes .btn.msg-g:hover { background: var(--ink-soft); }
 .msg-gestes .btn.msg-g svg { color: var(--muted); }
 .msg-envoyer { display: inline-flex; align-items: center; gap: 8px; }
-.msg-envoyer.vide { background: var(--ink-soft); border-color: var(--border); color: var(--muted); box-shadow: none; }
+/* (#26, PONT-16) Le sombre aussi : `body.dark .btn-primary` gagnait, et « Envoyer » restait vert sur un message vide. */
+.msg-envoyer.vide, body.dark .msg-envoyer.vide { background: var(--ink-soft); border-color: var(--border); color: var(--muted); box-shadow: none; }
 .msg-sugg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .msg-sugg[hidden] { display: none; }
 .msg-sugg-t { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
@@ -898,6 +899,8 @@
   .msg-page .msg-lien { display: inline-flex; align-items: center; min-height: 44px; }
   .msg-page .msg-vig-b { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }
   .msg-page .msg-chercher { min-width: 44px; min-height: 44px; justify-content: center; }
+  /* (#26, PONT-18) La croix qui retire le fichier joint : 44 points au doigt, comme le reste du fil. */
+  .msg-page .msg-joint button { min-width: 44px; min-height: 44px; justify-content: center; align-items: center; margin: -8px -6px -8px 0; }
   .msg-page .msg-retour { min-height: 44px; }
   .msg-page .msg-gestes .btn.msg-g, .msg-boite-ecrire .msg-gestes-g .btn.msg-g { min-width: 44px; min-height: 44px; }
   .msg-page .msg-gestes .msg-envoyer, .msg-boite-ecrire .msg-envoyer { min-width: 44px; min-height: 44px; }

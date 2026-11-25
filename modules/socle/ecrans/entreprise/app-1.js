@@ -15402,7 +15402,7 @@
               : achat ? { genre: 'achat', id: achat.id, libelle: achat.number } : null;
             const ok = $('#ok', root);
             ok.disabled = true;
-            try { await bridge.messagerie.envoyerFichier(fichier, `Le fichier pour ta question « ${q.objet || q.texte} ».`, piece); }
+            try { await bridge.messagerie.envoyerFichier(fichier, `Le fichier pour ta question « ${/^\s*compte\b/i.test(String(q.objet || '')) ? (q.piece ? `Ta pièce ${q.piece}` : q.texte) : (q.objet || q.texte)} ».`, piece); }
             catch (e) { ok.disabled = false; return refus(champ, e && e.message ? e.message : String(e)); }
           }
           const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte: t }, Date.now());

@@ -2975,7 +2975,8 @@
       if (!d.manual) for (const p of recues.get(d.id) || []) { const m = moisDePieceTb(d, brut, p.recueLe, p.mois); aClasser.set(m, (aClasser.get(m) || 0) + 1); }
       const cases = l.mois.map(c => (!aClasser.get(c.mois) ? c : { ...c, aClasser: aClasser.get(c.mois), ...(c.etape === 'recu' ? { etape: 'saisi' } : {}) }));
       const mois = new Map(cases.map(c => [c.mois, c]));
-      const sansTva = sansTvaCd(d);
+      // (#26, PONT-12) Un client qui dépose lui-même (déclarations hors du mandat) ne compte ni dans la campagne ni dans les retards.
+      const sansTva = sansTvaCd(d) || (!d.manual && Array.isArray(d.perimetre) && !d.perimetre.includes('declarations'));
       const retard = sansTva ? [] : cases.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
       const n = e => cases.filter(c => c.etape === e).length;
       return { d, l, eq, mois, retard, sansTva, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
@@ -4895,7 +4896,11 @@
     const un = l.length === 1, nom = un ? l[0].name : pl(l.length, 'dossier'), tenus = l.filter(d => d.manual).length, sujet = un ? 'Il' : 'Ils', nt = un ? '' : 'nt';
     const noms = un ? '' : `<p class="small"><b>${esc(l.slice(0, 5).map(d => d.name).join(', '))}${l.length > 5 ? '…' : ''}</b></p>`;
     const abo = !tenus ? '' : `<p class="small muted">${tenus === l.length ? (un ? 'Tenu au cabinet, il' : 'Tenus au cabinet, ils') : `${pl(tenus, 'dossier tenu', 'dossiers tenus')} au cabinet`} ${archiver ? `ne compte${tenus > 1 ? 'nt' : ''} plus` : `compte${tenus > 1 ? 'nt' : ''} de nouveau`} dans l'abonnement du cabinet, à sa prochaine facture annuelle.</p>`;
-    const corps = `${noms}<p>${archiver ? `${sujet} quitte${nt} les listes, le Tableau de bord, les Relances et les Échéances : rien ne ${un ? 'lui' : 'leur'} est plus réclamé. ${sujet} se li${un ? 't' : 'sent'} et s'exporte${nt} toujours, depuis la vue « Archivés ». ${info('d.archived')}` : `${sujet} revien${un ? 't' : 'nent'} dans les listes, le Tableau de bord, les Relances et les Échéances, avec ${un ? 'ses' : 'leurs'} mois et ${un ? 'ses' : 'leurs'} écritures.`}</p>${abo}`;
+    // (#26, PONT-8) Un client sur SkanFact archivé garde son mandat : il compte encore sur le cabinet pour ses déclarations. La
+    // fenêtre le dit avant le geste, au lieu de laisser croire que plus rien n'est dû.
+    const relies = l.filter(d => !d.manual && !d.demo);
+    const mandat = !archiver || !relies.length ? '' : `<div class="warn-box"><b>Archiver ne met pas fin au mandat.</b> ${relies.length === l.length ? (un ? `${esc(l[0].name)} compte` : 'Ces clients comptent') : `${pl(relies.length, 'client sur SkanFact', 'clients sur SkanFact')} compte${relies.length > 1 ? 'nt' : ''}`} toujours sur toi : ce que le mandat te confie (les déclarations, la saisie, la paie) reste dû, et l'écran du client continue de dire que tu t'en charges. Pour vous séparer, écris-lui d'abord : c'est le client qui arrête le mandat, dans sa Comptabilité › Cabinet.</div>`;
+    const corps = `${noms}${mandat}<p>${archiver ? `${sujet} quitte${nt} les listes, le Tableau de bord, les Relances et les Échéances : rien ne ${un ? 'lui' : 'leur'} est plus réclamé. ${sujet} se li${un ? 't' : 'sent'} et s'exporte${nt} toujours, depuis la vue « Archivés ». ${info('d.archived')}` : `${sujet} revien${un ? 't' : 'nent'} dans les listes, le Tableau de bord, les Relances et les Échéances, avec ${un ? 'ses' : 'leurs'} mois et ${un ? 'ses' : 'leurs'} écritures.`}</p>${abo}`;
     const verbe = archiver ? 'Archiver' : 'Désarchiver';
     if (!await confirmDialog(`${verbe} ${nom} ?`, corps, un ? `${verbe} le dossier` : `${verbe} les ${l.length} dossiers`)) return;
     const poser = async (liste, valeur) => { for (const d of liste) S = (await api.saveDossier(d.id, { archived: valeur })).state; };
@@ -5464,7 +5469,7 @@
       ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.regime ? kv('Régime', esc(labelOf(K.choixRegimes(S, d.regime), d.regime) || d.regime)) : ''}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', (() => { const t = ({ mensuelle: `mensuelle · déclarée le ${K.jourTva(S, d)}`, trimestrielle: 'trimestrielle', 'non-assujetti': 'non assujetti' })[d.tvaPeriod]; return t ? esc(t) : `${esc(`non précisée · comptée mensuelle, déclarée le ${K.jourTva(S, d)}`)}${dir ? ' <button type="button" class="lien-manque" id="fd-tva">Préciser…</button>' : ''}`; })())}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
       ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
       ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir && api.dessinerRejoindre ? `<button type="button" class="btn btn-sm btn-ghost fd-inv" id="fd-inviter">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</button>` : ''}`)
-        : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}
+        : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans sa Comptabilité › Cabinet.</small>`)}
       ${sec('La note de l\'équipe', `${d.note ? `<p class="fd-note">${esc(d.note)}</p>` : '<small class="cd-fs-n">Aucune note.</small>'}${!d.archived && (dir || eq.ids.includes(S.moi)) ? `<button type="button" class="btn-lien" id="fd-note">${FD_IC.note} ${d.note ? 'Modifier la note…' : 'Écrire une note…'}</button>` : ''}<small class="cd-fs-n">Seule l'équipe du cabinet la lit ; ${d.manual ? 'le client' : esc(prenom || 'le client')} ne la voit jamais.</small>`)}
       ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#fd-relances" data-fd-aller="fd-relances">Toutes les relances</a>${d.archived ? '' : `<button type="button" class="btn-lien" data-cd-geste="noter" data-cd-d="${esc(d.id)}">Noter une relance faite ailleurs…</button>`}</div>`)}
     </aside>`;
@@ -9788,6 +9793,11 @@
     const s = livresState;
     const d = s.decl;
     const tous = MOIS_COURTS.map((m, i) => `${s.annee}-${String(i + 1).padStart(2, '0')}`);
+    // (#26, PONT-12) Les déclarations hors du mandat se disent à l'ouverture, comme la paie et la saisie des achats : l'écran
+    // poussait à « Préparer la déclaration », et le refus n'arrivait qu'en bandeau au second clic.
+    if (!dossier.manual && Array.isArray(dossier.perimetre) && !dossier.perimetre.includes('declarations')) return `<div class="panel"><h2>Les déclarations ne sont pas confiées au cabinet</h2>
+      <p>${esc(dossier.name)} les dépose elle-même : son mandat te confie ${esc(dossier.perimetre.map(p => ({ comptabilite: 'la comptabilité', saisie_achats: 'la saisie des achats', paie: 'la paie' }[p] || p)).join(', ') || 'autre chose')}. Rien ne t'est réclamé ici, et ce dossier ne compte pas dans tes campagnes de déclarations.</p>
+      <p class="small muted">Seul le propriétaire de l'entreprise ouvre les déclarations au cabinet, dans sa Comptabilité › Cabinet.</p></div>`;
     if (!d) return `<div class="empty mini">Lecture de la déclaration…</div>`;
     if (d.erreur) return lectureRatee(d.erreur, 'decl');
     const posee = d.posee;

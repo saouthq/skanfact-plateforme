@@ -7195,3 +7195,51 @@ Restes, dits ici :
   - l'article 18 cité pour l'export.
 
   Rien n'est changé sans son avis.
+
+## 1.388.64 — Le pont client ↔ cabinet : la question qu'on ne pouvait pas répondre, le mandat qu'on change (#26)
+
+Issue #26, 17 constats dont 4 bloquants. PONT-2 était traité depuis la 1.388.41 pour le client (la question avant de
+modifier une pièce validée).
+
+- **PONT-1 (bloquant) — une question arrivée pendant que « Mon comptable » est ouvert ne pouvait pas recevoir de
+  réponse.** La carte venait du fil, relu toutes les 30 s. La réponse cherchait la question dans les données du
+  dossier, relues toutes les deux minutes. Résultat : « Cette question n'existe plus ». Pire, avec un fichier, la photo
+  partait seule et repartait au second essai, donc le cabinet recevait deux pièces de plus à saisir.
+  - Désormais, la réponse relit les questions (`__relireQuestions`, posé par le pont) avant de refuser.
+  - Le fichier ne part qu'une fois la question retrouvée (`questionConnue`, appelé avant `envoyerFichier`).
+  - Si la question n'est toujours pas lue, la phrase le dit, et la réponse reste dans la case.
+- **PONT-3 (bloquant) — le propriétaire ne pouvait pas changer ce qu'il confie.** Le panneau du mandat actif offre
+  « Changer ce que je lui confie… » : les quatre cases, cochées comme aujourd'hui, et « Enregistrer ce que je lui confie ».
+  Il appelle `PUT /mandat/perimetre`, qui existait sans aucun écran. Décocher tout est refusé : pour ne plus rien
+  confier, on arrête le mandat. La fiche du dossier au Cabinet dit où le client le change (Comptabilité › Cabinet, et
+  non plus « Mon comptable »).
+- **PONT-8 (bloquant) — archiver un client sur SkanFact laissait croire que plus rien n'était dû.** La fenêtre dit
+  maintenant, avant le geste : « Archiver ne met pas fin au mandat ». Ce que le mandat confie reste dû, l'écran du client
+  continue de dire que le cabinet s'en charge, et c'est le client qui arrête le mandat.
+- **PONT-12 — les déclarations hors du mandat.** La Déclaration du dossier le dit à l'ouverture : « Les déclarations ne
+  sont pas confiées au cabinet », comme la paie et la saisie des achats. Le dossier ne compte plus dans la campagne de
+  déclarations du Tableau de bord ni dans ses retards.
+- **PONT-14 — un collaborateur sans droit sur la paie voyait « 0 salarié » et « Déclarer un salarié… ».** Le refus du
+  serveur à la lecture est gardé (`paieRefusee`). L'onglet le dit à l'ouverture, au lieu d'un écran vide qui invite à
+  saisir.
+- **PONT-6** — une proposition retirée par le client : un clic sur « Accepter » ou « Refuser » remplace la phrase au
+  lieu d'en empiler une, et retire les deux boutons.
+- **PONT-11** — après l'arrêt du mandat, « Mon comptable » ne parle plus d'un cabinet. Elle dit « Aucun cabinet ne tient
+  ton dossier » avec « Inviter mon comptable ». « Ce que voit ton cabinet » et « Ce que ton cabinet a rangé » n'y sont
+  plus.
+- **PONT-15** — une question posée « sur le compte 411 » s'affiche chez le client sous le titre de sa pièce (« Ta pièce
+  FAC-2026-002 »). Le compte reste dit au cabinet.
+- **PONT-16** — en sombre, « Envoyer » redevient gris sur un message vide.
+- **PONT-17** — « Tu l'acceptes en tête de ton Tableau de bord » (il n'y a pas de page Dossiers).
+- **PONT-18** — au téléphone, la croix qui retire le fichier joint fait 44 points.
+- Tests : `tests/v10/pont-1388-64.test.ts` ; 8 parcours web voisins passés. 5 preuves.
+
+Restes, dits ici :
+- **PONT-2** (côté cabinet) : « Valider les N d'octobre » numérote les écritures, mais ne ferme pas la période. Les
+  avertissements du client, qui lisent la période validée, ne se déclenchent donc pas pour un mois validé par lot. Fermer
+  le mois depuis la Saisie est un geste de plus, avec sa question. Il demande sa propre version.
+- **PONT-4, PONT-9, PONT-10** : prévenir l'autre côté (refus d'un dossier, arrêt du mandat) demande une nouvelle côté
+  serveur, que la trace actuelle ne fait pas. La liste de ce qui reste en cours à l'arrêt en dépend.
+- **PONT-5** : un lien d'invitation mort ouvert par un comptable déjà connecté (l'ordre de deux effets dans
+  `App.tsx`).
+- **PONT-7** : la pièce désignée par le client ne remonte pas avec la pièce reçue (`"achat": null` côté serveur).

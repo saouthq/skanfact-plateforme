@@ -32192,6 +32192,21 @@ prouver 'le titre de lot seul en bas de page (1.388.63)' modules/socle/moteur/co
 prouver 'les notes d'\''honoraires appelées factures au menu (1.388.63)' modules/socle/moteur/core-1.js \
   'if (!p || p.id !== '\''factures'\'' || !estLiberal(company)) return p;' 'return p;' \
   'le menu et la bande des vues nomment la page'
+prouver 'le fichier qui part avant la question retrouvée (1.388.64)' web/public/plateforme/messagerie.js \
+  'if (o.questionConnue && !(await o.questionConnue(id))) throw' 'if (false && o.questionConnue) throw' \
+  'le fichier ne part qu'
+prouver 'le mandat qu'\''on ne peut pas changer (1.388.64)' web/public/plateforme/pont.js \
+  'await appel('\''PUT'\'', '\''/mandat/perimetre'\'', { perimetre });' 'await Promise.resolve();' \
+  'le panneau du mandat actif offre'
+prouver 'l'\''archivage qui tait le mandat (1.388.64)' modules/socle/ecrans/cabinet/app-1.js \
+  'const corps = `${noms}${mandat}<p>' 'const corps = `${noms}<p>' \
+  'la fenêtre nomme le mandat qui continue'
+prouver 'la déclaration hors mandat comptée dans la campagne (1.388.64)' modules/socle/ecrans/cabinet/app-1.js \
+  'const sansTva = sansTvaCd(d) || (!d.manual' 'const sansTva = sansTvaCd(d) && (!d.manual' \
+  'la Déclaration le dit à l'
+prouver 'la paie refusée au rôle dite après coup (1.388.64)' web/public/plateforme/pont-cabinet.js \
+  'paieRefus.set(id, String(e.message || '\'''\''));' '' \
+  'le refus du serveur est gardé à la lecture'
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

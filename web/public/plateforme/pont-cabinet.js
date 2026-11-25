@@ -748,12 +748,12 @@
   /** @type {Map<string, Map<string, { collection: string, cle: string, rang: number | null, revision: number, contenu: any }>>} */
   const paieLue = new Map();
   /** @type {Map<string, any>} */
-  const modesPaie = new Map();
+  const modesPaie = new Map(); /** @type {Map<string, string>} */ const paieRefus = new Map(); // (#26, PONT-14) le refus du rôle, dit à l'ouverture de la Paie
   /** @param {string} ent */
   async function paieDe(ent) {
     const r = await appel('GET', `/entreprises/${ent}/paie/dossier`);
     // 1.235.0 — qui fait la paie (le choix écrit du client, 0186) : le Cabinet attend son accord, ou ne fait que vérifier.
-    modesPaie.set(ent, r.modePaie || null);
+    modesPaie.set(ent, r.modePaie || null); paieRefus.delete(ent);
     const objets = (r.objets || []).map((/** @type {any} */ o) => ({ ...o, contenu: decoder(o.contenu) }));
     paieLue.set(ent, new Map(objets.map((/** @type {any} */ o) => [`${o.collection}/${o.cle}`, o])));
     return objets;
@@ -1172,7 +1172,7 @@
     // (1.128.0) Le chemin qu'il prend vraiment : « Comptabilité › Cabinet » (le premier pas « Inviter mon comptable » y
     // mène) ; Paramètres › Envois en est l'autre entrée (revue du mois d'un client, point 11).
     const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans son menu, <strong>Inviter mon comptable</strong> (Comptabilité › Cabinet),
-      il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
+      il tape le code de ton cabinet, ou il t'invite par e-mail. Tu l'acceptes en tête de ton Tableau de bord ; ses livres sont alors ceux du serveur, à jour en direct.
       Un client qui n'est pas sur SkanFact : « Ajouter un client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>
         <div class="empreinte-ligne"><span class="fingerprint" id="code-cabinet">${esc(code)}</span>
@@ -1212,7 +1212,7 @@
     } catch (x) {
       b.removeAttribute('disabled');
       const ligne = b.closest('.banner, .cd-prop');
-      if (ligne) ligne.insertAdjacentHTML('beforeend', `<span class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</span>`);
+      const retire = /n'attend pas/.test(String(x instanceof Error ? x.message : x)); if (ligne) { ligne.querySelectorAll('[role=alert]').forEach((/** @type {Element} */ e) => e.remove()); if (retire) ligne.querySelectorAll('[data-mandat-accepter], [data-mandat-refuser]').forEach((/** @type {Element} */ e) => e.remove()); ligne.insertAdjacentHTML('beforeend', `<span class="small" role="alert">${esc(retire ? 'Ce client a retiré sa proposition, ou un autre associé y a déjà répondu : il n\'y a plus rien à accepter ici.' : x instanceof Error ? x.message : x)}</span>`); } // (#26, PONT-6) une phrase, pas une pile
     }
   });
 
@@ -1580,13 +1580,13 @@
       // dossier, revue du mois d'un client, point 12). Un dossier tenu, ou un mandat dont on ne connaît pas l'étendue, la lit.
       const sansPaie = !!d.perimetre && !d.manual && Array.isArray(d.perimetre) && !d.perimetre.includes('paie');
       const paie = sansPaie ? Promise.resolve(paieLue.delete(id))
-        : paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
+        : paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); paieRefus.set(id, String(e.message || '')); return []; } throw e; });
       const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id), paie]);
       if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };
       return { dossier: d, livre: await livreDe(id, annee, ecritures) };
     },
     // L'exercice est-il ouvert sur le serveur ? (L'écran propose sinon d'en reprendre les soldes.)
-    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee),
+    exerciceOuvert: (/** @type {string} */ id, /** @type {string} */ annee) => !!exerciceDe(id, annee), paieRefusee: (/** @type {string} */ id) => paieRefus.get(id) || '',
 
     // ── La reprise (brique 39) : l'exercice s'ouvre sur le serveur, avec sa balance d'ouverture ──
     reprendre: async (/** @type {any} */ o) => {
