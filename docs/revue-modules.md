@@ -7397,3 +7397,21 @@ Les deux points suivants de `docs/pilotage-console.md` (Skander, 25/11/2026 : «
   propose pas sur un programmé, qui s'annule dans le tableau.
 - Les heures s'écrivent à l'heure de Tunis, comme tout le reste de la console.
 - Base : migration 0227 (`debut`, `fin`, `module_en_vigueur`, `console_annuler_programme`).
+
+## 1.388.73 — Les volontaires de la bêta (pilotage, point 2)
+
+Skander, 25/11/2026 : « une case "je veux essayer les nouveautés" chez le client ; la bêta s'ouvre à eux seuls ».
+
+- **Chez le client, Paramètres › L'application › « Les nouveautés en avant-première »** : une case « Essayer les
+  nouveautés en avant-première », avec ce qu'elle fait (les parties en bêta apparaissent avec la pastille « Bêta », une
+  bêta peut encore changer, décocher referme la bêta chez soi sans rien effacer). La propriétaire ou un administrateur
+  coche ; les autres lisent, et l'écran dit qui en décide. Une fois coché, « Recharger maintenant » ouvre le menu à jour.
+  Le geste est au journal de l'entreprise (`socle.volontaire_beta`).
+- **Dans la console, un cinquième état : « Bêta (volontaires) »** — bêta chez les entreprises volontaires, « à venir »
+  chez les autres (en pause chez qui y a déjà des données, la règle de la 1.388.70). « Ce qui va se passer » dit combien
+  de volontaires l'auront tout de suite (ou, pour une seule entreprise, si elle est volontaire ou non) ; la page Modules
+  nomme les volontaires, chacun lié à sa fiche.
+- La garde de la base (`socle.etat_module`) résout l'état pour l'entreprise : un appel direct à une partie « bêta
+  (volontaires) » est refusé chez qui n'est pas volontaire, comme un module à venir.
+- Base : migration 0228 (`entreprise.volontaire_beta`, `poser_volontaire_beta`, l'état `volontaires`,
+  `console_volontaires`).

@@ -15891,6 +15891,7 @@
     'p-danger': { onglet: 'donnees', titre: 'Zone sensible', classe: 'danger-zone', mots: 'effacer supprimer tout remise a zero vider' },
     'p-apparence': { onglet: 'app', titre: 'Apparence', mots: 'theme sombre clair systeme langue anglais francais apparence' },
     'p-modules': { onglet: 'app', titre: 'Ce que l\'application t\'affiche', mots: 'modules menu masquer afficher pages barre laterale assistant demarrage' },
+    'p-volontaire': { onglet: 'app', titre: 'Les nouveautés en avant-première', mots: 'nouveautes avant premiere beta essayer volontaire tester nouvelles fonctions pastille', visible: () => !!bridge.dessinerVolontaire },
     'p-maj': { onglet: 'app', titre: 'Mises à jour', mots: 'mise a jour version nouveautes beta jeton token telecharger installer maj' },
     'p-licence': { onglet: 'app', titre: 'Licence', mots: 'licence cle activation essai expiration acheter abonnement offre independant entreprise' },
     'p-abonnement': { onglet: 'abonnement', titre: 'Ton abonnement', mots: 'abonnement essai offre essentiel complet prix tarif payer paiement renouveler echeance lecture seule facture skanfact licence', visible: () => abonnementVisible() },

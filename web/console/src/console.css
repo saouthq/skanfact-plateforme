@@ -3390,6 +3390,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-mod-etat { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; }
 .c-mod-ouvert { background: var(--c-doux); color: var(--c-doux-texte); }
 .c-mod-beta { background: var(--c-violet-doux); color: var(--c-violet-texte); }
+.c-mod-volontaires { background: var(--c-violet-doux); color: var(--c-violet-texte); box-shadow: inset 0 0 0 1px var(--c-violet-texte); }
 .c-mod-a_venir { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-mod-ferme { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
 .c-mod-exc { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 4px; }
@@ -3398,6 +3399,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-mod-resume b { font-family: var(--c-chiffres); font-size: 15px; }
 .c-mod-resume .c-mod-zero { opacity: .55; }
 .c-mod-astuce { margin: 0 0 10px; }
+.c-mod-vol { margin: 0 0 10px; }
 .c-mod-table tr.c-mod-ligne-ferme td:first-child { box-shadow: inset 3px 0 0 var(--c-rouge); }
 .c-mod-table tr.c-mod-ligne-a_venir td:first-child { box-shadow: inset 3px 0 0 var(--c-orange); }
 .c-mod-table tr.c-mod-ligne-beta td:first-child { box-shadow: inset 3px 0 0 var(--c-violet-texte); }

@@ -791,7 +791,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     const p = await console_(jD, `modules&entreprise=${ent}`);
     expect(net(await p.locator('#rg-modules').innerText())).toBe('Les modules de Studio Lina Réglages');
     // Le résumé par état, au-dessus du tableau.
-    expect(await p.locator('.c-mod-resume li').count()).toBe(4);
+    expect(await p.locator('.c-mod-resume li').count()).toBe(5);
     const ligne = p.locator('.c-mod-table tbody tr').filter({ hasText: 'Stock' });
     await ligne.getByRole('button', { name: 'Changer…' }).click();
     const f = p.getByRole('dialog');
@@ -878,9 +878,23 @@ describe('les réglages de la plateforme, à la souris', () => {
     await af.getByRole('button', { name: 'Annuler le changement programmé' }).click();
     await af.waitFor({ state: 'detached', timeout: 10_000 });
     expect((await admin.query('select count(*)::int n from plateforme.module_etat where entreprise = $1', [ent])).rows[0].n).toBe(0);
+    // (1.388.73) « Bêta (volontaires) » : l'entreprise s'est déclarée volontaire ; la fenêtre dit qui l'aura.
+    await admin.query('update socle.entreprise set volontaire_beta = now() where id = $1', [ent]);
+    await p.reload();
+    await p.locator('.c-mod-table').waitFor();
+    await ligne.getByRole('button', { name: 'Changer…' }).click();
+    await f.locator('.c-mod-carte').filter({ hasText: 'Bêta (volontaires)' }).click();
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toContain('est volontaire : elle l\'aura tout de suite, en bêta');
+    await f.getByLabel('Motif', { exact: true }).fill('Bêta du stock chez les volontaires');
+    await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'console-reglages-modules-volontaires.png') });
+    await f.getByRole('button', { name: 'Enregistrer' }).click();
+    await f.waitFor({ state: 'detached', timeout: 10_000 });
+    expect((await admin.query('select etat from plateforme.module_etat where entreprise = $1', [ent])).rows[0]?.etat).toBe('volontaires');
+    await admin.query('delete from plateforme.module_etat where entreprise = $1', [ent]);
+    await admin.query('update socle.entreprise set volontaire_beta = null where id = $1', [ent]);
     expect(erreurs).toEqual([]);
     await fermer(p);
-  }, 120_000);
+  }, 150_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {
     for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes', 'modules']) {

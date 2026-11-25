@@ -945,6 +945,39 @@
       vers: bouton === 'Choisir mon offre' ? 'offres' : null };
   }
 
+  // (1.388.73, 0228) Les nouveautés en avant-première (Paramètres › L'application) : une entreprise se déclare volontaire,
+  // et une partie que SkanFact ouvre « en bêta pour les volontaires » s'ouvre chez elle, avec la pastille « Bêta ». La
+  // propriétaire ou un administrateur coche ; les autres lisent. Décocher referme la bêta chez soi, sans rien effacer.
+  // Le menu se redessine au prochain chargement : on le dit, avec un bouton qui recharge tout de suite.
+  /** @param {HTMLElement} el @param {{ appel: (m: string, c: string, corps?: unknown) => Promise<any>, moi: any, ent: string | null }} o */
+  function volontaire(el, o) {
+    const ici = ((o.moi && o.moi.entreprises) || []).find((/** @type {any} */ e) => e.id === o.ent);
+    if (!ici) { el.innerHTML = ''; return; }
+    const peut = (ici.roles || []).some((/** @type {string} */ r) => r === 'proprietaire' || r === 'administrateur');
+    let oui = ici.volontaire === true;
+    const dessin = (/** @type {string} */ dit, /** @type {boolean} */ recharger) => {
+      el.innerHTML = `<p class="small muted mb">Essaie avant tout le monde les parties que l'équipe SkanFact ouvre en bêta : elles s'affichent dans ton menu avec la pastille « Bêta ». Une bêta peut encore changer ; tes données restent les tiennes, et décocher referme la bêta chez toi tout de suite, sans rien effacer.</p>
+        <label class="check" id="vol-beta-libelle"><input type="checkbox" id="vol-beta"${oui ? ' checked' : ''}${peut ? '' : ' disabled'}> <span>Essayer les nouveautés en avant-première</span></label>
+        ${peut ? '' : '<p class="small muted" id="vol-beta-qui">C\'est la propriétaire de l\'entreprise, ou un administrateur, qui en décide.</p>'}
+        <p class="small" role="status" id="vol-beta-dit">${esc(dit)}${recharger ? ' <button type="button" class="btn btn-sm" id="vol-beta-recharger">Recharger maintenant</button>' : ''}</p>`;
+      const r = el.querySelector('#vol-beta-recharger');
+      if (r) /** @type {HTMLElement} */ (r).onclick = () => location.reload();
+      const c = /** @type {HTMLInputElement | null} */ (el.querySelector('#vol-beta'));
+      if (!c || !peut) return;
+      c.onchange = async () => {
+        const voulu = c.checked;
+        c.disabled = true;
+        try {
+          await o.appel('PUT', '/volontaire-beta', { volontaire: voulu });
+          oui = voulu;
+          dessin(voulu ? 'C\'est noté : ton entreprise reçoit les nouveautés en avant-première. Elles apparaîtront dans ton menu au prochain chargement.'
+            : 'C\'est noté : les parties en bêta se referment chez toi au prochain chargement. Rien de ce que tu y as saisi n\'est perdu.', true);
+        } catch (x) { c.checked = !voulu; c.disabled = false; const d = el.querySelector('#vol-beta-dit'); if (d) d.textContent = x instanceof Error ? x.message : String(x); }
+      };
+    };
+    dessin('', false);
+  }
+
   // `aAmener` : l'endroit de l'onglet qu'un bouton d'ailleurs a demandé (« offres »), lu au prochain dessin.
-  w.SkanAbonnement = { licence, pastille, bandeau, dessiner, etatEnClair, montant, OFFRES, aAmener: '' };
+  w.SkanAbonnement = { licence, pastille, bandeau, dessiner, etatEnClair, montant, OFFRES, volontaire, aAmener: '' };
 })();

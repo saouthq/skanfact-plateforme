@@ -162,7 +162,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // Les entreprises de la personne, et celles qu'elle voit par un mandat de son cabinet
       // (parCabinet : elles s'ouvrent dans le Cabinet, jamais comme les siennes).
       const entreprises = (await tx.query(`select e.id, e.raison_sociale, e.essai, socle.mes_roles(e.id) roles,
-          socle.perimetre_cabinet(e.id) is not null "parCabinet" from socle.entreprise e order by e.raison_sociale`)).rows;
+          socle.perimetre_cabinet(e.id) is not null "parCabinet", e.volontaire_beta is not null volontaire from socle.entreprise e order by e.raison_sociale`)).rows;
       const cabinets = (await tx.query(`select o.id, o.nom, o.code_exige "codeExige" from socle.organisation o
           join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
          where o.type = 'cabinet' order by o.nom, o.id`)).rows;
@@ -183,7 +183,7 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const donnees = new Map(((await tx.query(`select entreprise::text e, array_agg(distinct collection) c from socle.dossier_v10
          where entreprise = any($1::uuid[]) and collection = any($2::text[]) group by entreprise`, [entreprises.map((e) => String(e.id)), COLLECTIONS_DES_MODULES])).rows as { e: string; c: string[] }[])
         .map((r) => [r.e, modulesAvecDonnees(r.c)]));
-      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises: entreprises.map((e) => ({ ...e, modules: listesModules(lignesModules, String(e.id), process.env, donnees.get(String(e.id)) ?? []) })), cabinets, compte } };
+      return { corps: { ...moi, codeAConfigurer: qui.codeAConfigurer, entreprises: entreprises.map((e) => ({ ...e, modules: listesModules(lignesModules, String(e.id), process.env, donnees.get(String(e.id)) ?? [], e.volontaire === true) })), cabinets, compte } };
     },
   });
 
@@ -702,6 +702,18 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!tx || !uuid.safeParse(params.cle).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
       await tx.query('select socle.revoquer_cle_api($1)', [params.cle]);
       return { corps: { ok: true } };
+    },
+  });
+
+  // (1.388.73, 0228) Essayer les nouveautés en avant-première : la propriétaire ou un administrateur se déclare
+  // volontaire ; un module que la console met en « bêta pour les volontaires » s'ouvre alors chez elle.
+  ajouter({
+    methode: 'PUT', chemin: '/entreprises/:entreprise/volontaire-beta', geste: 'socle.dossier.tout',
+    corps: z.object({ volontaire: z.boolean() }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      await tx.query('select socle.poser_volontaire_beta($1, $2)', [params.entreprise, corps.volontaire]);
+      return { corps: { volontaire: corps.volontaire } };
     },
   });
 

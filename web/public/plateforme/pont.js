@@ -1211,7 +1211,7 @@
     bandeauAbonnement: (/** @type {boolean} */ gere) => /** @type {any} */ (window).SkanAbonnement.bandeau(abonnement, gere),
     dessinerQuarantaine,
     dessinerPaiement,
-    dessinerServices,
+    dessinerServices, dessinerVolontaire: async (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanAbonnement.volontaire(el, { appel, moi: await lireMoi(), ent }),
     // La messagerie avec le cabinet (lot messagerie ; plateforme/messagerie.js) : ce qui attend (la pastille), le fil, et
     // l'achat où la photo d'un message a été rangée.
     messagerie: LECTURE ? null : {

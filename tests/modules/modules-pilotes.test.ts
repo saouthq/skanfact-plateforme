@@ -13,7 +13,7 @@ import { ajouter as ajouterALEquipe, titulaire as designerTitulaire } from '../.
 import { declarerGestesAchats } from '../../serveur/achats/gestes.ts';
 import { routesAchats } from '../../serveur/achats/routes.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
-import { creerPool } from '../../serveur/base.ts';
+import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import { etatModule, listesModules, moduleUtilisable, MODULES_PILOTES } from '../../serveur/modules-pilotes.ts';
@@ -31,7 +31,7 @@ const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(path.join(import.me
 let app: FastifyInstance;
 
 type Corps = Record<string, unknown>;
-async function appeler(methode: 'GET' | 'POST', url: string, jeton?: string, corps?: unknown): Promise<{ statut: number; corps: Corps }> {
+async function appeler(methode: 'GET' | 'POST' | 'PUT', url: string, jeton?: string, corps?: unknown): Promise<{ statut: number; corps: Corps }> {
   const r = await app.inject({ method: methode, url: VERSION + url, headers: jeton ? { authorization: `Bearer ${jeton}` } : {}, ...(corps === undefined ? {} : { payload: corps as Record<string, unknown> }) });
   return { statut: r.statusCode, corps: r.json() };
 }
@@ -273,5 +273,49 @@ describe('1.388.72 : un état programmé, et le retour automatique', () => {
     const id2 = Number((await admin.query('select id from plateforme.module_etat where entreprise = $1 and debut is not null', [ent])).rows[0].id);
     await admin.query(`update plateforme.module_etat set debut = now() - interval '1 minute' where id = $1`, [id2]);
     expect((await appeler('POST', '/console/modules/annuler', amira.console, { id: id2, motif: 'Trop tard' })).statut).toBeGreaterThanOrEqual(400);
+  });
+});
+
+describe('1.388.73 : les volontaires de la bêta (Skander : « la bêta s\'ouvre à eux seuls »)', () => {
+  it('pur : « volontaires » vaut bêta chez une volontaire, à venir (ou pause avec des données) chez les autres', () => {
+    const lignes = [{ module: 'stock', entreprise: null, etat: 'volontaires' as const }];
+    expect(listesModules(lignes, 'e', {}, [], true).beta).toEqual(expect.arrayContaining(['stock', 'garanties']));
+    expect(listesModules(lignes, 'e', {}, [], true).aVenir).not.toContain('stock');
+    expect(listesModules(lignes, 'e', {}, [], false).aVenir).toEqual(expect.arrayContaining(['stock', 'garanties']));
+    expect(listesModules(lignes, 'e', {}, [], false).beta).not.toContain('stock');
+    expect(listesModules(lignes, 'e', {}, ['stock'], false).pause).toContain('stock');
+    expect(listesModules(lignes, 'e', {}, ['stock'], true).pause).not.toContain('stock');
+  });
+  it('la propriétaire se déclare volontaire : la bêta s\'ouvre chez elle seule ; la garde de la base suit ; la console compte', async () => {
+    const a = await inscrire('vola');
+    const b = await inscrire('volb');
+    const entA = String((await appeler('POST', '/entreprises', a.jeton, { raisonSociale: 'Boulangerie volontaire' })).corps.id);
+    const entB = String((await appeler('POST', '/entreprises', b.jeton, { raisonSociale: 'Épicerie prudente' })).corps.id);
+    entreprises.push(entA, entB);
+    expect((await appeler('PUT', `/entreprises/${entA}/volontaire-beta`, a.jeton, { volontaire: true })).statut).toBe(200);
+    // Une autre entreprise ne se déclare pas à la place de celle-ci — ni par la route, ni par la base en direct.
+    expect((await appeler('PUT', `/entreprises/${entA}/volontaire-beta`, b.jeton, { volontaire: false })).statut).toBeGreaterThanOrEqual(400);
+    const quiB = await quiEst(ctx, b.jeton);
+    await expect(enTantQue(pool, quiB?.utilisateur ?? null, (tx) => tx.query('select socle.poser_volontaire_beta($1, false)', [entA]))).rejects.toThrow(/seuls la propriétaire/);
+    for (const ent of [entA, entB]) expect((await poser({ module: 'paie', entreprise: ent, etat: 'volontaires', motif: 'Bêta de la paie' })).statut).toBe(200);
+    const modulesDe = async (jeton: string, ent: string) => ((await appeler('GET', '/moi', jeton)).corps as { entreprises: { id: string; volontaire: boolean; modules: { beta: string[]; aVenir: string[] } }[] }).entreprises.find((e) => e.id === ent);
+    const chezA = await modulesDe(a.jeton, entA);
+    const chezB = await modulesDe(b.jeton, entB);
+    expect(chezA?.volontaire).toBe(true);
+    expect(chezA?.modules.beta).toContain('paie');
+    expect(chezB?.volontaire).toBe(false);
+    expect(chezB?.modules.aVenir).toContain('paie');
+    const garde = async (ent: string) => (await admin.query('select socle.etat_module($1, $2) v', ['paie', ent])).rows[0].v;
+    expect(await garde(entA)).toBe('beta');
+    expect(await garde(entB)).toBe('a_venir');
+    const lu = (await appeler('GET', '/console/modules', amira.console)).corps as { volontaires: { n: number; noms: { id: string }[] } };
+    expect(lu.volontaires.n).toBeGreaterThanOrEqual(1);
+    expect(lu.volontaires.noms.map((v) => v.id)).toContain(entA);
+    expect(lu.volontaires.noms.map((v) => v.id)).not.toContain(entB);
+    // Se retirer referme la bêta chez soi tout de suite, au journal de l'entreprise.
+    expect((await appeler('PUT', `/entreprises/${entA}/volontaire-beta`, a.jeton, { volontaire: false })).statut).toBe(200);
+    expect(await garde(entA)).toBe('a_venir');
+    const traces = (await admin.query(`select apres from socle.audit where entreprise = $1 and geste = 'socle.volontaire_beta' order by instant, id`, [entA])).rows.map((r) => r.apres.volontaire);
+    expect(traces).toEqual([true, false]);
   });
 });

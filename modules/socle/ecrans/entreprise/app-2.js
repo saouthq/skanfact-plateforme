@@ -7451,6 +7451,7 @@
           <button type="button" class="btn btn-ghost" id="redo-setup">Revoir l'assistant de démarrage…</button>
         </div>
       </div>
+      ${bridge.dessinerVolontaire ? `${panneau('p-volontaire')}<div id="volontaire-panel"></div></div>` : ''}
       ${panneau('p-maj')}<div id="update-panel"></div></div>
       ${panneau('p-licence', info('lic.etat'))}<div id="lic-panel"></div></div>
       ${licence.editeur ? `${panneau('p-editeur', info('lic.editeur'))}<div id="editeur-panel"></div></div>` : ''}
@@ -7859,6 +7860,7 @@
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question', { sujet: 'Remettre en place ou effacer les données de l\'entreprise' }) : null });
     if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
+    if (bridge.dessinerVolontaire && $('#volontaire-panel')) void bridge.dessinerVolontaire($('#volontaire-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));
     if (bridge.dessinerTtn && $('#ttn-panel')) void bridge.dessinerTtn($('#ttn-panel'));

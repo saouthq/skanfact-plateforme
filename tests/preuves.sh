@@ -32261,7 +32261,7 @@ prouver "le message aux clients ne part pas" serveur/modules-pilotes.ts \
   "se pose avec l'état, arrive dans /moi"
 
 # 1.388.71 — l'historique des modules, et revenir à l'état d'avant.
-prouver "revenir à l'état d'avant perd le message d'avant" base/migrations/0227_modules_programmes.sql \
+prouver "revenir à l'état d'avant perd le message d'avant" base/migrations/0228_volontaires_beta.sql \
   "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'), 'message', v_avant.message)," "jsonb_build_object('module', p_module, 'etat', coalesce(v_avant.etat, 'serveur'))," \
   "revenir reprend l'état ET le message d'avant"
 
@@ -32272,12 +32272,23 @@ prouver "un état programmé vaut avant son heure" base/migrations/0227_modules_
 prouver "un état échu ne revient jamais tout seul" base/migrations/0227_modules_programmes.sql \
   "     and (m.debut is null or m.debut <= p_a) and (m.fin is null or m.fin > p_a)" "     and (m.debut is null or m.debut <= p_a)" \
   "programmé : rien ne change avant le début"
-prouver "un programmé efface l'état posé tout de suite" base/migrations/0227_modules_programmes.sql \
+prouver "un programmé efface l'état posé tout de suite" base/migrations/0228_volontaires_beta.sql \
   "    delete from plateforme.module_etat where module = p_module and entreprise is not distinct from p_entreprise and debut = p_debut;" "    delete from plateforme.module_etat where module = p_module and entreprise is not distinct from p_entreprise;" \
   "les refus : un début passé"
 prouver "un programmé déjà commencé s'annule encore" base/migrations/0227_modules_programmes.sql \
   "  if v.id is null or v.debut is null or v.debut <= p_maintenant then" "  if v.id is null or v.debut is null then" \
   "les refus : un début passé"
+
+# 1.388.73 — les volontaires de la bêta.
+prouver "la bêta des volontaires s'ouvre chez tout le monde" serveur/modules-pilotes.ts \
+  "export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') : e;" "export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire || true ? 'beta' : 'a_venir') : e;" \
+  "pur : « volontaires » vaut bêta chez une volontaire"
+prouver "la garde de la base ouvre la bêta des volontaires à tous" base/migrations/0228_volontaires_beta.sql \
+  "then case when (select volontaire_beta from socle.entreprise where id = p_entreprise) is not null then 'beta' else 'a_venir' end" "then 'beta'" \
+  "la propriétaire se déclare volontaire"
+prouver "n'importe qui déclare une entreprise volontaire" base/migrations/0228_volontaires_beta.sql \
+  "    perform socle.refus('seuls la propriétaire et un administrateur décident d''essayer les nouveautés en avant-première');" "    null;" \
+  "la propriétaire se déclare volontaire"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

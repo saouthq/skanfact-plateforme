@@ -8,8 +8,11 @@
 import { aVenir, enBeta } from './a-venir.ts';
 import { t } from '../textes/index.ts';
 
-export const ETATS_MODULE = ['ouvert', 'beta', 'a_venir', 'ferme'] as const;
+// (1.388.73, 0228) « volontaires » : bêta chez les entreprises volontaires (Paramètres › L'application), à venir chez les
+// autres. Il se résout pour une entreprise par `pourEntreprise` ; il n'arrive jamais tel quel dans les écrans.
+export const ETATS_MODULE = ['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme'] as const;
 export type EtatModule = (typeof ETATS_MODULE)[number];
+export const pourEntreprise = (e: EtatModule, volontaire: boolean): EtatModule => e === 'volontaires' ? (volontaire ? 'beta' : 'a_venir') : e;
 
 // Ce qu'un module allume dans les écrans : ses pages (la barre latérale) ou sa fonction (un réglage, un bouton).
 // Les ventes et les fiches (clients, catalogue) n'y sont pas : sans elles, il n'y a plus d'application.
@@ -66,11 +69,11 @@ export function etatModule(lignes: readonly LigneEtat[], module: string, entrepr
 
 // Ce que les écrans reçoivent : des listes d'identifiants (pages ou fonctions). `avecDonnees` : les modules où cette
 // entreprise a déjà saisi quelque chose ; fermés ou à venir, ils passent en `pause` (pages et module), jamais cachés.
-export function listesModules(lignes: readonly LigneEtat[], entreprise: string | null, env: Record<string, string | undefined> = process.env, avecDonnees: readonly string[] = []) {
+export function listesModules(lignes: readonly LigneEtat[], entreprise: string | null, env: Record<string, string | undefined> = process.env, avecDonnees: readonly string[] = [], volontaire = false) {
   // `messages` : le message aux clients du module (celui de l'entreprise, sinon le général), sous chacune de ses pages.
   const out = { aVenir: [] as string[], beta: [] as string[], ferme: [] as string[], pause: [] as string[], messages: {} as Record<string, string> };
   for (const m of MODULES_PILOTES) {
-    const e = etatModule(lignes, m.id, entreprise, env);
+    const e = pourEntreprise(etatModule(lignes, m.id, entreprise, env), volontaire);
     const porte = (entreprise ? lignes.find((l) => l.module === m.id && l.entreprise === entreprise) : undefined) ?? lignes.find((l) => l.module === m.id && l.entreprise === null);
     if (porte?.message) for (const id of new Set([m.id, ...m.ids])) out.messages[id] = porte.message;
     if (!moduleUtilisable(e) && avecDonnees.includes(m.id)) out.pause.push(...new Set([m.id, ...m.ids]));

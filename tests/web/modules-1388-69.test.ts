@@ -137,4 +137,35 @@ describe('1.388.69 : un module posé depuis la console, pour une entreprise', ()
       await admin.end();
     }
   }, 120_000);
+  it('1.388.73 : « Essayer les nouveautés en avant-première » — la case dans Paramètres, et la paie « bêta (volontaires) » qui s\'ouvre', async () => {
+    const x = await monter();
+    const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+    await admin.connect();
+    try {
+      const par = String((await admin.query('select id from socle.utilisateur limit 1')).rows[0]?.id);
+      await admin.query(`insert into plateforme.module_etat (module, entreprise, etat, motif, le, par) values ('stock', $1, 'volontaires', 'Bêta du stock', now(), $2)`, [x.ent, par]);
+      const p = await ouvrir(x);
+      expect(await p.evaluate(() => (window as unknown as { __aVenir: string[] }).__aVenir)).toContain('stock');
+      await p.evaluate(() => { location.hash = '#/parametres'; });
+      await p.locator('#set-tabs [data-tab="app"]').click();
+      const c = p.locator('#vol-beta');
+      await c.waitFor({ timeout: 10_000 });
+      expect(await c.isChecked()).toBe(false);
+      await p.locator('#p-volontaire').scrollIntoViewIfNeeded();
+      await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-volontaire-beta.png') });
+      await p.locator('#vol-beta-libelle').click();
+      await p.locator('#vol-beta-recharger').waitFor({ timeout: 10_000 });
+      expect(espace(await p.locator('#vol-beta-dit').innerText())).toContain('ton entreprise reçoit les nouveautés en avant-première');
+      expect((await admin.query('select volontaire_beta is not null v from socle.entreprise where id = $1', [x.ent])).rows[0].v).toBe(true);
+      await p.screenshot({ animations: 'disabled', path: path.join(RACINE, 'dist/photos', 'v10-volontaire-beta-coche.png') });
+      await p.locator('#vol-beta-recharger').click();
+      await p.waitForFunction(() => Array.isArray((window as unknown as { __beta?: string[] }).__beta) && ((window as unknown as { __beta: string[] }).__beta).includes('stock'), undefined, { timeout: 20_000 });
+      expect(await p.evaluate(() => (window as unknown as { __aVenir: string[] }).__aVenir)).not.toContain('stock');
+      expect(erreurs).toEqual([]);
+      await p.context().close();
+    } finally {
+      await admin.query('delete from plateforme.module_etat where entreprise = $1', [x.ent]);
+      await admin.end();
+    }
+  }, 120_000);
 });

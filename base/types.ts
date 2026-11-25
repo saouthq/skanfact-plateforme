@@ -1566,6 +1566,7 @@ export interface BaseDeDonnees {
     tenue_par: string | null;
     ville: string | null;
     exemple: Generated<boolean>;
+    volontaire_beta: Date | null;
   };
   'socle.etablissement': {
     id: Generated<string>;

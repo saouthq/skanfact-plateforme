@@ -9,13 +9,14 @@ import { heureDe, jourCourt, jourDe } from '../temps.ts';
 import { Alerte, Bouton, Champ, Dialogue, Zone, toast } from '../ui.tsx';
 
 const K = 'console.ecran.modules';
-export const ETATS = ['ouvert', 'beta', 'a_venir', 'ferme'] as const;
+// (1.388.73) « volontaires » : bêta chez les entreprises qui se sont déclarées volontaires, à venir chez les autres.
+export const ETATS = ['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme'] as const;
 type Etat = (typeof ETATS)[number];
 type Module = { id: string; nom: string; quoi: string; serveur: Etat; avecDonnees: number | null };
 type Pose = { id: number; module: string; entreprise: string | null; nom: string | null; etat: Etat; motif: string; message: string | null; le: string; par: string | null; debut: string | null; fin: string | null };
 type Trace = { id: string; le: string; geste?: string; motif: string; par: string | null; entreprise: string | null; nom: string | null;
   avant: { module: string; etat: Etat | 'serveur'; message?: string | null } | null; apres: { module: string; etat: Etat | 'serveur'; message?: string | null; debut?: string | null; fin?: string | null } | null };
-type Donnees = { maintenant: string; modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null; historique: Trace[] };
+type Donnees = { maintenant: string; modules: Module[]; poses: Pose[]; entreprise: { id: string; nom: string } | null; titulaire: boolean; nomTitulaire: string | null; historique: Trace[]; volontaires?: { n: number; noms: { id: string; nom: string; depuis: string }[] } };
 
 // (1.388.72) Un état posé vaut entre son début (vide : tout de suite) et sa fin (vide : sans fin) ; parmi ceux qui valent,
 // le plus récemment commencé. La même règle que la base (plateforme.module_en_vigueur), à l'heure du serveur.
@@ -101,7 +102,7 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
               {c.etat ? <Pastille etat={c.etat} /> : <b>{titre(ent ? `${K}.comme_tous` : `${K}.revenir_serveur`)}</b>}
               {c.valeur === aujourdhui ? <span className="c-mod-actuel">{dire(`${K}.g.actuel`)}</span> : null}
             </span>
-            <span className="c-sous">{c.etat ? dire(`${K}.etat_quoi.${c.etat}`) : dire(ent ? `${K}.g.comme_tous_quoi` : `${K}.g.serveur_quoi`, { etat: dire(`${K}.etat.${apres}`) })}</span>
+            <span className="c-sous">{c.etat ? dire(`${K}.etat_quoi.${c.etat}`, { n: d.volontaires?.n ?? 0 }) : dire(ent ? `${K}.g.comme_tous_quoi` : `${K}.g.serveur_quoi`, { etat: dire(`${K}.etat.${apres}`) })}</span>
           </label>
         ))}
       </fieldset>
@@ -114,6 +115,8 @@ function FenetreModule({ m, d, entreprise, fermer, fait }: { m: Module; d: Donne
             {etat !== 'serveur' && debutIso ? <li><b>{phrase(`${K}.g.va.a_partir`, { quand: leJour(debutIso), avant: dire(`${K}.etat.${actuel.etat}`) })}</b></li> : null}
             {etat !== 'serveur' && finIso ? <li><b>{phrase(`${K}.g.va.jusqua`, { quand: leJour(finIso), retour: dire(`${K}.etat.${ent ? etatQuiVaut(m, d.poses.filter((p) => p.entreprise !== ent), null, Date.parse(finIso)).etat : m.serveur}`) })}</b></li> : null}
             <li>{phrase(`${K}.g.va.effet.${apres}`)}</li>
+            {apres === 'volontaires' ? <li><b>{ent ? phrase(`${K}.g.va.vol_${d.volontaires?.noms.some((v) => v.id === ent) ? 'elle' : 'pas_elle'}`, { nom: entreprise?.nom ?? '' })
+              : phrase(`${K}.g.va.vol_${(d.volontaires?.n ?? 0) === 0 ? '0' : d.volontaires?.n === 1 ? '1' : 'n'}`, { n: d.volontaires?.n ?? 0 })}</b></li> : null}
             {(apres === 'ferme' || apres === 'a_venir') && m.avecDonnees !== null && !ent ? <li><b>{phrase(`${K}.g.va.donnees_${m.avecDonnees === 0 ? '0' : m.avecDonnees === 1 ? '1' : 'n'}`, { n: m.avecDonnees })}</b></li> : null}
           </ul>
         </div>
@@ -306,6 +309,7 @@ export function Modules({ entreprise: demandee }: { entreprise: string | null })
         {ETATS.map((e) => <li key={e} className={compte[e] ? '' : 'c-mod-zero'}><Pastille etat={e} /><b>{compte[e]}</b></li>)}
         {ent ? null : <li className={exceptionsEnTout ? '' : 'c-mod-zero'}><span className="c-sous">{selon(exceptionsEnTout, `${K}.exceptions_en_tout`)}</span></li>}
       </ul>
+      {ent ? null : <p className="c-sous c-mod-vol" id="rg-modules-vol">{d.volontaires && d.volontaires.n ? <>{dire(`${K}.vol.liste_${d.volontaires.n === 1 ? '1' : 'n'}`, { n: d.volontaires.n })} {d.volontaires.noms.slice(0, 8).map((v, i) => <span key={v.id}>{i ? ', ' : ''}<a href={`#/clients/${v.id}`}>{v.nom}</a></span>)}{d.volontaires.n > 8 ? dire(`${K}.vol.et_autres`, { n: d.volontaires.n - 8 }) : ''}.</> : phrase(`${K}.vol.liste_0`)}</p>}
       {peut ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.lecture_seule`, { nom: d.nomTitulaire ?? '—' })}</span></Alerte>}
       {ent || !peut ? null : <p className="c-sous c-mod-astuce">{phrase(`${K}.astuce_exception`)}</p>}
       <div className="c-defile">

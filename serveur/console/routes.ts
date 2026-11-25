@@ -674,12 +674,14 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       // `titulaire` : seule cette personne change un module (0226) ; les autres lisent, et l'écran nomme le titulaire.
       // (1.388.70) Combien d'entreprises ont des données dans chaque module : fermé, il passe chez elles en pause, pas dans le noir.
       const avec = await lireJson(transaction(tx), 'select plateforme.console_modules_donnees($1) v', [JSON.stringify(DONNEES_MODULE)]) as Record<string, number>;
-      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null, historique: lu.historique ?? [] } };
+      // (1.388.73) Les entreprises volontaires de la bêta : combien, et les plus récentes (un module « volontaires » s'ouvre chez elles).
+      const vol = await lireJson(transaction(tx), 'select plateforme.console_volontaires() v', []) as { n: number; noms: unknown[] };
+      return { corps: { modules: MODULES_PILOTES.map((m) => ({ ...m, ...nomModule(m.id), serveur: etatServeur(m.id), avecDonnees: DONNEES_MODULE[m.id] ? Number(avec[m.id] ?? 0) : null })), poses: lu.poses, entreprise: lu.entreprise, titulaire: lu.titulaire === true, nomTitulaire: lu.nomTitulaire ?? null, historique: lu.historique ?? [], volontaires: { n: Number(vol.n ?? 0), noms: vol.noms ?? [] } } };
     },
   });
   ajouter({
     methode: 'POST', chemin: '/console/modules', geste: 'console.modules.poser',
-    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional(), debut: z.string().datetime({ offset: true }).nullable().optional(), fin: z.string().datetime({ offset: true }).nullable().optional() }),
+    corps: z.object({ module: z.string().max(20), entreprise: z.string().nullable().optional(), etat: z.enum(['ouvert', 'beta', 'volontaires', 'a_venir', 'ferme', 'serveur']), motif: z.string().max(500), message: z.string().max(300).nullable().optional(), debut: z.string().datetime({ offset: true }).nullable().optional(), fin: z.string().datetime({ offset: true }).nullable().optional() }),
     traiter: async ({ corps }, tx) => {
       if (!moduleConnu(corps.module)) throw new Introuvable();
       const ent = corps.entreprise ?? null;
