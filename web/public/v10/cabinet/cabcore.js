@@ -2093,7 +2093,7 @@
         for (const d of actifs.filter(x => periodeTva(state, x) === 'trimestrielle' && concerne(x, moisTrim))) { const j = jourTva(state, d); if (!parJourT.has(j)) parJourT.set(j, []); parJourT.get(j).push(d); }
         for (const [jour, trimestriels] of parJourT) {
           const physiques = jour !== cfg.tvaDay;
-          const e = ligneEcheance('tva-t', `TVA du ${trim}ᵉ trimestre${physiques ? ' · personnes physiques' : ''}`, dayOf(depot, jour), moisTrim, trimestriels, t, attendus,
+          const e = ligneEcheance('tva-t', `TVA du ${trim}${trim === 1 ? 'ᵉʳ' : 'ᵉ'} trimestre${physiques ? ' · personnes physiques' : ''}`, dayOf(depot, jour), moisTrim, trimestriels, t, attendus,
             'Déclaration trimestrielle de TVA. Il te faut les trois mois du trimestre.');
           if (physiques) e.physiques = true;
           out.push(e);
@@ -2122,7 +2122,7 @@
         // qui sont tous comptés faute de savoir (trouvé en testant comme un humain).
         const connus = employeurs.length - inconnus;
         const prudence = `${pl(inconnus, 'client')} dont le trimestre n'est pas encore saisi ici ${inconnus > 1 ? 'sont comptés' : 'est compté'} par prudence`;
-        if (employeurs.length) out.push(ligneEcheance('cnss', `CNSS du ${trim}ᵉ trimestre`, dayOf(depot, cfg.cnssDay), moisTrim, employeurs, t, attendus,
+        if (employeurs.length) out.push(ligneEcheance('cnss', `CNSS du ${trim}${trim === 1 ? 'ᵉʳ' : 'ᵉ'} trimestre`, dayOf(depot, cfg.cnssDay), moisTrim, employeurs, t, attendus,
           !inconnus ? 'Déclaration sociale trimestrielle des clients employeurs : leur Paie ou leurs comptes de rémunération le disent.'
             : !connus ? `Déclaration sociale trimestrielle des clients employeurs. ${inconnus > 1 ? `Le trimestre de ces ${inconnus} clients n'est pas encore saisi ici : ils sont comptés` : 'Le trimestre de ce client n\'est pas encore saisi ici : il est compté'} par prudence.`
               : `Déclaration sociale trimestrielle des clients employeurs : ${pl(connus, 'client')} d'après ${connus > 1 ? 'leur Paie ou leurs comptes' : 'sa Paie ou ses comptes'} de rémunération, et ${prudence}.`));

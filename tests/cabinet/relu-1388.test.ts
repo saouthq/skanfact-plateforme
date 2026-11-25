@@ -47,14 +47,6 @@ beforeAll(async () => {
 });
 afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
 
-async function personneA(email: string, nom: string) {
-  await appeler('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
-  const jeton = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
-  await appeler('POST', '/moi/code', jeton, { methode: 'application' });
-  const utilisateur = String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0].id);
-  return { email, jeton, utilisateur };
-}
-
 // (Vérification du Cabinet, 25/11/2026) Ce que la relecture du code a trouvé, tenu par le serveur et la base.
 async function cabinetEtClient(nomCabinet: string) {
   const associe = await personne('associe');

@@ -53,10 +53,8 @@
   if (poste) poste.pourLeCabinet();
   // Le dernier appel a manqué le réseau : « Enregistrer et valider » le dit avant d'écrire quoi que ce soit.
   let sansReseau = false;
-  // Le jour de Tunis d'un instant (maintenant par défaut) : un jour de calendrier, jamais le jour UTC (entre minuit et
-  // une heure à Tunis, l'UTC dit encore la veille).
-  /** @param {string | number | Date} [quand] */
-  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+  // Le jour de Tunis d'un instant (maintenant par défaut), jamais le jour UTC (entre minuit et une heure, l'UTC dit la veille).
+  const jourDeTunis = (/** @type {string | number | Date} */ quand = Date.now()) => new Date(quand).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
   // La plus ancienne lecture relue sur le poste depuis l'ouverture : le bandeau dit de quand date ce qu'on voit.
   /** @type {number | null} */ let copieLe = null;
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
@@ -953,14 +951,8 @@
   // Une écriture de la grille de saisie, pour le serveur : ses lignes remplies (la grille en garde
   // une vide au bout), ses montants en texte exact.
   /** @param {unknown} n */
-  // Un montant au millime près ; plus de décimales se refuse (la règle du serveur), il ne s'arrondit pas en silence : la
-  // grille montrerait une pièce juste que le serveur refuserait, ou un autre montant que celui tapé.
-  const montant = (n) => {
-    const x = Number(n);
-    if (!x) return '';
-    if (Math.abs(Math.round(x * 1000) - x * 1000) > 1e-6) throw new Error(`Un montant s'écrit au millime près (trois décimales) : ${String(n).replace('.', ',')} en a plus.`);
-    return (Math.round(x * 1000) / 1000).toFixed(3);
-  };
+  // Un montant au millime près ; plus de décimales se refuse (la règle du serveur), jamais un arrondi en silence.
+  const montant = (n) => { const x = Number(n); if (!x) return ''; if (Math.abs(Math.round(x * 1000) - x * 1000) > 1e-6) throw new Error(`Un montant s'écrit au millime près (trois décimales) : ${String(n).replace('.', ',')} en a plus.`); return (Math.round(x * 1000) / 1000).toFixed(3); };
   /** @param {any} ec */
   function versLeServeur(ec) {
     return {
@@ -2604,8 +2596,7 @@
       const nom = String(f.name || '').trim();
       if (!nom) throw new Error('Donne au moins un nom à ce client.');
       const matricule = String(f.matricule || '').trim();
-      // (Vérification du Cabinet) Le dossier et sa fiche dans la même transaction : une fiche refusée ne laisse pas un
-      // dossier sans fiche, qu'un second essai doublerait.
+      // Le dossier et sa fiche dans la même transaction : une fiche refusée ne laisse pas un dossier qu'un second essai doublerait.
       const cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: nom, ...(matricule ? { matriculeFiscal: matricule } : {}), fiche: contenuDeFiche(f) });
       return { state: await construireEtat(), id: cree.entreprise };
     },
@@ -2623,9 +2614,8 @@
       if (faux) throw new Error(`« ${faux.d.name} » : le matricule fiscal « ${faux.matricule} » est incomplet ou ne se lit pas : sept chiffres, une lettre autre que I, O ou U, puis code TVA, catégorie et établissement, en entier, comme « 1234567A/A/M/000 ». Corrige cette ligne : rien n'a été ajouté.`);
       let added = 0;
       for (const { d, matricule } of /** @type {any[]} */ (lus)) {
-        let cree;
         try {
-          cree = await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}), fiche: contenuDeFiche(d) });
+          await appel('POST', `/cabinets/${cabinetId}/dossiers`, { raisonSociale: String(d.name).trim(), ...(matricule ? { matriculeFiscal: matricule } : {}), fiche: contenuDeFiche(d) });
         } catch (e) {
           // Une ligne que le serveur refuse (son matricule déjà celui d'une entreprise sur SkanFact : E5) arrête la liste :
           // le refus nomme la ligne, et dit ce qui est déjà entré (la liste s'arrêtait au milieu, sans un mot de plus).
@@ -2634,7 +2624,6 @@
           const entres = added ? (added === 1 ? 'Le client d\'avant est ajouté' : `Les ${added} clients d'avant sont ajoutés`) : 'Aucun client n\'a été ajouté';
           throw new Error(`« ${d.name} » : ${raison} ${entres} ; ${x.champ ? 'retire ou corrige cette ligne, puis ajoute' : 'ajoute'} la liste de nouveau : les clients déjà dans ton portefeuille seront ignorés.`, { cause: e });
         }
-        void cree;
         added++;
       }
       return { added, ignorés: r.ignorés, state: await construireEtat() };

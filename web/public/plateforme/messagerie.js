@@ -1314,11 +1314,17 @@
         const qs = [...(lu.questions || []), ...anciennesQuestions].filter((q) => q.statut === 'envoyee' && !q.reponse);
         const ds = [...demandes().values()].filter((m) => !m.demande.recueLe);
         const jours = (/** @type {string} */ iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000));
+        // (1.388.82, CE-07) Une promesse notée sur une pièce déjà demandée est la MÊME attente : elle se dit sur la ligne de
+        // la pièce (« promis pour lundi 30/11 »), au lieu d'une seconde ligne qui comptait la pièce deux fois.
+        const promiseActive = promesse && !promesse.tenue ? promesse : null;
+        const memeTexte = (/** @type {unknown} */ x) => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
+        const surDemande = promiseActive ? ds.find((m) => memeTexte(m.demande.texte) === memeTexte(promiseActive.quoi)) : null;
+        const ditPromesse = (/** @type {any} */ p) => (p.echue ? `promis pour ${esc(jourLong(p.pour))} · le jour est passé` : `promis pour ${esc(jourLong(p.pour))}`);
         const items = [
           ...qs.map((q) => ({ quand: q.envoyeeLe, html: `<li>${dessin('question')}<span><b>${esc(titreQ(q))}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}</b><small>question de la révision · depuis ${esc(pl(jours(q.envoyeeLe), 'jour'))}</small></span></li>` })),
-          ...ds.map((m) => ({ quand: m.ecritLe, html: `<li class="${m.demande.enRetard ? 'retard' : ''}">${dessin('piece')}<span><b>${esc(m.demande.texte)}</b><small>pièce demandée${m.demande.pour ? ` · pour le ${esc(dateCourte(m.demande.pour))}` : ''}${m.demande.enRetard ? ' · en retard' : ''}${m.demande.relances ? ` · relancée ${m.demande.relances > 1 ? `${m.demande.relances} fois` : 'une fois'}` : ''}</small></span></li>` })),
+          ...ds.map((m) => ({ quand: m.ecritLe, html: `<li class="${m.demande.enRetard ? 'retard' : ''}">${dessin('piece')}<span><b>${esc(m.demande.texte)}</b><small>pièce demandée${m.demande.pour ? ` · pour le ${esc(dateCourte(m.demande.pour))}` : ''}${m.demande.enRetard ? ' · en retard' : ''}${m === surDemande ? ` · ${ditPromesse(promiseActive)}` : ''}${m.demande.relances ? ` · relancée ${m.demande.relances > 1 ? `${m.demande.relances} fois` : 'une fois'}` : ''}</small></span></li>` })),
         ].sort((x, y) => (x.quand < y.quand ? -1 : 1));
-        if (promesse && !promesse.tenue) items.push({ quand: promesse.noteeLe, html: `<li class="${promesse.echue ? 'retard' : 'promise'}">${dessin('reveil')}<span><b>${esc(promesse.quoi.charAt(0).toUpperCase() + promesse.quoi.slice(1))}</b><small>${promesse.echue ? `promis pour ${esc(jourLong(promesse.pour))} · le jour est passé` : `promis pour ${esc(jourLong(promesse.pour))}`}</small></span></li>` });
+        if (promesse && !promesse.tenue && !surDemande) items.push({ quand: promesse.noteeLe, html: `<li class="${promesse.echue ? 'retard' : 'promise'}">${dessin('reveil')}<span><b>${esc(promesse.quoi.charAt(0).toUpperCase() + promesse.quoi.slice(1))}</b><small>${promesse.echue ? `promis pour ${esc(jourLong(promesse.pour))} · le jour est passé` : `promis pour ${esc(jourLong(promesse.pour))}`}</small></span></li>` });
         z.innerHTML = `${items.length ? `<section class="msg-cote-carte attend" data-msg-attente><h3>On attend ${esc(deMot(prenom))}<span class="msg-filtre-n">${items.length}</span></h3><ul class="msg-attend-l">${items.map((x) => x.html).join('')}</ul></section>` : ''}
           ${f && f.actif ? `<label class="msg-cote-alerte" title="« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact.">${dessin('cloche')}<span>Me prévenir par e-mail</span><input type="checkbox" role="switch" class="msg-bascule" data-msg-alerte ${f.alerte ? 'checked' : ''}></label>` : ''}`;
         brancherCote(z);

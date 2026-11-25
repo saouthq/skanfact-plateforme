@@ -29259,8 +29259,8 @@ prouver $'paie 1.362.3 e : le contrôle réclame le bulletin de tous les salari�
   $'const attendus = (livre.salaries || []).filter(s => s.actif);' \
   $'le contrôle réclame les bulletins de ces salariés-là, et eux seuls'
 prouver $'paie 1.362.3 f : la frise d\'un mois sans personne en poste parle d\'un pointage à saisir' modules/personnel/ecrans/cabinet/paie.js \
-  $'[\'Pointage\', !P.duMois ? \'personne en poste ce mois\' : ' \
-  $'[\'Pointage\', ' \
+  $'\'aucun salarié déclaré ici\' : !P.duMois ? \'personne en poste ce mois\' : ' \
+  $'\'aucun salarié déclaré ici\' : ' \
   "$W"
 prouver $'paie 1.362.3 g : janvier réclame « 1 à faire » pour un salarié entré en novembre' modules/personnel/ecrans/cabinet/paie.js \
   $'(P.manquants ? `${P.manquants} à faire` : \'aucun à faire\')' \
@@ -29271,7 +29271,7 @@ prouver $'paie 1.362.3 h : le mois sans personne en poste ne dit pas qui entre e
   $'false ? `Personne n\'est en poste en' \
   "$W"
 prouver $'paie 1.362.3 i : la frise réclame la CNSS d\'un trimestre où personne n\'était en poste' modules/personnel/ecrans/cabinet/paie.js \
-  $'const personneAuTrim = !bulletins.length &&' \
+  $'const personneAuTrim = !!(L.salaries || []).length && !bulletins.length &&' \
   $'const personneAuTrim = false &&' \
   "$W"
 prouver $'paie 1.362.3 j : changer d\'exercice garde le mois qu\'on regardait (un mois qui n\'existe pas encore)' modules/personnel/ecrans/cabinet/paie.js \
@@ -32458,8 +32458,52 @@ prouver "un export fait avec les bulletins se lit par la saisie" base/migrations
   $'\n         and (not paie or entreprise in (select paie.mes_entreprises())));' ');' \
   "un bulletin de paie au classeur : lu par le rôle Paie et l'associé sous un mandat Paie, jamais par la saisie ni sans le mandat"
 prouver "le bulletin validé le soir porte le jour UTC" web/public/plateforme/pont-cabinet.js \
-  "  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });" "  const jourDeTunis = (quand) => new Date(quand ?? Date.now()).toISOString().slice(0, 10);" \
+  ".toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });" ".toISOString().slice(0, 10);" \
   "validé le 31/10 à 23 h 30 UTC : c'est le 1er novembre à Tunis, le jour qu'il porte"
+
+# 1.388.82 — Le Cabinet relu, ses écrans (vérification complète, lot Cabinet).
+prouver "la carte « Déclaré à l'État » ignore une déclaration déposée hors livre" modules/socle/ecrans/cabinet/app-1.js \
+  "    : montantDe(cs.aDecaisser));" "    : 0);" \
+  "déposée hors livre : son seul montant fait le total"
+prouver "une case vide (montant null) compte comme une case remplie" modules/socle/ecrans/cabinet/app-1.js \
+  " && !(typeof v === 'object' && v.montant == null);" ";" \
+  "déposée hors livre : son seul montant fait le total"
+prouver "la puce « Pièces manquantes » du tableau de bord garde sa propre règle" modules/socle/ecrans/cabinet/app-1.js \
+  "    manque: x => !!x.reclame," "    manque: x => !x.d.manual && x.manque > 0," \
+  "la puce du tableau de bord et la page Tous les dossiers la lisent"
+prouver "la fiche compte le compte d'attente au brouillard sans le dire" modules/socle/ecrans/cabinet/app-1.js \
+  'à expliquer${brDit(L.brAttente)}`' 'à expliquer`' \
+  "le brouillard du 471 est compté et nommé sur la tuile"
+prouver "la frise coche le pointage sans salarié déclaré" modules/personnel/ecrans/cabinet/paie.js \
+  "        !!P.actifs && (!P.duMois || P.pointe > 0 || P.n > 0)]," "        !P.duMois || P.pointe > 0 || P.n > 0]," \
+  "la frise ne coche pas le pointage sans salarié, et le dit"
+prouver "la Paie sans salarié ne dit pas où sont les salaires des livres" modules/personnel/ecrans/cabinet/paie.js \
+  "    const Hx = !P.actifs ? salairesHorsBulletins(L, annee) : null;" "    const Hx = null;" \
+  "les salaires que les livres portent sans salarié déclaré se disent"
+prouver "la CNSS sans bulletin s'ouvre sur le trimestre en cours" modules/personnel/ecrans/cabinet/paie.js \
+  "    for (let t = du; t >= 1; t--) if (K.today().slice(0, 7) > \`\${s.annee}-\${String(t * 3).padStart(2, '0')}\`) return t;" "" \
+  "sans bulletin, la CNSS s'ouvre sur le dernier trimestre terminé"
+prouver "la note « Encore en retard » s'arrête à trois échéances" modules/socle/ecrans/cabinet/app-2.js \
+  "avant.slice(0, 4).map(x =>" "avant.slice(0, 3).map(x =>" \
+  "elle nomme chaque échéance par son nom court qualifié, et compte celles qu'elle ne liste pas"
+prouver "une promesse sur une pièce demandée fait une seconde ligne" web/public/plateforme/messagerie.js \
+  "        if (promesse && !promesse.tenue && !surDemande) items.push({" "        if (promesse && !promesse.tenue) items.push({" \
+  "la promesse se range sur la ligne de sa pièce"
+prouver "un mois au brouillard se dit « à saisir »" modules/socle/ecrans/cabinet/app-1.js \
+  "    if (etat.brouillard > 0) return ['à réviser', 'b-due'];" "" \
+  "un mois dont des écritures attendent au brouillard est « à réviser »"
+prouver "un rôle de saisie se voit proposer de valider une écriture" modules/socle/ecrans/cabinet/app-2.js \
+  "      if (!peutValiderCl(dossier)) Object.assign(a[a.length - 1], { hint:" "      if (false) Object.assign(a[a.length - 1], { hint:" \
+  "« Valider cette écriture » se grise pour qui ne valide pas, et la légende des touches ne le promet pas"
+prouver "« Face à la pièce » est repris par le redessin" modules/socle/ecrans/cabinet/app-2.js \
+  "    if ((pieceEnCours(p) || p.depuisClasseur) && !faceVoulue) sxState.mode = 'km';" "    if (pieceEnCours(p) || p.depuisClasseur) sxState.mode = 'km';" \
+  "« Face à la pièce » choisi à la main n'est pas repris par le redessin"
+prouver "Ctrl + chiffre est ignoré dans la recherche du sélecteur de dossiers" modules/socle/ecrans/cabinet/app-1.js \
+  "    if (champ && !(champ.matches('[data-chercher-d]') && !champ.value)) return;" "    if (champ) return;" \
+  "la recherche vide du sélecteur laisse passer le raccourci, les autres champs non"
+prouver "un nom d'appareil photo devient le libellé de l'écriture" modules/socle/ecrans/cabinet/app-2.js \
+  "    if (!t || /^(img|dsc|dscn|pxl|scan|scanned|photo|image|whatsapp image|wa|screenshot|capture)\\b/i.test(t) || !/\\p{L}{3,}/u.test(t)) return '';" "" \
+  "un nom parlant se lit, un nom d'appareil photo laisse le libellé vide"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

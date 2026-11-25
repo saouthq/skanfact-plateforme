@@ -314,7 +314,9 @@
   // La ligne d'aide de la grille : elle nomme le geste, puis montre la touche. Les touches viennent
   // des réglages, donc elle suit ce que le comptable a choisi — une aide qui annonce F2 quand la
   // touche est F5 est pire que pas d'aide.
-  function aideTouches() {
+  // (1.388.82, CE-09) `valide` : le rôle de la personne valide-t-il ? Un rôle de saisie ne lit pas « Enregistrer et valider »
+  // dans la légende d'une grille dont le bouton ne le propose pas.
+  function aideTouches(valide = true) {
     const t = touchesSaisie();
     const paire = (quoi, k) => `<span class="kbd-paire">${esc(quoi)} ${kbd(k)}</span>`;
     // La RÈGLE avant l'exception (T-31) : Tab avance de champ en champ, c'est son comportement
@@ -326,7 +328,7 @@
       paire('Solder depuis la case Crédit', t.solder),
       paire('Recopier la ligne du dessus', t.recopier),
       paire('Dupliquer la pièce', t.dupliquer),
-      paire('Enregistrer et valider', t.valider)
+      valide ? paire('Enregistrer et valider', t.valider) : ''
     ].join('')}</div>`;
   }
   // Un champ « touche » de la grille de saisie. Il se règle en APPUYANT sur la touche, pas en
@@ -2897,7 +2899,10 @@
   // Ctrl (ou Alt) + 1 à 9 : un de tes dossiers, dans l'ordre du choix (les favoris d'abord). Jamais dans un champ.
   document.addEventListener('keydown', e => {
     if (!S || !(e.ctrlKey || e.altKey) || e.metaKey || e.shiftKey || !/^[1-9]$/.test(e.key)) return;
-    if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    // (1.388.82, CE-11) Sauf la recherche du sélecteur de dossiers, encore vide : le curseur y est à l'ouverture, et ses lignes
+    // annoncent « Ctrl 1…9 ». Ctrl + chiffre n'y écrit rien ; le raccourci était ignoré là où il est montré.
+    const champ = e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]');
+    if (champ && !(champ.matches('[data-chercher-d]') && !champ.value)) return;
     const { favoris, autres } = listeDesDossiers();
     const d = [...favoris, ...autres][Number(e.key) - 1];
     if (!d) return;
@@ -2968,6 +2973,7 @@
     const auj = K.today();
     const recues = new Map();
     for (const p of piecesLues.pieces || []) if (!p.classeeLe) recues.set(p.entreprise, [...(recues.get(p.entreprise) || []), p]);
+    const R = reclamesDuPortefeuille();
     return mesDossiers().filter(d => !d.archived && parId.has(d.id)).map(d => {
       const l = parId.get(d.id), eq = equipeDe(d);
       const brut = new Map(l.mois.map(c => [c.mois, c]));
@@ -2979,7 +2985,7 @@
       const sansTva = sansTvaCd(d) || (!d.manual && Array.isArray(d.perimetre) && !d.perimetre.includes('declarations'));
       const retard = sansTva ? [] : cases.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
       const n = e => cases.filter(c => c.etape === e).length;
-      return { d, l, eq, mois, retard, sansTva, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
+      return { d, l, eq, mois, retard, sansTva, manque: n('recu'), reclame: R.aReclamer(d), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
     });
   }
   const anneauTb = (fait, sur, t = 92) => {
@@ -3066,7 +3072,8 @@
   const FILTRES_TB = {
     tous: () => true,
     retard: x => x.retard.length > 0,
-    manque: x => !x.d.manual && x.manque > 0,
+    // (1.388.82, CE-02) Ce qui se réclame au client, par la règle de la page Tous les dossiers (`reclamesDuPortefeuille`).
+    manque: x => !!x.reclame,
     saisir: x => x.aSaisir > 0,
     reviser: x => x.aReviser > 0,
     tenus: x => !!x.d.manual,
@@ -4616,6 +4623,35 @@
     });
   }
 
+  // Les mois en retard de chaque dossier (les déclarations mensuelles passées et pas déposées, K.echeances), ceux dont rien
+  // n'est arrivé, et pour chaque dossier ce qui se RÉCLAME à son client. Lu par la page Tous les dossiers ET par la puce
+  // « Pièces manquantes » du tableau de bord (1.388.82, CE-02) : deux règles donnaient deux comptes sous le même mot.
+  function reclamesDuPortefeuille() {
+    const retard = new Map(), sansPieces = new Map();
+    for (const e of K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })) {
+      if (!e.passee || e.toutDepose || !/^tva-/.test(e.id)) continue;
+      for (const nom of e.restants || []) retard.set(nom, [...(retard.get(nom) || []), e.mois[e.mois.length - 1]].sort());
+      // (1.340.0) Le mois en retard dont rien n'est arrivé (la règle des Échéances, `manquants`) : seul celui-là se réclame au
+      // client. Un mois en retard dont les écritures sont là attend le cabinet, pas le client — la relance partait vide.
+      for (const nom of e.manquants || []) if ((e.restants || []).includes(nom)) sansPieces.set(nom, [...(sansPieces.get(nom) || []), e.mois[e.mois.length - 1]].sort());
+    }
+    // (1.340.0) Les pièces que le client a envoyées et qui attendent d'être classées (« Pièces reçues ») : la règle des Relances
+    // (1.335.0) — un client qui a envoyé n'est pas « à relancer ». La vue « Pièces manquantes » mettait Relancer sur des
+    // clients dont les pièces attendaient d'être classées, et « sept. sans pièces » sur un mois dont elles étaient arrivées.
+    const piecesPar = comptesBarre.piecesParDossier || new Map();
+    const de = d => {
+      const pc = d.manual ? 0 : (piecesPar.get(d.id) || 0);
+      let mo = moisDuDossier(d, retard);
+      if (pc && mo.manque && mo.moisManque) mo = { cl: 'cours', mot: `${moisCourt(mo.moisManque)} à saisir` };
+      const sp = d.manual || !mo.tard ? [] : (sansPieces.get(d.name) || []);
+      if (mo.tard) mo = { ...mo, manqueTxt: sp.length ? `${sp.map(moisCourt).join(', ')} sans pièces` : `${(retard.get(d.name) || []).map(moisCourt).join(', ')} à déclarer : ses écritures sont là` };
+      // `reclame` : ce qui se demande au client (un mois sans pièces), jamais un mois qui n'attend que le cabinet.
+      return { mo, pc, sp, reclame: !d.manual && (!!mo.manque || sp.length > 0) };
+    };
+    // Ce qu'on réclame VRAIMENT : un dossier dont les pièces envoyées attendent d'être classées n'est pas à relancer.
+    return { retard, de, aReclamer: d => { const x = de(d); return x.reclame && !x.pc; } };
+  }
+
   function drawDossiersCd(view) {
     const st = dosState;
     const dir = estAssocie();
@@ -4626,29 +4662,14 @@
     // (1.169.0) Au téléphone : des cartes, la fiche en plein écran, ni tuiles, ni tris, ni barre de choix (la maquette).
     const tel = matchMedia('(max-width: 760px)').matches;
     if (!st.vue) st.vue = dir ? 'tous' : 'mes';
-    // Les mois en retard de chaque dossier : les déclarations mensuelles passées et pas déposées (K.echeances).
-    const retard = new Map(), sansPieces = new Map();
-    for (const e of K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })) {
-      if (!e.passee || e.toutDepose || !/^tva-/.test(e.id)) continue;
-      for (const nom of e.restants || []) retard.set(nom, [...(retard.get(nom) || []), e.mois[e.mois.length - 1]].sort());
-      // (1.340.0) Le mois en retard dont rien n'est arrivé (la règle des Échéances, `manquants`) : seul celui-là se réclame au
-      // client. Un mois en retard dont les écritures sont là attend le cabinet, pas le client — la relance partait vide.
-      for (const nom of e.manquants || []) if ((e.restants || []).includes(nom)) sansPieces.set(nom, [...(sansPieces.get(nom) || []), e.mois[e.mois.length - 1]].sort());
-    }
+    // (1.388.82, CE-02) Les retards, les mois sans pièces et ce qui se réclame au client : une seule règle, que le tableau de
+    // bord lit aussi (sa puce « Pièces manquantes » comptait 5 dossiers quand cette page en comptait 2).
+    const R = reclamesDuPortefeuille(), retard = R.retard;
     const aMoi = d => !!(d.droits && d.droits[S.moi]);
     // La pastille des messages : exactement quand le client compte dans celle du menu (« À traiter »), avec ses non-lus.
-    // (1.340.0) Les pièces que le client a envoyées et qui attendent d'être classées (« Pièces reçues ») : la règle des Relances
-    // (1.335.0) — un client qui a envoyé n'est pas « à relancer ». La vue « Pièces manquantes » mettait Relancer sur des
-    // clients dont les pièces attendaient d'être classées, et « sept. sans pièces » sur un mois dont elles étaient arrivées.
-    const piecesPar = comptesBarre.piecesParDossier || new Map();
     const lignesDe = d => {
-      const m = etatsMessages.get(d.id) || {}, pc = d.manual ? 0 : (piecesPar.get(d.id) || 0);
-      let mo = moisDuDossier(d, retard);
-      if (pc && mo.manque && mo.moisManque) mo = { cl: 'cours', mot: `${moisCourt(mo.moisManque)} à saisir` };
-      const sp = d.manual || !mo.tard ? [] : (sansPieces.get(d.name) || []);
-      if (mo.tard) mo = { ...mo, manqueTxt: sp.length ? `${sp.map(moisCourt).join(', ')} sans pièces` : `${(retard.get(d.name) || []).map(moisCourt).join(', ')} à déclarer : ses écritures sont là` };
-      // `reclame` : ce qui se demande au client (un mois sans pièces), jamais un mois qui n'attend que le cabinet.
-      return { d, mo, pc, sp, reclame: !d.manual && (!!mo.manque || sp.length > 0), eq: equipeDe(d), nl: m.nonLus || 0, at: m.etat === 'a_traiter' };
+      const m = etatsMessages.get(d.id) || {};
+      return { d, ...R.de(d), eq: equipeDe(d), nl: m.nonLus || 0, at: m.etat === 'a_traiter' };
     };
     const L = actifs.map(lignesDe);
     const VUES = [['tous', 'Tous'], ['mes', 'Les miens'], ['manque', 'Pièces manquantes'], ['tenus', 'Tenus au cabinet'], ['archives', 'Archivés']];
@@ -5169,6 +5190,12 @@
     return retard;
   }
   const montantDe = v => (v && typeof v === 'object' ? Number(v.montant) || 0 : Number(String(v || '0').replace(/\s/g, '').replace(',', '.')) || 0);
+  // (1.388.82, CE-01) Ce que fait une déclaration : ses cases détaillées, sinon — déposée « hors livre », son seul montant.
+  const CASES_DU_TOTAL = ['netAPayer', 'retenuesOperees', 'irpp', 'tfp', 'foprolos', 'timbre', 'fodec'];
+  const caseRemplie = v => v != null && v !== '' && !(typeof v === 'object' && v.montant == null);
+  const totalDeDeclaration = cs => (CASES_DU_TOTAL.some(k => caseRemplie(cs[k]))
+    ? Math.round(CASES_DU_TOTAL.reduce((t, k) => t + montantDe(cs[k]), 0) * 1000) / 1000
+    : montantDe(cs.aDecaisser));
   // Ce que le livre d'une année dit, mois par mois : le chiffre d'affaires HT (comptes 70), les écritures et celles au
   // brouillard ; la banque (comptes 532) et le compte d'attente (471) en solde ; la déclaration de chaque mois.
   function lireLivreFd(livre) {
@@ -5177,7 +5204,7 @@
     let banque = 0, attente = 0, attenteLignes = 0, derniere = '', lignesVente = 0, lignesBanque = 0;
     // (1.378.6 ; issue 9, CABDECLARER-19) Les tuiles comptent les brouillards, la balance non : la fiche le dit, avec
     // leur nombre, pour que ses chiffres se retrouvent dans la balance (« Compter les écritures en brouillard »).
-    let brVente = 0, brBanque = 0;
+    let brVente = 0, brBanque = 0, brAttente = 0;
     // (1.385.6 ; issue 11-19) Un solde par compte de banque : deux comptes fondus en un chiffre ne se retrouvaient sur
     // aucun relevé.
     const parCompteBq = {};
@@ -5194,6 +5221,9 @@
       const br = e.statut === 'brouillard';
       if (br && (e.lignes || []).some(l => /^70/.test(String(l.compte || '')))) brVente++;
       if (br && (e.lignes || []).some(l => /^532/.test(String(l.compte || '')))) brBanque++;
+      // (1.388.82, CE-03) Le compte d'attente aussi : la fiche le comptait brouillard compris sans le dire, quand le contrôle
+      // de clôture (les validées) disait « rien à signaler ».
+      if (br && (e.lignes || []).some(l => /^471/.test(String(l.compte || '')))) brAttente++;
       for (const l of e.lignes || []) {
         const c = String(l.compte || ''), d = Number(l.debit) || 0, k = Number(l.credit) || 0;
         if (/^70/.test(c)) { x.ca += k - d; if (!annulee) lignesVente++; }
@@ -5212,7 +5242,10 @@
       const cs = d.cases || {};
       decl[d.periode] = { deposee: !!dep.le, payee: !!pay.le, deposeeLe: dep.le || '', deposeePar: dep.par || '', payeeLe: pay.le || '', type: d.type || '', par: d.par || '',
         montant: montantDe(cs.aDecaisser), cases: cs, prepareeLe: d.prepareeLe,
-        total: Math.round(['netAPayer', 'retenuesOperees', 'irpp', 'tfp', 'foprolos', 'timbre', 'fodec'].reduce((t, k) => t + montantDe(cs[k]), 0) * 1000) / 1000 };
+        // (1.388.82, CE-01) Une déclaration déposée « hors livre » ne porte que son montant (`aDecaisser`, tapé à l'écran
+        // Échéances) : sans cases détaillées, son total est ce montant — la carte disait 0,000 DT à côté d'un historique
+        // qui montrait 879,999 DT.
+        total: totalDeDeclaration(cs) };
     }
     const releves = ((livre && livre.releves) || []).slice().sort((a, b) => String(a.au).localeCompare(String(b.au)));
     const rapproche = releves.filter(r => (r.lignes || []).every(l => l.rapprochement && l.rapprochement.niveau !== 'aucun')).map(r => r.au).pop() || '';
@@ -5225,7 +5258,7 @@
     // (CABDECLARER-14) « Révisé » se dit d'un mois dont la révision est ARRÊTÉE (comme le tableau de production) ; un mois aux
     // écritures toutes validées est « validé ».
     const revFaites = new Set(((livre && livre.revisions) || []).filter(r => r && r.faite).map(r => String(r.periode)));
-    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque, comptesBq, revFaites };
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length, lignesVente, lignesBanque, debut, brVente, brBanque, brAttente, comptesBq, revFaites };
   }
   // (CABDECLARER-14) Les quatre points de la révision d'un mois — écritures, banque, compte d'attente, TVA — lus dans le livre :
   // la fiche du dossier ET l'onglet Révision les montrent par cette MÊME fonction (la fiche disait « 3 sur 4 » pendant que la
@@ -5366,7 +5399,7 @@
           ${L.lignesVente ? tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses livres${brDit(L.brVente)}`) : tile(`Chiffre d'affaires ${annee}`, '—', 'aucune vente dans ses livres')}
           ${tile(`Déclaré à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')}${nDecl ? ` · ${nPayees === nDecl ? (nDecl > 1 ? 'toutes notées payées' : 'notée payée') : nPayees ? `${nPayees} ${nPayees > 1 ? 'notées payées' : 'notée payée'}` : 'aucune notée payée'}` : ''} · sans la CNSS`, 'ok')}
           ${tile(`Banque${plusieursBq ? ` · ${L.comptesBq.length} comptes` : L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, L.releves || L.lignesBanque ? dtFd(L.banque) : '—', (plusieursBq ? `<span class="fd-ch-cb">${L.comptesBq.map(c => `<span>${esc(c.compte)}${c.nom && L.comptesBq.filter(x => x.nom === c.nom).length === 1 ? ` ${esc(c.nom)}` : ''} : <b>${esc(dtCd(c.solde))}</b></span>`).join('')}</span>` : '') + (L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé') + brDit(L.brBanque), L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
-          ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
+          ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer${brDit(L.brAttente)}` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
 
     // La révision du dernier mois, point par point.
     const mr = tenuEnCours ? mc : mp;
@@ -9944,6 +9977,9 @@
     if (periode > mc) return ['à venir', ''];
     if (etat.declaration) return ['prêt à déposer', 'b-due'];
     if (periode === mc) return ['en cours', ''];
+    // (1.388.82, CE-08) Des écritures au brouillard : le mois est « à réviser » (le mot du tableau de production), jamais
+    // « à saisir » au-dessus d'un bandeau qui en compte dix.
+    if (etat.brouillard > 0) return ['à réviser', 'b-due'];
     return etat.saisi ? ['à déposer', 'b-due'] : ['à saisir', ''];
   }
   const panneauPieces = (c, titre, cle) => {

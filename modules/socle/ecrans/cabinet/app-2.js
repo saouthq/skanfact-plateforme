@@ -2593,12 +2593,20 @@
   // (1.174.5) La saisie ouverte pour une pièce (le classeur, les Pièces reçues) : son journal nommé par sa nature (achats,
   // banque, ventes ; la saisie prend le code de ce livre), une date, son nom en libellé ; enregistrée, la pièce se joint à
   // l'écriture (`depuis`). Une saisie déjà commencée pour ce dossier n'est pas écrasée.
+  // (1.388.82, CE-12) Le nom d'un fichier n'est pas un libellé : « IMG_0412 » entrait tel quel au livre-journal. Un nom
+  // parlant se lit (« facture-hebergement-T3 » → « Facture hebergement T3 ») ; un nom d'appareil photo ou de scanner, sans
+  // mot, laisse le libellé vide — la validation le demande, au lieu d'un journal plein de numéros de photo.
+  const libelleDeFichier = nom => {
+    const t = String(nom || '').replace(/\.[a-z0-9]{2,5}$/i, '').replace(/[-_.]+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!t || /^(img|dsc|dscn|pxl|scan|scanned|photo|image|whatsapp image|wa|screenshot|capture)\b/i.test(t) || !/\p{L}{3,}/u.test(t)) return '';
+    return (t.charAt(0).toUpperCase() + t.slice(1)).slice(0, 120);
+  };
   function saisirPiece(dossierId, { nature, date, nom, depuis }) {
     if (saisieState.dossierId === dossierId && pieceEnCours(saisieState.piece)) toast('Une saisie est déjà commencée pour ce dossier : elle t\'attend, la pièce ne s\'y joindra pas d\'elle-même.');
     else {
       if (saisieState.dossierId && saisieState.dossierId !== dossierId && pieceEnCours(saisieState.piece)) saisieState.enAttente[saisieState.dossierId] = saisieState.piece;
       saisieState.dossierId = dossierId;
-      saisieState.piece = { ...pieceVide('', date), journalDe: nature, libelle: String(nom || '').replace(/\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };
+      saisieState.piece = { ...pieceVide('', date), journalDe: nature, libelle: libelleDeFichier(nom), depuisClasseur: depuis };
       // (1.336.0) La pièce montrée à côté de la grille est celle qu'on saisit (« La pièce de l'écriture en cours ») : elle
       // prenait la première pièce à traiter de l'année, une autre facture, sous le titre « Saisie de … » de celle-ci.
       if (depuis && (depuis.message || depuis.doc)) {
@@ -3728,6 +3736,10 @@
     $$('[data-sx-k]', el).forEach(b => { b.onclick = () => { sxState.sel = b.dataset.sxK; sxState.zoom = 1; sxState.rot = 0; redessinerSx(dossier, true); }; });
     $$('[data-sx-mode]', el).forEach(b => { b.onclick = () => {
       sxState.mode = b.dataset.sxMode;
+      // (1.388.82, CE-10) Le choix fait à la main vaut pour la pièce en cours : arrivée de Pièces reçues (« Saisir l'achat »),
+      // elle forçait « Au kilomètre » à chaque redessin, et « Face à la pièce » ne répondait pas. Ce qui est tapé reste
+      // dans la grille, cachée dessous.
+      sxState.modeVoulu = { mode: sxState.mode, piece: saisieState.piece };
       // (1.356.3) Au kilomètre ne se saisit qu'une pièce « à saisir » (ou en devises) : arrivé depuis une pièce « à
       // vérifier », la pièce à côté de la grille disait « elle se traite Face à la pièce » au-dessus d'une ligne vide. Le
       // kilomètre s'ouvre sur la première qui s'y saisit ; les flèches mènent toujours aux autres.
@@ -4051,7 +4063,8 @@
     if (sxState.dossier !== dossier.id) { Object.assign(sxState, { dossier: dossier.id, sel: '', mode: '', zoom: 1, rot: 0, dessin: '' }); sxState.fiches.clear(); sxState.saisir.clear(); }
     const P = piecesSx(dossier);
     sxState.dernier = P;
-    if (pieceEnCours(p) || p.depuisClasseur) sxState.mode = 'km';
+    const faceVoulue = !!(sxState.modeVoulu && sxState.modeVoulu.mode === 'face' && sxState.modeVoulu.piece === p);
+    if ((pieceEnCours(p) || p.depuisClasseur) && !faceVoulue) sxState.mode = 'km';
     else if (!sxState.mode && P.pret && P.liste.length) sxState.mode = 'face';
     const face = P.pret && P.liste.length > 0 && sxState.mode === 'face';
     const videSx = videCacheSx(P);
@@ -4126,7 +4139,7 @@
       ${/* Les touches : sous la grille, là où les doigts les cherchent pendant qu'ils tapent — et
             repliables, le choix retenu. Un comptable qui les connaît n'a pas à les relire à chaque
             pièce ; un débutant les trouve à l'endroit du geste. */''}
-      <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches()}</details>
+      <details class="sa-touches" id="sa-touches"${prefs.get('saTouches', true) === false ? '' : ' open'}><summary>Les touches de la grille</summary>${aideTouches(peutValiderCl(dossier))}</details>
       </div>${cote ? `<div class="sx-km-d" id="sx-km-d">${cotePieceSx(dossier, P)}</div>` : ''}</div>
       <div class="sx-bl-z"${videSx && !brMois.length ? ' hidden' : ''}><div class="sx-bl-t"><h2 id="sa-brouillard">Le brouillard${mBl ? ` ${esc(deMois(mBl))}` : ''} ${info('sa.brouillard')}</h2><span class="mu" id="sx-bl-n">${brVus.length ? `${esc(pl(brVus.length, 'écriture'))}${mBl && brouillards.length > brVus.length ? ` · ${brouillards.length - brVus.length} d'autres mois` : ''} · ${brVus.length > 1 ? 'elles n\'entrent dans aucun chiffre tant qu\'elles ne sont pas validées' : 'elle n\'entre dans aucun chiffre tant qu\'elle n\'est pas validée'}` : mBl && brouillards.length ? `rien n'y attend ${esc(deMois(mBl))} · ${esc(pl(brouillards.length, 'écriture'))} d'autres mois` : 'rien n\'y attend'}</span>
         ${mSx && brouillards.length > brMois.length ? `<button type="button" class="cp-plus" id="sx-bl-tout">${sxState.blTout ? `Seulement ${esc(moisLong(mSx))}` : `Tout le brouillard (${brouillards.length})`}</button>` : ''}
@@ -5251,6 +5264,10 @@
         run: () => { const s = livresState; s.brouillard = true; s.q = e.piece || ''; s.journal = ''; s.page = 1; allerSousOnglet(root, dossier, 'journal'); } });
       a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
         run: () => validerEcriture(root, dossier, e) });
+      // (1.388.82, CE-09) Un rôle qui ne valide pas ne se voit pas proposer de valider : la fenêtre « Valider cette écriture ? »
+      // s'ouvrait, puis « Validation refusée ». Le geste se grise et nomme qui valide, avant le clic.
+      if (!peutValiderCl(dossier)) Object.assign(a[a.length - 1], { hint: `${cap(reviseurCl(dossier))} la valide : ton rôle saisit au brouillard`, off: true,
+        run: () => infoDialog('Ton rôle ne valide pas', `Ton rôle au cabinet saisit au brouillard ; ${reviseurCl(dossier)} valide les écritures de ce dossier. L'écriture reste au brouillard en attendant.`) });
       // (plateforme) 1.102.0 — datée après aujourd'hui (l'écriture de paie, au dernier jour du mois), elle ne se valide pas
       // encore : le geste se grise et dit son jour, au lieu d'un refus après le clic.
       if (String(e.date || '') > K.today()) Object.assign(a[a.length - 1], { hint: `À partir du ${fmtJour(e.date)}, sa date`, off: true,
@@ -6934,7 +6951,7 @@
     return `<div class="ec-cal"><div class="ec-cal-t"><button type="button" class="btn btn-sm btn-icone" data-ec-cal="${K.addMonth(m, -1)}" aria-label="Mois précédent">${EC_IC.g}</button><b>${esc(K.monthLabel(m).replace(/^./, c => c.toUpperCase()))}</b><button type="button" class="btn btn-sm btn-icone" data-ec-cal="${K.addMonth(m, 1)}" aria-label="Mois suivant">${EC_IC.d}</button></div>
       <div class="ec-cal-g">${['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'].map(j => `<span class="ec-cjt">${j}</span>`).join('')}${cases}</div>
       <div class="ec-jours">${jours.map(j => `<p class="ec-jt">${esc(new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric' }).replace(/^./, c => c.toUpperCase()))}${j === auj ? ' · aujourd\'hui' : ''}</p>${duMois.filter(x => x.e.date === j).map(item).join('')}`).join('') || '<p class="muted small">Aucune déclaration ce mois-ci.</p>'}</div>
-      ${avant.length ? `<p class="ec-cal-p"><i class="ec-pt rouge"></i><span>Encore en retard, d'un mois d'avant : ${avant.slice(0, 3).map(x => `la <b>${esc(minuscule(x.t.court))}</b> (${jourMois(x.e.date)})`).join(', ')}.</span></p>` : ''}</div>`;
+      ${avant.length ? `<p class="ec-cal-p"><i class="ec-pt rouge"></i><span>Encore en retard, d'un mois d'avant : ${avant.slice(0, 4).map(x => `la <b>${esc(minuscule(nomCourtEch(x)))}</b> (${jourMois(x.e.date)})`).join(', ')}${avant.length > 4 ? `, et ${pl(avant.length - 4, 'autre')}` : ''}.</span></p>` : ''}</div>`;
   }
   // Ce qu'on attend d'un dossier qui n'a rien envoyé : les mois sans pièces, des déclarations à faire.
   function moisAttendus(D, toutes) {

@@ -25,6 +25,9 @@
     if (s.paieTrimestre) return Number(s.paieTrimestre);
     const du = Math.ceil(Number(s.paieMois) / 3) || 1;
     for (let t = du; t >= 1; t--) if (KC.cnssDuTrimestre(L, s.annee, t).lignes.length) return t;
+    // (1.388.82, CE-05) Aucun bulletin : le dernier trimestre TERMINÉ (celui qui se déclare, qu'une échéance peut réclamer),
+    // jamais le trimestre en cours, qui n'a rien à déposer avant sa fin.
+    for (let t = du; t >= 1; t--) if (K.today().slice(0, 7) > `${s.annee}-${String(t * 3).padStart(2, '0')}`) return t;
     return du;
   }
   function vuePaie(dossier) {
@@ -348,7 +351,7 @@
   // paie se reporte avec la TVA) est déposée, et la CNSS une fois son trimestre fini, son accusé rangé au classeur. La frise
   // et « Les déclarer » le disaient à faire pour toujours, sous une rangée de mois qui affichait « oct. déposé ».
   function paieDeclares(dossier, L, annee, m, bulletins) {
-    const ym = `${annee}-${String(m).padStart(2, '0')}`, q = Math.ceil(m / 3), qn = q === 1 ? '1er' : `${q}e`;
+    const ym = `${annee}-${String(m).padStart(2, '0')}`, q = Math.ceil(m / 3), qn = q === 1 ? '1ᵉʳ' : `${q}ᵉ`; // (1.388.82, CE-05) l'écriture des Échéances
     const d = (L.declarations || []).find(x => x && String(x.periode) === ym && (x.type || 'mensuelle') === 'mensuelle');
     const le = v => (v && typeof v === 'object' ? String(v.le || '') : '');
     const dep = le(d && d.deposee), pay = le(d && d.payee);
@@ -362,8 +365,9 @@
     }
     // (1.362.3, bout en bout 27) Un trimestre (ou un mois) où personne n'était en poste n'a rien à déposer : la frise de
     // janvier réclamait « CNSS du 1er trimestre à déposer » pour un salarié entré le 1er octobre.
-    const personneAuTrim = !bulletins.length && [q * 3 - 2, q * 3 - 1, q * 3].every(mm => !KC.salariesDuMois(L, annee, mm).length);
-    const cnss = personneAuTrim ? `pas de CNSS au ${qn} trimestre : personne en poste` : !trimFini ? 'CNSS au trimestre' : accuse ? `CNSS du ${qn} trimestre déposée` : `CNSS du ${qn} trimestre à déposer`;
+    const personneAuTrim = !!(L.salaries || []).length && !bulletins.length && [q * 3 - 2, q * 3 - 1, q * 3].every(mm => !KC.salariesDuMois(L, annee, mm).length);
+    // (1.388.82, CE-04) Sans salarié déclaré, « personne en poste » est faux : on ne sait pas, on le dit.
+    const cnss = !(L.salaries || []).length ? 'CNSS : aucun salarié déclaré ici' : personneAuTrim ? `pas de CNSS au ${qn} trimestre : personne en poste` : !trimFini ? 'CNSS au trimestre' : accuse ? `CNSS du ${qn} trimestre déposée` : `CNSS du ${qn} trimestre à déposer`;
     const retenue = dep ? `déposée le ${jourCourt(dep)}${pay ? `, payée le ${jourCourt(pay)}` : ''}` : !bulletins.length && !KC.salariesDuMois(L, annee, m).length ? 'aucune retenue sur salaire' : `IRPP et CSS avec ${KC.moisPaie(m)}`;
     return { fait: bulletins.length > 0 && !!dep && (!trimFini || !!accuse), dit: `${retenue} · ${cnss}` };
   }
@@ -376,10 +380,11 @@
     const ecart = (a, b0) => (avants.length ? `${a - b0 >= 0 ? '+' : '−'} ${money(Math.abs(KC.round3(a - b0)))} sur ${KC.moisPaie(moisAvant)}` : '');
     // La frise : cinq étapes, la date de chacune, celle où l'on est.
     const E = [
-      ['Pointage', !P.duMois ? 'personne en poste ce mois' : P.ptValide && P.pointe === P.duMois ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.duMois ? 'les' : `${P.pointe} sur`} ${pl(P.duMois, 'salarié')} pointé${P.duMois > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.n ? 'sans pointage : des mois complets' : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`,
+      // (1.388.82, CE-04) Aucun salarié déclaré : rien n'est passé, l'étape ne se coche pas (une coche verte sur le vide).
+      ['Pointage', !P.actifs ? 'aucun salarié déclaré ici' : !P.duMois ? 'personne en poste ce mois' : P.ptValide && P.pointe === P.duMois ? `validé par ${P.client} le ${jourCourt(P.ptValide.le)}` : P.pointe ? `${P.pointe === P.duMois ? 'les' : `${P.pointe} sur`} ${pl(P.duMois, 'salarié')} pointé${P.duMois > 1 ? 's' : ''}${P.mode !== 'cabinet' ? ` · par ${P.client}` : ''}` : P.n ? 'sans pointage : des mois complets' : P.mode === 'cabinet' ? 'à saisir au cabinet, ou des mois complets' : `pas reçu de ${P.client} : des mois complets`,
         // (1.377.5, CABPAIE-8) L'étape ne se coche que si elle est passée : un pointage est là, ou les bulletins sont
         // partis sans lui. Elle était toujours cochée, au-dessus de « Le pointage n'est pas encore là ».
-        !P.duMois || P.pointe > 0 || P.n > 0],
+        !!P.actifs && (!P.duMois || P.pointe > 0 || P.n > 0)],
       ['Bulletins', !P.n ? (P.manquants ? `${P.manquants} à faire` : 'aucun à faire') : P.mode === 'seule' ? `faits par ${P.client}${P.enAttente.length ? ` · ${pl(P.enAttente.length, 'correction proposée', 'corrections proposées')}` : P.verifies ? ' · vérifiés' : ''}`
         : P.valides ? `${pl(P.n, 'validé', 'validés')} le ${jourCourt(P.valideLe)}` : P.approuves && P.accordRequis ? `approuvés par ${P.client} le ${jourCourt(P.approuveLe)}`
           : P.envoyes && P.accordRequis ? `envoyés à ${P.client} le ${jourCourt(P.envoyeLe)}` : `${pl(P.n, 'préparé', 'préparés')}${P.manquants ? `, ${P.manquants} à faire` : ''}`, P.n > 0 && !P.manquants && (P.valides || P.mode === 'seule' || P.mode === 'sans')],
@@ -399,7 +404,11 @@
     const tuiles = bulletins.length ? `<div class="cp-pa-tuiles">${tuile('Brut', masse.brut, `${pl(masse.count, 'bulletin')}${avants.length ? ` · ${KC.moisPaie(moisAvant)} : ${avants.length}` : ''}`)}${tuile('Net à payer', masse.net, (partiel ? '' : ecart(masse.net, masseAvant.net)) || 'ce que touchent les salariés')}${tuile('Charges patronales', masse.chargesPatronales, 'CNSS, accident, TFP, FOPROLOS')}${tuile(`Coût pour ${dossier.name || 'le dossier'}`, masse.cout, partiel || [ecart(masse.cout, masseAvant.cout).split(' sur ')[0], raisonsDuMois(L, bulletins, avants)].filter(Boolean).join(' : ') || 'brut et charges', 'pa-tuile-cout')}</div>` : '';
     // Les bandeaux du parcours : l'accord, la correction proposée, la vérification, la lecture seule.
     const corrRep = P.reponses.filter(b => b.correction.reponse);
+    // (1.388.82, CE-04) Aucun salarié déclaré ici, et des salaires dans les livres de l'exercice : la paie de ce client est
+    // tenue ailleurs (ses paquets, ou des écritures passées au journal). L'écran disait « 0 salarié » sans dire où elle était.
+    const Hx = !P.actifs ? salairesHorsBulletins(L, annee) : null;
     const bandeaux = [
+      Hx && (Hx.ailleurs || Hx.brouillard) ? `<div class="cp-pa-bandeau gris" id="pa-ailleurs">Aucun salarié n'est déclaré ici, mais les livres de ${esc(annee)} portent des salaires. ${esc(phraseAilleurs(Hx, P.client))} Pour faire les bulletins ici, déclare ses salariés.</div>` : '',
       P.mode === 'sans' ? `<div class="cp-pa-bandeau gris" id="pa-sans">${esc(P.client)} fait sa paie seul dans SkanFact : le Cabinet la lit et la passe en comptabilité. Pour la vérifier ou la tenir, ${esc(P.client)} le choisit dans « Qui fait ma paie ».</div>` : '',
       P.mode === 'seule' && !P.enAttente.length ? `<div class="cp-pa-bandeau" id="pa-seule">Le cabinet ne change un bulletin fait par ${esc(P.client)} qu'avec son accord : il prépare la correction (avant, après), ${esc(P.client)} l'accepte d'un geste dans SkanFact, et la trace reste. Refusée, elle reste une remarque.</div>` : '',
       P.enAttente.map(b => paieCorrectionCarte(L, b, P)).join(''),
@@ -1882,7 +1891,7 @@
           <dt>Certificat de travail</dt><dd>daté du ${esc(fmtJour(x.sortie))}, à remettre</dd>
           <dt>Solde de tout compte</dt><dd>le reçu, signé par ${esc(x.nom.split(' ')[0])}</dd>
           <dt>Attestation de salaires</dt><dd>${esc(an)}, pour sa déclaration d'impôt</dd>
-          <dt>CNSS</dt><dd>sa sortie dans la déclaration du ${tri === 1 ? '1er' : `${tri}e`} trimestre ${esc(an)}</dd>
+          <dt>CNSS</dt><dd>sa sortie dans la déclaration du ${tri === 1 ? '1ᵉʳ' : `${tri}ᵉ`} trimestre ${esc(an)}</dd>
           <dt>Le livre</dt><dd>l'indemnité de congés passe comme un salaire (le compte : À VÉRIFIER)</dd></dl>
           <div class="ctrl-geste">${envoyer ? `<button type="button" class="btn btn-primary btn-sm" id="pa-depart-envoyer">Envoyer le projet à ${esc(P.client)}</button>` : ''}<button type="button" class="btn btn-sm" id="pa-depart-cert">Le certificat de travail…</button><button type="button" class="btn btn-sm" id="pa-depart-solde">Le solde de tout compte…</button></div></div>
       </div></section>`;

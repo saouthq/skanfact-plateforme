@@ -94,7 +94,7 @@ describe('la Paie du Cabinet regarde les mois qui ont commencé, et les salarié
       const frise = (await p.locator('#pa-frise li').allInnerTexts()).map(espace);
       expect(frise[0]).toContain('personne en poste ce mois');
       expect(frise[1]).toContain('aucun à faire');
-      expect(frise[4]).toContain('pas de CNSS au 1er trimestre : personne en poste');
+      expect(frise[4]).toContain('pas de CNSS au 1ᵉʳ trimestre : personne en poste');
       expect(await p.locator('#pa-bulletin').count()).toBe(0);
       await p.locator('#pa-mois').selectOption(String(mois));
       await expect.poll(async () => espace(await p.locator('#pa-frise').innerText()), { timeout: 15_000 }).not.toContain('personne en poste ce mois');

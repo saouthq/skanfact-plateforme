@@ -7601,3 +7601,32 @@ pont »). Lot 1, le Cabinet : relecture du code et parcours à l'écran. Ce que 
 
 Tests : `tests/cabinet/relu-1388.test.ts` (3), et des cas ajoutés à `fiche`, `paie`, `classeur` et au bulletin du
 Cabinet ; dix preuves.
+
+## 1.388.82 — Le Cabinet relu, ses écrans (vérification complète, lot 1)
+
+La suite du lot Cabinet : le parcours à l'écran (Tableau de bord, Tous les dossiers, fiche, comptabilité, Paie, Échéances,
+Messages, Saisie), joué comme un comptable. Ce que les écrans disent maintenant :
+
+- **« Déclaré à l'État »** sur la fiche compte aussi les déclarations déposées avec leur seul montant (déposées « hors
+  livre » depuis les Échéances) : la carte disait 0,000 DT à côté d'un historique qui montrait le montant.
+- **« Pièces manquantes »** se compte par une seule règle : le tableau de bord en annonçait 5, Tous les dossiers 2, au
+  même instant. Les deux lisent maintenant ce qui se réclame vraiment au client.
+- **Le compte d'attente** de la fiche dit qu'il compte le brouillard, comme ses voisines (le contrôle de clôture ne lit
+  que les validées).
+- **La Paie d'un client sans salarié déclaré ici** ne coche plus « Pointage » sur le vide, dit où sont les salaires que
+  les livres portent (ses paquets, ou des écritures au journal), et la CNSS ne dit plus « personne en poste » : sans
+  bulletin, elle s'ouvre sur le dernier trimestre terminé, jamais sur celui en cours. Les trimestres s'écrivent « 1ᵉʳ »,
+  « 3ᵉ » partout (la Paie écrivait « 4e » à côté des « 3ᵉ » des Échéances, et les Échéances « 1ᵉ »).
+- **Échéances, vue Mois** : la note « Encore en retard » liste jusqu'à quatre échéances (elle s'arrêtait à trois), compte
+  les autres, et qualifie celle des personnes physiques.
+- **Messages** : une promesse notée sur une pièce déjà demandée se dit sur la ligne de cette pièce ; « On attend » ne la
+  compte plus deux fois.
+- **La Déclaration d'un mois au brouillard** se dit « à réviser » (le mot du tableau de production), jamais « à saisir ».
+- **Un rôle de saisie** ne se voit plus proposer « Valider cette écriture » pour lire ensuite « Validation refusée » : le
+  geste est grisé et nomme qui valide ; la légende des touches ne promet plus « Enregistrer et valider ».
+- **« Face à la pièce »** répond quand on arrive de Pièces reçues (le redessin reprenait « Au kilomètre »).
+- **Ctrl + chiffre** marche dans la recherche du sélecteur de dossiers, où ses lignes l'annoncent.
+- **Le libellé d'une écriture saisie depuis une pièce** ne reprend plus le nom du fichier tel quel : un nom parlant se lit
+  (« Facture hebergement T3 »), un nom d'appareil photo (« IMG_0412 ») laisse le libellé à écrire.
+
+Tests : `tests/cabinet/ecrans-1388-82.test.ts` (17) ; quinze preuves, deux preuves existantes réajustées.
