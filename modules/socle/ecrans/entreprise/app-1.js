@@ -18056,6 +18056,7 @@
         <div class="actions">${roleLit ? '' : `<button class="btn" id="new-dep">${lfIc('piece', 15)} Dépense</button><button class="btn ${videAchats || confies || lecture ? '' : 'btn-primary'}" id="new">${lfIc('croix', 15, 2.4)} Facture d'achat</button>${confies ? `<button class="btn btn-primary" id="photo-cab">${lfIc('photo', 15)} Envoyer une photo à mon comptable</button>
           <input type="file" id="photo-cab-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">` : ''}`}</div></div>
       ${bandeau}
+      ${confies ? '<div id="la-envoyees" hidden></div>' : ''}
       ${videAchats && confies ? etatVide('Ton cabinet saisit tes achats',
         ['Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo ou le PDF de chaque facture fournisseur, il la saisit pour toi. C\'est ce qui permet de récupérer la TVA que tu as payée.',
          'La photo part dans « Mon comptable », où tu retrouves vos échanges. Tu peux aussi saisir une facture toi-même.'],
@@ -18072,6 +18073,21 @@
     if ($('#new-dep')) $('#new-dep').onclick = () => navigate('#/achat/new/-/depense');
     if ($('#vide-achat')) $('#vide-achat').onclick = () => navigate('#/achat/new');
     if ($('#vide-dep')) $('#vide-dep').onclick = () => navigate('#/achat/new/-/depense');
+    // (1.388.67, retour de Skander) Ce qu'on a envoyé au cabinet se retrouve ICI : la page de suivi d'un envoi ne se
+    // retrouvait plus une fois quittée. Les photos du fil, la plus récente d'abord, avec leur état.
+    if (confies && bridge.messagerie.fil) bridge.messagerie.fil().then(r => {
+      const z = $('#la-envoyees'); if (!z || !r) return;
+      const env = (r.messages || []).filter(m => m.cote === 'entreprise' && m.fichier && !(m.piece && m.piece.genre !== 'achat'))
+        .sort((x, y) => String(y.ecritLe).localeCompare(String(x.ecritLe)));
+      if (!env.length) return;
+      const attente = env.filter(m => !m.achat && !m.saisieParCabinet).length;
+      const montres = env.slice(0, 5);
+      z.className = 'panel la-envoyees'; z.hidden = false;
+      z.innerHTML = `<div class="a-bloc-t"><h2>Envoyées à ton cabinet</h2><span class="small muted">${attente ? `${pl(attente, 'photo')} qu'il saisit` : 'toutes rangées'}</span></div>
+        <ul class="la-env-l">${montres.map(m => `<li><span>${lfIc('photo', 16)}<b>${h(m.fichier.nom)}</b><small>${C.fmtDate(String(m.ecritLe).slice(0, 10))}</small></span>
+          <span class="small">${m.achat ? `rangée : ${h(m.achat.libelle)}` : m.saisieParCabinet ? 'saisie par ton cabinet' : 'ton cabinet la saisit'}</span></li>`).join('')}</ul>
+        <p class="small"><a href="#/comptable">${env.length > montres.length ? `Les ${env.length} envois` : 'Voir dans « Mon comptable »'}</a></p>`;
+    }, () => {});
     if (confies) {
       // Le sélecteur s'ouvre dans le geste même (un navigateur refuse de l'ouvrir plus tard) ; chaque fichier part seul,
       // avec un mot que le cabinet lit dans son fil. Trop lourd, il est refusé avant de partir, et les autres partent.
@@ -20761,7 +20777,11 @@
       const file = bridge.ocrDepuisFichier(r.fichier);
       bridge.ocrStatus().then(st => {
         if (st && st.hasKey) return lirePhoto(file);
-        toast(`La lecture des photos n'est pas branchée sur ce serveur : saisis l'achat de « ${r.fichier.nom} » à la main, puis « Enregistrer ».`);
+        // (1.388.67, retour de Skander) Sans lecture, on arrivait sur « Comment arrive cette pièce ? », la pièce du message
+        // NULLE PART : on ne comprenait pas ce que le bouton avait fait. La pièce se joint d'office, le choix se saute, et la
+        // saisie se fait en la regardant.
+        sortirDuChoix();
+        joindreFichier(file).then(ok => { if (ok !== false) toast(`« ${r.fichier.nom} » est jointe à ce nouvel achat : saisis le fournisseur et les lignes en la regardant, puis « Enregistrer » — ton cabinet lira dans votre fil où elle est rangée.`); });
       }, () => {});
     }
 

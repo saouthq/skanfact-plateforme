@@ -7293,3 +7293,10 @@ Restes, dits ici :
 - **ROB-9** : une fenêtre où l'on a tapé (nouveau client, nouvel article) allume la question du navigateur au rechargement.
 - **ROB-1** : la ligne « Au kilomètre » et la fiche « Face à la pièce » allument la garde de fermeture du Cabinet (« quitter la page ? »).
 - Restent : **ROB-2** (le bandeau de reprise invisible quand la Saisie rouvre « Face à la pièce ») et **ROB-3** (un poste resté ouvert ne relit pas ce que l'autre a fait) — lot suivant.
+
+## 1.388.67 — Ce qu'on envoie au cabinet se retrouve (retours de Skander, 25/11/2026)
+
+- **« Envoyées à ton cabinet »** sur la page Achats (quand le cabinet saisit les achats) : les cinq dernières photos envoyées, leur date et leur état (« ton cabinet la saisit », « saisie par ton cabinet », « rangée : … »), et le chemin vers « Mon comptable ». La page de suivi d'un envoi ne se retrouvait plus une fois quittée.
+- **« Ranger dans mes achats… »** ne paraît plus sous sa propre photo quand le cabinet saisit les achats : le pied dit « Ton cabinet la saisit : elle arrivera dans tes achats », et « La saisir moi-même » reste possible. Ailleurs, le bouton dit ce qu'il fait (bulle).
+- **Sans lecture des photos sur le serveur**, « Ranger dans mes achats » joint d'office la pièce du message au nouvel achat et saute « Comment arrive cette pièce ? » : on saisit en la regardant. Avant, on arrivait sur le choix, la pièce nulle part.
+- À décider (Skander) : la lecture des photos par IA n'est pas branchée sur le serveur (aucune clé) — c'est pourquoi elle ne se voit pas.

@@ -4624,6 +4624,7 @@
         updateNavCounts();
       },
       rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      achatsConfies: () => !!(messagerieVue && messagerieVue.achatsConfies),
       // (1.123.0) La demande cite le numéro d'un achat déjà saisi (un seul) : la photo s'y joint, et le fil dit où elle
       // est rangée (« Ranger dans mes achats » ouvrait un achat neuf, un doublon : revue du mois d'un client, 23/10/2026).
       achatCite: texte => {

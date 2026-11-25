@@ -456,6 +456,7 @@
    *   repondre?: (question: string, texte: string) => Promise<void>,
    *   questionConnue?: (question: string) => Promise<boolean>,
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
+   *   achatsConfies?: () => boolean,
    *   achatCite?: (texte: string) => { id: string, libelle: string } | null,
    *   joindreAchat?: (message: { id: string, nom: string, type: string, contenu: string }, achat: string) => Promise<string>,
    *   range?: () => Promise<any[]>,
@@ -1027,7 +1028,11 @@
       const cite = demandeLiee && o.achatCite && o.joindreAchat ? o.achatCite(demandeLiee.demande.texte) : null;
       const ranger = !peutRanger ? ''
         : cite ? `<span class="msg-ranger-cite"><button type="button" class="btn btn-sm" data-msg-joindre-achat="${esc(m.id)}" data-msg-achat="${esc(cite.id)}">Joindre à l'achat ${esc(cite.libelle)}</button>${o.rangerAchat ? `<button type="button" class="msg-lien" data-msg-ranger="${esc(m.id)}">C'est un autre achat…</button>` : ''}</span>`
-          : o.rangerAchat ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}">Ranger dans mes achats…</button>` : '';
+          // (1.388.67, retour de Skander) La photo qu'on ENVOIE à un cabinet qui saisit les achats, c'est lui qui la saisit :
+          // « Ranger dans mes achats… » sous son propre envoi ne disait pas ce qu'il faisait, et menait à un doublon. Le pied
+          // dit qui s'en charge ; la saisir soi-même reste possible, dit en toutes lettres.
+          : moi && o.rangerAchat && o.achatsConfies && o.achatsConfies() ? `<span class="msg-ranger-cite"><span class="msg-poids">Ton cabinet la saisit : elle arrivera dans tes achats.</span><button type="button" class="msg-lien" data-msg-ranger="${esc(m.id)}">La saisir moi-même</button></span>`
+          : o.rangerAchat ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}" title="Ouvre un nouvel achat avec ce fichier joint : tu le saisis en le regardant">Ranger dans mes achats…</button>` : '';
       return `<div class="msg-ligne${moi ? ' moi' : ''}${g.suite ? ' suite' : ''}" data-msg-id="${esc(m.id)}">
         ${tete ? `<span class="msg-qui">${tete}</span>` : ''}${corps}
         ${pied.length ? `<span class="msg-pied">${pied.map((x, i) => (i ? x : x.charAt(0).toUpperCase() + x.slice(1))).join(' · ')}</span>` : ''}${ranger}</div>`;

@@ -112,6 +112,17 @@ describe('une facture confiée au cabinet, à la souris', () => {
     const message = fil.messages?.find((m) => m.fichier?.nom === 'facture-garage-pneus.png');
     expect(message?.texte).toBe('Une facture d\'achat à saisir : facture-garage-pneus.png');
 
+    // (1.388.67) Ce qu'on a envoyé se retrouve sur la page Achats, et le fil ne propose plus « Ranger dans mes achats… » sous
+    // son propre envoi quand le cabinet saisit les achats : il dit qui s'en charge.
+    await p.evaluate(() => { location.hash = '#/achats'; });
+    const envoyees = p.locator('#la-envoyees');
+    await expect.poll(() => envoyees.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^Envoyées à ton cabinet 1 photo qu'il saisit facture-garage-pneus\.png \d\d\/\d\d\/\d{4} ton cabinet la saisit Voir dans « Mon comptable »$/);
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achat-confie-0-envoyees.png') });
+    await p.evaluate(() => { location.hash = '#/comptable'; });
+    const pied = p.locator('.msg-ligne.moi', { hasText: 'facture-garage-pneus.png' }).locator('.msg-ranger-cite');
+    await expect.poll(() => pied.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Ton cabinet la saisit : elle arrivera dans tes achats. La saisir moi-même');
+    expect(await p.locator('button', { hasText: 'Ranger dans mes achats' }).count()).toBe(0);
+
     // Le cabinet ouvre le fil : la page le dit (relue en y revenant).
     expect((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).statut).toBe(200);
     expect((await api('POST', `/entreprises/${ent}/messages/lu`, sonia, { cote: 'cabinet' })).statut).toBeLessThan(300);
