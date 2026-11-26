@@ -7747,3 +7747,11 @@ au chargement du fichier ; le lot de GitHub a passé minuit à Tunis pendant qu'
 et la clé du brouillon d'abonnement, recalculée par le test avec l'ancien jour, ne désignait plus rien (« Le champ
 « document » ne va pas : il manque »). Le test lit maintenant la clé que la console rend, et relit le jour avant chaque
 test. Aucun code de l'application ne change.
+
+## 1.388.88 — Une réponse et son fichier, un seul envoi
+
+Vu au test à la souris de la 1.388.86 : quand le client répond avec un fichier, le fil montrait deux bulles — sa
+réponse, puis un second message « Pour ta question « … ». » qui portait le fichier. Le fil (partagé par les deux
+applications) range désormais le message qui porte le fichier juste sous la réponse, sans son mot de liaison : on lit
+une réponse et sa pièce jointe. Le message garde son texte pour les autres lectures (pièces reçues, e-mail). Le nom
+d'un fichier long se raccourcit au milieu sous la question (preuve ajoutée à la 1.388.86).

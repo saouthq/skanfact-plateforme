@@ -2825,6 +2825,12 @@ prouver "la révision sans la comptabilité au mandat" $M28 \
 prouver "des cycles aux préfixes qui ne sont pas des comptes" serveur/cabinet/routes.ts \
   "prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50)" "prefixes: z.array(z.string()).min(1).max(50)" \
   "$RV3"
+prouver "le nom d'un fichier long qui coupe « changer »" web/public/plateforme/messagerie.js \
+  'const nom = f && f.name.length > 26 ? `${f.name.slice(0, 15)}…${f.name.slice(-8)}` : f && f.name;' 'const nom = f && f.name;' \
+  "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
+prouver "une réponse et son fichier en deux bulles" web/public/plateforme/messagerie.js \
+  "        if (porteurs.has(m.id)) portes.set(m.id, m); else ev.push({ quand: m.ecritLe, sorte: 'message', x: m });" "        ev.push({ quand: m.ecritLe, sorte: 'message', x: m });" \
+  "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
 prouver "une réponse avec pièce jointe que le cabinet ne voit pas" modules/socle/ecrans/cabinet/app-1.js \
   '${q.reponse.message && !dossier.manual ? `' '${false ? `' \
   "la révision se tient à la souris et se garde au serveur ; une question part au client à l'envoi, et sa réponse revient"

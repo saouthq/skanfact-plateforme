@@ -875,15 +875,26 @@
       const msgs = [...(lu.messages || []), ...anciensMessages];
       const qs = [...(lu.questions || []), ...anciennesQuestions];
       const vus = new Set();
-      /** @type {{ quand: string, sorte: string, x: any }[]} */
+      /** @type {{ quand: string, sorte: string, x: any, porte?: boolean }[]} */
       const ev = [];
-      for (const m of msgs) { if (vus.has(m.id)) continue; vus.add(m.id); ev.push({ quand: m.ecritLe, sorte: 'message', x: m }); }
+      // (1.388.88) Le message qui porte le fichier d'une réponse se range JUSTE sous elle, sans son texte de liaison
+      // (« Pour ta question … ») : une réponse et son fichier se lisent comme un seul envoi, pas comme deux bulles.
+      const porteurs = new Map(qs.filter((q) => q.reponse && q.reponseMessage).map((q) => [q.reponseMessage, q]));
+      const portes = new Map();
+      for (const m of msgs) {
+        if (vus.has(m.id)) continue;
+        vus.add(m.id);
+        if (porteurs.has(m.id)) portes.set(m.id, m); else ev.push({ quand: m.ecritLe, sorte: 'message', x: m });
+      }
       for (const q of qs) {
         if (vus.has(q.id)) continue;
         vus.add(q.id);
         ev.push({ quand: q.envoyeeLe, sorte: 'question', x: q });
         if (q.reponse && q.reponduLe) ev.push({ quand: q.reponduLe, sorte: 'reponse', x: q });
+        const m = q.reponse && q.reponduLe ? portes.get(q.reponseMessage) : null;
+        if (m) { portes.delete(m.id); ev.push({ quand: q.reponduLe, sorte: 'message', x: { ...m, texte: '' }, porte: true }); }
       }
+      for (const m of portes.values()) ev.push({ quand: m.ecritLe, sorte: 'message', x: m });
       for (const n of notes) ev.push({ quand: n.ecritLe, sorte: 'note', x: n });
       if (promesse) ev.push({ quand: promesse.noteeLe, sorte: 'promesse', x: promesse });
       // Un jalon n'a qu'un jour (le dépôt) : il se range à midi, heure de Tunis.
@@ -1231,9 +1242,9 @@
       let jour = '';
       let trait = false;
       // Un envoi de plusieurs fichiers seuls (sans texte), du même auteur, à quelques minutes : une rangée de vignettes.
-      const seulFichier = (/** @type {any} */ e) => e.sorte === 'message' && e.x.fichier && !e.x.texte && !e.x.demande && !e.x.piece && !e.x.repondA;
+      const seulFichier = (/** @type {any} */ e) => e.sorte === 'message' && !e.porte && e.x.fichier && !e.x.texte && !e.x.demande && !e.x.piece && !e.x.repondA;
       for (let i = 0; i < ev.length; i++) {
-        const e = /** @type {{ quand: string, sorte: string, x: any }} */ (ev[i]);
+        const e = /** @type {{ quand: string, sorte: string, x: any, porte?: boolean }} */ (ev[i]);
         const j = jourCle(e.quand);
         if (j !== jour) { jour = j; html += `<span class="msg-jour">${esc(jourDit(e.quand))}</span>`; }
         const idNouveau = e.sorte === 'reponse' ? `r:${e.x.id}` : e.x.id;
@@ -1249,7 +1260,7 @@
         const suite = memeGroupe(ev[i - 1], e) && !(neuf(e) && !neuf(/** @type {any} */ (ev[i - 1]))) && promessePop !== ev[i - 1]?.x.id;
         // « Envoyé » ou « Lue » ne se met en commun que si le suivant dit la même chose.
         const suivi = memeGroupe(e, ev[i + 1]) && !(neuf(/** @type {any} */ (ev[i + 1])) && !neuf(e)) && promessePop !== e.x.id && !!ev[i + 1]?.x.lu === !!e.x.lu;
-        html += e.sorte === 'message' ? bulleMessage(e.x, { suite, suivi }) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x)
+        html += e.sorte === 'message' ? bulleMessage(e.x, { suite: suite || !!e.porte, suivi }) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x)
           : e.sorte === 'promesse' ? cartePromesse(e.x) : e.sorte === 'jalon' ? carteJalon(e.x) : bulleReponse(e.x);
         // La promesse proposée, sous le message qui promet.
         if (e.sorte === 'message' && promessePop === e.x.id) html += popPromesse(e.x);

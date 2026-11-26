@@ -110,6 +110,12 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     fs.writeFileSync(photo, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
     const joindre = p.locator(`[data-msg-q-joindre="${generale}"]`);
     expect(await joindre.innerText()).toBe('Joindre un fichier');
+    // (1.388.86) Un nom long se raccourcit au milieu : l'extension reste lue et « changer » ne se coupe pas.
+    const long = path.join(dossier, 'releve-de-caisse-du-matin-novembre.png');
+    fs.copyFileSync(photo, long);
+    const [choixLong] = await Promise.all([p.waitForEvent('filechooser'), joindre.click()]);
+    await choixLong.setFiles(long);
+    await expect.poll(() => joindre.innerText()).toBe('releve-de-caiss…mbre.png · changer');
     const [choix] = await Promise.all([p.waitForEvent('filechooser'), joindre.click()]);
     await choix.setFiles(photo);
     await expect.poll(() => joindre.innerText()).toBe('fond-de-caisse.png · changer');
@@ -118,6 +124,11 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await expect.poll(toast, { timeout: 15_000 }).toBe('Réponse envoyée, avec « fond-de-caisse.png » : ton cabinet la lit dans ce fil.');
     const fil = (await api('GET', `/entreprises/${ent}/messages?cote=entreprise`, client)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
     expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Pour ta question « Caisse ».', 'fond-de-caisse.png']]);
+    // (1.388.88) À l'écran, la réponse et son fichier se lisent comme un seul envoi : le mot de liaison (gardé pour les
+    // autres lectures) ne fait plus une seconde bulle, et le fichier vient juste sous la réponse.
+    const ecran = (await p.locator('[data-msg-fil]').innerText()).replace(/\s+/g, ' ');
+    expect(ecran).not.toContain('Pour ta question « Caisse ».');
+    expect(ecran).toMatch(/Oui, 200 DT, compté ce matin\. fond-de-caisse\.png/);
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
     // ── En face de la pièce qu'elle vise : l'achat FF-12 ; « Répondre » mène à la même conversation ──────────
