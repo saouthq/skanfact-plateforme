@@ -7755,3 +7755,10 @@ réponse, puis un second message « Pour ta question « … ». » qui portait l
 applications) range désormais le message qui porte le fichier juste sous la réponse, sans son mot de liaison : on lit
 une réponse et sa pièce jointe. Le message garde son texte pour les autres lectures (pièces reçues, e-mail). Le nom
 d'un fichier long se raccourcit au milieu sous la question (preuve ajoutée à la 1.388.86).
+
+## 1.388.89 — « Corriger ma réponse » : un bouton en français pour le fichier
+
+Vu à la souris dans l'onglet Cabinet de la Comptabilité, côté client : la fenêtre « Répondre à ton comptable » (celle
+qui sert à corriger une réponse déjà donnée) montrait le champ de fichier du navigateur, « Choose File · No file
+chosen », dans la langue du système. Un bouton « Joindre un fichier… » le remplace, le nom choisi s'affiche à côté, et
+le bouton devient « Changer de fichier… ». Le serveur garde bien la réponse corrigée (vérifié dans la base).

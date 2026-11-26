@@ -1501,6 +1501,8 @@ body.dark .cal-d.out { color: #5b6572; }
   padding: 11px 14px; font-size: 13px; line-height: 1.55;
 }
 .warn-box.grave { background: var(--danger-soft); border-inline-start-color: var(--danger); }
+/* (1.388.88) Le fichier d'une réponse au comptable : un vrai bouton, le nom choisi à côté (plus le champ du navigateur). */
+.qf-fichier { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin-block-start: 6px; }
 /* Les deux soeurs de `.warn-box`, posées en 9.1.0 dans la feuille du Cabinet — elles y étaient
    UTILISÉES sans être définies, et une classe qui n'existe pas dans la feuille ne se voit nulle part.
    `ok-box` : ce qu'on peut affirmer. `info-box` : ce qu'on explique — un écart ATTENDU (une ligne en

@@ -2825,6 +2825,9 @@ prouver "la révision sans la comptabilité au mandat" $M28 \
 prouver "des cycles aux préfixes qui ne sont pas des comptes" serveur/cabinet/routes.ts \
   "prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50)" "prefixes: z.array(z.string()).min(1).max(50)" \
   "$RV3"
+prouver "le champ fichier du navigateur, en anglais, dans la réponse au comptable" modules/socle/ecrans/entreprise/app-1.js \
+  '          <input type="file" name="fichier" hidden accept=' '          <input type="file" name="fichier" accept=' \
+  "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
 prouver "le nom d'un fichier long qui coupe « changer »" web/public/plateforme/messagerie.js \
   'const nom = f && f.name.length > 26 ? `${f.name.slice(0, 15)}…${f.name.slice(-8)}` : f && f.name;' 'const nom = f && f.name;' \
   "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"

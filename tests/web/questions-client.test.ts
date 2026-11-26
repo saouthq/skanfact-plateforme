@@ -131,6 +131,26 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect(ecran).toMatch(/Oui, 200 DT, compté ce matin\. fond-de-caisse\.png/);
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
+    // (1.388.88) « Corriger ma réponse » rouvre la fenêtre : son fichier se choisit par un bouton en français, et le nom
+    // choisi s'affiche à côté — plus le champ du navigateur (« Choose File », dans la langue du système).
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/compta`);
+    await expect.poll(async () => {
+      if (!await p.locator('#p-questions').count()) await p.locator('#c-tabs [data-tab="cabinet"]').click({ timeout: 2_000 }).catch(() => {});
+      return p.locator('#p-questions').count();
+    }, { timeout: 20_000 }).toBe(1);
+    await panneau.locator(`[data-rep="${generale}"]`).click();
+    await fenetre.locator('#qf-joindre').waitFor({ timeout: 10_000 });
+    expect(await fenetre.locator('input[name=fichier]').isHidden()).toBe(true);
+    expect(await fenetre.locator('#qf-nom').innerText()).toBe('Aucun fichier choisi');
+    const [choixQf] = await Promise.all([p.waitForEvent('filechooser'), fenetre.locator('#qf-joindre').click()]);
+    await choixQf.setFiles(photo);
+    await expect.poll(() => fenetre.locator('#qf-nom').innerText()).toBe('fond-de-caisse.png');
+    expect(await fenetre.locator('#qf-joindre').innerText()).toBe('Changer de fichier…');
+    await fenetre.locator('[data-close]').click();
+    // Un fichier choisi est une saisie : la fenêtre demande avant de le jeter.
+    await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click({ timeout: 5_000 });
+    await expect.poll(() => p.locator('#qf-joindre').count()).toBe(0);
+
     // ── En face de la pièce qu'elle vise : l'achat FF-12 ; « Répondre » mène à la même conversation ──────────
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a1`);
     await expect.poll(() => p.locator('#q-piece').innerText(), { timeout: 20_000 }).toMatch(/Peux-tu confirmer le montant de la facture FF-12/);

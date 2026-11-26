@@ -15530,12 +15530,23 @@
       <form id="qf"><label class="field obligatoire">${lbl('Ta réponse', 'cab.reponse')}
         <textarea name="texte" rows="4" placeholder="Réponds en une phrase : c'est ce que ton comptable lira.">${h((q.reponse && q.reponse.texte) || '')}</textarea></label>
         ${bridge.messagerie && bridge.messagerie.envoyerFichier ? `<label class="field">${q.attendu === 'piece' ? 'Le fichier qu\'il attend' : 'Un fichier, si besoin'} <span class="muted small">(une photo ou un PDF, 10 Mo au plus)</span>
-          <input type="file" name="fichier" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"></label>
+          ${/* (1.388.88) Plus le champ du navigateur (« Choose File », dans la langue du système) : un vrai bouton, et le nom choisi à côté. */''}
+          <span class="qf-fichier"><button type="button" class="btn btn-sm" id="qf-joindre">Joindre un fichier…</button><span class="small muted" id="qf-nom">Aucun fichier choisi</span></span>
+          <input type="file" name="fichier" hidden accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"></label>
         <p class="small muted">Ton comptable lit ta réponse dès que tu l'enregistres ; le fichier lui arrive dans « Mon comptable », avec elle.</p>`
           : `<p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
         dis-lui dans ta réponse où la trouver.</p>`}</form>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer ma réponse</button></div>`,
       (root, close) => {
+        const choix = $('input[name=fichier]', root);
+        if (choix) {
+          $('#qf-joindre', root).onclick = () => choix.click();
+          choix.onchange = () => {
+            const f = choix.files && choix.files[0];
+            $('#qf-nom', root).textContent = f ? f.name : 'Aucun fichier choisi';
+            $('#qf-joindre', root).textContent = f ? 'Changer de fichier…' : 'Joindre un fichier…';
+          };
+        }
         $('#ok', root).onclick = async () => {
           const champ = $('input[name=fichier]', root);
           const fichier = champ && champ.files && champ.files[0] ? champ.files[0] : null;
