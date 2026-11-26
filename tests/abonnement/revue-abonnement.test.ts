@@ -12,7 +12,7 @@ import os from 'node:os';
 import fs from 'node:fs';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool } from '../../serveur/base.ts';
@@ -35,7 +35,9 @@ const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
 const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'revue-abonnement-')), 'veille.json');
-const jour = aujourdhuiATunis();
+// Le jour de Tunis, relu avant chaque test : le lot peut passer minuit, et le serveur change de jour avec lui.
+let jour = aujourdhuiATunis();
+beforeEach(() => { jour = aujourdhuiATunis(); });
 let konnect: Awaited<ReturnType<typeof konnectSimule>>;
 let ctx: Contexte;
 let postier: Contexte;
@@ -87,9 +89,12 @@ const COMPTABLE = 'cabinet-de-skanfact@exemple.tn';
 
 // Préparer (la console) puis émettre (l'application de SkanFact) la facture d'un abonnement Essentiel au mois : 39 HT,
 // 7,410 de TVA, 1 de timbre.
-async function facturer(b: { id: string }, debut: string) {
-  expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, amira.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' })).statut).toBe(201);
-  const cle = `abonnement-${b.id}-${debut}`;
+// La clé de la pièce est celle que la console rend : recalculée ici avec le jour du démarrage du fichier, elle changeait
+// de date quand le lot passait minuit à Tunis (vu sur GitHub, 25/11/2026), et le brouillon n'était plus trouvé.
+async function facturer(b: { id: string }) {
+  const f = await appeler('POST', `/console/entreprises/${b.id}/factures`, amira.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' });
+  expect(f.statut).toBe(201);
+  const cle = String((f.corps.facture as { cle: string }).cle);
   const objets = await dossier(editeur, amira.appli);
   const brouillon = objets.find((o) => o.collection === 'documents' && o.cle === cle);
   const client = objets.find((o) => o.collection === 'clients' && o.cle === brouillon?.contenu.clientId)?.contenu;
@@ -139,7 +144,7 @@ describe('les e-mails d\'une facture de l\'abonnement', () => {
     const a = await abonnee('Librairie Annoncée', -20);
     const pour = () => partis.filter((p) => p.a === a.email);
     // Préparée, pas encore émise : rien ne s'annonce (un brouillon peut encore changer).
-    const f = await facturer(a, jour);
+    const f = await facturer(a);
     await annoncerLesFactures(postier);
     expect(pour()).toEqual([]);
     // Émise : un e-mail, qui dit son échéance et où la lire.
@@ -180,7 +185,7 @@ describe('les e-mails d\'une facture de l\'abonnement', () => {
     const karim = await connecter(commercial);
     const inv = await appeler('POST', `/entreprises/${b.id}/invitations`, b.jeton, { email: commercial, roles: ['commercial'] });
     expect((await appeler('POST', '/invitations/accepter', karim, { jeton: String(inv.corps.jeton) })).statut).toBe(200);
-    const numero = await (await facturer(b, jour)).emettre();
+    const numero = await (await facturer(b)).emettre();
     const r = await appeler('POST', `/entreprises/${b.id}/abonnement/payer`, b.jeton, { numero });
     const ref = [...konnect.paiements.values()].find((p) => String(r.corps.adresse).endsWith(`/payer/${p.ref}`))?.ref;
     const retour = new URL(await konnect.payer(String(ref), { avis: false }));
@@ -206,7 +211,7 @@ describe('ce qui attend, la prochaine facture, les rappels partis', () => {
     expect((await appeler('POST', `/entreprises/${c.id}/abonnement/choisir`, c.jeton, { offre: 'essentiel', periodicite: 'mensuel' })).statut).toBe(201);
     expect(await etat(c.jeton)).toMatchObject({ aFaire: 'attendre' });
     // La facture émise : elle est à régler. La commerciale lit l'état, jamais ce qui attend (la base lui refuse les factures).
-    await (await facturer(c, plusJours(jour, -1))).emettre();
+    await (await facturer(c)).emettre();
     expect(await etat(c.jeton)).toMatchObject({ aFaire: 'payer' });
     const vu = await etat(hela);
     expect(vu).toMatchObject({ etat: 'en_retard', aFaire: null });
@@ -217,7 +222,7 @@ describe('ce qui attend, la prochaine facture, les rappels partis', () => {
 
   it('payé, « Ton abonnement » dit ce que dira la prochaine facture, et les rappels déjà partis', async () => {
     const d = await abonnee('Quincaillerie Payée', -20);
-    const numero = await (await facturer(d, jour)).emettre();
+    const numero = await (await facturer(d)).emettre();
     const r = await appeler('POST', `/entreprises/${d.id}/abonnement/payer`, d.jeton, { numero });
     const ref = [...konnect.paiements.values()].find((p) => String(r.corps.adresse).endsWith(`/payer/${p.ref}`))?.ref;
     const retour = new URL(await konnect.payer(String(ref), { avis: false }));

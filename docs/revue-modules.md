@@ -7738,3 +7738,12 @@ Vu au test à la souris (cabinet → client → cabinet) :
   raccourcit au milieu, l'extension reste lue, et le geste ne se coupe plus.
 - La ligne d'une question répondue avec un fichier ou une pièce ne le disait pas au cabinet : elle porte « La pièce
   jointe, dans la conversation », qui mène à la conversation du client.
+
+## 1.388.87 — Un test qui passait minuit à Tunis
+
+Le rouge GitHub de la 1.388.85 avait trois causes. La première (un test qui lisait `pont.js` en direct) est réparée
+dans la 1.388.86. La deuxième : `tests/abonnement/revue-abonnement.test.ts` calculait le jour de Tunis une seule fois,
+au chargement du fichier ; le lot de GitHub a passé minuit à Tunis pendant qu'il tournait, le serveur a changé de jour,
+et la clé du brouillon d'abonnement, recalculée par le test avec l'ancien jour, ne désignait plus rien (« Le champ
+« document » ne va pas : il manque »). Le test lit maintenant la clé que la console rend, et relit le jour avant chaque
+test. Aucun code de l'application ne change.
