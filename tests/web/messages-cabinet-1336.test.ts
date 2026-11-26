@@ -133,6 +133,8 @@ describe('les Messages du Cabinet, et le pont (1.336.0)', () => {
     await ligneDe('facture-pneus.png').waitFor({ timeout: 25_000 });
     await expect.poll(async () => net(await ligneDe('facture-pneus.png').locator('.msg-pied').innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/saisie par ton cabinet$/);
     expect(await ligneDe('facture-pneus.png').getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(0);
+    // (1.388.91) Ni sous sa forme « La saisir moi-même » (1.388.67) : une photo déjà saisie ne se range sous aucune forme.
+    expect(await ligneDe('facture-pneus.png').locator('[data-msg-ranger], [data-msg-joindre-achat]').count()).toBe(0);
     // (1.388.67) Le ticket, que personne n'a saisi : son cabinet saisit les achats de Yasmine, la ligne le dit, et la saisir
     // elle-même reste possible, en toutes lettres (« Ranger dans mes achats… » sous son propre envoi menait à un doublon).
     const ligneTicket = ligneDe('ticket-carburant.png');

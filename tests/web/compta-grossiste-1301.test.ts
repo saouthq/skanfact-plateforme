@@ -251,6 +251,9 @@ describe('la Comptabilité 1.301.0 : le grossiste et sa comptable', () => {
       await t.locator(`#c-tabs [data-tab="${o}"]`).click();
       await t.waitForTimeout(400);
       expect(await t.evaluate(() => document.documentElement.scrollWidth - innerWidth), o).toBeLessThanOrEqual(0);
+      // (1.388.91) La page qui ne défile pas ne suffit pas : un cadre qui rogne garderait la page à 390 px et couperait
+      // les onglets. La barre elle-même tient dans l'écran (elle défile dans son cadre).
+      expect(await t.evaluate(() => Math.round(document.querySelector('#c-tabs')?.getBoundingClientRect().right ?? Infinity) - innerWidth), `${o} : la barre dans l'écran`).toBeLessThanOrEqual(0);
     }
     await t.locator('#c-tabs [data-tab="tva"]').click();
     await t.waitForTimeout(600);

@@ -1819,8 +1819,10 @@ prouver "la base qui ouvre la paie au cabinet sans la paie" $M19 \
 prouver "un mandat proposé par un autre que le propriétaire" $M19 \
   "  if not ('proprietaire' = any(socle.mes_roles(p_entreprise))) or socle.perimetre_cabinet(p_entreprise) is not null then" "  if false then" \
   "$CM"
-prouver "deux cabinets à la fois" $M19 \
-  "  if exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.statut in ('propose', 'actif')) then" "  if false then" \
+# (1.388.91) La règle se tient aussi à l'écriture du mandat, verrou pris (0235, pour tous les chemins) : le défaut réel,
+# c'est la proposition qui ne regarde pas ET le mandat qui ne se refuse pas.
+prouver "deux cabinets à la fois" "$M19|||base/migrations/0235_cabinet_relu.sql" \
+  "  if exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.statut in ('propose', 'actif')) then|||  if exists (select 1 from socle.mandat d where d.entreprise = new.entreprise and d.id <> new.id and d.statut in ('propose', 'actif')) then" "  if false then|||  if false then" \
   "$CM"
 prouver "un mandat accepté par un collaborateur" $M19 \
   "  if not found or not socle.suis_associe(d.cabinet) then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" "  if not found then perform socle.refus('seul un associé du cabinet accepte un dossier'); end if;" \
@@ -8206,9 +8208,15 @@ prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas
   'refusé sur sa case.
             if (e && (e.champ === '\''matriculeFiscal'\'' || (!e.champ && /matricule/i.test(plainError(e))))) return refus($('\''#f-mat'\'', layer), plainError(e));' 'refusé sur sa case.' \
   "$NDT5"
+# (1.388.91) Le Cabinet reconnaît aussi un refus de matricule à sa phrase quand le champ manque : perdre le champ seul ne
+# perd plus rien. Le défaut réel, c'est le champ perdu ET la phrase non relue.
 for t in "$WLE5" "$NDT5"; do
-  prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" web/public/plateforme/pont-cabinet.js \
-    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null, statut: r.status, indisponible' '{ champ: null, statut: r.status, indisponible' \
+  prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" "web/public/plateforme/pont-cabinet.js|||modules/socle/ecrans/cabinet/app-2.js|||modules/socle/ecrans/cabinet/app-2.js" \
+    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null, statut: r.status, indisponible|||hors de la fenêtre.
+            if (e && (e.champ === '\''matriculeFiscal'\'' || (!e.champ && /matricule/i.test(plainError(e)))))|||refusé sur sa case.
+            if (e && (e.champ === '\''matriculeFiscal'\'' || (!e.champ && /matricule/i.test(plainError(e)))))' '{ champ: null, statut: r.status, indisponible|||hors de la fenêtre.
+            if (e && (e.champ === '\''matriculeFiscal'\''))|||refusé sur sa case.
+            if (e && (e.champ === '\''matriculeFiscal'\''))' \
     "$t"
 done
 prouver 'la liste collée qui s'\''arrête sans nommer la ligne ni dire ce qui est entré' web/public/plateforme/pont-cabinet.js \
@@ -21719,8 +21727,10 @@ prouver 'achats 16 : une pièce reçoit plus que ce qui lui reste' modules/socle
   "const m = C.round3(Math.min(reste(p), Math.max(0, x)));" "const m = C.round3(Math.max(0, x));" "$LA1"
 prouver 'achats 17 : Échap ne défait plus le choix' modules/socle/ecrans/entreprise/app-1.js \
   "    if (e.key === 'Escape' && s.sel && s.sel.size && \$('#bc-rien')) { e.preventDefault(); \$('#bc-rien').click(); }" "" "$LA1"
-prouver 'achats 18 : la pastille du nombre étire les boutons de la barre' web/public/plateforme/liste.css \
-  ".lf .cpt { display: inline-block; grid-template-columns: none; gap: 0;" ".lf .cpt {" "$LA1"
+# (1.388.91) La grille de « Mon comptable » ne vise plus que sa page (.cpt-page .cpt, issue 18) : retirer la parade seule
+# ne remet plus le défaut. Le défaut réel, c'est la grille rendue à toute pastille « .cpt » ET la parade retirée.
+prouver 'achats 18 : la pastille du nombre étire les boutons de la barre' "web/public/plateforme/liste.css|||web/public/plateforme/messagerie.css" \
+  ".lf .cpt { display: inline-block; grid-template-columns: none; gap: 0;|||.cpt-page .cpt { display: grid;" ".lf .cpt {|||.cpt { display: grid;" "$LA1"
 
 # (1.204.0) Les achats, lot 2 : la liste des fournisseurs telle que la maquette.
 LFO='les colonnes, les filtres et leurs nombres, la ville, le pied, « Régler », le menu, le clavier, le téléphone'
@@ -25123,8 +25133,13 @@ prouver 'un résultat à perte écrit « -335 % »' "$A2E" \
 prouver 'le pont qui ne lit pas la période validée par le cabinet' "$PONT" \
   "valideJusqua: typeof c.jusqua === 'string' ? c.jusqua.slice(0, 10) : ''" "valideJusqua: ''" \
   "$T301W"
-prouver 'la barre des onglets de la Comptabilité qui élargit la page au téléphone' "$LCSS" \
-  '.lf.mg.cpt > *, .lf.mg.cpt .mg-barre, .lf.mg.cpt .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }' '/* rien */' \
+# (1.388.91) Quatre règles retiennent la barre, chacune seule suffit : la règle commune des onglets (charte.css, 1.368.0 :
+# un rang d'onglets défile dans son cadre, et un élément qui défile peut rétrécir), le défilement et le resserrement
+# propres à la Comptabilité, et le resserrement de toutes les barres (1.388.65). Retirer l'une laissait le test vert : le
+# défaut réel est une barre qui ne défile plus ET ne se resserre plus, ses onglets toujours sur une ligne.
+CHCSS=web/public/plateforme/charte.css
+prouver 'la barre des onglets de la Comptabilité qui élargit la page au téléphone' "$LCSS|||$LCSS|||$LCSS|||$CHCSS" \
+  '.lf.mg.cpt .pa-seg { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }|||.lf.mg.cpt > *, .lf.mg.cpt .mg-barre, .lf.mg.cpt .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }|||.lf.mg .mg-barre > .pa-seg { min-width: 0; max-width: 100%; }|||width: auto; max-width: 100%; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: inset 0 -1px 0 var(--sb-trait); overflow-x: auto;' '.lf.mg.cpt .pa-seg { flex-wrap: nowrap; }|||/* rien */|||/* rien */|||width: auto; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: inset 0 -1px 0 var(--sb-trait);' \
   "$T301W"
 prouver '« Ton cabinet la dépose » collé à son bouton' "$A2E" \
   'Ton cabinet la dépose</span> <button' 'Ton cabinet la dépose</span><button' \
@@ -30938,9 +30953,11 @@ prouver $'recherche-un-seul-signe' modules/socle/ecrans/entreprise/app-1.js \
   $'amt: montantTexte(montantDeListe(d), docCur(d)), text:' \
   $'amt: C.money(montantDeListe(d), docCur(d)), text:' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
+# (1.388.91) La palette retire aussi les doublons à l'affichage (même groupe, même nom) : le défaut réel, c'est l'onglet
+# ET son panneau gardés tous les deux, sans le tri de l'affichage.
 prouver $'recherche-abonnement-une-fois' modules/socle/ecrans/entreprise/app-1.js \
-  $'[...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP,' \
-  $'[...actions, ...reglagesP,' \
+  $'[...actions.filter(a => !reglagesP.some(r => r.main === a.main)), ...reglagesP,|||if (vus.has(k)) return false; vus.add(k); return true;' \
+  $'[...actions, ...reglagesP,|||vus.add(k); return true;' \
   $'le même montant sur l\'accueil et dans la recherche, qui trouve un montant et un compte ; une adresse fausse ne s\'enregistre pas'
 prouver $'parametres-e-mail-refuse' modules/socle/ecrans/entreprise/app-2.js \
   $'      if (emFaute) { refus(emEl, emFaute.raison); return false; }\n' \

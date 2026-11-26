@@ -7769,3 +7769,30 @@ Rouge GitHub de la 1.388.86 : `tests/web/accueil-1312.test.ts` posait la facture
 échoir ») au 26 du mois d'avant avec trente jours d'échéance. À partir du 26 de chaque mois, elle passait donc « en
 retard », et la carte « On te doit » annonçait 4 649,421 DT en retard au lieu de 1 800,916. Son échéance est
 maintenant fixée à vingt-cinq jours après aujourd'hui. Aucun code de l'application ne change.
+
+## 1.388.91 — Six preuves qui ne voyaient plus leur défaut
+
+La nuit a rejoué toutes les preuves sur la 1.388.90 : six restaient vertes, défaut posé. Aucune ne cachait un défaut de
+l'application : chacune visait une parade devenue la seconde, la première ayant été posée plus largement entre-temps.
+
+- **La barre des onglets de la Comptabilité au téléphone.** La règle commune des onglets (charte.css, 1.368.0) fait
+  défiler tout rang d'onglets dans son cadre, et un élément qui défile peut rétrécir : retirer la règle propre à la
+  Comptabilité ne changeait plus rien. La preuve retire les quatre règles qui retiennent la barre. Le test gagne une
+  mesure : la barre elle-même tient dans l'écran (un cadre qui rognerait garderait la page à 390 px en coupant les
+  onglets, et la mesure de la page seule ne le verrait pas).
+- **La pastille du nombre dans les barres d'achats (achats 18).** La grille de « Mon comptable » ne vise plus que sa page
+  (`.cpt-page .cpt`, issue 18) : la parade de la pastille ne pare plus rien. La preuve rend la grille à toute pastille
+  `.cpt` ET retire la parade.
+- **Le refus du serveur qui perd son champ au Cabinet.** Le Cabinet reconnaît aussi un refus de matricule à sa phrase
+  quand le champ manque : perdre le champ seul ne perd plus rien. La preuve perd le champ ET la relecture de la phrase,
+  sur les deux fenêtres (nouveau dossier, dossier tenu).
+- **La recherche qui montre deux fois « Paramètres → Ton abonnement ».** La palette retire aussi les doublons à l'affichage
+  (même groupe, même nom) ; la preuve retire les deux. Le test attendait « au plus une » ligne : il passait sur la liste
+  encore vide. Il attend désormais exactement une.
+- **Deux cabinets à la fois.** La règle se tient aussi à l'écriture du mandat, verrou pris (0235) ; la preuve retire la
+  proposition ET la règle de l'écriture.
+- **La photo saisie par le cabinet qui se range encore.** Pour un cabinet qui saisit les achats, la photo propose « La
+  saisir moi-même » (1.388.67) au lieu de « Ranger dans mes achats… » : le test ne cherchait que l'ancien bouton. Il
+  refuse désormais tout geste de rangement sur une photo déjà saisie.
+
+Règle : **une parade qui en double une autre se prouve avec l'autre**, sinon la preuve mesure la seconde.

@@ -109,8 +109,9 @@ describe('la coquille : accueil, recherche, paramètres, modules (1.387.75)', ()
     await p.locator('#pal-q').fill('olivier');
     await expect.poll(async () => net(await p.locator('#pal-res').innerText()), { timeout: 10_000 }).toContain('800,00 €');
     expect(net(await p.locator('#pal-res').innerText())).not.toContain('EUR');
+    // (1.388.91) Exactement une ligne : « au plus une » passait sur la liste encore vide, avant même la recherche.
     await p.locator('#pal-q').fill('abonnement');
-    await expect.poll(async () => (net(await p.locator('#pal-res').innerText()).match(/Paramètres → Ton abonnement/g) || []).length, { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    await expect.poll(async () => (net(await p.locator('#pal-res').innerText()).match(/Paramètres → Ton abonnement/g) || []).length, { timeout: 10_000 }).toBe(1);
     await p.keyboard.press('Escape');
 
     // « Tous les modules » dit où est Relances : dans Factures, pas dans le menu.
