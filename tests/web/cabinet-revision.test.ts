@@ -183,10 +183,11 @@ describe('la révision et les questions au client, à la souris', () => {
     expect(recue.map((q) => [q.statut, !!q.envoyeeLe, q.texte])).toEqual([['envoyee', true, 'Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?']]);
     // Plus rien de prêt : plus de bouton d'envoi.
     await expect.poll(() => p.locator('#rv-envoyer').count()).toBe(0);
-    // (1.388.86) Relancer à la main : la base compte (trois au plus), et l'écran ne promet pas l'e-mail.
+    // (1.388.86) Relancer à la main : la base compte (trois au plus) ; (1.388.92, 0238) l'e-mail part au tour suivant du
+    // serveur, et l'écran le dit.
     await p.locator(`[data-rowmenu="QU:${String(recue[0]?.id)}"]`).first().click();
     await p.getByRole('menuitem').filter({ hasText: 'Relancer le client' }).click();
-    await expect.poll(toast).toBe('Relance notée (1 sur 3) : la question repasse à lire chez Menuiserie Ben Salah, prévenu par e-mail s\'il a gardé ses alertes.');
+    await expect.poll(toast).toBe('Relance notée (1 sur 3) : un e-mail part chez Menuiserie Ben Salah dans la minute, s\'il a gardé ses alertes.');
     expect((await questions(client)).map((q) => q.relances)).toEqual([1]);
     // « Envoyer maintenant » depuis la fenêtre : elle part tout de suite. Joué comme sur une machine lente (le rouge GitHub de
     // 1.302.0, sous Node 24) : la comptable clique dans la question et sélectionne la phrase proposée avant que la page ait

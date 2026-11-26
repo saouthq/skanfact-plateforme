@@ -40,9 +40,9 @@ const PRECISER = z.object({
   pour: z.string().refine(estJour, { message: 'champ.jour' }).nullable(),
 }).partial().strict();
 // (1.388.86) Répondre : par écrit, et (facultatif) avec un fichier déjà déposé ou une pièce du dossier — un seul geste.
+// (1.388.92) Les deux ensemble : le fichier part en face de la pièce que la question vise (le message les porte tous deux).
 const PIECE = z.object({ genre: z.enum(['facture', 'avoir', 'devis', 'achat']), id: z.string().min(1).max(100), libelle: z.string().min(1).max(300) }).strict();
-const REPONDRE = z.object({ texte: z.string().max(4000), fichier: uuid.optional(), piece: PIECE.optional() }).strict()
-  .refine((c) => !(c.fichier && c.piece), { message: 'compta.champ.fichier_ou_piece' });
+const REPONDRE = z.object({ texte: z.string().max(4000), fichier: uuid.optional(), piece: PIECE.optional() }).strict();
 
 type Ligne = {
   id: string; periode: string; cycle: string; compte: string; ecriture: string | null; piece: string; montant: string;
@@ -190,7 +190,7 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
         { objet: string; texte: string } | undefined;
       if (!q) return introuvable;
       const titre = (q.objet || q.texte).slice(0, 120);
-      const joint = corps.piece ? t('compta.question.reponse_piece', { piece: corps.piece.libelle }) : t('compta.question.reponse_fichier');
+      const joint = corps.fichier ? t('compta.question.reponse_fichier') : t('compta.question.reponse_piece', { piece: corps.piece?.libelle ?? '' });
       const texte = corps.texte.trim() || rendre(joint, 'fr');
       const message = { texte: rendre(t('compta.question.reponse_message', { question: titre }), 'fr'), fichier: corps.fichier, piece: corps.piece };
       const m = (await tx.query('select compta.repondre_question($1, $2, $3, $4::jsonb) m', [params.entreprise ?? '', params.question, texte, JSON.stringify(message)])).rows[0];

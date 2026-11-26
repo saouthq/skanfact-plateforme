@@ -5035,7 +5035,7 @@
         id: 'questions', level: retard.length ? 'danger' : 'warn',
         label: `${plFr(qsOuvertes.length, 'question')} de ton comptable ${qsOuvertes.length > 1 ? 'attendent' : 'attend'} ta réponse`,
         detail: retard.length
-          ? `${retard.length > 1 ? `${retard.length} sont attendues` : 'Une est attendue'} pour une date passée : ton comptable ne peut pas arrêter ton mois tant qu'${retard.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
+          ? `${retard.length > 1 ? `${retard.length} sont attendues` : 'Une est attendue'} pour une date passée : ton comptable en a besoin pour finir ton mois.`
           : `${jours ? `La plus ancienne attend depuis ${plFr(jours, 'jour')}. ` : ''}Chacune est posée en face de la pièce qu'elle vise : réponds par écrit, avec une photo ou une pièce de ton dossier.`,
         count: qsOuvertes.length, route: '#/compta?onglet=cabinet', docs: []
       });

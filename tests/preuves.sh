@@ -18514,7 +18514,7 @@ prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10
 prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/rowmenu.js \
   "    bouton.setAttribute('aria-expanded', 'true');" "" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver "une question gardée qui se relance" base/migrations/0237_questions_refaites.sql \
+prouver "une question gardée qui se relance" base/migrations/0238_relances_tenues.sql \
   "  if q.statut = 'ouverte' then perform socle.refus('cette question n''est pas encore partie : envoie-la d''abord'); end if;" "" \
   "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
@@ -19202,24 +19202,24 @@ prouver 'le mot répété sous chaque pièce demandée' $MR \
 prouver 'une pièce et une liste de pièces à la fois' $MR \
   "      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));" "" \
   "$T116B"
-prouver 'une relance chaque minute' base/migrations/0237_questions_refaites.sql \
+prouver 'une relance chaque minute' base/migrations/0238_relances_tenues.sql \
   "(m.relance_le is null or m.relance_le <= p_maintenant - interval '7 days')" "true" \
   "$T116C"
-prouver 'des relances sans fin' base/migrations/0237_questions_refaites.sql \
+prouver 'des relances sans fin' base/migrations/0238_relances_tenues.sql \
   "       and m.relances < 3 and " "       and " \
   "$T116C"
-prouver "une relance avant sa date" base/migrations/0237_questions_refaites.sql \
+prouver "une relance avant sa date" base/migrations/0238_relances_tenues.sql \
   "and m.demande_pour is not null and m.demande_pour <= jour.j" "and m.demande_pour is not null" \
   "$T116C"
-prouver 'une pièce reçue relancée quand même' base/migrations/0237_questions_refaites.sql \
+prouver 'une pièce reçue relancée quand même' base/migrations/0238_relances_tenues.sql \
   "     where m.demande is not null and m.demande_recue_le is null and m.demande_pour is not null" "     where m.demande is not null and m.demande_pour is not null" \
   "$T116C"
-prouver "une relance à qui a décoché « Me prévenir par e-mail »" base/migrations/0237_questions_refaites.sql \
+prouver "une relance à qui a décoché « Me prévenir par e-mail »" base/migrations/0238_relances_tenues.sql \
   "al.cabinet = x.cabinet
    where socle.moi() is null and coalesce(al.active, true)" "al.cabinet = x.cabinet
    where socle.moi() is null" \
   "$T116C"
-prouver "une relance d'un cabinet qui ne tient plus le dossier" base/migrations/0237_questions_refaites.sql \
+prouver "une relance d'un cabinet qui ne tient plus le dossier" base/migrations/0238_relances_tenues.sql \
   "d.statut = 'actif'
                      and d.debut <= jour.j and (d.fin is null or d.fin >= jour.j))" "d.statut is not null)" \
   "$T116C"
@@ -21434,7 +21434,7 @@ prouver 'questions-prêtes 4 : les questions prêtes ne partent pas avec le mess
 prouver 'questions-prêtes 5 : « Pas cette fois » ne met rien de côté' web/public/plateforme/messagerie.js \
   "if (pasCetteFois.has(id)) pasCetteFois.delete(id); else pasCetteFois.add(id);" "void id;" \
   'la révision se tient à la souris'
-prouver "questions-prêtes 6 : une question partie qui repart" base/migrations/0237_questions_refaites.sql \
+prouver "questions-prêtes 6 : une question partie qui repart" base/migrations/0238_relances_tenues.sql \
   "   where entreprise = p_entreprise and cabinet = v_cabinet and id = any(p_ids) and statut = 'ouverte';" "   where entreprise = p_entreprise and cabinet = v_cabinet and id = any(p_ids) and statut in ('ouverte', 'envoyee');" \
   '(1.187.0) on nomme celles qui partent : « Envoyer maintenant », les gardées de la conversation ; les mêmes règles'
 prouver 'questions-prêtes 7 : la conversation du cabinet ne montre pas les questions prêtes' serveur/messagerie/routes.ts \
@@ -21489,7 +21489,7 @@ prouver 'repondre 2 : la conversation ne mène pas à la question' modules/socle
   "const questionDepart = questionDuMessage; questionDuMessage = null;" "const questionDepart = null; questionDuMessage = null;" \
   'le client voit les questions envoyées'
 prouver "repondre 3 : le fichier de la réponse ne part pas" web/public/plateforme/messagerie.js \
-  "          if (f) corps.fichier = (await o.appel('POST', '/messages/fichiers'," "          if (false) corps.fichier = (await o.appel('POST', '/messages/fichiers'," \
+  "            corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: f.name" "            if (false) corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: f.name" \
   "$QC1"
 prouver 'repondre 4 : le fichier choisi est oublié' web/public/plateforme/messagerie.js \
   "fichiersQ.set(id, f);" "void f;" \
@@ -32468,7 +32468,7 @@ prouver "un refus sur le motif reste affiché une fois le motif tapé" web/conso
 prouver "le cabinet d'aujourd'hui réécrit la question d'un cabinet d'avant" base/migrations/0235_cabinet_relu.sql \
   "  select * into q from compta.question where id = p_id and entreprise = p_entreprise and cabinet = v_cabinet for update;" "  select * into q from compta.question where id = p_id and entreprise = p_entreprise for update;" \
   "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
-prouver "le cabinet d'aujourd'hui envoie les questions d'un cabinet d'avant" base/migrations/0237_questions_refaites.sql \
+prouver "le cabinet d'aujourd'hui envoie les questions d'un cabinet d'avant" base/migrations/0238_relances_tenues.sql \
   "   where entreprise = p_entreprise and cabinet = v_cabinet and left(periode, 4) = p_annee::text and statut = 'ouverte';" "   where entreprise = p_entreprise and left(periode, 4) = p_annee::text and statut = 'ouverte';" \
   "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
 prouver "le cabinet compte les questions d'un autre cabinet" serveur/compta/questions.ts \
@@ -32627,6 +32627,22 @@ prouver "un ticket de caisse coche « Ta première facture »" web/public/platef
 prouver "les adresses de la console sans famille au journal" base/migrations/0236_journal_familles.sql \
   " or p_geste like 'console.%' then 'service'" " then 'service'" \
   "chacun tombe dans une famille que l'écran sait dire (plateforme.sorte_du_geste)"
+# 1.388.92 — Les relances à la main partent, une fois ; la réponse jointe garde sa pièce ; la pastille compte les clients.
+prouver "une relance à la main n'est pas due au serveur" base/migrations/0238_relances_tenues.sql \
+  "and (q.relance_a_envoyer" "and (false" \
+  "(1.388.92) une relance à la main envoie l'e-mail, comptée une fois ; une gardée dont la date est passée part avec une date neuve"
+prouver "une seconde relance à la main avant le départ de la première" base/migrations/0238_relances_tenues.sql \
+  "  if q.relance_a_envoyer then perform socle.refus" "  if false then perform socle.refus" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "une question gardée part avec sa date passée" base/migrations/0238_relances_tenues.sql \
+  $'v_jour + 7 else pour_le end\n   where entreprise = p_entreprise and cabinet = v_cabinet and id = any' $'pour_le end\n   where entreprise = p_entreprise and cabinet = v_cabinet and id = any' \
+  "(1.388.92) une relance à la main envoie l'e-mail, comptée une fois ; une gardée dont la date est passée part avec une date neuve"
+prouver "une réponse avec un fichier perd la pièce qu'elle vise" serveur/compta/questions.ts \
+  "fichier: corps.fichier, piece: corps.piece };" "fichier: corps.fichier, piece: corps.fichier ? undefined : corps.piece };" \
+  "avec un fichier ET la pièce qu'il justifie : le message de la conversation porte les deux, et le texte vide se dit"
+prouver "la pastille des questions compte les questions en retard" web/public/v10/cabinet/cabcore.js \
+  "      count: qs.length," "      count: qs.reduce((s, q) => s + (q.enRetard || 0), 0) || qs.length," \
+  "la pastille compte les clients que la ligne nomme, pas leurs questions en retard"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

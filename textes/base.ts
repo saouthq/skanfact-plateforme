@@ -296,6 +296,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'aucune de ces questions n\'attend de partir : celles qui sont parties se relancent de leur ligne', cle: 'base.compta.questions_rien_choisi_a_partir', fr: 'aucune de ces questions n\'attend de partir : celles qui sont parties se relancent de leur ligne' },
   { base: 'cette question n\'est pas encore partie : envoie-la d\'abord', cle: 'base.compta.question_pas_partie', fr: 'cette question n\'est pas encore partie : envoie-la d\'abord' },
   { base: 'cette question a reçu sa réponse : il n\'y a plus rien à relancer', cle: 'base.compta.question_rien_a_relancer', fr: 'cette question a reçu sa réponse : il n\'y a plus rien à relancer' },
+  // (1.388.92, 0238) Une relance à la main part au tour suivant du serveur ; trois parties, on ne relance plus par e-mail.
+  { base: 'trois relances sont déjà parties : écris-lui dans la conversation, ou appelle-le', cle: 'base.compta.question_trois_relances', fr: 'trois relances sont déjà parties : écris-lui dans la conversation, ou appelle-le' },
+  { base: 'une relance part déjà dans la minute : inutile d\'en ajouter une', cle: 'base.compta.question_relance_en_route', fr: 'une relance part déjà dans la minute : inutile d\'en ajouter une' },
   { base: 'ce cabinet ne suit plus ton dossier : ta réponse part par écrit seulement', cle: 'base.compta.question_ancien_cabinet', fr: 'ce cabinet ne suit plus ton dossier : ta réponse part par écrit seulement' },
   { base: 'une réponse jointe porte un fichier ou une pièce du dossier', cle: 'base.compta.question_jointe', fr: 'une réponse jointe porte un fichier ou une pièce du dossier' },
   { base: 'seule l\'entreprise répond aux questions de son cabinet', cle: 'base.compta.question_entreprise', fr: 'seule l\'entreprise répond aux questions de son cabinet' },

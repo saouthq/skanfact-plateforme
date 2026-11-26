@@ -1791,9 +1791,6 @@
       fichiersALire.set(chemin, fichier);
       return { path: chemin, name: fichier.name, size: fichier.size, type: fichier.type };
     },
-    buildPack: pasEncore('Le paquet pour le comptable'),
-    onPackProgress: () => () => undefined,
-    importCabinet: pasEncore('La réponse du cabinet'),
     lireCloture: pasEncore('La clôture envoyée par le cabinet'),
     ouvrirEtatsCloture: pasEncore('Les états de clôture du cabinet'),
     achatTarifs: async () => ({ ouvert: false, raison: 'L\'abonnement se prendra ici quand la plateforme sera ouverte au public.' }),

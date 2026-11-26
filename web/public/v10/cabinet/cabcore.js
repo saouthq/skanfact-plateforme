@@ -1662,7 +1662,8 @@
       id: 'questions', level: qs.some(q => q.enRetard > 0) ? 'warn' : 'info',
       label: `${pl(qs.length, 'client n\'a pas répondu', 'clients n\'ont pas répondu')} à tes questions`,
       detail: qs.slice(0, 6).map(q => `${q.name} (${pl(joursDe(q), 'jour', 'jours')} d'attente${q.enRetard ? `, ${pl(q.enRetard, 'en retard', 'en retard')}` : ''})`).join(' · '),
-      count: qs.reduce((s, q) => s + (q.enRetard || 0), 0) || qs.length,
+      // (1.388.92) La pastille compte ce que le libellé nomme : des CLIENTS (elle comptait des questions en retard).
+      count: qs.length,
       rows: qs.map(q => rows.find(r => r.id === q.dossierId)).filter(Boolean)
     });
     const holes = rows.filter(r => r.issues > 0);

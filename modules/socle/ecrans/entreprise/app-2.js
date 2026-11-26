@@ -6648,7 +6648,7 @@
       const jour = ms => ms ? C.fmtDate(new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })) : '';
       return `<div class="panel" id="p-questions"><h2>Les questions de ton comptable ${info('cab.questions')}</h2>
         ${retard.size ? `<div class="warn-box grave mb">${h(pl(retard.size, 'question attend', 'questions attendent'))} ta réponse depuis la date
-          que ton comptable avait demandée. Tant qu'${retard.size > 1 ? 'elles restent' : 'elle reste'} en l'air, il ne peut pas arrêter ton mois.</div>` : ''}
+          que ton comptable avait demandée : il en a besoin pour finir ton mois.</div>` : ''}
         ${qs.length
           ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>La question</th><th>Attendu</th><th>Reçue</th><th>Réponse</th><th></th></tr></thead><tbody>
               ${qs.map(q => `<tr class="${retard.has(q.id) ? 'row-warn' : ''}">
@@ -7514,63 +7514,13 @@
       try { localStorage.setItem('skanfact.theme_perso', themeSel.value); } catch (_) { /* sans stockage : le défaut de l'entreprise */ }
       applyTheme();
     }; }
-    // ---------- appairage du cabinet (6.2.0) ----------
-    // Le cabinet remet à ses clients un petit fichier contenant sa clé publique. Une fois importé,
-    // les paquets mensuels sont chiffrés POUR LUI : rien à transmettre, rien à retenir, et une clé
-    // volée chez un client n'ouvre aucun paquet, pas même les siens.
+    // ---------- le cabinet comptable ----------
+    // (1.388.92) En ligne, le cabinet se relie par son code (le mandat, onglet Cabinet de la comptabilité) et lit le dossier
+    // en direct : l'appairage par fichier et les paquets chiffrés pour lui (6.2.0) n'existent plus — leur panneau, resté
+    // après le `return` du mandat, était du code que rien n'atteignait.
     function drawCabinetPair() {
       const el = $('#cab-pair'); if (!el) return;
-      if (bridge.dessinerMandat) { void bridge.dessinerMandat(el); return; }
-      const cab = company().cabinet;
-      const sig = data.cabinetSignature;
-      el.innerHTML = cab && cab.publicKey
-        ? `<p>Tes paquets mensuels sont chiffrés pour <strong>${h(cab.name || 'ton cabinet')}</strong>${cab.email ? ` <span class="muted">(${h(cab.email)})</span>` : ''}.</p>
-           <table class="list compact"><tbody>
-             <tr><td>Empreinte de sa clé ${info('cab.empreinte')}</td><td class="mono"><strong>${h(cab.fingerprint || '')}</strong></td></tr>
-             <tr><td>Appairé le</td><td>${cab.pairedAt ? C.fmtDate(String(cab.pairedAt).slice(0, 10)) : '—'}</td></tr>
-             ${sig ? `<tr><td>Signature de ses envois ${info('cab.signature')}</td><td><strong class="mono">${h(sig.empreinte)}</strong>
-               <span class="small muted">retenue le ${C.fmtDate(C.jourDeLInstant(sig.depuis))}</span></td></tr>` : ''}
-           </tbody></table>
-           <p class="small muted mt">Vérifie cette empreinte <b>de vive voix</b> avec ton comptable la première fois : c'est ce qui garantit que tu as bien sa clé et pas celle de quelqu'un d'autre.</p>
-           <div class="inline mt"><button class="btn" id="cab-repair">Remplacer par un autre cabinet…</button>${sig ? '<button class="btn" id="cab-oublier-sig">Oublier sa signature…</button>' : ''}<button class="btn btn-danger" id="cab-unpair">Retirer</button></div>`
-        : `${sig ? `<p class="small">Signature retenue de ton cabinet ${info('cab.signature')} : <span class="mono"><strong>${h(sig.empreinte)}</strong></span>
-             <span class="muted">(depuis le ${C.fmtDate(C.jourDeLInstant(sig.depuis))})</span> <button class="btn btn-sm" id="cab-oublier-sig">Oublier…</button></p>` : ''}
-           <p>Aucun cabinet appairé. Tes paquets mensuels peuvent être protégés par un mot de passe, mais c'est moins pratique et moins sûr : un mot de passe se transmet, donc il fuite.</p>
-           <p class="small muted">Demande à ton comptable son <b>fichier d'appairage</b> (il l'exporte depuis SkanFact Cabinet). Une fois importé ici, chaque paquet sera chiffré pour lui seul, sans mot de passe à échanger.</p>
-           <p class="small muted">Ton comptable n'a pas encore l'application ? <b>SkanFact Cabinet</b> est gratuite pour lui : elle est jointe à chaque version de SkanFact, sous le même lien de téléchargement. Elle lit tes paquets, ne modifie jamais tes données et ne t'envoie rien.</p>
-           <button class="btn btn-primary mt" id="cab-import">Importer le fichier du cabinet…</button>`;
-
-      // 10.13.0 (test humain du pont) — le geste redessinait TOUTE la page : elle remontait en haut,
-      // et le panneau qui porte la réponse (l'empreinte à vérifier de vive voix) repartait sous le
-      // bas de l'écran, à côté d'un bandeau qui la recouvrait. Seul ce panneau dépend du cabinet :
-      // on redessine CE panneau, là où l'on est, et ce qui est en cours de saisie ailleurs reste en
-      // cours — rien ne l'enregistre à la place de l'utilisateur. Un fichier refusé dit sa phrase,
-      // jamais « Error invoking remote method… » (règle 6.4.0).
-      const doImport = async () => {
-        try {
-          const r = await bridge.importCabinet();
-          if (!r) return;
-          // Un AUTRE cabinet signe avec sa propre clé : garder la signature de l'ancien ferait refuser
-          // sa première clôture. Réimporter le même fichier ne change rien.
-          const avant = data.company.cabinet && data.company.cabinet.fingerprint;
-          if (avant && avant !== r.fingerprint) data.cabinetSignature = null;
-          data.company.cabinet = r;
-          save(true); drawCabinetPair();
-          toast(`Cabinet appairé : ${r.name || ''}`);
-        } catch (e) { toast(plainError(e) || 'Fichier illisible', true); }
-      };
-      if ($('#cab-import')) $('#cab-import').onclick = doImport;
-      if ($('#cab-repair')) $('#cab-repair').onclick = doImport;
-      if ($('#cab-unpair')) $('#cab-unpair').onclick = async () => {
-        if (!await confirmDialog('Retirer ce cabinet ? Tes prochains paquets ne seront plus chiffrés pour lui — il faudra revenir au mot de passe.', 'Retirer')) return;
-        delete data.company.cabinet; data.cabinetSignature = null; save(true); drawCabinetPair();
-        toast('Cabinet retiré');
-      };
-      if ($('#cab-oublier-sig')) $('#cab-oublier-sig').onclick = async () => {
-        if (!await confirmDialog('Oublier la signature retenue de ton cabinet ?\n\nLe prochain fichier signé qu\'il t\'enverra sera retenu à sa place. Ne le fais que si ton comptable t\'a dit avoir changé de clé.', 'Oublier la signature')) return;
-        data.cabinetSignature = null; save(true); drawCabinetPair();
-        toast('Signature oubliée : la prochaine sera retenue');
-      };
+      if (bridge.dessinerMandat) void bridge.dessinerMandat(el);
     }
     drawCabinetPair();
     if (bridge.dessinerQuarantaine && $('#quarantaine-panel')) bridge.dessinerQuarantaine($('#quarantaine-panel'));

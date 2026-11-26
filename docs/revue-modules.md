@@ -7796,3 +7796,30 @@ l'application : chacune visait une parade devenue la seconde, la première ayant
   refuse désormais tout geste de rangement sur une photo déjà saisie.
 
 Règle : **une parade qui en double une autre se prouve avec l'autre**, sinon la preuve mesure la seconde.
+
+## 1.388.92 — Ce que la revue critique du lot 1.388.80 → 1.388.90 a trouvé
+
+Relu à froid, le lot des questions refaites (1.388.86 → 1.388.88) tenait ses promesses à l'écran, mais trois d'entre
+elles ne se tenaient pas jusqu'au bout.
+
+- **Une relance à la main n'envoyait pas toujours son e-mail.** Elle repassait la question « à lire » chez le client, et
+  le serveur ne relançait par e-mail que les questions dont la date « pour le » était passée et dont la dernière relance
+  avait plus de sept jours : une relance faite le lendemain de l'envoi ne partait jamais. Elle est désormais marquée « à
+  envoyer » (0238) : le serveur l'envoie au tour suivant (une minute au plus), la compte une seule fois, et une seconde
+  relance avant le départ de la première est refusée. Trois parties, la base refuse la quatrième, et le menu le dit avant
+  le clic (« Relancer le client » éteint, avec « écris-lui dans la conversation, ou appelle-le »).
+- **Une question gardée dont la date était passée partait avec cette date.** Envoyée plus tard, elle arrivait déjà « en
+  retard » chez le client. Elle part avec une date neuve, à sept jours.
+- **Une réponse avec un fichier perdait la pièce que la question visait.** Le cabinet recevait la photo sans savoir en
+  face de quelle facture la ranger. Elle part avec les deux : le fichier ET la pièce du dossier dont la question porte le
+  numéro. « Une pièce de mon dossier… » ouvre sur le dossier (plus sur « Je l'écris »), et une réponse sans texte se dit
+  « La réponse est dans le fichier joint. » des deux côtés (l'écran préremplissait un autre texte jusqu'au rechargement).
+- **La pastille de « À faire » comptait des questions sous une ligne qui nomme des clients** (« 5 » à côté de « 2 clients
+  n'ont pas répondu »). Elle compte les clients.
+- Le singulier dans « 1 question en retard » (« Sa date… »), « relancée une fois » dans la Banque, et une phrase qui ne
+  menace plus le client (« il en a besoin pour finir ton mois »).
+- **Code mort retiré :** le panneau d'appairage par fichier (6.2.0) resté après le `return` du mandat, trois fonctions du
+  pont que plus rien n'appelait, sept bulles d'aide sans écran, l'entrée « Provisoire / définitif » du glossaire, et les
+  bulles qui parlaient encore du « paquet du comptable ».
+
+Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.92 »).

@@ -333,6 +333,23 @@ describe('la boîte du cabinet', () => {
   });
 });
 
+describe('(1.388.92) une réponse jointe', () => {
+  it('avec un fichier ET la pièce qu\'il justifie : le message de la conversation porte les deux, et le texte vide se dit', async () => {
+    const cab = await cabinet();
+    const c = await cab.client('Clinique Amel');
+    const q = await appeler('POST', `/entreprises/${c.ent}/compta/questions`, cab.associe.jeton, { periode: '2026-09', compte: '6061', piece: 'FF-12', montant: '120.000', objet: 'Facture FF-12', texte: 'Pouvez-vous envoyer la facture ?' });
+    expect(q.statut, JSON.stringify(q.corps)).toBe(201);
+    const depot = await appeler('POST', `/entreprises/${c.ent}/messages/fichiers`, c.p.jeton, { cote: 'entreprise', nom: 'ff-12.png', contenu: PNG });
+    expect(depot.statut).toBe(201);
+    const r = await appeler('POST', `/entreprises/${c.ent}/compta/questions/${q.corps.id}/repondre`, c.p.jeton,
+      { texte: '', fichier: depot.corps.id, piece: { genre: 'achat', id: 'achat-ff-12', libelle: 'FF-12' } });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    const m = (await admin.query(`select m.fichier = $2 fichier, m.piece_genre, m.piece_libelle, q.reponse from compta.question q
+        join messagerie.message m on m.id = q.reponse_message where q.id = $1`, [q.corps.id, depot.corps.id])).rows[0];
+    expect(m).toEqual({ fichier: true, piece_genre: 'achat', piece_libelle: 'FF-12', reponse: 'La réponse est dans le fichier joint.' });
+  });
+});
+
 describe('un mandat qui s\'arrête', () => {
   it('le cabinet ne lit plus ; l\'entreprise relit l\'ancien fil sans y écrire ; un nouveau cabinet ne le lit pas', async () => {
     const cab = await cabinet();

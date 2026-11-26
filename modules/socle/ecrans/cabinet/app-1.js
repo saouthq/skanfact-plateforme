@@ -5385,7 +5385,8 @@
     if (nP) attend.push(['boite', 'ambre', `${pl(nP, 'pièce reçue', 'pièces reçues')} à classer`, 'Envoyées par le client : à saisir, ou à classer dans « Pièces reçues ».', [`Ouvrir ${nP > 1 ? `les ${nP} pièces` : 'la pièce'}`, '#/pieces']]);
     if (em.etat === 'a_traiter') attend.push(['msg', 'ambre', em.nonLus ? `${pl(em.nonLus, 'message', 'messages')} de ${esc(prenom || d.name)}` : `${esc(prenom || d.name)} t'a répondu`, em.dernier && em.dernier.cote === 'entreprise' && em.dernier.extrait ? `« ${esc(em.dernier.extrait.slice(0, 110))}${em.dernier.extrait.length > 110 ? '…' : ''} »` : 'dans votre conversation', ['Répondre', `#/messages/${encodeURIComponent(d.id)}`]]);
     // (1.388.86) Une question attend depuis des jours ; sa date « pour le » passée, elle se relance seule par e-mail.
-    if (q.enRetard) attend.push(['question', 'gris', pl(q.enRetard, 'question en retard', 'questions en retard'), `Leur date « pour le » est passée${q.attendDepuis ? ` ; la plus ancienne attend depuis ${pl(Math.max(0, Math.floor((Date.now() - Number(q.attendDepuis)) / 86400000)), 'jour', 'jours')}` : ''}. Elles se relancent par e-mail chaque semaine, trois fois au plus.`, ['Voir les questions', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/revision`]]);
+    if (q.enRetard) attend.push(['question', 'gris', pl(q.enRetard, 'question en retard', 'questions en retard'), (q.enRetard > 1 ? `Leur date « pour le » est passée${q.attendDepuis ? ` ; la plus ancienne question envoyée attend depuis ${pl(Math.max(0, Math.floor((Date.now() - Number(q.attendDepuis)) / 86400000)), 'jour', 'jours')}` : ''}. Elles se relancent par e-mail chaque semaine, trois fois au plus.`
+      : `Sa date « pour le » est passée${q.attendDepuis ? ` ; la plus ancienne question envoyée attend depuis ${pl(Math.max(0, Math.floor((Date.now() - Number(q.attendDepuis)) / 86400000)), 'jour', 'jours')}` : ''}. Elle se relance par e-mail chaque semaine, trois fois au plus.`), ['Voir les questions', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/revision`]]);
     if (em.attentes) attend.push(['attente', 'gris', `Demandé à ${esc(prenom || 'ton client')} : ${pl(em.attentes, 'pièce', 'pièces')}`, em.retards ? `dont ${em.retards} en retard` : 'dans votre conversation : rien à faire avant', null]);
 
     // Les chiffres, lus dans ses livres de l'année.
@@ -11214,7 +11215,11 @@
       const attend = q.statut !== 'close' && !q.reponse;
       return [
         relieQ && !partie && attend ? { icon: 'email', label: 'Envoyer maintenant', hint: `Elle part chez ${dossier.name}, seule : les autres questions gardées attendent.`, run: () => envoyerQuestions(root, dossier, [id]) } : null,
-        relieQ && partie && attend ? { icon: 'email', label: 'Relancer le client', hint: q.relances >= 3 ? 'Trois relances déjà : celle-ci le prévient une fois de plus.' : 'Il reçoit un e-mail qui l\'invite à ouvrir SkanFact ; la relance automatique suivante attend une semaine.', run: () => relancerQuestion(root, dossier, id) } : null,
+        // (1.388.92, 0238) Trois relances parties, la base en refuse une quatrième : le menu le dit avant le clic, et propose
+        // ce qui reste (la conversation) au lieu d'un refus après coup.
+        relieQ && partie && attend ? (q.relances >= 3
+          ? { icon: 'email', label: 'Relancer le client', off: true, hint: 'Trois relances sont déjà parties : écris-lui dans la conversation, ou appelle-le.', run: () => toast('Trois relances sont déjà parties pour cette question : écris-lui dans la conversation, ou appelle-le.') }
+          : { icon: 'email', label: 'Relancer le client', hint: 'Il reçoit un e-mail dans la minute (s\'il a gardé ses alertes) qui l\'invite à ouvrir SkanFact ; la relance automatique suivante attend une semaine.', run: () => relancerQuestion(root, dossier, id) }) : null,
         relieQ && partie ? { icon: 'email', label: 'Voir dans la conversation', hint: 'Sa carte, et la réponse du client.', run: () => { messagePrepare = { id: dossier.id, retour: { texte: 'Revenir à la révision', hash: location.hash } }; location.hash = `#/messages/${encodeURIComponent(dossier.id)}`; } } : null,
         relieQ && attend ? { sep: true } : null,
         q.statut === 'close'
@@ -11557,8 +11562,9 @@
     } catch (e) { toast(plainError(e), 'error'); }
   }
 
-  // (plateforme) 1.388.86 — relancer à la main : la question repasse « à lire » chez le client, et l'alerte par e-mail
-  // (sans rien de la question) part s'il ne l'a pas décochée. On ne promet pas l'e-mail : il dépend de son réglage.
+  // (plateforme) 1.388.86 — relancer à la main : l'e-mail de relance (sans rien de la question) part au tour suivant du
+  // serveur (1.388.92, 0238 : il ne partait que si le client avait lu le fil entre-temps), s'il ne l'a pas décoché. On ne
+  // promet pas l'e-mail : il dépend de son réglage.
   async function relancerQuestion(root, dossier, id) {
     const s = livresState;
     try {
@@ -11566,7 +11572,7 @@
       if (r.livre) s.livre = r.livre;
       s.revisionRev = ''; chargerRevision(root, dossier);
       const n = ((r.livre && r.livre.questions) || []).find(x => x.id === id)?.relances || 1;
-      toast(`Relance notée (${n} sur 3) : la question repasse à lire chez ${dossier.name}, prévenu par e-mail s'il a gardé ses alertes.`);
+      toast(`Relance notée (${n} sur 3) : un e-mail part chez ${dossier.name} dans la minute, s'il a gardé ses alertes.`);
     } catch (e) { toast(plainError(e), 'error'); }
   }
 

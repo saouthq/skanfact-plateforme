@@ -15551,7 +15551,7 @@
           const champ = $('input[name=fichier]', root);
           const fichier = champ && champ.files && champ.files[0] ? champ.files[0] : null;
           let t = $('textarea[name=texte]', root).value.trim();
-          if (!t && fichier) t = `Le fichier : ${fichier.name}`;
+          if (!t && fichier) t = 'La réponse est dans le fichier joint.';
           if (!t) return refus($('textarea[name=texte]', root), 'Une réponse vide n\'apprend rien à ton comptable.');
           // La pièce visée, si elle est dans le dossier : le cabinet ouvre le fichier en face d'elle.
           const doc = q.piece ? (data.documents || []).find(d => d.number === q.piece) : null;

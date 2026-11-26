@@ -838,7 +838,7 @@
       if (!p) return null;
       return { id: 'demo-q-' + numero, periode: p.date.slice(0, 7), piece: numero, compte: q.compte, libelleCompte: q.libelleCompte,
         montant: C.purchaseTotals(p, co).netToPay, objet: q.objet, texte: q.texte, attendu: q.attendu,
-        cabinet: 'Cabinet d\'exemple', exercice: Number(p.date.slice(0, 4)), recueLe: ts(daysAgo(3)), recues: 1, reponse: null };
+        cabinet: 'Cabinet d\'exemple', exercice: Number(p.date.slice(0, 4)), recueLe: ts(daysAgo(3)), reponse: null };
     };
     d.questionsCabinet = [
       // Les comptes sont ceux que SkanFact écrit dans le paquet (`DEFAULT_ACCOUNTS`) : c'est sur ces

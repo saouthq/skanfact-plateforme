@@ -126,9 +126,11 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Pour ta question « Caisse ».', 'fond-de-caisse.png']]);
     // (1.388.88) À l'écran, la réponse et son fichier se lisent comme un seul envoi : le mot de liaison (gardé pour les
     // autres lectures) ne fait plus une seconde bulle, et le fichier vient juste sous la réponse.
-    const ecran = (await p.locator('[data-msg-fil]').innerText()).replace(/\s+/g, ' ');
-    expect(ecran).not.toContain('Pour ta question « Caisse ».');
-    expect(ecran).toMatch(/Oui, 200 DT, compté ce matin\. fond-de-caisse\.png/);
+    // Le fil se redessine juste après le message passager : on attend qu'il l'ait fait (une lecture immédiate le prenait
+    // encore avec le champ de réponse ouvert).
+    const ecranFil = async () => (await p.locator('[data-msg-fil]').innerText()).replace(/\s+/g, ' ');
+    await expect.poll(ecranFil, { timeout: 10_000 }).toMatch(/Oui, 200 DT, compté ce matin\. fond-de-caisse\.png/);
+    expect(await ecranFil()).not.toContain('Pour ta question « Caisse ».');
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
     // (1.388.88) « Corriger ma réponse » rouvre la fenêtre : son fichier se choisit par un bouton en français, et le nom

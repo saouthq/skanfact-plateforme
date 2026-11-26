@@ -1610,7 +1610,7 @@
       });
       surClic(fil, '[data-msg-q-dossier]', async (b) => {
         const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === b.dataset.msgQDossier);
-        if (q) envoyerPiece(null, q);
+        if (q) envoyerPiece(null, q, 'dossier');
       });
       surClic(fil, '[data-msg-q-joindre]', async (b) => {
         const id = String(b.dataset.msgQJoindre);
@@ -1642,9 +1642,17 @@
           // (1.388.86, 0237) Un seul geste : le fichier se dépose, puis la réponse part AVEC lui — le serveur écrit le message
           // du fil et la réponse dans la même transaction. Une réponse refusée ne laisse plus de photo seule dans le fil.
           const corps = /** @type {Record<string, unknown>} */ ({ texte });
-          if (f) corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: f.name, contenu: await enBase64(f) })).id;
+          if (f) {
+            corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: f.name, contenu: await enBase64(f) })).id;
+            // (1.388.92) Le fichier part en face de la pièce que la question vise, quand elle est dans le dossier (le cabinet
+            // l'ouvre à côté d'elle) — ce que faisait l'envoi d'avant la 1.388.86, perdu en route.
+            const cible = pieceVisee(id);
+            if (cible) corps.piece = cible;
+          }
           await o.appel('POST', `/compta/questions/${encodeURIComponent(id)}/repondre`, corps);
-          if (!texte && f) texte = `Le fichier : ${f.name}`;
+          // Le texte que le serveur range quand on n'écrit rien : le même ici, sinon « Corriger ma réponse » préremplissait
+          // un autre texte jusqu'au rechargement.
+          if (!texte && f) texte = 'La réponse est dans le fichier joint.';
           if (o.repondre) await o.repondre(id, texte);
         } catch (x) { if (refus) refus.textContent = motif(x); if (t) t.focus(); return; }
         reponses.delete(id); fichiersQ.delete(id);
@@ -2046,8 +2054,16 @@
 
     // « Envoyer la pièce demandée » : une photo ou un PDF (vu avant de partir), ou une pièce déjà dans le dossier ; un mot
     // facultatif. Rien ne part avant « Envoyer à mon cabinet » ; « Annuler » ne laisse rien derrière lui.
-    /** @param {any} m le message qui demande la pièce @param {any} [q] (1.388.86) ou la question du cabinet à laquelle on répond */
-    function envoyerPiece(m, q) {
+    // (1.388.92) La pièce du dossier que vise une question (son numéro), pour que le fichier qui y répond parte en face.
+    /** @param {string} id */
+    function pieceVisee(id) {
+      const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === id);
+      const cible = q && q.piece && o.pieceDuNumero ? o.pieceDuNumero(q.piece) : null;
+      return cible ? { ...cible, libelle: String(q.piece) } : null;
+    }
+    // (1.388.92) `depart` : la façon choisie d'avance — « Une pièce de mon dossier… » ouvre sur le dossier, pas sur « Je l'écris ».
+    /** @param {any} m le message qui demande la pièce @param {any} [q] (1.388.86) ou la question du cabinet à laquelle on répond @param {string} [depart] */
+    function envoyerPiece(m, q, depart) {
       const demandeTexte = String(q ? q.texte : m.demande.texte || '');
       const toutes = (o.pieces ? o.pieces() : []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
       /** @type {File | null} */ let choisi = null;
@@ -2056,7 +2072,7 @@
       // (1.344.0, 0208) Ce qui se demande peut être un numéro (le n° CNSS d'un salarié) : il s'ÉCRIT, il ne se photographie
       // pas. « Je l'écris » est proposé à chaque demande, et choisi d'avance quand elle nomme un numéro.
       const unNumero = /\bn°|numéro|matricule/i.test(demandeTexte);
-      let facon = unNumero || (q && q.attendu !== 'piece') ? 'ecrit' : 'fichier';
+      let facon = depart || (unNumero || (q && q.attendu !== 'piece') ? 'ecrit' : 'fichier');
       const fond = document.createElement('div');
       fond.className = 'msg-fenetre-fond';
       fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-ep-titre" novalidate>
@@ -2160,10 +2176,13 @@
           if (q) {
             // (1.388.86, 0237) La réponse à une question : un seul appel, le fichier ou la pièce avec elle.
             const corps = /** @type {Record<string, unknown>} */ ({ texte });
-            if (facon === 'fichier' && choisi) corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: choisi.name, contenu: await enBase64(choisi) })).id;
-            else if (facon === 'dossier' && dejaLa) corps.piece = dejaLa;
+            if (facon === 'fichier' && choisi) {
+              corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: choisi.name, contenu: await enBase64(choisi) })).id;
+              const cible = pieceVisee(q.id);
+              if (cible) corps.piece = cible;
+            } else if (facon === 'dossier' && dejaLa) corps.piece = dejaLa;
             await o.appel('POST', `/compta/questions/${encodeURIComponent(q.id)}/repondre`, corps);
-            if (o.repondre) await o.repondre(q.id, texte || (facon === 'fichier' && choisi ? `Le fichier : ${choisi.name}` : dejaLa ? `La pièce : ${dejaLa.libelle}` : ''));
+            if (o.repondre) await o.repondre(q.id, texte || (facon === 'fichier' && choisi ? 'La réponse est dans le fichier joint.' : dejaLa ? `La réponse est la pièce ${dejaLa.libelle}.` : ''));
           } else if (facon === 'ecrit') {
             await o.appel('POST', '/messages', { cote: o.cote, texte, repondA: m.id, ecrite: true });
           } else if (facon === 'fichier' && choisi) {
@@ -2854,7 +2873,9 @@
       const lourd = tropLourd(f);
       if (lourd) throw new Error(lourd);
       corps.fichier = (await appel('POST', '/messages/fichiers', { cote, nom: f.name, contenu: await enBase64(f) })).id;
-    } else if (piece) corps.piece = piece;
+    }
+    // (1.388.92) Avec un fichier, la pièce visée part aussi : le cabinet ouvre le fichier en face d'elle.
+    if (piece) corps.piece = piece;
     return appel('POST', `/compta/questions/${encodeURIComponent(id)}/repondre`, corps);
   }
   // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.

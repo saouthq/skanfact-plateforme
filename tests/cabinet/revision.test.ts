@@ -180,7 +180,14 @@ describe('les questions au client', () => {
     // Relancer à la main : qui valide ; la base compte (trois au plus) ; une gardée ne se relance pas.
     expect((await appeler('POST', `${url}/${id}/relancer`, d.assistant.jeton, {})).statut).toBe(403);
     expect((await appeler('POST', `${url}/${id}/relancer`, d.associe.jeton, {})).corps.relances).toBe(1);
-    for (let i = 0; i < 4; i += 1) await appeler('POST', `${url}/${b}/relancer`, d.associe.jeton, {});
+    // (1.388.92, 0238) Une relance à la main PART (le serveur l'envoie au tour suivant) : une seconde avant qu'elle soit
+    // partie se refuse ; trois parties, une quatrième se refuse en disant quoi faire.
+    for (let i = 0; i < 3; i += 1) {
+      expect((await appeler('POST', `${url}/${b}/relancer`, d.associe.jeton, {})).corps.relances).toBe(i + 1);
+      if (i === 0) expect((await appeler('POST', `${url}/${b}/relancer`, d.associe.jeton, {})).corps.motif).toBe('Une relance part déjà dans la minute : inutile d\'en ajouter une.');
+      await admin.query('select compta.question_relancee($1, now())', [b]);
+    }
+    expect((await appeler('POST', `${url}/${b}/relancer`, d.associe.jeton, {})).corps.motif).toBe('Trois relances sont déjà parties : écris-lui dans la conversation, ou appelle-le.');
     expect((await lire(d.associe)).find((q) => q.id === b)?.relances).toBe(3);
     // Le cabinet ne répond pas à la place du client ; le client répond, et la relance n'a plus lieu d'être.
     expect((await appeler('POST', `${url}/${id}/repondre`, d.associe.jeton, { texte: 'Oui' })).statut).toBe(403);
@@ -220,6 +227,30 @@ describe('les questions au client', () => {
     // Sans date « pour le », jamais de relance automatique.
     const sans = String((await appeler('POST', url, d.associe.jeton, { ...QUESTION, piece: 'FF-20' })).corps.id);
     expect(((await admin.query('select messagerie.relances_dues(now()) r')).rows[0].r as { question?: string }[]).some((x) => x.question === sans)).toBe(false);
+  });
+
+  it('(1.388.92) une relance à la main envoie l\'e-mail, comptée une fois ; une gardée dont la date est passée part avec une date neuve', async () => {
+    const d = await dossier();
+    await admin.query('update socle.utilisateur set adresse_verifiee_le = now() where id = $1', [d.client.utilisateur]);
+    const url = `/entreprises/${d.ent}/compta/questions`;
+    const dues = async (q: string) => ((await admin.query('select messagerie.relances_dues(now()) r')).rows[0].r as { question?: string }[]).filter((x) => x.question === q);
+    // Partie pour dans sept jours : rien n'est dû. Relancée à la main : elle est due tout de suite, quelle que soit sa date,
+    // même si le client n'a rien lu depuis l'alerte (c'est ce qui empêchait l'e-mail de partir).
+    const id = String((await appeler('POST', url, d.associe.jeton, { ...QUESTION, pour: jourDeTunis(7) })).corps.id);
+    expect(await dues(id)).toEqual([]);
+    expect((await appeler('POST', `${url}/${id}/relancer`, d.associe.jeton, {})).corps.relances).toBe(1);
+    expect((await dues(id)).length).toBeGreaterThan(0);
+    // Partie : le postier la note ; elle était comptée au clic, elle ne compte pas deux fois, et se tait ensuite.
+    await admin.query('select compta.question_relancee($1, now())', [id]);
+    expect((await admin.query('select relances, relance_a_envoyer from compta.question where id = $1', [id])).rows[0]).toEqual({ relances: 1, relance_a_envoyer: false });
+    expect(await dues(id)).toEqual([]);
+    // Gardée pour une date que l'envoi a dépassée : elle part avec une date dans sept jours, jamais « en retard » d'office.
+    const g = String((await appeler('POST', url, d.associe.jeton, { ...QUESTION, piece: 'FF-30', pour: jourDeTunis(1), garder: true })).corps.id);
+    await admin.query('update compta.question set pour_le = current_date - 3 where id = $1', [g]);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [g] })).corps.envoyees).toBe(1);
+    const apres = (await admin.query(`select to_char(pour_le, 'YYYY-MM-DD') p from compta.question where id = $1`, [g])).rows[0].p;
+    expect(apres).toBe(jourDeTunis(7));
+    expect(await dues(g)).toEqual([]);
   });
 
   it('(1.187.0) on nomme celles qui partent : « Envoyer maintenant », les gardées de la conversation ; les mêmes règles', async () => {

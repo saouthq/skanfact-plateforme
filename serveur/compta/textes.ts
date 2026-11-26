@@ -34,7 +34,6 @@ declarerTextes({
   // (1.187.0) Envoyer les questions : celles d'une année, ou celles qu'on nomme ; l'une ou l'autre.
   'compta.champ.annee_ou_questions': 'l\'année, ou les questions qui partent : l\'une ou l\'autre',
   // (1.388.86) La réponse jointe : le message qui part dans la conversation, et la réponse écrite quand rien n'est tapé.
-  'compta.champ.fichier_ou_piece': 'un fichier ou une pièce du dossier : l\'un ou l\'autre',
   'compta.question.reponse_message': 'Pour ta question « {question} ».',
   'compta.question.reponse_fichier': 'La réponse est dans le fichier joint.',
   'compta.question.reponse_piece': 'La réponse est la pièce {piece}.',
