@@ -7823,3 +7823,17 @@ elles ne se tenaient pas jusqu'au bout.
   bulles qui parlaient encore du « paquet du comptable ».
 
 Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.92 »).
+
+## 1.388.93 — Les relances d'une question se disent sur sa carte
+
+Une question relancée ne le disait nulle part dans la conversation : le client ne savait pas qu'on l'attendait depuis
+deux semaines, le cabinet devait ouvrir la révision pour savoir s'il avait déjà relancé. La carte dit maintenant
+« relancée une fois » (ou « relancée 2 fois »), des deux côtés, à côté de « attendue le … ».
+
+Écarté de la revue, avec la raison :
+- **Le contrôle du mandat de la réponse jointe** compte en jour du serveur, comme toutes les autres vérifications de
+  mandat de la plateforme : le passer seul au jour de Tunis ferait dire deux choses différentes à deux écrans le même soir.
+- **Un fichier déposé dont la réponse est refusée** reste sans message, comme depuis la 1.0 de la conversation (dépôt,
+  puis message) : il ne se voit nulle part et ne compte nulle part. Une purge est une suppression en production : elle
+  se décide à part.
+- **La bulle « Ta licence »** parle encore du fichier d'appairage, mais son panneau n'existe pas en ligne.

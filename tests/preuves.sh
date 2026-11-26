@@ -32643,6 +32643,10 @@ prouver "une réponse avec un fichier perd la pièce qu'elle vise" serveur/compt
 prouver "la pastille des questions compte les questions en retard" web/public/v10/cabinet/cabcore.js \
   "      count: qs.length," "      count: qs.reduce((s, q) => s + (q.enRetard || 0), 0) || qs.length," \
   "la pastille compte les clients que la ligne nomme, pas leurs questions en retard"
+# 1.388.93 — Les relances d'une question se disent sur sa carte.
+prouver "les relances d'une question ne se disent pas sur sa carte" web/public/plateforme/messagerie.js \
+  "\${attend && q.relances > 0 ? " "\${false && q.relances > 0 ? " \
+  "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

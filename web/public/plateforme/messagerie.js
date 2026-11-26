@@ -1090,6 +1090,8 @@
               ${attend && jours ? `<span class="msg-q-depuis">sans réponse depuis ${esc(pl(jours, 'jour'))}</span>` : ''}
               ${/* (1.388.86, 0237) Sa date « pour le » : passée, elle se relance par e-mail chaque semaine. */''}
               ${attend && q.pour ? `<span class="msg-q-depuis${q.enRetard ? ' retard' : ''}">${q.enRetard ? 'attendue' : 'pour'} le ${esc(dateCourte(q.pour))}</span>` : ''}
+              ${/* (1.388.92) Les relances parties se disent sur la question, des deux côtés : le client sait qu'on l'attend, le cabinet ce qu'il a déjà fait. */''}
+              ${attend && q.relances > 0 ? `<span class="msg-q-depuis" data-msg-q-relances>relancée ${q.relances > 1 ? `${esc(String(q.relances))} fois` : 'une fois'}</span>` : ''}
               ${etat}${repondre}</div></div>
           ${!entreprise && o.revision ? '<button type="button" class="btn btn-sm msg-q-voir" data-msg-revision>Voir dans la révision</button>' : ''}
         </div></div>`;

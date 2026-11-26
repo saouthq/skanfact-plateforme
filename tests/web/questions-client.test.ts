@@ -72,6 +72,8 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect((await api('POST', `${url}/${fermee}/fermer`, associe, {})).statut).toBe(200);
     await poserQuestion({ objet: 'Brouillon', texte: 'Une question pas encore partie', garder: true });
     const lues = async () => (await api('GET', url, associe)).corps.questions as Question[];
+    // (1.388.92) Le cabinet relance celle sur FF-12 : la relance se dit sur sa carte, chez le client.
+    expect((await api('POST', `${url}/${surPiece}/relancer`, associe, {})).corps.relances).toBe(1);
 
     const erreurs: string[] = [];
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
@@ -102,6 +104,8 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await panneau.locator(`[data-rep="${generale}"]`).click();
     const reponse = (id: string) => p.locator(`[data-msg-q-texte="${id}"]`);
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.msgQTexte ?? ''), { timeout: 20_000 }).toBe(generale);
+    expect(await p.locator(`[data-msg-q="${surPiece}"] [data-msg-q-relances]`).innerText()).toBe('relancée une fois');
+    expect(await p.locator(`[data-msg-q="${generale}"] [data-msg-q-relances]`).count()).toBe(0);
     expect(p.url()).toContain('#/comptable');
     // Plus de fenêtre « Répondre à ton comptable » : la réponse se donne dans le fil.
     expect(await fenetre.count()).toBe(0);
