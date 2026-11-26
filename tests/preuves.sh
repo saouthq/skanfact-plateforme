@@ -2825,32 +2825,39 @@ prouver "la révision sans la comptabilité au mandat" $M28 \
 prouver "des cycles aux préfixes qui ne sont pas des comptes" serveur/cabinet/routes.ts \
   "prefixes: z.array(z.string().regex(/^\d{1,12}$/)).min(1).max(50)" "prefixes: z.array(z.string()).min(1).max(50)" \
   "$RV3"
-prouver "une question jamais envoyée que le client lit" $M28 \
-  "  and (cardinality(envois) > 0 or cabinet is null or cabinet in (select socle.mes_organisations())));" "  and true);" \
-  "$QU1"
-prouver "une réponse à une question jamais reçue" $M28 \
-  "  if not found or cardinality(q.envois) = 0 then perform socle.refus('cette question n''existe plus'); end if;" "  if not found then perform socle.refus('cette question n''existe plus'); end if;" \
-  "$QU1"
-prouver "une question envoyée qui s'efface" $M28 \
-  "  if cardinality(q.envois) > 0 then perform socle.refus('cette question est déjà partie" "  if false then perform socle.refus('cette question est déjà partie" \
-  "$QU1"
-prouver "un envoi qui ne se compte qu'une fois" base/migrations/0235_cabinet_relu.sql \
-  "  update compta.question set envois = envois || now(), statut" "  update compta.question set envois = case when cardinality(envois) = 0 then envois || now() else envois end, statut" \
-  "$QU1"
-prouver "une question répondue qui se réécrit" $M28 \
+prouver "une réponse avec pièce jointe que le cabinet ne voit pas" modules/socle/ecrans/cabinet/app-1.js \
+  '${q.reponse.message && !dossier.manual ? `' '${false ? `' \
+  "la révision se tient à la souris et se garde au serveur ; une question part au client à l'envoi, et sa réponse revient"
+prouver "une question gardée que le client lit" base/migrations/0237_questions_refaites.sql \
+  "  and (envoyee_le is not null or cabinet is null or cabinet in (select socle.mes_organisations())));" "  and true);" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "une réponse à une question jamais reçue" base/migrations/0237_questions_refaites.sql \
+  "  if not found or q.envoyee_le is null then perform socle.refus('cette question n''existe plus'); end if;" "  if not found then perform socle.refus('cette question n''existe plus'); end if;" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "une question partie qui s'efface" base/migrations/0237_questions_refaites.sql \
+  "  if q.envoyee_le is not null then perform socle.refus('cette question est déjà partie" "  if false then perform socle.refus('cette question est déjà partie" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "« Garder pour plus tard » qui part quand même" base/migrations/0237_questions_refaites.sql \
+  "  v_part := not coalesce((p_question->>'garder')::boolean, false) and compta.peut(p_entreprise, 'compta.ecritures.valider');" "  v_part := compta.peut(p_entreprise, 'compta.ecritures.valider');" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "une question répondue qui se réécrit" base/migrations/0237_questions_refaites.sql \
   "  if q.statut in ('repondue', 'close') then perform socle.refus('cette question a reçu" "  if q.statut in ('close') then perform socle.refus('cette question a reçu" \
-  "$QU1"
-prouver "le cabinet qui répond à la place du client, dans la base" $M28 \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "le cabinet qui répond à la place du client, dans la base" base/migrations/0237_questions_refaites.sql \
   "  if socle.perimetre_cabinet(p_entreprise) is not null or socle.ma_cle() is not null|||     or not (socle.mes_roles(p_entreprise) && array['proprietaire', 'administrateur', 'comptabilite_interne']::text[]) then" "  if socle.ma_cle() is not null|||     then" \
-  "$QU1"
-prouver "une question à relancer dès le premier envoi" serveur/compta/questions.ts \
-  "cardinality(q.envois) >= 2) a_relancer" "cardinality(q.envois) >= 1) a_relancer" \
-  "$QU1"
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "une question en retard avant sa date" serveur/compta/questions.ts \
+  "count(*) filter (where q.statut = 'envoyee' and q.pour_le < (now() at time zone 'Africa/Tunis')::date) en_retard" "count(*) filter (where q.statut = 'envoyee') en_retard" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
 prouver "les questions de toutes les années mêlées" serveur/compta/questions.ts \
   "and (\$2 = '' or left(periode, 4) = \$2)" "and (\$2 = \$2)" \
-  "$QU1"
-prouver "le client qui pose des questions dans ses propres livres" $M28 \
-  "  if v_cabinet is null then perform socle.refus('seul le cabinet" "  if false then perform socle.refus('seul le cabinet" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
+prouver "le client qui pose des questions dans ses propres livres" base/migrations/0237_questions_refaites.sql \
+  "  v_cabinet := compta.mon_cabinet(p_entreprise);
+  if v_cabinet is null then perform socle.refus('seul le cabinet de l''entreprise lui pose des questions'); end if;
+  if coalesce(p_question->>'periode'" "  v_cabinet := compta.mon_cabinet(p_entreprise);
+  if false then perform socle.refus('seul le cabinet de l''entreprise lui pose des questions'); end if;
+  if coalesce(p_question->>'periode'" \
   "$QU2"
 prouver "la révision réécrite sans sa révision connue" $PC \
   "{ contenu, revision: revisionsRevision.get(cle) ?? null }" "{ contenu, revision: null }" \
@@ -2859,7 +2866,7 @@ prouver "les signatures sans nom" $PC \
   "    moiNom = String(moi.nom || '');" "    moiNom = '';" \
   "$WR1"
 prouver "la réponse du client qui ne revient pas à l'écran" $PC \
-  "reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null," "reponse: null," \
+  "reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null, message: q.reponseMessage || null } : null," "reponse: null," \
   "$WR1"
 prouver "l'envoi qui n'atteint pas le serveur" $PC \
   "/compta/questions/envoyer" "/compta/questions" \
@@ -2880,13 +2887,11 @@ prouver "les questions du cabinet rangées dans le dossier de l'entreprise" $PE 
 prouver "une question fermée par le cabinet qui s'affiche chez le client" $PE \
   "    const qs = lues.filter((q) => q.statut !== 'close').map((q) => ({" "    const qs = lues.map((q) => ({" \
   "$QC1"
-prouver "la réponse du client qui ne part pas au serveur" $PE \
-  "    try { await envoyerReponses(data); } catch (e) {" "    try { void 0; } catch (e) {" \
+prouver "la réponse du client qui ne part pas au serveur" web/public/plateforme/messagerie.js \
+  "          await o.appel('POST', \`/compta/questions/\${encodeURIComponent(id)}/repondre\`, corps);" "          void corps;" \
   "$QC1"
-prouver "l'onglet Cabinet qui fabrique encore un paquet" modules/socle/ecrans/entreprise/app-2.js \
-  "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
-      if (bridge.dessinerMandat) {" "      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
-      if (false) {" \
+prouver "l'onglet Cabinet sans « Répondre »" modules/socle/ecrans/entreprise/app-2.js \
+  "data-rep=\"\${h(q.id)}\">\${repondue(q) ? 'Corriger ma réponse' : 'Répondre'}" "data-rep-x=\"\${h(q.id)}\">\${repondue(q) ? 'Corriger ma réponse' : 'Répondre'}" \
   "$QC1"
 
 # ── Brique 45 : la clôture de l'exercice (docs/cabinet.md, C35) ──
@@ -9193,19 +9198,21 @@ prouver "le fil d'un ancien cabinet écrit par l'entreprise" $MG \
 prouver "l'alerte qui nomme l'entreprise dans son lien" serveur/messagerie/postier.ts \
   "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/\` }" "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
   "$MSG6"
-prouver "l'alerte envoyée à une adresse que personne n'a vérifiée" $MG \
+prouver "l'alerte envoyée à une adresse que personne n'a vérifiée" base/migrations/0237_questions_refaites.sql \
   "    join socle.utilisateur u on u.id = p.utilisateur and u.adresse_verifiee_le is not null" "    join socle.utilisateur u on u.id = p.utilisateur" \
   "$MSG6"
-prouver "l'alerte répétée à chaque tour" $MG \
+prouver "l'alerte répétée à chaque tour" base/migrations/0237_questions_refaites.sql \
   "     and (al.prevenue_le is null
           or" "     and (true
           or" \
   "$MSG6"
-prouver "l'alerte partie avant les cinq minutes" $MG \
+prouver "l'alerte partie avant les cinq minutes" base/migrations/0237_questions_refaites.sql \
   "    where x.quand <= p_maintenant - p_delai" "    where x.quand <= p_maintenant" \
   "$MSG6"
-prouver "l'alerte décochée qui part quand même" $MG \
-  "   where socle.moi() is null and coalesce(al.active, true)" "   where socle.moi() is null" \
+prouver "l'alerte décochée qui part quand même" base/migrations/0237_questions_refaites.sql \
+  "al.cabinet = p.cabinet
+   where socle.moi() is null and coalesce(al.active, true)" "al.cabinet = p.cabinet
+   where socle.moi() is null" \
   "$MSG6"
 prouver "« Parler d'une pièce » qui envoie plus que sa pièce" $MJ \
   "piece = { genre: p.genre, id: p.id, libelle: p.libelle };" "piece = p;" \
@@ -9370,7 +9377,7 @@ prouver "les transferts de propriété invisibles à l'administrateur" $E80 \
   "$EX1"
 EX2="ce que l'entreprise ne lit pas d'elle-même y est : le cabinet, ses collaborateurs, les appareils d'autrui, le support, les transferts"
 prouver "la question que le cabinet n'a pas envoyée qui part avec l'entreprise" base/entreprise.ts \
-  "{ classe: 'entreprise', condition: 'entreprise = \$1 and (cardinality(envois) > 0 or cabinet is null)' }," "{ classe: 'entreprise' }," \
+  "{ classe: 'entreprise', condition: 'entreprise = \$1 and (envoyee_le is not null or cabinet is null)' }," "{ classe: 'entreprise' }," \
   "$EX2"
 prouver "le fichier jamais joint qui part avec l'entreprise" base/entreprise.ts \
   "{ classe: 'entreprise', condition: 'entreprise = \$1 and id in (select m.fichier from messagerie.message m where m.entreprise = \$1 and m.fichier is not null)' }," "{ classe: 'entreprise' }," \
@@ -18490,9 +18497,9 @@ prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10
 prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/rowmenu.js \
   "    bouton.setAttribute('aria-expanded', 'true');" "" \
   'au clavier, un menu « ▾ » d'\''un devis'
-prouver 'une question partie le matin, relancée le jour même' base/migrations/0235_cabinet_relu.sql \
-  $'     and (cardinality(envois) = 0\n          or (envois[cardinality(envois)] at time zone \'Africa/Tunis\')::date < (now() at time zone \'Africa/Tunis\')::date);' $';' \
-  'posée, elle reste au cabinet ; envoyée, le client la lit et y répond ; chaque envoi se compte'
+prouver "une question gardée qui se relance" base/migrations/0237_questions_refaites.sql \
+  "  if q.statut = 'ouverte' then perform socle.refus('cette question n''est pas encore partie : envoie-la d''abord'); end if;" "" \
+  "(1.388.86) posée par qui valide, elle part aussitôt ; « Garder pour plus tard », ou posée par l'assistant, elle attend ; le client y répond"
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
   $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
   '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
@@ -19100,10 +19107,10 @@ prouver 'une pièce du dossier envoyée seule, refusée par la base' $MR115 \
 prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' base/migrations/0208_reponse_ecrite.sql \
   "    if p_cote <> 'entreprise' or (v_fichier is null and v_genre is null" "    if p_cote <> 'entreprise' or (v_fichier is null" \
   "$MSG2"
-prouver 'la question signée « Ton cabinet » avant le premier message' $MR115 \
+prouver 'la question signée « Ton cabinet » avant le premier message' base/migrations/0237_questions_refaites.sql \
   '       or (messagerie.cote_entreprise(p_entreprise) and exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.cabinet = p_cabinet)))' '       or false)' \
   "$MSG4"
-prouver 'les noms des questions lus par la voisine' $MR115 \
+prouver 'les noms des questions lus par la voisine' base/migrations/0237_questions_refaites.sql \
   '     and (exists (select 1 from messagerie.mes_fils() f where f.entreprise = p_entreprise and f.cabinet = p_cabinet)' '     and (true' \
   "$MSG4"
 prouver 'la liste de la boîte qui ne se relit pas après un geste' $MJ \
@@ -19164,11 +19171,13 @@ prouver 'un 30 février pris pour une date' $MR \
 prouver 'une pièce reçue toujours en retard' $MR \
   "          coalesce(m.demande_recue_le is null and m.demande_pour < " "          coalesce(m.demande_pour < " \
   "$T116A"
-prouver 'en retard avant sa date (ce qui attend)' $MR \
-  "and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard" "and m.demande_recue_le is null) en_retard" \
+prouver "en retard avant sa date (ce qui attend)" $MR \
+  "and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date)" "and m.demande is not null and m.demande_recue_le is null)" \
   "$T116A"
-prouver 'en retard avant sa date (la boîte)' $MR \
-  "and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise" "group by m.entreprise" \
+prouver "en retard avant sa date (la boîte)" $MR \
+  "           and m.demande_pour < (now() at time zone 'Africa/Tunis')::date
+        union all" "
+        union all" \
   "$T116A"
 prouver 'le mot répété sous chaque pièce demandée' $MR \
   "const texte = i === 0 ? corps.texte : '';" "const texte = corps.texte;" \
@@ -19176,25 +19185,26 @@ prouver 'le mot répété sous chaque pièce demandée' $MR \
 prouver 'une pièce et une liste de pièces à la fois' $MR \
   "      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));" "" \
   "$T116B"
-prouver 'une relance chaque minute' $MR116 \
+prouver 'une relance chaque minute' base/migrations/0237_questions_refaites.sql \
   "(m.relance_le is null or m.relance_le <= p_maintenant - interval '7 days')" "true" \
   "$T116C"
-prouver 'des relances sans fin' $MR116 \
+prouver 'des relances sans fin' base/migrations/0237_questions_refaites.sql \
   "       and m.relances < 3 and " "       and " \
   "$T116C"
-prouver 'une relance avant sa date' $MR116 \
-  "       and m.demande_pour <= (p_maintenant at time zone 'Africa/Tunis')::date" "" \
+prouver "une relance avant sa date" base/migrations/0237_questions_refaites.sql \
+  "and m.demande_pour is not null and m.demande_pour <= jour.j" "and m.demande_pour is not null" \
   "$T116C"
-prouver 'une pièce reçue relancée quand même' $MR116 \
+prouver 'une pièce reçue relancée quand même' base/migrations/0237_questions_refaites.sql \
   "     where m.demande is not null and m.demande_recue_le is null and m.demande_pour is not null" "     where m.demande is not null and m.demande_pour is not null" \
   "$T116C"
-prouver 'une relance à qui a décoché « Me prévenir par e-mail »' $MR116 \
-  "   where socle.moi() is null and coalesce(al.active, true)" "   where socle.moi() is null" \
+prouver "une relance à qui a décoché « Me prévenir par e-mail »" base/migrations/0237_questions_refaites.sql \
+  "al.cabinet = x.cabinet
+   where socle.moi() is null and coalesce(al.active, true)" "al.cabinet = x.cabinet
+   where socle.moi() is null" \
   "$T116C"
-prouver 'une relance d'\''un cabinet qui ne tient plus le dossier' $MR116 \
-  "d.cabinet = m.cabinet and d.statut = 'actif'
-                     and d.debut <= (p_maintenant at time zone 'Africa/Tunis')::date
-                     and (d.fin is null or d.fin >= (p_maintenant at time zone 'Africa/Tunis')::date))" "d.cabinet = m.cabinet)" \
+prouver "une relance d'un cabinet qui ne tient plus le dossier" base/migrations/0237_questions_refaites.sql \
+  "d.statut = 'actif'
+                     and d.debut <= jour.j and (d.fin is null or d.fin >= jour.j))" "d.statut is not null)" \
   "$T116C"
 prouver 'le cabinet qui note lui-même une relance partie' $MR116 \
   "  if socle.moi() is not null then perform socle.refus('seul le serveur note une relance partie'); end if;" "" \
@@ -19202,8 +19212,8 @@ prouver 'le cabinet qui note lui-même une relance partie' $MR116 \
 prouver 'la relance qui nomme l'\''entreprise dans son lien' serveur/messagerie/postier.ts \
   "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/\` })" "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` })" \
   "$T116C"
-prouver 'une relance repartie à chaque tour' serveur/messagerie/postier.ts \
-  "    for (const d of demandes) relancees.add(d.message);" "" \
+prouver "une relance repartie à chaque tour" serveur/messagerie/postier.ts \
+  "      else if (d.message) relancees.add(d.message);" "      else if (false) relancees.add(d.message);" \
   "$T116C"
 prouver 'la date « pour le » écrite mais pas envoyée' $MJ \
   "          const pour = demande && pourChamp.value ? pourChamp.value : null;" "          const pour = null;" \
@@ -21398,18 +21408,18 @@ prouver 'questions-prêtes 1 : la phrase proposée ne suit pas la pastille' modu
 prouver 'questions-prêtes 2 : « Garder pour l'"'"'envoi groupé » envoie quand même' modules/socle/ecrans/cabinet/app-1.js \
   "if (g) g.onclick = () => faire(false);" "if (g) g.onclick = () => faire(true);" \
   'la révision se tient à la souris'
-prouver 'questions-prêtes 3 : « Envoyer maintenant » garde la question' modules/socle/ecrans/cabinet/app-1.js \
-  "if (envoyer && r.id) {" "if (false) {" \
-  'la révision se tient à la souris'
+prouver "questions-prêtes 3 : « Envoyer maintenant » garde la question" modules/socle/ecrans/cabinet/app-1.js \
+  "pour: relie ? pour : '', garder: !relie || !envoyer" "pour: relie ? pour : '', garder: true" \
+  "$WR1"
 prouver 'questions-prêtes 4 : les questions prêtes ne partent pas avec le message' web/public/plateforme/messagerie.js \
   "const qs = partantes().map((q) => String(q.id));" "const qs = partantes().map((q) => String(q.id)).slice(0, 0);" \
   'la révision se tient à la souris'
 prouver 'questions-prêtes 5 : « Pas cette fois » ne met rien de côté' web/public/plateforme/messagerie.js \
   "if (pasCetteFois.has(id)) pasCetteFois.delete(id); else pasCetteFois.add(id);" "void id;" \
   'la révision se tient à la souris'
-prouver 'questions-prêtes 6 : une question nommée repart le jour même' base/migrations/0185_envoyer_questions_choisies.sql \
-  "or (envois[cardinality(envois)] at time zone 'Africa/Tunis')::date < (now() at time zone 'Africa/Tunis')::date);" "or (envois[cardinality(envois)] at time zone 'Africa/Tunis')::date <= (now() at time zone 'Africa/Tunis')::date);" \
-  '(1.187.0) on nomme celles qui partent'
+prouver "questions-prêtes 6 : une question partie qui repart" base/migrations/0237_questions_refaites.sql \
+  "   where entreprise = p_entreprise and cabinet = v_cabinet and id = any(p_ids) and statut = 'ouverte';" "   where entreprise = p_entreprise and cabinet = v_cabinet and id = any(p_ids) and statut in ('ouverte', 'envoyee');" \
+  '(1.187.0) on nomme celles qui partent : « Envoyer maintenant », les gardées de la conversation ; les mêmes règles'
 prouver 'questions-prêtes 7 : la conversation du cabinet ne montre pas les questions prêtes' serveur/messagerie/routes.ts \
   "const pretes = cote.data === 'cabinet' && !avant" "const pretes = false && !avant" \
   'chaque client à sa place'
@@ -21461,9 +21471,9 @@ prouver 'repondre 1 : « Répondre » ouvre encore la fenêtre à part' modules/
 prouver 'repondre 2 : la conversation ne mène pas à la question' modules/socle/ecrans/entreprise/app-2.js \
   "const questionDepart = questionDuMessage; questionDuMessage = null;" "const questionDepart = null; questionDuMessage = null;" \
   'le client voit les questions envoyées'
-prouver 'repondre 3 : le fichier de la réponse ne part pas' web/public/plateforme/messagerie.js \
-  'await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question' 'void (o.appel, o.cote, f, `Le fichier pour ta question' \
-  'le client voit les questions envoyées'
+prouver "repondre 3 : le fichier de la réponse ne part pas" web/public/plateforme/messagerie.js \
+  "          if (f) corps.fichier = (await o.appel('POST', '/messages/fichiers'," "          if (false) corps.fichier = (await o.appel('POST', '/messages/fichiers'," \
+  "$QC1"
 prouver 'repondre 4 : le fichier choisi est oublié' web/public/plateforme/messagerie.js \
   "fichiersQ.set(id, f);" "void f;" \
   'le client voit les questions envoyées'
@@ -32432,8 +32442,8 @@ prouver "un refus sur le motif reste affiché une fois le motif tapé" web/conso
 prouver "le cabinet d'aujourd'hui réécrit la question d'un cabinet d'avant" base/migrations/0235_cabinet_relu.sql \
   "  select * into q from compta.question where id = p_id and entreprise = p_entreprise and cabinet = v_cabinet for update;" "  select * into q from compta.question where id = p_id and entreprise = p_entreprise for update;" \
   "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
-prouver "le cabinet d'aujourd'hui envoie les questions d'un cabinet d'avant" base/migrations/0235_cabinet_relu.sql \
-  "   where entreprise = p_entreprise and cabinet = v_cabinet and left(periode, 4) = p_annee::text and statut in ('ouverte', 'envoyee')" "   where entreprise = p_entreprise and left(periode, 4) = p_annee::text and statut in ('ouverte', 'envoyee')" \
+prouver "le cabinet d'aujourd'hui envoie les questions d'un cabinet d'avant" base/migrations/0237_questions_refaites.sql \
+  "   where entreprise = p_entreprise and cabinet = v_cabinet and left(periode, 4) = p_annee::text and statut = 'ouverte';" "   where entreprise = p_entreprise and left(periode, 4) = p_annee::text and statut = 'ouverte';" \
   "les questions d'un cabinet d'avant restent les siennes : le cabinet d'aujourd'hui ne les envoie, ne les ferme ni ne les compte"
 prouver "le cabinet compte les questions d'un autre cabinet" serveur/compta/questions.ts \
   "        where q.cabinet = \$1 and q.entreprise in" "        where q.entreprise in" \

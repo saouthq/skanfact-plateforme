@@ -6258,9 +6258,11 @@
     // alors qu'elle n'était pas encore partie : le comptable pouvait attendre un client qui ne l'a
     // jamais reçue. Les deux états se disent séparément, et le premier nomme le geste qui l'envoie.
     const qs = questionsOuvertes(livre, { periode });
-    const aEnvoyer = qs.filter(q => !(q.envois || []).length).length;
+    // (plateforme) 1.388.86 — une question part quand on la pose ; celle qui n'est pas partie a été gardée pour plus
+    // tard, ou posée par une saisie et attend qu'on l'envoie.
+    const aEnvoyer = qs.filter(q => !q.envoyeeLe).length;
     const enAttente = qs.length - aEnvoyer;
-    if (aEnvoyer) c.push({ id: 'questions', gravite: 'attention', envoyer: true, texte: `${plFr(aEnvoyer, 'question au client n\'est pas encore partie', 'questions au client ne sont pas encore parties')} : ${aEnvoyer > 1 ? 'elles attendent, prêtes,' : 'elle attend, prête,'} dans ta conversation avec le client et ${aEnvoyer > 1 ? 'partiront' : 'partira'} avec ton prochain message, ou tout de suite par le bouton d'envoi.` });
+    if (aEnvoyer) c.push({ id: 'questions', gravite: 'attention', envoyer: true, texte: `${plFr(aEnvoyer, 'question au client n\'est pas encore partie', 'questions au client ne sont pas encore parties')} : ${aEnvoyer > 1 ? 'elles attendent, gardées,' : 'elle attend, gardée,'} dans ta conversation avec le client et ${aEnvoyer > 1 ? 'partiront' : 'partira'} avec ton prochain message, ou tout de suite par le bouton d'envoi.` });
     if (enAttente) c.push({ id: 'questions-attente', gravite: 'attention', texte: `${plFr(enAttente, 'question au client attend sa réponse', 'questions au client attendent leur réponse')}.` });
     return c;
   }
@@ -6291,11 +6293,6 @@
     { id: 'explication', label: 'Une explication' },
     { id: 'confirmation', label: 'Une confirmation' }
   ];
-  // Le nombre de paquets sans réponse au bout duquel une question remonte dans « À faire » des
-  // DEUX côtés (F-9.10.0-10). Deux : un client qui n'a pas vu la question dans son paquet du mois
-  // peut l'avoir manquée ; deux paquets, c'est qu'elle ne passera pas toute seule.
-  const QUESTION_RELANCE = 2;
-
   function questionValide(q) {
     const motifs = [];
     if (!txt(q && q.texte)) motifs.push('Une question sans texte n\'apprend rien au client.');
@@ -6324,7 +6321,8 @@
       montant: num(src.montant),
       objet: txt(src.objet), texte: txt(src.texte),
       attendu: txt(src.attendu) || 'explication',
-      statut: 'ouverte', envois: [], reponse: null, closeLe: null, closePar: ''
+      // (plateforme) 1.388.86 — le jour de son envoi (0 : pas encore partie), sa date « pour le », ses relances.
+      statut: 'ouverte', envoyeeLe: 0, pourLe: txt(src.pour), relances: 0, relanceLe: 0, reponse: null, closeLe: null, closePar: ''
     };
     livre.questions = (livre.questions || []).concat([q]);
     trace(livre, qui, 'question', `${q.piece || q.compte || q.periode} : ${q.objet || q.texte.slice(0, 40)}`, quand);
@@ -6341,6 +6339,7 @@
     const v = questionValide({ texte: c.texte == null ? q.texte : c.texte, attendu: c.attendu == null ? q.attendu : c.attendu });
     if (!v.ok) return { ok: false, motifs: v.motifs };
     ['objet', 'texte', 'attendu', 'cycle', 'compte'].forEach(k => { if (c[k] != null) q[k] = txt(c[k]); });
+    if (c.pour !== undefined) q.pourLe = txt(c.pour);
     trace(livre, qui, 'question', `${q.piece || q.compte} : question modifiée`, quand);
     return { ok: true, question: q };
   }
@@ -6348,7 +6347,7 @@
   function supprimerQuestion(livre, id, qui, quand) {
     const q = ((livre && livre.questions) || []).find(x => x.id === id);
     if (!q) return { ok: false, motifs: ['Cette question n\'existe plus.'] };
-    if ((q.envois || []).length) {
+    if (q.envoyeeLe) {
       return { ok: false, motifs: ['Cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas.'] };
     }
     livre.questions = (livre.questions || []).filter(x => x.id !== id);
@@ -6360,7 +6359,7 @@
     const q = ((livre && livre.questions) || []).find(x => x.id === id);
     if (!q) return { ok: false, motifs: ['Cette question n\'existe plus.'] };
     if (ouvrir) {
-      q.statut = q.reponse ? 'repondue' : ((q.envois || []).length ? 'envoyee' : 'ouverte');
+      q.statut = q.reponse ? 'repondue' : (q.envoyeeLe ? 'envoyee' : 'ouverte');
       q.closeLe = null; q.closePar = '';
     } else {
       q.statut = 'close'; q.closeLe = Number(quand) || 0; q.closePar = txt(qui);
@@ -6385,145 +6384,11 @@
 
   const questionsOuvertes = (livre, opts) => questionsAEnvoyer(livre, opts);
 
-  // Le fichier de questions (`.skanask`, SPEC-FMT-006). Pur — l'appelant seul chiffre et écrit.
-  // Il porte STRICTEMENT ce que le client a besoin de lire pour répondre : ni solde, ni balance,
-  // ni le nom d'un autre client. Un test compte les champs (même garde que `chargeHistorique`).
-  function dossierDeQuestions(livre, opts) {
-    const o = opts || {};
-    const qs = questionsAEnvoyer(livre, o);
-    return {
-      format: 1,
-      dossier: livre.dossier,
-      exercice: livre.exercice.annee,
-      cabinet: txt(o.cabinet),
-      matricule: txt(o.matricule),
-      produitLe: Number(o.quand) || 0,
-      questions: qs.map(q => ({
-        id: q.id, periode: q.periode, piece: q.piece, compte: q.compte,
-        libelleCompte: nomDuCompte(livre, q.compte), montant: q.montant,
-        objet: q.objet, texte: q.texte, attendu: q.attendu, creeLe: q.creeLe
-      }))
-    };
-  }
-
-  // Noter que le paquet est parti. C'est ce compteur — un envoi par paquet, jamais un par jour —
-  // qui fait la règle des deux paquets : ce qu'on compte, c'est le nombre de fois où le client a
-  // EU la question sous les yeux.
-  function noterEnvoiQuestions(livre, ids, quand) {
-    const set = new Set((Array.isArray(ids) ? ids : []).map(txt));
-    let n = 0;
-    ((livre && livre.questions) || []).forEach(q => {
-      if (!set.has(txt(q.id))) return;
-      q.envois = (q.envois || []).concat([Number(quand) || 0]);
-      if (q.statut === 'ouverte') q.statut = 'envoyee';
-      n++;
-    });
-    return { ok: true, envoyees: n };
-  }
-
-  // La réponse revient dans le paquet suivant. Elle ne touche à AUCUN chiffre du livre : elle se
-  // range sur la question, et c'est le comptable qui décide ensuite ce qu'il en fait.
-  function noterReponsesQuestions(livre, reponses, quand) {
-    const r = { posees: 0, inconnues: [] };
-    (Array.isArray(reponses) ? reponses : []).forEach(rep => {
-      const q = ((livre && livre.questions) || []).find(x => txt(x.id) === txt(rep && rep.id));
-      if (!q) { r.inconnues.push(txt(rep && rep.id)); return; }
-      if (q.reponse && Number(q.reponse.le) >= Number(rep.le || 0)) return;
-      q.reponse = {
-        texte: txt(rep.texte), le: Number(rep.le) || Number(quand) || 0,
-        piece: rep.piece ? { nom: txt(rep.piece.nom), sha256: txt(rep.piece.sha256) } : null
-      };
-      if (q.statut !== 'close') q.statut = 'repondue';
-      r.posees++;
-    });
-    return r;
-  }
-
-  // 10.13.0 (test humain du pont) — ranger les réponses d'un paquet dans les livres d'un dossier.
-  // Le client renvoie TOUTES ses réponses dans CHAQUE paquet (`reponsesAEnvoyer`) : une réponse déjà
-  // rangée revient donc au paquet suivant. La version d'avant ne la retirait des « restantes » que
-  // si une réponse NOUVELLE avait été posée dans le même livre — sinon elle finissait comptée comme
-  // « réponse à une question que ce dossier ne porte plus », à chaque paquet, pour toujours. Une
-  // réponse est CONNUE dès que sa question est dans le livre, qu'elle y change quelque chose ou non.
-  //   annees  : les exercices à parcourir, dans l'ordre
-  //   ouvrir  : annee → livre (ou null) — on n'ouvre que ce qu'il faut, un livre coûte à déchiffrer
-  // Rend { posees, inconnues, modifies: [{ annee, livre, posees }] } : l'appelant écrit les livres.
-  function posterReponsesDansLivres(annees, ouvrir, reponses, quand) {
-    const restantes = new Map((Array.isArray(reponses) ? reponses : []).filter(r => r && txt(r.id)).map(r => [txt(r.id), r]));
-    const out = { posees: 0, inconnues: 0, modifies: [] };
-    (Array.isArray(annees) ? annees : []).forEach(annee => {
-      if (!restantes.size) return;
-      const livre = ouvrir(annee);
-      if (!livre) return;
-      const connues = new Set((livre.questions || []).map(q => txt(q.id)));
-      const ici = Array.from(restantes.values()).filter(r => connues.has(txt(r.id)));
-      ici.forEach(r => restantes.delete(txt(r.id)));
-      if (!ici.length) return;
-      const r = noterReponsesQuestions(livre, ici, quand);
-      if (r.posees) { out.posees += r.posees; out.modifies.push({ annee, livre, posees: r.posees }); }
-    });
-    out.inconnues = restantes.size;
-    return out;
-  }
-
-  // La règle des deux paquets (F-9.10.0-10), et elle vaut des DEUX côtés — le cabinet la lit sur
-  // ses questions, le client sur celles qu'il a reçues. Une question partie deux fois et toujours
-  // sans réponse n'est plus une question en attente : c'est un point bloquant.
-  function questionsARelancer(livre, opts) {
-    const o = opts || {};
-    const seuil = Number(o.seuil) || QUESTION_RELANCE;
-    return questionsAEnvoyer(livre, o).filter(q => (q.envois || []).length >= seuil);
-  }
-
-  // Ce que le CLIENT reçoit et lit. Refuse plus qu'il n'accepte, comme `clotureValide`.
-  function questionsValides(obj, attendu) {
-    const motifs = [];
-    if (!obj || typeof obj !== 'object') return { ok: false, motifs: ['Ce fichier n\'est pas un envoi de questions.'] };
-    if (obj.format !== 1) {
-      return { ok: false, tropRecent: Number(obj.format) > 1, motifs: [Number(obj.format) > 1
-        ? 'Cet envoi de questions vient d\'une version plus récente de SkanFact. Mets l\'application à jour : l\'ouvrir avec les règles d\'aujourd\'hui perdrait ce qu\'elle y a mis.'
-        : 'Cet envoi de questions n\'est pas d\'un format connu.'] };
-    }
-    const qs = Array.isArray(obj.questions) ? obj.questions : [];
-    if (!qs.length) motifs.push('Cet envoi ne porte aucune question.');
-    if (qs.some(q => !q || !txt(q.id) || !txt(q.texte))) motifs.push('Une question de cet envoi n\'a ni identifiant ni texte.');
-    if (attendu && txt(attendu.matricule) && txt(obj.matricule) && txt(attendu.matricule) !== txt(obj.matricule)) {
-      motifs.push('Cet envoi de questions porte le matricule d\'une autre entreprise.');
-    }
-    return { ok: !motifs.length, motifs, questions: qs.length };
-  }
-
   // ------------------------------------------------------------ côté client (F-9.10.0-08 à 10)
   //
-  // Ces trois fonctions vivent ici plutôt que dans core.js parce qu'elles ne prennent pas `data` :
-  // elles prennent une LISTE de questions (règle de découpage 9.1.0). core.js les réexporte.
-
-  function fusionnerQuestionsRecues(liste, envoi, quand) {
-    const out = Array.isArray(liste) ? liste.slice() : [];
-    const parId = new Map(out.map((q, i) => [txt(q.id), i]));
-    const r = { nouvelles: 0, revues: 0 };
-    ((envoi && envoi.questions) || []).forEach(q => {
-      const id = txt(q.id);
-      if (!id) return;
-      const base = {
-        id, periode: txt(q.periode), piece: txt(q.piece), compte: txt(q.compte),
-        libelleCompte: txt(q.libelleCompte), montant: num(q.montant),
-        objet: txt(q.objet), texte: txt(q.texte), attendu: txt(q.attendu) || 'explication',
-        cabinet: txt(envoi.cabinet), exercice: num(envoi.exercice)
-      };
-      const i = parId.get(id);
-      if (i == null) {
-        out.push({ ...base, recueLe: Number(quand) || 0, recues: 1, reponse: null });
-        parId.set(id, out.length - 1); r.nouvelles++;
-      } else {
-        // Reçue une seconde fois : on met à jour le texte (le comptable a pu le préciser) et on
-        // COMPTE la réception. C'est ce compteur qui fait la règle des deux paquets côté client.
-        out[i] = { ...out[i], ...base, recues: (Number(out[i].recues) || 0) + 1, recueLe: Number(quand) || 0 };
-        r.revues++;
-      }
-    });
-    return { liste: out, ...r };
-  }
+  // Ces fonctions vivent ici plutôt que dans core.js parce qu'elles ne prennent pas `data` : elles prennent une LISTE de
+  // questions (règle de découpage 9.1.0). core.js les réexporte. (plateforme) 1.388.86 — les questions arrivent du
+  // serveur, plus d'un fichier : la fusion des envois reçus et le décompte des réceptions sont partis avec le fichier.
 
   // Les questions qui visent UNE pièce. C'est ce que l'écran d'un devis, d'une facture ou d'un
   // achat affiche en face du document (F-9.10.0-08). On compare sur le numéro de pièce, seule
@@ -6550,24 +6415,11 @@
     return { ok: true, liste: out, question: q };
   }
 
-  // Ce que le client renvoie dans son paquet. Rien d'autre que l'identifiant, la réponse et
-  // l'empreinte de la pièce jointe — jamais le fichier lui-même, qui voyage déjà comme
-  // justificatif du paquet.
-  const reponsesAEnvoyer = liste => (Array.isArray(liste) ? liste : [])
-    .filter(q => q.reponse && (txt(q.reponse.texte) || q.reponse.piece))
-    .map(q => ({ id: txt(q.id), texte: txt(q.reponse.texte), le: Number(q.reponse.le) || 0, piece: q.reponse.piece || null }));
-
-  // 10.13.0 (test humain du pont) — les réponses données APRÈS le dernier paquet fabriqué. Toutes les
-  // réponses repartent dans chaque paquet (`reponsesAEnvoyer`), mais un paquet déjà FABRIQUÉ ne se
-  // réécrit pas : répondre puis cliquer « Envoyer au comptable » joignait le fichier d'avant la
-  // réponse, et la réponse n'arrivait jamais. Une réponse est dans un paquet si elle est plus
-  // ancienne que lui ; sinon, l'étape suivante est de le refaire.
-  const reponsesApres = (liste, instant) => (Array.isArray(liste) ? liste : [])
-    .filter(q => q.reponse && (txt(q.reponse.texte) || q.reponse.piece) && (Number(q.reponse.le) || 0) > (Number(instant) || 0));
-
-  const questionsSansReponse = (liste, seuil) => (Array.isArray(liste) ? liste : [])
-    .filter(q => !(q.reponse && (txt(q.reponse.texte) || q.reponse.piece))
-      && (Number(q.recues) || 0) >= (Number(seuil) || QUESTION_RELANCE));
+  // (plateforme) 1.388.86 — les questions dont la date « pour le » est passée sans réponse (jour `aujourdhui`, AAAA-MM-JJ).
+  // C'est la même règle des deux côtés : le cabinet la lit sur ses questions, le client sur celles qu'il a reçues ; elles
+  // se relancent par e-mail chaque semaine, et le comptable ne peut pas arrêter le mois tant qu'elles restent en l'air.
+  const questionsEnRetard = (liste, aujourdhui) => (Array.isArray(liste) ? liste : [])
+    .filter(q => !(q.reponse && (txt(q.reponse.texte) || q.reponse.piece)) && txt(q.pourLe) && txt(q.pourLe) < txt(aujourdhui));
 
   // ---------------------------------------------------------------- la fusion de deux livres (9.9.0)
   //

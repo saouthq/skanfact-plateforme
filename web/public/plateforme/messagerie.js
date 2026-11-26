@@ -1042,7 +1042,9 @@
     /** @param {any} q */
     const libelleJoindre = (q) => {
       const f = fichiersQ.get(q.id);
-      return f ? `${f.name} · changer` : q.attendu === 'piece' ? 'Joindre le fichier qu\'il attend' : 'Joindre un fichier';
+      // (1.388.86) Le nom se raccourcit AU MILIEU, l'extension reste lue, et « changer » ne se coupe jamais.
+      const nom = f && f.name.length > 26 ? `${f.name.slice(0, 15)}…${f.name.slice(-8)}` : f && f.name;
+      return f ? `${nom} · changer` : q.attendu === 'piece' ? 'Joindre le fichier qu\'il attend' : 'Joindre un fichier';
     };
     /** @param {any} q */
     function carteQuestion(q) {
@@ -1055,6 +1057,8 @@
           <p class="msg-refus" role="alert" data-msg-q-refus="${esc(q.id)}"></p>
           <span class="msg-q-gestes"><button type="button" class="btn btn-sm btn-primary" data-msg-q-envoyer="${esc(q.id)}">Envoyer ma réponse</button>
           <button type="button" class="msg-lien msg-q-joindre" data-msg-q-joindre="${esc(q.id)}">${dessin('trombone')}<span>${esc(libelleJoindre(q))}</span></button>
+          ${/* (1.388.86) Une pièce déjà dans le dossier répond aussi, d'un geste : la fenêtre des pièces demandées. */''}
+          ${o.pieces && o.pieces().length ? `<button type="button" class="msg-lien" data-msg-q-dossier="${esc(q.id)}">Une pièce de mon dossier…</button>` : ''}
           ${cible ? `<button type="button" class="msg-lien" data-msg-ouvrir="${esc(cible.genre)}:${esc(cible.id)}">Ouvrir la pièce</button>` : ''}</span></div>` : '';
       // (1.115.0) Répondue, elle le dit : l'étiquette « Attend ta réponse » disparaissait sans rien à sa place.
       const etat = q.statut === 'close' ? '<span class="msg-q-etat">Close par le cabinet</span>'
@@ -1073,6 +1077,8 @@
             <div class="msg-q-corps">${titreQ(q) !== q.texte ? `<span>${esc(q.texte)}</span>` : ''}
               <span class="msg-q-attendu">${entreprise ? 'Ton cabinet attend' : 'Tu attends'} : ${esc(ATTENDUS[q.attendu] || 'une réponse')}.</span>
               ${attend && jours ? `<span class="msg-q-depuis">sans réponse depuis ${esc(pl(jours, 'jour'))}</span>` : ''}
+              ${/* (1.388.86, 0237) Sa date « pour le » : passée, elle se relance par e-mail chaque semaine. */''}
+              ${attend && q.pour ? `<span class="msg-q-depuis${q.enRetard ? ' retard' : ''}">${q.enRetard ? 'attendue' : 'pour'} le ${esc(dateCourte(q.pour))}</span>` : ''}
               ${etat}${repondre}</div></div>
           ${!entreprise && o.revision ? '<button type="button" class="btn btn-sm msg-q-voir" data-msg-revision>Voir dans la révision</button>' : ''}
         </div></div>`;
@@ -1591,6 +1597,10 @@
         const t = /** @type {HTMLTextAreaElement} */ (n);
         t.oninput = () => { reponses.set(String(t.dataset.msgQTexte), t.value); };
       });
+      surClic(fil, '[data-msg-q-dossier]', async (b) => {
+        const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === b.dataset.msgQDossier);
+        if (q) envoyerPiece(null, q);
+      });
       surClic(fil, '[data-msg-q-joindre]', async (b) => {
         const id = String(b.dataset.msgQJoindre);
         const refus = /** @type {HTMLElement | null} */ (fil.querySelector(`[data-msg-q-refus="${CSS.escape(id)}"]`));
@@ -1616,16 +1626,14 @@
           return;
         }
         try {
-          // (#26, PONT-1) La question se retrouve AVANT que le fichier parte : sinon la photo partait seule dans le fil, la
-          // réponse était refusée, et un second essai l'envoyait une deuxième fois (deux pièces de plus à saisir au cabinet).
+          // (#26, PONT-1) La question se retrouve AVANT que le fichier parte : sinon la photo partait seule dans le fil.
           if (o.questionConnue && !(await o.questionConnue(id))) throw new Error('Cette question vient d\'arriver et ta page ne l\'a pas encore lue : ta réponse reste dans la case, réessaie dans un instant.');
-          // (1.191.0) Le fichier part d'abord, dans le fil, en face de la pièce que la question vise ; la réponse ensuite.
-          if (f) {
-            const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === id) || {};
-            const cible = q.piece && o.pieceDuNumero ? o.pieceDuNumero(q.piece) : null;
-            await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question « ${titreQ(q)} ».`, cible ? { ...cible, libelle: String(q.piece) } : null);
-            if (!texte) texte = `Le fichier : ${f.name}`;
-          }
+          // (1.388.86, 0237) Un seul geste : le fichier se dépose, puis la réponse part AVEC lui — le serveur écrit le message
+          // du fil et la réponse dans la même transaction. Une réponse refusée ne laisse plus de photo seule dans le fil.
+          const corps = /** @type {Record<string, unknown>} */ ({ texte });
+          if (f) corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: f.name, contenu: await enBase64(f) })).id;
+          await o.appel('POST', `/compta/questions/${encodeURIComponent(id)}/repondre`, corps);
+          if (!texte && f) texte = `Le fichier : ${f.name}`;
           if (o.repondre) await o.repondre(id, texte);
         } catch (x) { if (refus) refus.textContent = motif(x); if (t) t.focus(); return; }
         reponses.delete(id); fichiersQ.delete(id);
@@ -1737,7 +1745,7 @@
         zPretes.hidden = !l.length || modeNote;
         const n = partantes().length;
         const off = navigator.onLine === false;
-        zPretes.innerHTML = l.length ? `<div class="msg-pretes-tete">${dessin('question')}<b>${esc(pl(l.length, 'question prête', 'questions prêtes'))}</b>
+        zPretes.innerHTML = l.length ? `<div class="msg-pretes-tete">${dessin('question')}<b>${esc(pl(l.length, 'question gardée', 'questions gardées'))}</b>
             <span>${n ? `${n === l.length ? (n > 1 ? 'partent' : 'part') : `${n} ${n > 1 ? 'partent' : 'part'}`} avec ce message, même sans texte` : 'aucune ne part avec ce message'}</span></div>
           <ul class="msg-pretes-l">${l.map((q) => {
             const hors = pasCetteFois.has(q.id);
@@ -2027,21 +2035,22 @@
 
     // « Envoyer la pièce demandée » : une photo ou un PDF (vu avant de partir), ou une pièce déjà dans le dossier ; un mot
     // facultatif. Rien ne part avant « Envoyer à mon cabinet » ; « Annuler » ne laisse rien derrière lui.
-    /** @param {any} m le message qui demande la pièce */
-    function envoyerPiece(m) {
+    /** @param {any} m le message qui demande la pièce @param {any} [q] (1.388.86) ou la question du cabinet à laquelle on répond */
+    function envoyerPiece(m, q) {
+      const demandeTexte = String(q ? q.texte : m.demande.texte || '');
       const toutes = (o.pieces ? o.pieces() : []).slice().sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
       /** @type {File | null} */ let choisi = null;
       /** @type {{ genre: string, id: string, libelle: string } | null} */ let dejaLa = null;
       /** @type {string | null} */ let apercu = null;
       // (1.344.0, 0208) Ce qui se demande peut être un numéro (le n° CNSS d'un salarié) : il s'ÉCRIT, il ne se photographie
       // pas. « Je l'écris » est proposé à chaque demande, et choisi d'avance quand elle nomme un numéro.
-      const unNumero = /\bn°|numéro|matricule/i.test(String(m.demande.texte || ''));
-      let facon = unNumero ? 'ecrit' : 'fichier';
+      const unNumero = /\bn°|numéro|matricule/i.test(demandeTexte);
+      let facon = unNumero || (q && q.attendu !== 'piece') ? 'ecrit' : 'fichier';
       const fond = document.createElement('div');
       fond.className = 'msg-fenetre-fond';
       fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-ep-titre" novalidate>
-        <h2 id="msg-ep-titre">${unNumero ? 'Répondre à ton cabinet' : 'Envoyer la pièce demandée'}</h2>
-        <p class="small muted">Ton cabinet attend : <b>${esc(m.demande.texte)}</b>.</p>
+        <h2 id="msg-ep-titre">${unNumero || q ? 'Répondre à ton cabinet' : 'Envoyer la pièce demandée'}</h2>
+        <p class="small muted">${q ? 'Ton cabinet demande' : 'Ton cabinet attend'} : <b>${esc(demandeTexte)}</b>.</p>
         <div class="msg-ep-facons" role="radiogroup" aria-label="Comment l'envoyer">
           <label class="msg-ep-facon"><input type="radio" name="facon" value="fichier"${facon === 'fichier' ? ' checked' : ''}><span><b>Une photo ou un PDF</b><span>Prends-la en photo, ou choisis le fichier.</span></span></label>
           <label class="msg-ep-facon"><input type="radio" name="facon" value="ecrit"${facon === 'ecrit' ? ' checked' : ''}><span><b>Je l'écris</b><span>Un numéro, une date, un nom : écris-le, il part comme réponse.</span></span></label>
@@ -2137,7 +2146,14 @@
         envoyer.disabled = true;
         try {
           const texte = mot.value.trim();
-          if (facon === 'ecrit') {
+          if (q) {
+            // (1.388.86, 0237) La réponse à une question : un seul appel, le fichier ou la pièce avec elle.
+            const corps = /** @type {Record<string, unknown>} */ ({ texte });
+            if (facon === 'fichier' && choisi) corps.fichier = (await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: choisi.name, contenu: await enBase64(choisi) })).id;
+            else if (facon === 'dossier' && dejaLa) corps.piece = dejaLa;
+            await o.appel('POST', `/compta/questions/${encodeURIComponent(q.id)}/repondre`, corps);
+            if (o.repondre) await o.repondre(q.id, texte || (facon === 'fichier' && choisi ? `Le fichier : ${choisi.name}` : dejaLa ? `La pièce : ${dejaLa.libelle}` : ''));
+          } else if (facon === 'ecrit') {
             await o.appel('POST', '/messages', { cote: o.cote, texte, repondA: m.id, ecrite: true });
           } else if (facon === 'fichier' && choisi) {
             const depot = await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: choisi.name, contenu: await enBase64(choisi) });
@@ -2818,6 +2834,18 @@
     const message = await appel('POST', '/messages', { cote, texte, piece, demande: null, fichier: depot.id });
     return { message: message && message.id, fichier: depot };
   }
+  // (1.388.86, 0237) Répondre à une question du cabinet d'un seul geste : le fichier se dépose, puis la réponse part avec
+  // lui (ou avec une pièce du dossier) — le serveur écrit le message du fil et la réponse dans la même transaction.
+  /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} cote @param {string} id @param {string} texte @param {File|null} f @param {any} piece */
+  async function repondreQuestion(appel, cote, id, texte, f, piece) {
+    const corps = /** @type {Record<string, unknown>} */ ({ texte: String(texte || '') });
+    if (f) {
+      const lourd = tropLourd(f);
+      if (lourd) throw new Error(lourd);
+      corps.fichier = (await appel('POST', '/messages/fichiers', { cote, nom: f.name, contenu: await enBase64(f) })).id;
+    } else if (piece) corps.piece = piece;
+    return appel('POST', `/compta/questions/${encodeURIComponent(id)}/repondre`, corps);
+  }
   // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.
-  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles, dessin, remplir };
+  w.SkanMessagerie = { conversation, boite, envoyerFichier, repondreQuestion, montrerFichier, ouvrirFichier, fenetreModeles, dessin, remplir };
 })();

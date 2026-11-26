@@ -530,12 +530,13 @@ await envoyer('an', ['facture-hebergement-T3.pdf'], 'Payée en euros par carte.'
   const dansJours = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' });
 
   // La boulangerie : un virement de 1 250,000 DT reçu le 14/09 que personne ne sait expliquer, au compte d'attente ; la
-  // question part au client, Sarra y répond : « Imputer le virement » attend le cabinet. L'attestation CNSS, promise.
+  // question part au client en la posant, Sarra y répond : « Imputer le virement » attend le cabinet. L'attestation CNSS, promise.
   const vir = await api('POST', `/entreprises/${be}/compta/ecritures`, leila, { date: '2026-09-14', journal: 'BQ', piece: 'VIR 14/09',
     libelle: 'VIR RECU REF 2609-14177', lignes: [{ compte: '532', debit: '1250,000' }, { compte: '471', credit: '1250,000' }] });
   const q = await api('POST', `/entreprises/${be}/compta/questions`, anis, { periode: '2026-09', compte: '471', ecriture: vir.id, piece: 'VIR 14/09',
     montant: '1250,000', objet: 'Un virement reçu le 14/09 (réf. 2609-14177)', texte: 'Bonjour Sarra, nous avons reçu 1 250,000 DT le 14/09 sans savoir de qui. À quoi correspond ce virement ?', attendu: 'explication' });
-  await api('POST', `/entreprises/${be}/compta/questions/envoyer`, anis, { annee: 2026 });
+  // (1.388.86) Posée par qui valide, elle part aussitôt ; sinon elle attend qu'on l'envoie.
+  if (q.statut === 'ouverte') await api('POST', `/entreprises/${be}/compta/questions/envoyer`, anis, { annee: 2026 });
   await api('POST', `/entreprises/${be}/compta/questions/${String(q.id)}/repondre`, sarra, { texte: 'C\'est l\'acompte de la Clinique Les Jasmins pour les gâteaux de leur fête du 30/09.' });
   await ecrit('be', sarra, 'entreprise', 'Pour l\'attestation CNSS, je passe au bureau de la CNSS jeudi et je vous l\'envoie dans la foulée.');
   await api('PUT', `/cabinets/${cabinet}/promesses/${be}`, anis, { pour: dansJours(6), quoi: 'L\'attestation CNSS du 3e trimestre' });

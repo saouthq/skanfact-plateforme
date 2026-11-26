@@ -99,7 +99,6 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, sonia)).statut).toBe(200);
     expect((await api('POST', `/entreprises/${ent}/compta/questions`, sonia, { periode: '2026-09', compte: '411', piece: 'DEV-2026-004', montant: '1428', objet: 'Paiement',
       texte: 'Ce devis a-t-il été accepté ?', attendu: 'confirmation' })).statut).toBe(201);
-    expect((await api('POST', `/entreprises/${ent}/compta/questions/envoyer`, sonia, { annee: 2026 })).corps.envoyees).toBe(1);
 
     // ── Le cabinet : rien à traiter, la boîte s'ouvre sur ce qui attend le client ; il demande une pièce ──────────
     const c = await page(sonia);

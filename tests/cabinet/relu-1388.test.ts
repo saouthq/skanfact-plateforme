@@ -87,11 +87,11 @@ describe('le Cabinet relu', () => {
     const perimetre = ['comptabilite', 'declarations', 'saisie_achats'];
     const mandatA = String((await appeler('POST', `/entreprises/${ent}/mandat`, client.jeton, { codeCabinet: a.code, perimetre })).corps.mandat);
     expect((await appeler('POST', `/cabinets/${a.cabinet}/mandats/${mandatA}/accepter`, a.associe.jeton)).statut).toBe(200);
-    const q = await appeler('POST', `/entreprises/${ent}/compta/questions`, a.associe.jeton, { periode: '2026', texte: 'Note interne : vérifier le compte 471.' });
+    const q = await appeler('POST', `/entreprises/${ent}/compta/questions`, a.associe.jeton, { garder: true, periode: '2026', texte: 'Note interne : vérifier le compte 471.' });
     expect(q.statut, JSON.stringify(q.corps)).toBe(201);
     const question = String(q.corps.id);
-    // Une seconde, envoyée au client par A : elle reste lisible par le client, et ne compte pas chez B.
-    const q2 = String((await appeler('POST', `/entreprises/${ent}/compta/questions`, a.associe.jeton, { periode: '2026', texte: 'D\'où vient le virement du 12 mars ?' })).corps.id);
+    // (1.388.86) La première, gardée par A ; une seconde, envoyée au client par A : elle reste lisible par le client, et ne compte pas chez B.
+    const q2 = String((await appeler('POST', `/entreprises/${ent}/compta/questions`, a.associe.jeton, { garder: true, periode: '2026', texte: 'D\'où vient le virement du 12 mars ?' })).corps.id);
     expect((await appeler('POST', `/entreprises/${ent}/compta/questions/envoyer`, a.associe.jeton, { ids: [q2] })).statut).toBe(200);
     expect((await appeler('DELETE', `/entreprises/${ent}/mandat`, client.jeton)).statut).toBeLessThan(300);
     const mandatB = String((await appeler('POST', `/entreprises/${ent}/mandat`, client.jeton, { codeCabinet: b.code, perimetre })).corps.mandat);
@@ -104,7 +104,7 @@ describe('le Cabinet relu', () => {
     expect((await appeler('PUT', `/entreprises/${ent}/compta/questions/${question}`, b.associe.jeton, { texte: 'réécrite' })).statut).toBe(403);
     const compte = (await appeler('GET', `/cabinets/${b.cabinet}/questions`, b.associe.jeton)).corps.dossiers as { entreprise: string }[];
     expect(compte.find((x) => x.entreprise === ent)).toBeUndefined();
-    expect((await admin.query('select statut, cardinality(envois) n, texte from compta.question where id = $1', [question])).rows[0])
-      .toEqual({ statut: 'ouverte', n: 0, texte: 'Note interne : vérifier le compte 471.' });
+    expect((await admin.query('select statut, envoyee_le is null gardee, relances n, texte from compta.question where id = $1', [question])).rows[0])
+      .toEqual({ statut: 'ouverte', gardee: true, n: 0, texte: 'Note interne : vérifier le compte 471.' });
   });
 });

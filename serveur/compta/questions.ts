@@ -1,7 +1,8 @@
 // Les questions du cabinet au client (brique 44 ; docs/cabinet.md, C33). Une question appartient à
 // l'entreprise : elle se lit dans ses livres, en face de sa pièce. Le cabinet la pose, la précise, la
-// ferme ou la retire tant qu'elle n'est jamais partie ; il l'ENVOIE (le client la voit alors, et
-// chaque envoi se compte : deux envois sans réponse, elle remonte) ; le client y répond. Rien de ce
+// ferme ou la retire tant qu'elle n'est jamais partie. Elle PART quand on la pose (si qui la pose peut valider et ne
+// la garde pas) ; sa date « pour le » la relance par e-mail, trois fois au plus (0237) ; le cabinet la relance aussi à
+// la main. Le client y répond par écrit, ou avec un fichier ou une pièce de son dossier, d'un seul geste. Rien de ce
 // qui passe ici ne touche aux chiffres du client (sauf l'imputation, 1.180.0 : une écriture au BROUILLARD, que le
 // cabinet relit et valide comme toute saisie). La base refait chaque contrôle (0028, 0184).
 
@@ -9,7 +10,7 @@ import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
-import { motif, t } from '../../textes/index.ts';
+import { motif, rendre, t } from '../../textes/index.ts';
 import { estJour } from './saisie.ts';
 import './textes.ts';
 
@@ -30,20 +31,30 @@ const POSER = z.object({
   objet: z.string().max(200).default(''),
   texte: z.string().max(2000),
   attendu: ATTENDU.default('explication'),
+  // (1.388.86) La date « pour le » (facultative : sans elle, rien ne se relance tout seul) ; « Garder pour plus tard ».
+  pour: z.string().refine(estJour, { message: 'champ.jour' }).nullable().default(null),
+  garder: z.boolean().default(false),
 }).strict();
 const PRECISER = z.object({
   objet: z.string().max(200), texte: z.string().max(2000), attendu: ATTENDU, cycle: z.string().max(40), compte: COMPTE,
+  pour: z.string().refine(estJour, { message: 'champ.jour' }).nullable(),
 }).partial().strict();
+// (1.388.86) Répondre : par écrit, et (facultatif) avec un fichier déjà déposé ou une pièce du dossier — un seul geste.
+const PIECE = z.object({ genre: z.enum(['facture', 'avoir', 'devis', 'achat']), id: z.string().min(1).max(100), libelle: z.string().min(1).max(300) }).strict();
+const REPONDRE = z.object({ texte: z.string().max(4000), fichier: uuid.optional(), piece: PIECE.optional() }).strict()
+  .refine((c) => !(c.fichier && c.piece), { message: 'compta.champ.fichier_ou_piece' });
 
 type Ligne = {
   id: string; periode: string; cycle: string; compte: string; ecriture: string | null; piece: string; montant: string;
-  objet: string; texte: string; attendu: string; statut: string; envois: Date[]; reponse: string | null;
+  objet: string; texte: string; attendu: string; statut: string; envoyee_le: Date | null; pour_le: string | null;
+  relances: number; relance_le: Date | null; reponse: string | null; reponse_message: string | null;
   repondu_le: Date | null; pose_le: Date; close_le: Date | null;
 };
 const versQuestion = (q: Ligne) => ({
   id: q.id, periode: q.periode, cycle: q.cycle, compte: q.compte, ecriture: q.ecriture, piece: q.piece,
   montant: versTexte(BigInt(q.montant), 3), objet: q.objet, texte: q.texte, attendu: q.attendu, statut: q.statut,
-  envois: q.envois.map((d) => d.toISOString()), reponse: q.reponse, reponduLe: q.repondu_le?.toISOString() ?? null,
+  envoyeeLe: q.envoyee_le?.toISOString() ?? null, pourLe: q.pour_le, relances: q.relances, relanceLe: q.relance_le?.toISOString() ?? null,
+  reponse: q.reponse, reponseMessage: q.reponse_message, reponduLe: q.repondu_le?.toISOString() ?? null,
   poseeLe: q.pose_le.toISOString(), closeLe: q.close_le?.toISOString() ?? null,
 });
 
@@ -60,7 +71,8 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
       if (!tx) throw new Error('transaction attendue');
       const annee = query.annee ?? '';
       if (annee && !/^\d{4}$/.test(annee)) return champInvalide('annee', t('compta.champ.annee'));
-      const r = await tx.query(`select id, periode, cycle, compte, ecriture, piece, montant, objet, texte, attendu, statut, envois, reponse,
+      const r = await tx.query(`select id, periode, cycle, compte, ecriture, piece, montant, objet, texte, attendu, statut, envoyee_le,
+          to_char(pour_le, 'YYYY-MM-DD') pour_le, relances, relance_le, reponse, reponse_message,
           repondu_le, pose_le, close_le from compta.question where entreprise = $1 and ($2 = '' or left(periode, 4) = $2) order by pose_le, id`,
       [params.entreprise ?? '', annee]);
       return { corps: { questions: (r.rows as Ligne[]).map(versQuestion) } };
@@ -75,9 +87,11 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
       try { montant = depuisTexte(corps.montant || '0', 3); } catch { return champInvalide('montant', t('compta.champ.montant_signe')); }
       const id = (await tx.query('select compta.poser_question($1, $2::jsonb) id', [params.entreprise ?? '', JSON.stringify({
         periode: corps.periode, cycle: corps.cycle.trim(), compte: corps.compte, ecriture: corps.ecriture, piece: corps.piece.trim(),
-        montant: Number(montant), objet: corps.objet, texte: corps.texte, attendu: corps.attendu,
+        montant: Number(montant), objet: corps.objet, texte: corps.texte, attendu: corps.attendu, pour: corps.pour, garder: corps.garder,
       })])).rows[0].id as string;
-      return { statut: 201, corps: { id } };
+      // (1.388.86) Partie, ou elle attend (gardée, ou posée par qui ne valide pas) : l'écran le dit.
+      const st = (await tx.query('select statut from compta.question where id = $1', [id])).rows[0]?.statut as string;
+      return { statut: 201, corps: { id, statut: st } };
     },
   });
 
@@ -133,8 +147,8 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
     },
   });
 
-  // Envoyer au client les questions d'une année qui attendent leur réponse ; ou (1.187.0) celles qu'on nomme : « Envoyer
-  // maintenant » d'une question, les questions prêtes qui partent avec un message de la conversation, une relance.
+  // Envoyer au client les questions d'une année qui attendent de partir ; ou (1.187.0) celles qu'on nomme : « Envoyer
+  // maintenant » d'une question gardée, les questions prêtes qui partent avec un message de la conversation.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/envoyer', geste: 'compta.questions.envoyer',
     corps: z.object({ annee: z.number().int().min(1900).max(2999).optional(), ids: z.array(uuid).min(1).max(50).optional() }).strict()
@@ -148,35 +162,61 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
     },
   });
 
-  // Le client répond (ou complète sa réponse, tant que la question n'est pas fermée).
+  // (1.388.86) Relancer à la main une question partie sans réponse : le client reçoit l'alerte, la relance compte avec
+  // les automatiques et repousse la suivante d'une semaine. Plus de « un autre jour ».
   ajouter({
-    methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/:question/repondre', geste: 'compta.questions.repondre',
-    corps: z.object({ texte: z.string().max(4000) }).strict(),
-    traiter: async ({ params, corps }, tx) => {
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/:question/relancer', geste: 'compta.questions.envoyer',
+    traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       if (!uuid.safeParse(params.question).success) return introuvable;
-      await tx.query('select compta.repondre_question($1, $2, $3)', [params.entreprise ?? '', params.question, corps.texte]);
-      return { corps: { id: params.question } };
+      const r = (await tx.query('select compta.relancer_question($1, $2) n', [params.entreprise ?? '', params.question])).rows[0];
+      return { corps: { relances: Number(r.n) } };
     },
   });
 
-  // Ce que le cabinet attend, dossier par dossier (« À faire ») : les questions qui attendent leur
-  // réponse, celles envoyées deux fois sans réponse, celles qui ont leur réponse.
+  // Le client répond (ou complète sa réponse, tant que la question n'est pas fermée) ; avec un fichier déposé ou une
+  // pièce de son dossier, le message part dans la conversation dans la même transaction (0237).
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/:question/repondre', geste: 'compta.questions.repondre',
+    corps: REPONDRE,
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.question).success) return introuvable;
+      if (!corps.fichier && !corps.piece) {
+        await tx.query('select compta.repondre_question($1, $2, $3)', [params.entreprise ?? '', params.question, corps.texte]);
+        return { corps: { id: params.question, message: null } };
+      }
+      const q = (await tx.query('select objet, texte from compta.question where id = $1 and entreprise = $2', [params.question, params.entreprise ?? ''])).rows[0] as
+        { objet: string; texte: string } | undefined;
+      if (!q) return introuvable;
+      const titre = (q.objet || q.texte).slice(0, 120);
+      const joint = corps.piece ? t('compta.question.reponse_piece', { piece: corps.piece.libelle }) : t('compta.question.reponse_fichier');
+      const texte = corps.texte.trim() || rendre(joint, 'fr');
+      const message = { texte: rendre(t('compta.question.reponse_message', { question: titre }), 'fr'), fichier: corps.fichier, piece: corps.piece };
+      const m = (await tx.query('select compta.repondre_question($1, $2, $3, $4::jsonb) m', [params.entreprise ?? '', params.question, texte, JSON.stringify(message)])).rows[0];
+      return { corps: { id: params.question, message: m.m as string } };
+    },
+  });
+
+  // Ce que le cabinet attend, dossier par dossier (« À faire ») : les questions qui attendent leur réponse, celles dont
+  // la date « pour le » est passée, celles qui ont leur réponse, et (1.388.86) depuis quand la plus ancienne attend.
   ajouter({
     methode: 'GET', chemin: '/cabinets/:cabinet/questions', geste: 'compte.cabinets.voir',
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
       const r = await tx.query(`select q.entreprise,
           count(*) filter (where q.statut in ('ouverte', 'envoyee')) ouvertes,
-          count(*) filter (where q.statut in ('ouverte', 'envoyee') and cardinality(q.envois) >= 2) a_relancer,
-          count(*) filter (where q.statut = 'repondue') repondues
+          count(*) filter (where q.statut = 'envoyee' and q.pour_le < (now() at time zone 'Africa/Tunis')::date) en_retard,
+          count(*) filter (where q.statut = 'repondue') repondues,
+          min(q.envoyee_le) filter (where q.statut = 'envoyee') attend_depuis
         from compta.question q
         where q.cabinet = $1 and q.entreprise in (select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif')
         group by q.entreprise order by q.entreprise`, [params.cabinet]);
       return {
         corps: {
-          dossiers: (r.rows as { entreprise: string; ouvertes: string; a_relancer: string; repondues: string }[]).map((x) => ({
-            entreprise: x.entreprise, ouvertes: Number(x.ouvertes), aRelancer: Number(x.a_relancer), repondues: Number(x.repondues),
+          dossiers: (r.rows as { entreprise: string; ouvertes: string; en_retard: string; repondues: string; attend_depuis: Date | null }[]).map((x) => ({
+            entreprise: x.entreprise, ouvertes: Number(x.ouvertes), enRetard: Number(x.en_retard), repondues: Number(x.repondues),
+            attendDepuis: x.attend_depuis?.toISOString() ?? null,
           })),
         },
       };

@@ -4615,12 +4615,12 @@
         if (!ici() && typeof window.__relireQuestions === 'function') await window.__relireQuestions().catch(() => {});
         return ici();
       },
+      // (1.388.86) La réponse est déjà partie au serveur (la messagerie l'envoie d'un geste, fichier compris) : on la range
+      // ici pour l'écran, sans l'enregistrement d'une pièce — une réponse refusée ne bloque plus rien d'autre (CE2-03).
       repondre: async (id, texte) => {
         if (!(data.questionsCabinet || []).some(q => q.id === id) && typeof window.__relireQuestions === 'function') await window.__relireQuestions().catch(() => {});
         const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte }, Date.now());
-        if (!r.ok) throw new Error(r.motif);
-        data.questionsCabinet = r.liste;
-        await save(true);
+        if (r.ok) data.questionsCabinet = r.liste;
         updateNavCounts();
       },
       rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
@@ -6613,338 +6613,60 @@
       };
     }
 
-    // Le paquet mensuel : tout ce que le comptable attend, dans un fichier, vérifiable.
-    // Avant de le fabriquer, on montre exactement ce qu'il contiendra — y compris ce qui manque.
+    // La plateforme (brique 44 bis, 1.388.86) : plus de paquet — les livres sont au serveur, le cabinet les lit en direct,
+    // et les questions du comptable arrivent et repartent par le serveur. L'onglet porte ses questions, et dit à qui
+    // le dossier est confié.
     function drawCabinet() {
-      const co = company();
-      const months = (() => {
-        // Les douze derniers mois terminés, le plus récent d'abord : c'est celui qu'on envoie.
-        const out = [];
-        let m = C.addMonths(C.today().slice(0, 7) + '-01', -1, 1).slice(0, 7);
-        for (let i = 0; i < 12; i++) { out.push(m); m = C.addMonths(m + '-01', -1, 1).slice(0, 7); }
-        return out;
-      })();
-      if (!cabinetState.month) cabinetState.month = months[0];
-      const per = C.packPeriod(Number(cabinetState.month.slice(0, 4)), Number(cabinetState.month.slice(5, 7)));
-      const aClore = C.closableMonths(data, C.today());
-      const plan = C.packPlan(data, co, per, { device: deviceLabel(), reserves: licence.reserves || [] });
-      const paired = co.cabinet && co.cabinet.publicKey ? co.cabinet : null;
-      const sent = (data.packs || []).filter(x => x.month === per.month).sort((a, b) => (b.at || 0) - (a.at || 0));
-      const history = (data.packs || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 12);
-      const cur = co.currency;
-      const tt = plan.totaux;
-      const moisVide = !(tt.pieces + tt.ventes + tt.achats + tt.encaissements + tt.bulletins);
-      // 10.13.0 (test humain du pont) — l'étape suivante du mois, CALCULÉE (U-11). Répondre puis
-      // cliquer le vert « Envoyer au comptable » joignait le paquet fabriqué AVANT la réponse : elle
-      // n'arrivait jamais au cabinet, sous une phrase qui promettait « il n'y a rien d'autre à
-      // envoyer ». Une question qui attend passe d'abord (la réponse partira dans CE paquet), une
-      // réponse plus récente que le paquet le fait refaire, et seulement ensuite on l'envoie.
-      const questions = data.questionsCabinet || [];
-      const enAttente = questions.filter(q => !repondue(q));
-      const nonParties = sent.length ? C.reponsesApres(questions, sent[0].at) : [];
-      // 10.14.0 — les écritures du mois ne sont plus celles du dernier paquet fabriqué : une
-      // réouverture, ou une version de SkanFact qui corrige un calcul. Le comptable travaille sur
-      // l'ancien paquet ; un paquet fabriqué ne se réécrit pas, il se refait — encore faut-il le DIRE.
-      // (Un paquet d'avant la 10.14.0 n'a pas de sceau : on ne peut rien comparer, on ne dit rien.)
-      const change = sent.length && sent[0].sceau ? C.ecartsSceau(sent[0].sceau, plan.sceau) : [];
-      const suivante = moisVide ? '' : enAttente.length ? 'repondre'
-        : !sent.length ? 'fabriquer' : nonParties.length || change.length ? 'refaire' : 'envoyer';
-
-      // La plateforme (brique 44 bis) : plus de paquet — les livres sont au serveur, le cabinet les lit
-      // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
-      if (bridge.dessinerMandat) {
-        const mandatPanneau = '<div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>';
-        $('#c-body').innerHTML = (data.questionsCabinet || []).length ? `${panneauQuestions()}${mandatPanneau}`
-          : `${mandatPanneau}${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}`;
-        // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
-        // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
-        void bridge.dessinerMandat($('#cab-pair'));
-        if (comptaState.versInvitation) {
-          comptaState.versInvitation = false;
-          const poser = n => {
-            const champ = $('#mandat-email');
-            if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } else if (n > 0) setTimeout(() => poser(n - 1), 100);
-          };
-          poser(30);
-        }
-        $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));
-        return;
-      }
-      $('#c-body').innerHTML = `
-        <div class="panel"><h2>Le paquet du mois ${info('cab.paquet')}</h2>
-          <div class="inline mb">
-            <select id="cab-month">${months.map(m => `<option value="${m}" ${m === cabinetState.month ? 'selected' : ''}>${h(C.monthLabel(m + '-01'))}</option>`).join('')}</select>
-            ${moisVide ? '' : `<span class="badge ${plan.definitive ? 'b-paid' : 'b-due'}">${plan.definitive ? 'définitif — mois clôturé' : 'provisoire — mois non clôturé'}</span>`}
-          </div>
-          ${moisVide ? '' : plan.definitive
-            ? '<p class="small muted">Ce mois est clôturé : le paquet est <b>définitif</b>. Ton comptable peut travailler dessus en sachant que rien ne bougera.</p>'
-            : `<p class="small" style="background:var(--warning-soft);padding:10px 12px;border-radius:8px">
-                 Ce mois n'est <b>pas clôturé</b> : le paquet partira marqué « provisoire ». Tu peux l'envoyer quand même — mais l'envoi qui compte est celui qui suit la clôture.
-                 <a href="#" id="cab-goclose" class="warn-link">${aClore.length && aClore[0].to !== per.to && aClore.some(m => m.to === per.to) ? `Clôturer jusqu'à ${h(per.label)}…` : `Clôturer ${h(per.label)}`}</a></p>`}
-
-          ${/* 10.12.0 — un mois sans pièce montrait un tableau de sept zéros et trois cartes à 0,000 DT,
-               au-dessus d'un panneau qui dit « aucune pièce » : on ne compte pas au-dessus du vide (7.0.0). */''}
-          ${moisVide ? '' : `<div class="dash-grid mt">
-            <div>
-              <table class="list compact"><thead><tr><th>Ce que contient le paquet</th><th class="r">Nombre</th></tr></thead><tbody>
-                <tr><td>Pièces de vente émises (PDF joints)</td><td class="r">${plan.totaux.pieces}</td></tr>
-                <tr><td>Lignes au journal des ventes</td><td class="r">${plan.totaux.ventes}</td></tr>
-                <tr><td>Lignes au journal des achats</td><td class="r">${plan.totaux.achats}</td></tr>
-                <tr><td>Justificatifs d'achat joints</td><td class="r">${plan.totaux.justificatifs}</td></tr>
-                <tr><td>Encaissements clients</td><td class="r">${plan.totaux.encaissements}</td></tr>
-                <tr><td>Bulletins de paie</td><td class="r">${plan.totaux.bulletins}</td></tr>
-              </tbody></table>
-              ${/* 10.13.0 — « Fichiers en tout : 15 » était posé en pied, sous une colonne qui additionne
-                   14 et qui ne compte pas des fichiers (des lignes de journal, des encaissements) : un
-                   total sous une colonne est lu comme sa somme (9.8.8). Le poids du paquet se DIT. */''}
-              ${/* 10.14.0 — « 16 fichiers » annoncés, 17 comptés dans l'historique : la signature (9.2.0)
-                   part avec chaque paquet et n'était pas comptée. La page de garde, le manifeste et
-                   sa signature s'ajoutent aux fichiers du plan. */''}
-              <p class="small muted mt">Le paquet fera ${pl(plan.entries.length + 3, 'fichier')} : les pièces en PDF, les journaux en CSV, la page de garde, le manifeste et sa signature.</p>
-            </div>
-            <div>
-              <div class="stat"><div class="lbl">CA HT du mois</div><div class="val">${C.money(plan.ca, cur)}</div></div>
-              <div class="stat"><div class="lbl">TVA collectée</div><div class="val">${C.money(plan.tvaCollectee, cur)}</div></div>
-              <div class="stat"><div class="lbl">TVA déductible</div><div class="val">${C.money(plan.tvaDeductible, cur)}</div></div>
-            </div>
-          </div>`}
-        </div>
-
-        <div class="panel" id="p-manques"><h2>Ce qui manque ${info('cab.manques')}</h2>
-          ${moisVide
-            // « Rien à signaler : le dossier du mois est complet » était la SEULE alternative à une
-            // liste de manques. Sur un mois sans une seule pièce, tous les compteurs valent zéro,
-            // donc la liste est vide, donc l'application félicitait — en vert — quelqu'un qui n'a
-            // rien fait, en annonçant neuf fichiers (cinq journaux vides, les écritures et la TVA)
-            // et en armant le bouton d'envoi. Avant d'écrire une phrase rassurante, vérifier que
-            // l'univers dont elle parle n'est pas vide.
-            ? (() => {
-                // La raison du vide, et le jour où ça changera : « émets une facture » à quelqu'un qui en
-                // a émis en septembre l'envoie chercher ce qu'il a déjà fait (10.12.0).
-                const suite = C.premierePieceApres(data, per.month + '-01');
-                if (!suite) return `<p>Ce mois ne contient <b>aucune pièce</b> : il n'y a rien à envoyer à ton comptable.</p>
-                  <p class="small muted">Choisis un autre mois en haut de la page, ou commence par émettre une facture.</p>
-                  <div class="inline mt"><button class="btn btn-primary" id="cab-vers-factures">Aller aux factures</button></div>`;
-                const moisSuite = suite.slice(0, 7);
-                const pret = months.includes(moisSuite);
-                return `<p>Ce mois ne contient <b>aucune pièce</b> : il n'y a rien à envoyer à ton comptable.</p>
-                  <p class="small muted">Tes pièces commencent en ${h(C.monthLabel(moisSuite + '-01'))}. ${pret
-                    ? 'Ce mois-là est terminé : son paquet est prêt à être préparé.'
-                    : `Un paquet se prépare une fois le mois terminé : celui de ${h(C.monthLabel(moisSuite + '-01'))} le sera à partir du ${h(C.fmtDate(C.addMonths(moisSuite + '-01', 1, 1)))}.`}</p>
-                  ${pret ? `<div class="inline mt"><button class="btn btn-primary" id="cab-vers-mois" data-mois="${h(moisSuite)}">Voir ${h(C.monthLabel(moisSuite + '-01'))}</button></div>` : ''}`;
-              })()
-            : plan.checklist.length
-            ? `<table class="list compact"><tbody>${plan.checklist.map(c => `<tr class="${c.level === 'danger' ? 'row-warn' : ''}">
-                <td><strong>${h(c.label)}</strong><div class="small muted">${h(c.detail)}</div></td><td class="r nw">${c.count}</td>
-                <td class="r nw">${actionDeControle(c.id) ? `<button class="btn btn-sm" data-check="${h(c.id)}">${h(actionDeControle(c.id).label)}</button>` : ''}</td></tr>`).join('')}</tbody></table>
-               <p class="small muted mt">Ces points figureront sur la page de garde du paquet. Le comptable saura quoi te réclamer — c'est mieux qu'un dossier qu'il croit complet.</p>`
-            : '<p class="small" style="color:var(--primary)">Rien à signaler : le dossier du mois est complet.</p>'}
-        </div>
-
-        ${/* Les réponses partent DANS le paquet : quand il y a des questions, elles viennent avant lui. */''}
-        ${questions.length ? panneauQuestions() : ''}
-
-        <div class="panel" id="p-envoyer"><h2>Fabriquer et envoyer ${info('cab.envoyer')}</h2>
-          ${paired
-            ? `<p class="small" style="background:var(--primary-soft);padding:10px 12px;border-radius:8px">
-                 Le paquet sera <b>chiffré pour ${h(paired.name || 'ton cabinet')}</b> (empreinte ${h(paired.fingerprint || '')}).
-                 Lui seul pourra l'ouvrir : aucun mot de passe à transmettre. ${info('cab.pourcabinet')}</p>`
-            : `<label class="check mb"><input type="checkbox" id="cab-seal" ${cabinetState.seal ? 'checked' : ''}> Protéger le paquet par un mot de passe ${info('cab.motdepasse')}</label>
-               <div id="cab-pw" ${cabinetState.seal ? '' : 'hidden'} class="mb">
-                 <input type="password" id="cab-pwv" placeholder="Mot de passe convenu avec ton comptable" style="max-width:340px">
-                 <div class="small muted">Transmets-le-lui par un autre canal que le fichier : par téléphone, pas dans le même mail.
-                   Mieux : demande-lui son fichier d'appairage et importe-le dans <a href="#" id="cab-gopair" class="warn-link">Paramètres → Envois → Ton cabinet comptable</a>.</div>
-               </div>`}
-          ${/* 10.13.0 (U-11, test humain du pont) — le vert suit `suivante` : fabriquer, puis envoyer ; mais
-               refaire d'abord quand une réponse est plus récente que le paquet, et répondre avant tout. */''}
-          ${suivante === 'repondre' ? `<p class="small muted mb">${h(pl(enAttente.length, 'question de ton comptable attend', 'questions de ton comptable attendent'))} ta réponse, plus haut :
-            réponds d'abord, ${enAttente.length > 1 ? 'tes réponses partiront' : 'ta réponse partira'} dans ce paquet.</p>` : ''}
-          ${suivante === 'refaire' && nonParties.length ? `<div class="warn-box mb">Tu as répondu à ton comptable après avoir fabriqué ce paquet :
-            ${nonParties.length > 1 ? 'tes réponses n\'y sont pas' : 'ta réponse n\'y est pas'}. Un paquet fabriqué ne se réécrit pas — refais-le avant de l'envoyer.</div>` : ''}
-          ${change.length ? `<div class="warn-box mb" id="cab-change">Les écritures de ${h(per.label)} ne sont plus celles du paquet fabriqué le ${h(C.fmtDate(C.jourDeLInstant(sent[0].at)))} :
-            ${change.slice(0, 4).map(x => `compte ${h(x.account)}, ${[0, 1].filter(i => Math.abs(x.avant[i] - x.maintenant[i]) > 0.0005)
-              .map(i => `${i ? 'crédit' : 'débit'} ${C.money(x.avant[i], company().currency)} → ${C.money(x.maintenant[i], company().currency)}`).join(', ')}`).join(' ; ')}${change.length > 4 ? ` — et ${pl(change.length - 4, 'autre compte', 'autres comptes')}` : ''}.
-            Ton comptable travaille sur l'ancien : refais le paquet et renvoie-le-lui.</div>` : ''}
-          <div class="inline">
-            <button class="btn ${suivante === 'fabriquer' || suivante === 'refaire' ? 'btn-primary' : ''}" id="cab-build" ${moisVide ? 'disabled title="Ce mois ne contient aucune pièce."' : ''}>${!sent.length ? 'Fabriquer le paquet…'
-              : nonParties.length ? `Refaire le paquet avec ${nonParties.length > 1 ? 'tes réponses' : 'ta réponse'}…` : 'Refaire le paquet…'}</button>
-            ${sent.length ? `<button class="btn ${suivante === 'envoyer' ? 'btn-primary' : ''}" id="cab-mail">Envoyer au comptable…</button>` : ''}
-          </div>
-          <div id="cab-prog" class="small muted mt" hidden></div>
-        </div>
-
-        ${questions.length ? '' : panneauQuestions()}
-
-        <div class="panel" id="p-paquets"><h2>Ce qui a déjà été envoyé ${info('cab.historique')}</h2>
-          ${history.length
-            ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Mois</th><th>Fabriqué le</th><th>État</th><th class="r">Fichiers</th><th class="r">Taille</th><th>Empreinte</th><th></th></tr></thead><tbody>
-                ${history.map(x => `<tr><td class="nw"><strong>${h(C.monthLabel(x.month + '-01'))}</strong></td>
-                  <td class="nw small">${x.at ? C.fmtDate(C.jourDeLInstant(x.at)) : ''}</td>
-                  <td><span class="badge ${x.definitive ? 'b-paid' : 'b-due'}">${x.definitive ? 'définitif' : 'provisoire'}</span>${x.cabinet ? ' <span class="small muted">pour le cabinet</span>' : x.sealed ? ' <span class="small muted">chiffré</span>' : ''}</td>
-                  <td class="r">${x.files || ''}</td><td class="r nw">${x.bytes ? (x.bytes / 1048576).toFixed(1).replace('.', ',') + ' Mo' : ''}</td>
-                  <td class="small muted mono">${h(String(x.digest || '').slice(0, 12))}</td>
-                  <td class="actions"><button class="btn btn-sm" data-reveal="${h(x.path || '')}" ${x.path ? '' : 'disabled title="Paquet fabriqué avant cette version : son chemin n\'a pas été gardé."'}>Montrer le fichier</button></td></tr>`).join('')}
-              </tbody></table></div>
-               <p class="small muted mt">L'empreinte est la carte d'identité du paquet : si ton comptable obtient la même, le fichier qu'il a reçu est bien celui que tu as envoyé, à l'octet près.</p>`
-            : '<div class="empty mini">Aucun paquet fabriqué pour l\'instant : chaque paquet s\'inscrira ici, avec son empreinte.</div>'}
-        </div>`;
-
-      // ---------------------------------------------- les questions du comptable (9.10.0)
-      //
-      // Elles arrivent par un fichier `.skanask`, s'affichent ici ET en face de la pièce qu'elles
-      // visent, et les réponses repartent dans le paquet suivant — jamais dans un envoi à part,
-      // qu'on oublierait. Rien ici ne touche à un chiffre.
-      function panneauQuestions() {
-        const qs = (data.questionsCabinet || []).slice()
-          .sort((a, b) => Number(!!repondue(a)) - Number(!!repondue(b)) || Number(b.recueLe || 0) - Number(a.recueLe || 0));
-        const bloquees = C.questionsSansReponse(data.questionsCabinet || []);
-        const attendu = id => (C.QUESTION_ATTENDUS.find(x => x.id === id) || {}).label || 'Une explication';
-        return `<div class="panel" id="p-questions"><h2>Les questions de ton comptable ${info('cab.questions')}</h2>
-          ${bloquees.length ? `<div class="warn-box grave mb">${h(pl(bloquees.length, 'question t\'a été envoyée', 'questions t\'ont été envoyées'))} deux fois sans réponse.
-            Tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air, ton comptable ne peut pas arrêter ton mois.</div>` : ''}
-          ${qs.length
-            ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>La question</th><th>Attendu</th><th>Reçue</th><th>Réponse</th><th></th></tr></thead><tbody>
-                ${qs.map((q, i) => `<tr class="${!repondue(q) && (Number(q.recues) || 0) >= C.QUESTION_RELANCE ? 'row-warn' : ''}">
-                  <td class="nw">${q.piece ? `<strong>${lienPiece(q.piece)}</strong>` : '<span class="muted">—</span>'}
-                    ${q.compte ? `<div class="small muted">${h(q.compte)} ${h(q.libelleCompte || '')}</div>` : ''}</td>
-                  <td>${h(q.objet || '')}<div class="small">${h(C.typoFr(q.texte))}</div></td>
-                  <td class="nw small">${h(attendu(q.attendu))}</td>
-                  <td class="nw small">${(Number(q.recues) || 0) > 1 ? `<span class="badge b-late">${h(pl(Number(q.recues), 'fois', 'fois'))}</span>` : '<span class="muted">1 fois</span>'}</td>
-                  <td>${repondue(q)
-                    ? `<span class="badge b-paid">répondue</span><div class="small">${h(C.typoFr(q.reponse.texte || ''))}</div>`
-                    : '<span class="badge b-due">sans réponse</span>'}</td>
-                  <td class="actions r nw"><button class="btn btn-sm${suivante === 'repondre' && i === 0 ? ' btn-primary' : ''}" data-rep="${h(q.id)}">${repondue(q) ? 'Corriger ma réponse' : 'Répondre'}</button></td></tr>`).join('')}
-              </tbody></table></div>
-              <p class="small muted mt">Ton comptable lit tes réponses dès que tu les enregistres : il n'y a rien d'autre à envoyer.</p>`
-            : `<div class="empty mini">Aucune question reçue. Quand ton comptable a besoin d'une pièce ou d'une explication,
-               sa question arrive ici d'elle-même, et en face de la pièce qu'elle vise.</div>`}
-
-        </div>`;
+      const mandatPanneau = '<div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>';
+      $('#c-body').innerHTML = (data.questionsCabinet || []).length ? `${panneauQuestions()}${mandatPanneau}`
+        : `${mandatPanneau}${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}`;
+      // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
+      // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
+      void bridge.dessinerMandat($('#cab-pair'));
+      if (comptaState.versInvitation) {
+        comptaState.versInvitation = false;
+        const poser = n => {
+          const champ = $('#mandat-email');
+          if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } else if (n > 0) setTimeout(() => poser(n - 1), 100);
+        };
+        poser(30);
       }
       $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));
-      if ($('#q-import')) $('#q-import').onclick = () => importerQuestions();
+    }
 
-      async function importerQuestions(motDePasse) {
-        let lu;
-        try { lu = await bridge.lireQuestions({ motDePasse }); }
-        catch (e) {
-          // Un fichier scellé n'est pas une panne : c'est le cas normal quand le comptable a choisi
-          // un mot de passe. On le demande au lieu d'afficher du rouge (règle 8.0.1).
-          if (codeErreur(e) === 'ERR-ENT-084' && !motDePasse) {
-            promptDialog('Le mot de passe de l\'envoi de questions',
-              'Ton comptable te le dit au téléphone, jamais dans le même mail que le fichier.', '',
-              v => { if (v) importerQuestions(v); }, 'password', { champ: 'Mot de passe', ok: 'Ouvrir le fichier' });
-            return;
-          }
-          return toast(plainError(e), true);
-        }
-        if (!lu) return;
-        const v = C.questionsValides(lu.envoi, { matricule: company().taxId });
-        if (!v.ok) return toast(v.motifs[0], true);
-        const orig = await origineAcceptee(lu, 'Envoi de questions');
-        if (!orig) return;
-        const ok = await confirmDialog(
-          `Reprendre ${pl(v.questions, 'question')} de ton comptable ?\n\n`
-          + (v.questions > 1 ? '• Elles s\'afficheront en face des pièces qu\'elles visent.\n' : '• Elle s\'affichera en face de la pièce qu\'elle vise.\n')
-          + '• Aucun de tes chiffres ne change : une question est une demande, pas une écriture.\n'
-          + `• ${orig.ligne}`,
-          'Reprendre les questions', !!orig.alerte);
-        if (!ok) return;
-        retenirSignature(orig);
-        const r = C.fusionnerQuestionsRecues(data.questionsCabinet || [], lu.envoi, Date.now());
-        data.questionsCabinet = r.liste;
-        save(true);
-        toast(`${pl(r.nouvelles, 'question reçue', 'questions reçues')}${r.revues ? `, ${pl(r.revues, 'déjà connue', 'déjà connues')}` : ''}`);
-        draw(); updateNavCounts();
-      }
-      $('#cab-month').onchange = e => { cabinetState.month = e.target.value; draw(); };
-      if ($('#cab-vers-mois')) $('#cab-vers-mois').onclick = e => { cabinetState.month = e.currentTarget.dataset.mois; draw(); };
-      // Le lien dit ce que le clic fera (7.29.0) : « Clôturer août 2026 » menait à une page qui
-      // proposait de clôturer juin. Quand des mois d'avant restent ouverts, il ouvre la fenêtre
-      // « Clôturer jusqu'à… » sur ce mois-ci, avec les points à régler de toute la période.
-      if ($('#cab-goclose')) $('#cab-goclose').onclick = e => { e.preventDefault(); comptaState.tab = 'clotures'; comptaState.clotJusqua = per.to; draw(); $$('#c-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === 'clotures')); };
-      if ($('#cab-seal')) $('#cab-seal').onchange = e => { cabinetState.seal = e.target.checked; $('#cab-pw').hidden = !e.target.checked; };
-      if ($('#cab-gopair')) $('#cab-gopair').onclick = e => { e.preventDefault(); allerParametres('envois', 'p-cabinet'); };
-
-      if ($('#cab-vers-factures')) $('#cab-vers-factures').onclick = () => navigate('#/factures');
-      // L'historique donnait l'empreinte du paquet et jamais son emplacement : six semaines plus
-      // tard, le comptable réclame « le fichier de mars » et rien ne dit où il est. Le chemin était
-      // pourtant enregistré depuis la 6.1.0 — il n'était affiché nulle part.
-      $$('[data-reveal]').forEach(b2 => { if (b2.dataset.reveal) b2.onclick = () => bridge.showInFolder(b2.dataset.reveal); });
-      // Chaque manque mène aux pièces concernées, filtrées. Le `if` n'est pas une précaution : la
-      // table est complète par construction, et un test le vérifie contre `core.packChecklist`.
-      $$('[data-check]').forEach(b => b.onclick = () => actionDeControle(b.dataset.check).run(plan.checklist.find(c => c.id === b.dataset.check)));
-      $('#cab-build').onclick = async () => {
-        // Les contrôles de saisie d'abord, la grande question ensuite : poser une question de fond
-        // puis refuser sur un champ trop court, c'est faire répondre pour rien.
-        const pw = (!paired && cabinetState.seal) ? ($('#cab-pwv').value || '').trim() : '';
-        if (!paired && cabinetState.seal && pw.length < 6) return refus('#cab-pwv', 'Choisis un mot de passe d\'au moins six caractères.');
-        if (await demoBlock('Fabriquer le paquet du comptable')) return;
-        if (!plan.definitive && !await confirmDialog(`${per.label} n'est pas clôturé : le paquet partira marqué « provisoire » et pourra encore changer.\n\nFabriquer quand même ?`, 'Fabriquer', false, { titre: 'Un paquet provisoire' })) return;
-
-        // Le HTML de chaque pièce est produit ici : c'est le renderer qui sait dessiner un document.
-        const entries = plan.entries.map(e => {
-          if (e.kind === 'pdf') {
-            const d = docById(e.docId);
-            return d ? { ...e, html: C.documentHtml(d, clientById(d.clientId), co, { stampText: stampFor(d) }) } : e;
-          }
-          if (e.kind === 'payslip') {
-            const sl = (data.payslips || []).find(x => x.id === e.slipId);
-            return sl ? { ...e, html: C.payslipHtml(sl, data, co, {}) } : e;
-          }
-          return e;
-        });
-        const cover = C.packCoverHtml(plan, co, { version: $('#app-version').textContent, at: C.fmtDate(C.today()) });
-
-        const prog = $('#cab-prog');
-        prog.hidden = false; prog.textContent = 'Préparation…';
-        const off = bridge.onPackProgress(d => { prog.textContent = `${d.done} / ${d.total} — ${d.label}`; });
-        try {
-          const r = await bridge.buildPack({
-            plan: { manifest: plan.manifest, entries },
-            coverHtml: cover, password: pw, cabinetKey: paired ? paired.publicKey : '',
-            suggestedName: C.packFileName(co, per, plan.definitive)
-          });
-          prog.hidden = true;
-          if (!r) return;
-          data.packs = (data.packs || []).concat([{
-            id: C.uid(), month: per.month, at: Date.now(), definitive: plan.definitive,
-            sealed: !!r.chiffre, cabinet: r.pourCabinet || '', files: r.fichiers, bytes: r.octets, digest: r.empreinte,
-            path: r.path, missing: (r.absents || []).length,
-            // Combien de réponses le paquet emporte : le mail d'envoi le dit, et c'est ce que le
-            // comptable cherche en l'ouvrant quand il a posé une question.
-            reponses: C.reponsesAEnvoyer(data.questionsCabinet || []).length,
-            // Le résumé des écritures envoyées (10.14.0) : c'est lui qui dira, un mois plus tard,
-            // que ce mois a changé depuis que le comptable l'a reçu.
-            sceau: plan.sceau
-          }]);
-          save(true);
-          const warn = (r.absents || []).length ? ` ${pl(r.absents.length, 'fichier')} n'${r.absents.length > 1 ? 'ont' : 'a'} pas pu être joint${sPl(r.absents.length)} (voir le manifeste).` : '';
-          toast(`Paquet créé : ${r.path.split(/[\\/]/).pop()}${warn}`);
-          draw();
-        } catch (err) {
-          prog.hidden = true;
-          toast('Fabrication impossible : ' + (err.message || err), true);
-        } finally { if (typeof off === 'function') off(); }
-      };
-
-      if ($('#cab-mail')) $('#cab-mail').onclick = async () => {
-        if (await demoBlock('Envoyer le paquet au comptable')) return;
-        if (!await messagerie()) return;
-        const last = sent[0];
-        const to = co.accountantEmail || '';
-        bridge.composeMail({
-          to, subject: `${co.name || ''} — comptabilité ${per.label}${last.definitive ? '' : ' (provisoire)'}`,
-          body: `Bonjour,\n\nVoici le dossier de ${per.label}.\n\n`
-            + `${last.definitive ? 'Le mois est clôturé : ces chiffres ne bougeront plus.' : 'Le mois n\'est pas encore clôturé : ce dossier est provisoire.'}\n`
-            + `Le paquet contient les journaux, les pièces en PDF, les justificatifs d'achat et la page de garde.\n`
-            + (last.reponses ? `Il porte aussi ${last.reponses > 1 ? 'mes réponses à tes questions' : 'ma réponse à ta question'}.\n` : '')
-            + (last.cabinet ? 'Il est chiffré pour ta clé (empreinte ' + last.cabinet + ') : toi seul peux l\'ouvrir.\n'
-               : last.sealed ? 'Il est protégé par le mot de passe convenu — je te le donne par téléphone.\n' : '')
-            + `\nEmpreinte du manifeste : ${String(last.digest || '').slice(0, 16)}\n\nBien à toi,\n${co.name || ''}`,
-          attachments: [last.path], mode: modeEnvoi()
-        }).then(r => emailComptablePret(to, r, 'le paquet'));
-      };
+    // ---------------------------------------------- les questions du comptable (9.10.0, refaites en 1.388.86)
+    //
+    // Elles arrivent par le serveur dès que le cabinet les pose, s'affichent ici ET en face de la pièce qu'elles visent,
+    // et la réponse repart d'un geste (par écrit, avec une photo ou un PDF). Une question dont la date « pour le » est
+    // passée sans réponse est EN RETARD : c'est elle que le cabinet relance. Rien ici ne touche à un chiffre.
+    function panneauQuestions() {
+      const qs = (data.questionsCabinet || []).slice()
+        .sort((a, b) => Number(!!repondue(a)) - Number(!!repondue(b)) || Number(b.recueLe || 0) - Number(a.recueLe || 0));
+      const retard = new Set(C.questionsEnRetard(data.questionsCabinet || [], C.today()).map(q => q.id));
+      const premiere = qs.find(q => !repondue(q));
+      const attendu = id => (C.QUESTION_ATTENDUS.find(x => x.id === id) || {}).label || 'Une explication';
+      const jour = ms => ms ? C.fmtDate(new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })) : '';
+      return `<div class="panel" id="p-questions"><h2>Les questions de ton comptable ${info('cab.questions')}</h2>
+        ${retard.size ? `<div class="warn-box grave mb">${h(pl(retard.size, 'question attend', 'questions attendent'))} ta réponse depuis la date
+          que ton comptable avait demandée. Tant qu'${retard.size > 1 ? 'elles restent' : 'elle reste'} en l'air, il ne peut pas arrêter ton mois.</div>` : ''}
+        ${qs.length
+          ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>La question</th><th>Attendu</th><th>Reçue</th><th>Réponse</th><th></th></tr></thead><tbody>
+              ${qs.map(q => `<tr class="${retard.has(q.id) ? 'row-warn' : ''}">
+                <td class="nw">${q.piece ? `<strong>${lienPiece(q.piece)}</strong>` : '<span class="muted">—</span>'}
+                  ${q.compte ? `<div class="small muted">${h(q.compte)} ${h(q.libelleCompte || '')}</div>` : ''}</td>
+                <td>${h(q.objet || '')}<div class="small">${h(C.typoFr(q.texte))}</div></td>
+                <td class="nw small">${h(attendu(q.attendu))}</td>
+                <td class="nw small">${h(jour(q.recueLe)) || '<span class="muted">—</span>'}${q.pourLe && !repondue(q)
+                  ? `<div class="${retard.has(q.id) ? 'badge b-late' : 'muted'}">pour le ${h(C.fmtDate(q.pourLe))}</div>` : ''}</td>
+                <td>${repondue(q)
+                  ? `<span class="badge b-paid">répondue</span><div class="small">${h(C.typoFr(q.reponse.texte || ''))}</div>`
+                  : '<span class="badge b-due">sans réponse</span>'}</td>
+                <td class="actions r nw"><button class="btn btn-sm${q === premiere ? ' btn-primary' : ''}" data-rep="${h(q.id)}">${repondue(q) ? 'Corriger ma réponse' : 'Répondre'}</button></td></tr>`).join('')}
+            </tbody></table></div>
+            <p class="small muted mt">Ton comptable lit tes réponses dès que tu les enregistres : il n'y a rien d'autre à envoyer.</p>`
+          : `<div class="empty mini">Aucune question reçue. Quand ton comptable a besoin d'une pièce ou d'une explication,
+             sa question arrive ici d'elle-même, et en face de la pièce qu'elle vise.</div>`}
+      </div>`;
     }
 
     // Là où se PRÉPARE chaque échéance. Une règle sans écran ne porte pas de bouton : mieux vaut

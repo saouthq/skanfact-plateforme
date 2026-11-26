@@ -87,7 +87,6 @@ describe('la banque d\'un dossier, jouée comme un comptable (1.343.0)', () => {
     // La question posée sur le chèque, envoyée ; le client répond en nommant « la Minoterie », jamais son nom entier.
     const url = `/entreprises/${ent}/compta/questions`;
     const q = String((await api('POST', url, associe, { periode: '2026-03', compte: '532', montant: '406.980', objet: 'Question sur CHQ 4410 072', texte: 'Que paie ce chèque de 406,980 DT ?', attendu: 'explication' })).corps.id);
-    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBe(1);
     expect((await api('POST', `${url}/${q}/repondre`, client, { texte: 'C\'est le chèque au fournisseur de farine, la Minoterie.' })).statut).toBe(200);
 
     const erreurs: string[] = [];

@@ -7704,3 +7704,37 @@ Deux tests rendus patients face à la base partagée par tout un lancement : la 
 qui ne s'efface pas). L'historique de la lecture seule se lit dans SA section.
 
 Tests : `tests/console/journal.test.ts` (+1) ; une preuve.
+
+## 1.388.86 — Le pont : les questions refaites, le paquet retiré
+
+Les questions du cabinet au client avaient gardé la forme du temps des paquets : une question posée « attendait », un
+second geste l'envoyait, la relance était un renvoi qui se refusait « le même jour », et le compteur d'envois tenait
+lieu de tout. Le paquet n'existe plus depuis la plateforme (les livres sont au serveur, le cabinet les lit en direct) :
+la question est désormais une demande qui part, se date et se relance.
+
+- **Elle part quand on la pose** (migration 0237), si celui qui la pose peut valider. « Garder pour plus tard » la
+  laisse au cabinet, comme celle d'un assistant de saisie, qui attend qu'un collaborateur qui valide l'envoie. Un
+  dossier tenu sans SkanFact n'a personne pour la lire : sa question reste toujours dans la révision.
+- **Une date « pour le »**, proposée à sept jours, jamais dans le passé, se précise après coup. Passée sans réponse, la
+  question est **en retard** : elle remonte en rouge chez le client, dans « À faire » des deux côtés (« N jours
+  d'attente, n en retard »), et dans la conversation.
+- **Les relances** : à la main (« Relancer le client », qui la fait repasser « à lire » sans promettre l'e-mail, qui
+  dépend du réglage du client), et automatiques, une fois par semaine passé sa date, trois fois au plus, sous un mandat
+  actif, par le même postier que les pièces demandées (`messagerie.relances_dues`). L'e-mail ne dit rien de la
+  question.
+- **Le client répond d'un geste** : par écrit, avec une photo ou un PDF, ou une pièce de son dossier. Le fichier et la
+  réponse partent dans la même transaction (`compta.repondre_question` à quatre arguments) : une réponse refusée ne
+  laisse plus de photo seule dans le fil, et répondre ne passe plus par l'enregistrement d'une pièce (CE2-03).
+- **Le code mort retiré** : le compteur d'envois et sa règle « un autre jour », le fichier des questions, les réponses
+  rangées dans le paquet (`reponses.json`), l'écran du « paquet du mois » de l'onglet Cabinet (inatteignable depuis la
+  plateforme) et sa bulle, les fonctions de fusion des questions reçues par fichier, et l'entrée du guide qui
+  expliquait un bouton d'import disparu.
+
+Tests : `tests/cabinet/revision.test.ts` (questions réécrites, relances automatiques), plus les tests du serveur, de la
+messagerie et des écrans qui suivaient l'ancien envoi ; preuves réajustées sur 0237.
+
+Vu au test à la souris (cabinet → client → cabinet) :
+- Le nom d'un fichier long coupait « changer » sous la question (« facture-farine-novembre.pdf · chan… ») : le nom se
+  raccourcit au milieu, l'extension reste lue, et le geste ne se coupe plus.
+- La ligne d'une question répondue avec un fichier ou une pièce ne le disait pas au cabinet : elle porte « La pièce
+  jointe, dans la conversation », qui mène à la conversation du client.

@@ -127,7 +127,7 @@ beforeAll(async () => {
   await admin.query(`insert into messagerie.message (entreprise, cabinet, cote, auteur, auteur_nom, texte, fichier) values ($1, $2, 'cabinet', $3, 'Collaborateur', 'Voici le relevé', $4)`,
     [A.ent, id.cab, collab.id, joint]);
   // Les questions du cabinet : une envoyée (dans les livres du client), une en brouillon (avec la révision du cabinet).
-  await admin.query(`insert into compta.question (entreprise, cabinet, periode, texte, statut, envois, pose_par) values ($1, $2, '2026-09', 'Quelle est cette dépense ?', 'envoyee', array[now()], $3)`, [A.ent, id.cab, collab.id]);
+  await admin.query(`insert into compta.question (entreprise, cabinet, periode, texte, statut, envoyee_le, pose_par) values ($1, $2, '2026-09', 'Quelle est cette dépense ?', 'envoyee', now(), $3)`, [A.ent, id.cab, collab.id]);
   id.questionBrouillon = (await admin.query(`insert into compta.question (entreprise, cabinet, periode, texte, pose_par) values ($1, $2, '2026-09', 'Brouillon du cabinet', $3) returning id`, [A.ent, id.cab, associe.id])).rows[0].id as string;
 
   // L'administrateur télécharge ; l'exploitation exporte juste après (la trace du téléchargement est alors dans les deux).

@@ -66,7 +66,8 @@ describe('imputer depuis la réponse d\'une question', () => {
       montant: '1250,375', objet: 'Un virement reçu le 14/09', texte: 'À quoi correspond ce virement ?', attendu: 'explication' });
     expect(q.statut).toBe(201);
     const question = String(q.corps.id);
-    expect((await appeler('POST', `/entreprises/${ent}/compta/questions/envoyer`, leila.jeton, { annee: 2026 })).statut).toBe(200);
+    // (1.388.86) Posée par qui valide, elle part aussitôt.
+    expect(q.corps.statut).toBe('envoyee');
 
     // Sans réponse du client : rien à imputer.
     const imputer = (j: string, corps: Record<string, unknown>) => appeler('POST', `/entreprises/${ent}/compta/questions/${question}/imputer`, j, corps);

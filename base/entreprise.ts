@@ -108,7 +108,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'compta.inventaire': { classe: 'entreprise' },
   // Les questions du cabinet au client (0028) : elles se lisent dans ses livres, en face de ses pièces. Une question que
   // le cabinet n'a pas encore envoyée est son brouillon : elle reste avec sa révision (0080, comme ce que le client lit).
-  'compta.question': { classe: 'entreprise', condition: 'entreprise = $1 and (cardinality(envois) > 0 or cabinet is null)' },
+  'compta.question': { classe: 'entreprise', condition: 'entreprise = $1 and (envoyee_le is not null or cabinet is null)' },
   // Les réouvertures d'un exercice clos (0029) : quand, qui, pourquoi.
   'compta.reouverture': { classe: 'entreprise' },
   // La messagerie avec le cabinet (0078) : le fil appartient à l'entreprise, ses messages et leurs fichiers aussi.

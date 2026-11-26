@@ -592,7 +592,6 @@
   b('#cab-goclose', "Clôture le mois avant de l'envoyer : un paquet n'est définitif que si le mois est clôturé.");
   b('#cab-vers-factures', "Ouvre les factures.");
   b('#cab-vers-mois', "Ouvre le mois cité.");
-  b('#q-import', "Importe le fichier des questions de ton comptable : chacune s'affiche sur la pièce qu'elle concerne.");
   b('#c-plus', "L'option « Comptabilité complète » : grand livre, balance, états financiers.");
 
   // ---------- paramètres ----------

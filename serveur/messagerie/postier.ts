@@ -57,8 +57,9 @@ export async function prevenirParCourriel(ctx: Contexte, maintenant: Date = ctx.
 // (1.116.0, 0168) Les relances des pièces demandées : restée sans réponse à sa date « pour le », une demande se relance
 // ce jour-là, puis une fois par semaine, trois fois au plus (messagerie.relances_dues). Le même e-mail sans contenu que
 // l'alerte : ni la pièce, ni le cabinet, ni l'entreprise. Une personne reçoit un seul e-mail par tour, quel que soit le
-// nombre de demandes qui l'attendent ; une demande se note relancée quand au moins une personne l'a reçue.
-type Relance = { message: string; utilisateur: string; email: string; langue: string; entreprise: string; cabinet: string };
+// nombre de demandes qui l'attendent ; une demande se note relancée quand au moins une personne l'a reçue. (1.388.86,
+// 0237) Les questions du cabinet parties sans réponse se relancent de même, par le même e-mail : la clé `question`.
+type Relance = { message?: string; question?: string; utilisateur: string; email: string; langue: string; entreprise: string; cabinet: string };
 export async function relancerLesDemandes(ctx: Contexte, maintenant: Date = ctx.maintenant?.() ?? new Date()): Promise<number> {
   const courriel = ctx.courriel;
   if (!courriel) return 0;
@@ -67,6 +68,7 @@ export async function relancerLesDemandes(ctx: Contexte, maintenant: Date = ctx.
   const parPersonne = new Map<string, Relance[]>();
   for (const d of dues) parPersonne.set(d.utilisateur, [...(parPersonne.get(d.utilisateur) ?? []), d]);
   const relancees = new Set<string>();
+  const questions = new Set<string>();
   let partis = 0;
   for (const demandes of parPersonne.values()) {
     const p = demandes[0];
@@ -84,12 +86,16 @@ export async function relancerLesDemandes(ctx: Contexte, maintenant: Date = ctx.
       console.error(`une relance de la messagerie n'est pas partie : ${String(e)}`);
       continue;
     }
-    for (const d of demandes) relancees.add(d.message);
+    for (const d of demandes) {
+      if (d.question) questions.add(d.question);
+      else if (d.message) relancees.add(d.message);
+    }
     partis++;
   }
-  if (relancees.size) {
+  if (relancees.size || questions.size) {
     await enTantQue(ctx.pool, null, async (tx) => {
       for (const m of relancees) await tx.query('select messagerie.relance_partie($1, $2)', [m, maintenant]);
+      for (const q of questions) await tx.query('select compta.question_relancee($1, $2)', [q, maintenant]);
     });
   }
   return partis;

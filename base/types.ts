@@ -396,7 +396,6 @@ export interface BaseDeDonnees {
     texte: string;
     attendu: Generated<string>;
     statut: Generated<string>;
-    envois: Generated<Date[]>;
     reponse: string | null;
     repondu_par: string | null;
     repondu_le: Date | null;
@@ -405,6 +404,11 @@ export interface BaseDeDonnees {
     close_par: string | null;
     close_le: Date | null;
     imputee_par: string | null;
+    envoyee_le: Date | null;
+    pour_le: string | null;
+    relances: Generated<number>;
+    relance_le: Date | null;
+    reponse_message: string | null;
   };
   'compta.rapprochement': {
     releve_ligne: string;

@@ -1650,16 +1650,19 @@
       detail: `${prov.slice(0, 6).map(r => `${r.name} (${pl(r.provisionalCount, 'mois', 'mois')})`).join(' · ')} — valide-les avant de déclarer.`,
       count: prov.length, rows: prov
     });
-    // Les questions posées au client et restées sans réponse au bout de DEUX paquets (9.10.0).
-    // Elle remonte des deux côtés — le client la voit aussi dans son « À faire » — parce qu'une
-    // question qui reste sans réponse n'est pas un oubli du client : c'est un point qui bloque la
-    // révision, et le comptable doit décrocher son téléphone.
-    const qs = (opts && Array.isArray(opts.questions) ? opts.questions : []).filter(q => q.aRelancer > 0);
+    // (plateforme) 1.388.86 — les questions posées au client qui attendent sa réponse : celles dont la date « pour le »
+    // est passée, ou qui attendent depuis plus d'une semaine. Plus de « deux paquets » : elles partent quand on les pose
+    // et se relancent seules ; ce qui compte pour le comptable, c'est depuis combien de JOURS le client ne répond pas.
+    const jourMs = 86400000, maintenant = Number(opts && opts.maintenant) || Date.now();
+    const joursDe = q => q.attendDepuis ? Math.max(0, Math.floor((maintenant - Number(q.attendDepuis)) / jourMs)) : 0;
+    const qs = (opts && Array.isArray(opts.questions) ? opts.questions : [])
+      .filter(q => (q.enRetard > 0) || joursDe(q) >= 7)
+      .sort((a, b) => joursDe(b) - joursDe(a));
     if (qs.length) out.push({
-      id: 'questions', level: 'warn',
+      id: 'questions', level: qs.some(q => q.enRetard > 0) ? 'warn' : 'info',
       label: `${pl(qs.length, 'client n\'a pas répondu', 'clients n\'ont pas répondu')} à tes questions`,
-      detail: `Envoyées deux fois sans réponse. ${qs.slice(0, 6).map(q => `${q.name} (${pl(q.aRelancer, 'question')})`).join(' · ')}`,
-      count: qs.reduce((s, q) => s + q.aRelancer, 0),
+      detail: qs.slice(0, 6).map(q => `${q.name} (${pl(joursDe(q), 'jour', 'jours')} d'attente${q.enRetard ? `, ${pl(q.enRetard, 'en retard', 'en retard')}` : ''})`).join(' · '),
+      count: qs.reduce((s, q) => s + (q.enRetard || 0), 0) || qs.length,
       rows: qs.map(q => rows.find(r => r.id === q.dossierId)).filter(Boolean)
     });
     const holes = rows.filter(r => r.issues > 0);

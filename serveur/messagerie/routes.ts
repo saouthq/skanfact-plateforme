@@ -47,7 +47,8 @@ function depuisCurseur(texte: string): [string, string] | null {
 // (1.116.0) `enRetard` : celles des pièces demandées dont la date « pour le » est passée (jour de Tunis), comptées dans
 // `demandes` ; l'encart et la boîte le disent.
 // (1.123.0) `pourLe` : la date « pour le » la plus proche des pièces encore attendues (jour, AAAA-MM-JJ), ou null :
-// l'« À faire » de l'accueil la dit (revue du mois d'un client, 23/10/2026).
+// l'« À faire » de l'accueil la dit (revue du mois d'un client, 23/10/2026). (1.388.86, 0237) Les questions ont la leur :
+// `enRetard` et `pourLe` les comptent aussi.
 export async function attente(tx: Transaction, entreprise: string, cabinet: string, cote: Cote): Promise<{ nonLus: number; questions: number; demandes: number; enRetard: number; pourLe: string | null; aLire: boolean }> {
   const r = (await tx.query(`select
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2 and m.cote <> $3
@@ -63,9 +64,14 @@ export async function attente(tx: Transaction, entreprise: string, cabinet: stri
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
           and m.demande is not null and m.demande_recue_le is null) demandes,
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
-          and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard,
-      (select to_char(min(m.demande_pour), 'YYYY-MM-DD') from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
-          and m.demande is not null and m.demande_recue_le is null) pour_le
+          and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date)
+      + (select count(*) from compta.question q where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'envoyee'
+          and q.pour_le < (now() at time zone 'Africa/Tunis')::date) en_retard,
+      (select to_char(min(x.pour), 'YYYY-MM-DD') from (
+          select m.demande_pour pour from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
+             and m.demande is not null and m.demande_recue_le is null
+          union all
+          select q.pour_le from compta.question q where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'envoyee') x) pour_le
     from (select 1) x left join messagerie.fil f on f.entreprise = $1 and f.cabinet = $2`, [entreprise, cabinet, cote])).rows[0] as { non_lus: string; questions: string; demandes: string; en_retard: string; pour_le: string | null; a_lire: boolean };
   return { nonLus: Number(r.non_lus), questions: Number(r.questions), demandes: Number(r.demandes), enRetard: Number(r.en_retard), pourLe: r.pour_le, aLire: r.a_lire };
 }
@@ -95,6 +101,7 @@ type LigneMessage = {
 type LigneQuestion = {
   id: string; objet: string; texte: string; piece: string; montant: string; attendu: string; statut: string; envoyee_le: Date;
   reponse: string | null; repondu_le: Date | null; periode: string;
+  pour_le: string | null; en_retard: boolean | null; relances: number; relance_le: Date | null; reponse_message: string | null;
   pose_moi: boolean; pose_nom: string | null; reponse_moi: boolean; reponse_nom: string | null;
   compte: string; solde: string | null; journal_ligne: string | null; imputee_par: string | null;
 };
@@ -114,8 +121,8 @@ async function etatsDesDossiers(tx: Transaction, cabinet: string, entreprise: st
         from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier
        where m.cabinet = $1 and m.entreprise in (select entreprise from d)
       union all
-      select q.entreprise, q.envois[cardinality(q.envois)], q.id, 'cabinet', '', 'question', coalesce(nullif(q.objet, ''), q.texte)
-        from compta.question q where q.cabinet = $1 and cardinality(q.envois) > 0 and q.entreprise in (select entreprise from d)
+      select q.entreprise, q.envoyee_le, q.id, 'cabinet', '', 'question', coalesce(nullif(q.objet, ''), q.texte)
+        from compta.question q where q.cabinet = $1 and q.envoyee_le is not null and q.entreprise in (select entreprise from d)
       union all
       select q.entreprise, q.repondu_le, q.id, 'entreprise', '', 'reponse', q.reponse
         from compta.question q where q.cabinet = $1 and q.repondu_le is not null and q.entreprise in (select entreprise from d)
@@ -131,8 +138,14 @@ async function etatsDesDossiers(tx: Transaction, cabinet: string, entreprise: st
       ) x group by entreprise
     ),
     retard as (
-      select m.entreprise, count(*) n from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
-         and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise
+      select entreprise, count(*) n from (
+        select m.entreprise from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
+           and m.demande_pour < (now() at time zone 'Africa/Tunis')::date
+        union all
+        -- (1.388.86, 0237) Une question a sa date « pour le », comme une pièce demandée.
+        select q.entreprise from compta.question q where q.cabinet = $1 and q.statut = 'envoyee'
+           and q.pour_le < (now() at time zone 'Africa/Tunis')::date
+      ) x group by entreprise
     ),
     -- (1.178.0, 0183) La promesse du client compte tant que rien n'est arrivé de lui depuis qu'elle est notée ; le rappel
     -- (« Me le remontrer demain ») est celui de la personne qui lit.
@@ -231,7 +244,9 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const depuis = suite ? page.at(-1)?.ecrit_le ?? null : null;
       // Qui l'a posée, qui y a répondu : « Toi », sinon son nom, lu par les deux côtés du fil (0167 : l'entreprise ne
       // voyait pas le nom d'un membre du cabinet, et la question se disait posée par « Ton cabinet »).
-      const questions = (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.statut, q.envois[1] envoyee_le, q.reponse,
+      const questions = (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.statut, q.envoyee_le, q.reponse,
+          to_char(q.pour_le, 'YYYY-MM-DD') pour_le, coalesce(q.pour_le < (now() at time zone 'Africa/Tunis')::date and q.statut = 'envoyee', false) en_retard,
+          q.relances, q.relance_le, q.reponse_message,
           q.repondu_le, q.periode, coalesce(q.pose_par = socle.moi(), false) pose_moi, n.pose_nom,
           coalesce(q.repondu_par = socle.moi(), false) reponse_moi, n.repondu_nom reponse_nom,
           -- (1.180.0) Ce que l'imputation sortirait du compte de la question : le solde de sa ligne, lu dans le livre.
@@ -240,14 +255,14 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         from compta.question q
           left join compta.ecriture e on e.id = q.ecriture
           left join messagerie.noms_des_questions($1, $2) n on n.question = q.id
-        where q.entreprise = $1 and q.cabinet = $2 and cardinality(q.envois) > 0
-          and ($3::timestamptz is null or q.envois[1] < $3::timestamptz) and ($4::timestamptz is null or q.envois[1] >= $4::timestamptz)
-        order by q.envois[1], q.id`, [entreprise, cabinet, avant?.[0] ?? null, depuis])).rows as LigneQuestion[];
+        where q.entreprise = $1 and q.cabinet = $2 and q.envoyee_le is not null
+          and ($3::timestamptz is null or q.envoyee_le < $3::timestamptz) and ($4::timestamptz is null or q.envoyee_le >= $4::timestamptz)
+        order by q.envoyee_le, q.id`, [entreprise, cabinet, avant?.[0] ?? null, depuis])).rows as LigneQuestion[];
       // (1.187.0) Côté cabinet, à la première page : les questions de la révision posées et pas encore parties (« gardées
       // pour l'envoi groupé »). Elles attendent au-dessus de la zone d'écriture et partent avec le prochain message.
       const pretes = cote.data === 'cabinet' && !avant
         ? (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.compte, q.periode from compta.question q
-            where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'ouverte' and cardinality(q.envois) = 0
+            where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'ouverte'
             order by q.pose_le, q.id limit 50`, [entreprise, cabinet])).rows as
           { id: string; objet: string; texte: string; piece: string; montant: string; attendu: string; compte: string; periode: string }[]
         : [];
@@ -284,6 +299,10 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
           questions: questions.map((q) => ({
             id: q.id, objet: q.objet, texte: q.texte, piece: q.piece, montant: versTexte(BigInt(q.montant), 3), attendu: q.attendu,
             statut: q.statut, periode: q.periode, envoyeeLe: q.envoyee_le.toISOString(), reponse: q.reponse,
+            // (1.388.86, 0237) Sa date « pour le » (et si elle est passée sans réponse), ses relances, le message qui a
+            // porté la réponse jointe (un fichier, une pièce du dossier).
+            pour: q.pour_le, enRetard: q.en_retard, relances: q.relances, relanceLe: q.relance_le?.toISOString() ?? null,
+            reponseMessage: q.reponse_message,
             reponduLe: q.repondu_le?.toISOString() ?? null,
             poseePar: q.pose_moi ? 'moi' : q.pose_nom, repondueePar: q.reponse_moi ? 'moi' : q.reponse_nom,
             // (1.180.0) Côté cabinet : la ligne de la question laisse un montant sur son compte (le compte d'attente) ; sa

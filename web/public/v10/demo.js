@@ -831,9 +831,8 @@
     // Ses questions de comptable (10.14.0). Une entreprise de cinq ans a un cabinet qui pose des
     // questions : sans elles, la visite « Répondre à mon comptable » et le chapitre du comptable
     // montraient un panneau vide. Deux questions reçues avec le dernier paquet, SANS réponse : c'est
-    // ce que la personne apprend à faire. Aucune réponse posée d'avance — une réponse part dans le
-    // paquet (`reponsesAEnvoyer`), et le paquet de l'exemple est aussi la source des journaux
-    // pré-calculés du Cabinet (`scripts/exemple-cabinet.js`) : il ne doit pas changer pour autant.
+    // ce que la personne apprend à faire. Aucune réponse posée d'avance : (1.388.86) une réponse part
+    // au serveur, d'un geste, et l'exemple ne doit pas en inventer.
     const questionSur = (numero, q) => {
       const p = achatParNumero(numero);
       if (!p) return null;

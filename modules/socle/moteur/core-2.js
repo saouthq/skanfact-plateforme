@@ -273,18 +273,13 @@
   // lit ici. Une copie divergerait, et les deux applications ne diraient plus la même chose d'une
   // même question. Un test compare les objets, jamais leur résultat (9.6.1).
   const QUESTION_ATTENDUS = Compta.QUESTION_ATTENDUS;
-  const QUESTION_RELANCE = Compta.QUESTION_RELANCE;
-  const fusionnerQuestionsRecues = Compta.fusionnerQuestionsRecues;
   const questionsDeLaPiece = Compta.questionsDeLaPiece;
   const repondreQuestion = Compta.repondreQuestion;
-  const reponsesAEnvoyer = Compta.reponsesAEnvoyer;
-  const questionsSansReponse = Compta.questionsSansReponse;
-  const reponsesApres = Compta.reponsesApres;
-  const questionsValides = Compta.questionsValides;
+  const questionsEnRetard = Compta.questionsEnRetard;
 
   // ---------------------------------------------------------- l'origine d'un envoi du cabinet (10.13.0)
   //
-  // Le dossier de clôture (.skanclose) et les questions (.skanask) arrivent SIGNÉS. Jusqu'ici, « Origine
+  // Le dossier de clôture (.skanclose) arrive SIGNÉ (les questions arrivent, elles, par le serveur). Jusqu'ici, « Origine
   // vérifiée » voulait seulement dire « la signature correspond à la clé que le fichier présente » —
   // or n'importe qui peut fabriquer une paire de clés et signer un fichier au nom du cabinet : le
   // matricule du client est public. La clôture importée VERROUILLE un exercice ; la dire « vérifiée »
@@ -2141,15 +2136,8 @@
     const vat = { ...vatChain(data, company, anVat, moisVat)[moisVat - 1], period };
     add({ path: 'journaux/tva.json', kind: 'text', label: 'TVA du mois', text: JSON.stringify(vat, null, 2) });
 
-    // 2 bis. Les réponses aux questions du cabinet (9.10.0). Elles voyagent DANS le paquet plutôt
-    // que dans un fichier à part : c'est déjà le geste mensuel, et une réponse qu'il faut penser à
-    // envoyer séparément n'est jamais envoyée. Le fichier n'existe que s'il y a quelque chose à
-    // dire — un `reponses.json` vide dans chaque paquet apprendrait au cabinet à ne plus l'ouvrir.
-    const reponses = Compta.reponsesAEnvoyer(data.questionsCabinet || []);
-    if (reponses.length) {
-      add({ path: 'reponses.json', kind: 'text', label: `Réponses à ton comptable (${plFr(reponses.length, 'question')})`,
-        text: JSON.stringify({ format: 1, reponses }, null, 2), rows: reponses.length });
-    }
+    // (plateforme) 1.388.86 — les réponses aux questions du cabinet ne voyagent plus dans le paquet (`reponses.json`) :
+    // elles partent au serveur au moment où le client répond, et le cabinet les lit en direct.
 
     // 3. Le PDF de chaque pièce émise. C'est le justificatif, pas le tableau.
     const issued = (data.documents || []).filter(d => (d.type === 'facture' || d.type === 'avoir')
@@ -5035,17 +5023,20 @@
 
     // Les questions du comptable restées sans réponse (9.10.0). Une question attend une pièce, une
     // explication ou une confirmation : tant qu'elle attend, le comptable ne peut pas arrêter son
-    // travail, et c'est le client qui bloque sans le savoir. La ligne monte à `danger` au bout de
-    // deux paquets — même seuil des deux côtés, c'est la même règle lue par les deux applications.
+    // travail, et c'est le client qui bloque sans le savoir. (plateforme) 1.388.86 — la ligne dit depuis
+    // combien de JOURS la plus ancienne attend, et monte à `danger` quand une date « pour le » est passée :
+    // la même règle que le cabinet lit (questionsEnRetard), plus de « deux paquets ».
     const qsOuvertes = (data.questionsCabinet || []).filter(q => !(q.reponse && (String(q.reponse.texte || '').trim() || q.reponse.piece)));
     if (qsOuvertes.length) {
-      const bloquees = questionsSansReponse(data.questionsCabinet || []);
+      const retard = questionsEnRetard(qsOuvertes, t);
+      const plusAncienne = Math.min(...qsOuvertes.map(q => Number(q.recueLe) || Date.now()));
+      const jours = Math.max(0, Math.floor((Date.now() - plusAncienne) / 86400000));
       out.push({
-        id: 'questions', level: bloquees.length ? 'danger' : 'warn',
+        id: 'questions', level: retard.length ? 'danger' : 'warn',
         label: `${plFr(qsOuvertes.length, 'question')} de ton comptable ${qsOuvertes.length > 1 ? 'attendent' : 'attend'} ta réponse`,
-        detail: bloquees.length
-          ? `${plFr(bloquees.length, 't\'a été envoyée', 't\'ont été envoyées')} deux fois sans réponse : ton comptable ne peut pas arrêter ton mois tant qu'${bloquees.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
-          : 'Chacune est posée en face de la pièce qu\'elle vise : ouvre-la et réponds : ton comptable lit ta réponse dès que tu l\'enregistres.',
+        detail: retard.length
+          ? `${retard.length > 1 ? `${retard.length} sont attendues` : 'Une est attendue'} pour une date passée : ton comptable ne peut pas arrêter ton mois tant qu'${retard.length > 1 ? 'elles restent' : 'elle reste'} en l'air.`
+          : `${jours ? `La plus ancienne attend depuis ${plFr(jours, 'jour')}. ` : ''}Chacune est posée en face de la pièce qu'elle vise : réponds par écrit, avec une photo ou une pièce de ton dossier.`,
         count: qsOuvertes.length, route: '#/compta?onglet=cabinet', docs: []
       });
     }
@@ -7905,8 +7896,7 @@
     DEFAULT_ACCOUNTS, ACCOUNT_LABELS, ENTRY_JOURNALS, journalLabel, chartAccounts, journalEntries,
     entriesBalance, entriesByAccount, entryCsvColumns, fecEntreprise, MOVE_ACCOUNTS, COMPTES_CONTREPARTIE, journalDeCompte, clotureValide,
     // Les questions du cabinet (9.10.0)
-    QUESTION_ATTENDUS, QUESTION_RELANCE, questionsValides, fusionnerQuestionsRecues,
-    questionsDeLaPiece, repondreQuestion, reponsesAEnvoyer, reponsesApres, questionsSansReponse, verdictEnvoiCabinet,
+    QUESTION_ATTENDUS, questionsDeLaPiece, repondreQuestion, questionsEnRetard, verdictEnvoiCabinet,
     numerosDuJournal, livreJournal, journalCentralisateur, centralisateurCsvColumns, centralisateurRows, inPeriod,
     odValide, odPiece, comptesProposes, lettrage, SECTIONS_ECRITURES,
     etatRapprochement, etatsFinanciers, etatsCsvRows, etatsCsvColumns, employerChargesOf,

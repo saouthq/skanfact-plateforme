@@ -600,16 +600,16 @@
       return { periode: x.periode, ...x.contenu };
     });
   }
-  // Les questions au client d'une année (brique 44), dans la forme de la v10 (compta.js, ajouterQuestion) :
-  // les statuts sont les siens ; chaque envoi, son instant ; la réponse, celle que le client a écrite.
+  // Les questions au client d'une année (brique 44), dans la forme de la v10 (compta.js, ajouterQuestion) : les statuts
+  // sont les siens ; (1.388.86) le jour de l'envoi, la date « pour le », les relances ; la réponse, celle du client.
   /** @param {string} ent @param {string|number} annee */
   async function questionsDe(ent, annee) {
     const r = await appel('GET', `/entreprises/${ent}/compta/questions?annee=${Number(annee)}`);
     return (r.questions || []).map((/** @type {any} */ q) => ({
       id: q.id, creeLe: Date.parse(q.poseeLe) || 0, creePar: '', periode: q.periode, cycle: q.cycle, compte: q.compte,
       ecritureId: q.ecriture || '', piece: q.piece, numero: null, montant: nombre(q.montant), objet: q.objet, texte: q.texte, attendu: q.attendu,
-      statut: q.statut, envois: (q.envois || []).map((/** @type {string} */ d) => Date.parse(d) || 0),
-      reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null,
+      statut: q.statut, envoyeeLe: Date.parse(q.envoyeeLe) || 0, pourLe: q.pourLe || '', relances: Number(q.relances) || 0, relanceLe: Date.parse(q.relanceLe) || 0,
+      reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null, message: q.reponseMessage || null } : null,
       closeLe: q.closeLe ? Date.parse(q.closeLe) || 0 : null, closePar: '',
     }));
   }
@@ -2365,34 +2365,34 @@
       const url = `/entreprises/${o.dossierId}/compta/questions`;
       /** @param {any} r */
       const refuse = (r) => { if (!r.ok) throw new Error((r.motifs || []).join(' ')); };
-      // Les refus de la v10 d'abord, mot pour mot ; le serveur les refait.
-      /** @type {any} */ let cree = null;
+      /** @type {any} */ let cree = null; // les refus de la v10 d'abord, mot pour mot ; le serveur les refait
       if (o.geste === 'modifier') {
         refuse(KC.modifierQuestion(livre, o.id, o.champs, moiNom, Date.now()));
-        /** @type {Record<string, string>} */ const champs = {};
+        /** @type {Record<string, string|null>} */ const champs = {};
         for (const k of ['objet', 'texte', 'attendu', 'cycle', 'compte']) if (o.champs && o.champs[k] != null) champs[k] = String(o.champs[k]).trim();
+        if (o.champs && o.champs.pour !== undefined) champs.pour = o.champs.pour ? String(o.champs.pour) : null; // (1.388.86)
         await appel('PUT', `${url}/${o.id}`, champs);
       } else if (o.geste === 'supprimer') {
-        refuse(KC.supprimerQuestion(livre, o.id, moiNom, Date.now()));
-        await appel('DELETE', `${url}/${o.id}`);
+        refuse(KC.supprimerQuestion(livre, o.id, moiNom, Date.now())); await appel('DELETE', `${url}/${o.id}`);
+      } else if (o.geste === 'relancer') { cree = await appel('POST', `${url}/${o.id}/relancer`, {}); // (1.388.86) le client reçoit l'alerte ; la base compte la relance
       } else if (o.geste === 'fermer' || o.geste === 'rouvrir') {
         refuse(KC.fermerQuestion(livre, o.id, moiNom, Date.now(), o.geste === 'rouvrir'));
         await appel('POST', `${url}/${o.id}/fermer`, { rouvrir: o.geste === 'rouvrir' });
       } else {
         const r = KC.ajouterQuestion(livre, { ...(o.question || {}), cycles: cyclesDuCabinet() }, moiNom, Date.now());
-        refuse(r);
-        const q = r.question;
+        refuse(r); const q = r.question;
         cree = await appel('POST', url, {
           periode: String(q.periode || o.annee), cycle: String(q.cycle || ''), compte: String(q.compte || ''), ecriture: q.ecritureId || null,
           piece: String(q.piece || ''), montant: signe(q.montant), objet: String(q.objet || ''), texte: String(q.texte), attendu: String(q.attendu || 'explication'),
+          pour: o.question && o.question.pour ? String(o.question.pour) : null, garder: !!(o.question && o.question.garder), // (1.388.86) part en la posant, sauf « Garder »
         });
       }
-      // (1.187.0) L'identifiant de la question posée : « Envoyer maintenant » la nomme.
-      return { ok: true, livre: await livreDe(o.dossierId, o.annee), id: cree ? cree.id : undefined };
+      // (1.187.0) L'identifiant de la question posée : « Envoyer maintenant » la nomme ; (1.388.86) son statut dit si elle est partie.
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee), id: cree && cree.id ? cree.id : undefined, statut: cree && cree.statut ? cree.statut : undefined };
     },
-    // Envoyer les questions : plus de fichier, le client les voit dans son SkanFact ; chaque envoi se compte.
+    // Envoyer les questions gardées : le client les voit dans son SkanFact.
     ecrireQuestions: async (/** @type {any} */ o) => {
-      // (1.187.0) Celles qu'on nomme (« Envoyer maintenant », les questions prêtes, une relance), ou toutes celles de l'année.
+      // (1.187.0) Celles qu'on nomme (« Envoyer maintenant », les questions prêtes), ou toutes celles de l'année.
       const r = await appel('POST', `/entreprises/${o.dossierId}/compta/questions/envoyer`, Array.isArray(o.ids) ? { ids: o.ids } : { annee: Number(o.annee) });
       return { ok: true, envoyees: r.envoyees, livre: await livreDe(o.dossierId, o.annee) };
     },
@@ -2433,14 +2433,14 @@
       const [r, index] = await Promise.all([appel('GET', `/cabinets/${cabinetId}/questions`), indexDesLivres()]);
       const questions = new Map((r.dossiers || []).map((/** @type {any} */ x) => [x.entreprise, x]));
       return [...dossiers.values()].map((d) => {
-        const q = questions.get(d.id) || { ouvertes: 0, aRelancer: 0, repondues: 0 };
+        const q = questions.get(d.id) || { ouvertes: 0, enRetard: 0, repondues: 0, attendDepuis: null };
         /** @type {any[]} */ const exercices = (index[d.id] || { exercices: [] }).exercices;
         const employeur = (index[d.id] || { employeur: {} }).employeur;
         const declares = exercices.flatMap((e) => Object.keys(e.production).filter((m) => e.production[m].declare)).sort();
         // (1.168.0) Ses mois, pour les Échéances : les écritures, celles au brouillard, la déclaration posée.
         /** @type {Record<string, any>} */ const parMois = {};
         for (const e of exercices) for (const [m, x] of Object.entries(e.production)) parMois[m] = { ecritures: x.ecritures, brouillards: x.brouillards, declaration: x.declaration || null };
-        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };
+        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, enRetard: q.enRetard, attendDepuis: q.attendDepuis ? Date.parse(q.attendDepuis) || null : null, repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };
       }).filter((x) => x.ouvertes || x.repondues || Object.keys(x.employeur).length || (x.tenu && x.tenu.exercices.length) || x.declares.length || Object.keys(x.mois).length);
     },
 

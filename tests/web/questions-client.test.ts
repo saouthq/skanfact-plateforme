@@ -63,15 +63,14 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     const cabinet = String(cab.corps.id);
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.corps.code) })).corps.mandat);
     expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
-    // Quatre questions : deux envoyées, une fermée après l'envoi, une posée après l'envoi (jamais partie).
+    // Quatre questions : deux parties en les posant (1.388.86), une fermée après l'envoi, une gardée (jamais partie).
     const url = `/entreprises/${ent}/compta/questions`;
-    const poserQuestion = async (q: Record<string, string>) => String((await api('POST', url, associe, { periode: '2026-08', ...q })).corps.id);
+    const poserQuestion = async (q: Record<string, string | boolean>) => String((await api('POST', url, associe, { periode: '2026-08', ...q })).corps.id);
     const surPiece = await poserQuestion({ piece: 'FF-12', compte: '401', objet: 'Facture illisible', texte: 'Peux-tu confirmer le montant de la facture FF-12 ?', attendu: 'confirmation' });
     const generale = await poserQuestion({ objet: 'Caisse', texte: 'Le fond de caisse de 200 DT est-il toujours en place ?' });
     const fermee = await poserQuestion({ objet: 'Déjà réglée', texte: 'Question réglée au téléphone' });
-    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBe(3);
     expect((await api('POST', `${url}/${fermee}/fermer`, associe, {})).statut).toBe(200);
-    await poserQuestion({ objet: 'Brouillon', texte: 'Une question pas encore partie' });
+    await poserQuestion({ objet: 'Brouillon', texte: 'Une question pas encore partie', garder: true });
     const lues = async () => (await api('GET', url, associe)).corps.questions as Question[];
 
     const erreurs: string[] = [];
@@ -118,7 +117,7 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await p.locator(`[data-msg-q-envoyer="${generale}"]`).click();
     await expect.poll(toast, { timeout: 15_000 }).toBe('Réponse envoyée, avec « fond-de-caisse.png » : ton cabinet la lit dans ce fil.');
     const fil = (await api('GET', `/entreprises/${ent}/messages?cote=entreprise`, client)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
-    expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Le fichier pour ta question « Caisse ».', 'fond-de-caisse.png']]);
+    expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Pour ta question « Caisse ».', 'fond-de-caisse.png']]);
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
     // ── En face de la pièce qu'elle vise : l'achat FF-12 ; « Répondre » mène à la même conversation ──────────
@@ -150,7 +149,8 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     }, { timeout: 20_000 }).toBe(1);
     expect(await panneau.innerText()).not.toMatch(/fournisseur de l'achat FF-30/);
     await poserQuestion({ objet: 'Achat FF-30', texte: 'Qui est le fournisseur de l\'achat FF-30 ?' });
-    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBe(2);
+    // (1.388.86) Elle est partie en la posant ; l'envoi emporte la gardée d'avant.
+    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBe(1);
     await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await expect.poll(() => panneau.innerText(), { timeout: 20_000 }).toMatch(/Qui est le fournisseur de l'achat FF-30/);
     expect(await p.evaluate(() => (window as unknown as { pasRecharge?: boolean }).pasRecharge)).toBe(true);
@@ -161,7 +161,6 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await p.locator('#c-year').focus();
     expect(await p.evaluate(() => { const c = document.activeElement; (window as unknown as Fenetre).champ = c ?? undefined; return c?.id; })).toBe('c-year');
     await poserQuestion({ objet: 'Caisse 2', texte: 'Et le fond de caisse de septembre ?' });
-    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBeGreaterThan(0);
     await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await p.waitForTimeout(1_500);
     expect(await p.evaluate(() => { const c = (window as unknown as Fenetre).champ; return !!c && c.isConnected && document.activeElement === c; })).toBe(true);

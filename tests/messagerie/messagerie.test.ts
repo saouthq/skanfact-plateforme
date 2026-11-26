@@ -272,9 +272,9 @@ describe('la boîte du cabinet', () => {
     // B : le cabinet lui demande une pièce : il attend le client.
     await ecrire(b.ent, cab.associe, 'cabinet', { demande: 'Les relevés de septembre' });
     // C : une question de la révision envoyée, sans réponse : il attend le client ; répondue, elle est à traiter.
-    const q = await appeler('POST', `/entreprises/${c.ent}/compta/questions`, cab.associe.jeton, { periode: '2026-03', compte: '471', piece: 'FF-12', montant: '1200.5', objet: 'Justificatif absent', texte: 'Peux-tu m\'envoyer la facture ?', attendu: 'piece' });
+    const q = await appeler('POST', `/entreprises/${c.ent}/compta/questions`, cab.associe.jeton, { garder: true, periode: '2026-03', compte: '471', piece: 'FF-12', montant: '1200.5', objet: 'Justificatif absent', texte: 'Peux-tu m\'envoyer la facture ?', attendu: 'piece' });
     expect(q.statut, JSON.stringify(q.corps)).toBe(201);
-    // (1.187.0) Posée et pas encore partie, elle est « prête » dans la conversation du cabinet (au-dessus du champ), jamais
+    // (1.187.0, 1.388.86) Gardée pour plus tard, elle est « prête » dans la conversation du cabinet (au-dessus du champ), jamais
     // chez le client, et n'attend pas le client.
     const pretes = async (jeton: string, cote: string) => (((await appeler('GET', `/entreprises/${c.ent}/messages?cote=${cote}`, jeton)).corps as { pretes?: unknown[] }).pretes ?? []) as { id: string; montant: string; texte: string }[];
     expect((await pretes(cab.associe.jeton, 'cabinet')).map((x) => [x.id, x.montant, x.texte])).toEqual([[q.corps.id, '1200.500', 'Peux-tu m\'envoyer la facture ?']]);
@@ -473,7 +473,7 @@ describe('(1.116.0) les pièces demandées : une date, des relances, plusieurs �
   it('la relance : à sa date si rien n\'est venu, puis chaque semaine, trois au plus ; rien de la demande dans l\'e-mail ; une demande reçue, sans date ou décochée ne se relance pas', async () => {
     const cab = await cabinet(true);
     const { p: client, ent } = await cab.client('Boucherie El Kef');
-    const pour = (p: Personne) => envoyes.filter((c) => c.a === p.email && c.objet === 'Ton cabinet attend une pièce dans SkanFact');
+    const pour = (p: Personne) => envoyes.filter((c) => c.a === p.email && c.objet === 'Ton cabinet attend une réponse dans SkanFact');
     const d = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture secrète de la chambre froide', pour: jour(2) });
     const sansDate = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le contrat de location' });
     expect([d.statut, sansDate.statut]).toEqual([201, 201]);

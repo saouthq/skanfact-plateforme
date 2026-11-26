@@ -166,15 +166,14 @@
     // (plateforme) 1.73.0 — les salaires de l'année par salarié, et leurs écarts avec le livre.
     salairesDeLAnnee, COLONNES_SALAIRES_ANNEE, ecartsEmployeur,
     // La révision et les questions (9.10.0)
-    CYCLES_REVISION, cyclesEcrits, cyclesEnVigueur, QUESTION_STATUTS, QUESTION_ATTENDUS, QUESTION_RELANCE,
+    CYCLES_REVISION, cyclesEcrits, cyclesEnVigueur, QUESTION_STATUTS, QUESTION_ATTENDUS,
     cycleDuCompte, libelleCycle, nomDuCompte,
     revisionVide, revisionDe, assurerRevision, feuilleMaitresse, dossierDeRevision,
     signerCompte, ajouterNoteRevue, leverNoteRevue,
     poserQuestionnaire, repondreQuestionnaire, controlesRevision, arreterRevision,
     questionValide, ajouterQuestion, modifierQuestion, supprimerQuestion, fermerQuestion,
-    questionsAEnvoyer, questionsOuvertes, questionsARelancer, dossierDeQuestions,
-    noterEnvoiQuestions, noterReponsesQuestions, posterReponsesDansLivres, questionsValides,
-    fusionnerQuestionsRecues, questionsDeLaPiece, repondreQuestion, reponsesAEnvoyer, reponsesApres, questionsSansReponse,
+    questionsAEnvoyer, questionsOuvertes,
+    questionsDeLaPiece, repondreQuestion, questionsEnRetard,
     // Le cabinet à plusieurs (9.9.0)
     fusionnerLivres, empreinteEcriture,
     // La paie (10.3.0)

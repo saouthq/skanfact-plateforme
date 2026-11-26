@@ -351,7 +351,6 @@
   // `matriculeRepris` : le matricule de la fiche a déjà été repris une fois dans cet envoi (un seul nouvel essai).
   /** @param {Record<string, unknown>} data @param {boolean} [matriculeRepris] */
   async function envoyer(data, matriculeRepris = false) {
-    try { await envoyerReponses(data); } catch (e) { if (gardableHorsLigne(e)) return await mettreEnAttente(data); throw refusHorsLigne(e); }
     const changements = changementsDe(data);
     if (!changements.length) return true;
     // Par paquets : un premier enregistrement peut porter tout un dossier.
@@ -792,32 +791,19 @@
   }
 
   // ── Les questions du cabinet (brique 44 bis ; docs/cabinet.md, C34) ─────────────────────────
-  // Elles sont dans les livres de l'entreprise : celles que le cabinet a envoyées et n'a pas
-  // fermées, dans la forme de la v10 (compta.js, fusionnerQuestionsRecues) — chaque envoi compte une
-  // réception. Qui ne lit pas les livres ne les voit pas. La réponse part au serveur dès qu'elle est
-  // enregistrée, et elle seule : rien d'autre de la question ne se change ici.
-  /** @type {Map<string, string>} */
-  let reponsesConnues = new Map();
+  // Elles sont dans les livres de l'entreprise : celles que le cabinet a envoyées et n'a pas fermées, avec (1.388.86) le
+  // jour d'envoi, la date « pour le » et ses relances. Qui ne lit pas les livres ne les voit pas. La réponse part au
+  // serveur d'un geste à part (messagerie.repondreQuestion), jamais avec l'enregistrement d'une pièce (CE2-03).
   async function questionsDuCabinet() {
     /** @type {any[]} */ let lues = [];
     try { lues = (await appel('GET', '/compta/questions')).questions || []; } catch (e) { if (/** @type {any} */ (e).statut !== 403) throw e; }
     const qs = lues.filter((q) => q.statut !== 'close').map((q) => ({
       id: q.id, periode: q.periode, piece: q.piece, compte: q.compte, libelleCompte: '', montant: Number(q.montant) || 0,
       objet: q.objet, texte: q.texte, attendu: q.attendu, cabinet: '', exercice: Number(String(q.periode).slice(0, 4)),
-      recueLe: Date.parse(q.envois[q.envois.length - 1]) || 0, recues: q.envois.length,
+      recueLe: Date.parse(q.envoyeeLe) || 0, pourLe: q.pourLe || '', relances: Number(q.relances) || 0,
       reponse: q.reponse ? { texte: q.reponse, le: Date.parse(q.reponduLe) || 0, piece: null } : null,
     }));
-    reponsesConnues = new Map(qs.map((q) => [q.id, q.reponse ? q.reponse.texte : '']));
     return qs;
-  }
-  /** @param {Record<string, unknown>} data */
-  async function envoyerReponses(data) {
-    for (const q of /** @type {any[]} */ (Array.isArray(data.questionsCabinet) ? data.questionsCabinet : [])) {
-      const texte = String((q && q.reponse && q.reponse.texte) || '').trim();
-      if (!texte || !reponsesConnues.has(q.id) || reponsesConnues.get(q.id) === texte) continue;
-      await appel('POST', `/compta/questions/${encodeURIComponent(q.id)}/repondre`, { texte });
-      reponsesConnues.set(q.id, texte);
-    }
   }
 
   // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`), avec leur puce du sommaire et leur
@@ -1281,6 +1267,9 @@
       fil: () => appel('GET', '/messages?cote=entreprise'),
       envoyerFichier: async (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         (await laMessagerie()).envoyerFichier(appel, 'entreprise', f, texte, piece),
+      // (1.388.86) Répondre à une question du cabinet, d'un geste : par écrit, avec un fichier ou une pièce du dossier.
+      repondreQuestion: async (/** @type {string} */ id, /** @type {string} */ texte, /** @type {File|null} */ f, /** @type {any} */ piece) =>
+        (await laMessagerie()).repondreQuestion(appel, 'entreprise', id, texte, f, piece),
     },
     // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
     // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
@@ -1806,7 +1795,6 @@
     onPackProgress: () => () => undefined,
     importCabinet: pasEncore('La réponse du cabinet'),
     lireCloture: pasEncore('La clôture envoyée par le cabinet'),
-    lireQuestions: pasEncore('Les questions du cabinet'),
     ouvrirEtatsCloture: pasEncore('Les états de clôture du cabinet'),
     achatTarifs: async () => ({ ouvert: false, raison: 'L\'abonnement se prendra ici quand la plateforme sera ouverte au public.' }),
     achatVerifier: pasEncore('L\'abonnement'),

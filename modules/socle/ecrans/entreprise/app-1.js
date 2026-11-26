@@ -15542,21 +15542,24 @@
           let t = $('textarea[name=texte]', root).value.trim();
           if (!t && fichier) t = `Le fichier : ${fichier.name}`;
           if (!t) return refus($('textarea[name=texte]', root), 'Une réponse vide n\'apprend rien à ton comptable.');
-          if (fichier) {
-            // La pièce visée, si elle est dans le dossier : le cabinet ouvre le fichier en face d'elle.
-            const doc = q.piece ? (data.documents || []).find(d => d.number === q.piece) : null;
-            const achat = q.piece && !doc ? (data.purchases || []).find(a => a.number === q.piece) : null;
-            const piece = doc && ['facture', 'avoir', 'devis'].includes(doc.type) ? { genre: doc.type, id: doc.id, libelle: [doc.number, (clientById(doc.clientId) || {}).name].filter(Boolean).join(' · ') }
-              : achat ? { genre: 'achat', id: achat.id, libelle: achat.number } : null;
-            const ok = $('#ok', root);
-            ok.disabled = true;
-            try { await bridge.messagerie.envoyerFichier(fichier, `Le fichier pour ta question « ${/^\s*compte\b/i.test(String(q.objet || '')) ? (q.piece ? `Ta pièce ${q.piece}` : q.texte) : (q.objet || q.texte)} ».`, piece); }
-            catch (e) { ok.disabled = false; return refus(champ, e && e.message ? e.message : String(e)); }
+          // La pièce visée, si elle est dans le dossier : le cabinet ouvre le fichier en face d'elle.
+          const doc = q.piece ? (data.documents || []).find(d => d.number === q.piece) : null;
+          const achat = q.piece && !doc ? (data.purchases || []).find(a => a.number === q.piece) : null;
+          const piece = doc && ['facture', 'avoir', 'devis'].includes(doc.type) ? { genre: doc.type, id: doc.id, libelle: [doc.number, (clientById(doc.clientId) || {}).name].filter(Boolean).join(' · ') }
+            : achat ? { genre: 'achat', id: achat.id, libelle: achat.number } : null;
+          const ok = $('#ok', root);
+          ok.disabled = true;
+          // (1.388.86) La réponse part au serveur d'un geste, le fichier avec (repondre_question) : plus de message à part,
+          // plus d'enregistrement de pièce ; on la range ensuite ici pour l'écran.
+          if (bridge.messagerie && bridge.messagerie.repondreQuestion) {
+            try { await bridge.messagerie.repondreQuestion(id, t, fichier, fichier ? piece : null); }
+            catch (e) { ok.disabled = false; return refus(champ || $('textarea[name=texte]', root), e && e.message ? e.message : String(e)); }
           }
           const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte: t }, Date.now());
-          if (!r.ok) return toast(r.motif, true);
-          data.questionsCabinet = r.liste;
-          save(true); close();
+          if (r.ok) data.questionsCabinet = r.liste;
+          else if (!bridge.messagerie) { ok.disabled = false; return toast(r.motif, true); }
+          if (!bridge.messagerie) save(true);
+          close();
           toast(fichier ? `Réponse enregistrée, et ${fichier.name} envoyé à ton comptable` : 'Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
           render(true); updateNavCounts();
         };

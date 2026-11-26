@@ -4,11 +4,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { describe, expect, it } from 'vitest';
+import { lireEcran } from '../../commun/assemblage.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const lire = (f: string) => fs.readFileSync(path.join(RACINE, f), 'utf8');
 const sansCommentaires = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/(^|[^:'"`\\])\/\/.*$/, '$1')).join('\n');
-const pont = lire('web/public/plateforme/pont.js');
+const pont = lireEcran('plateforme/pont.js'); // un fichier assemblé se lit par lireEcran (tests/commun/assemblage.test.ts)
 const app1 = lire('modules/socle/ecrans/entreprise/app-1.js');
 const paie = lire('modules/personnel/ecrans/entreprise/paie.js');
 const ligneDe = (src: string, motif: string) => { const i = src.indexOf(motif); return i < 0 ? '' : src.slice(src.lastIndexOf('\n', i) + 1, src.indexOf('\n', i)); };

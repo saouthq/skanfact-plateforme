@@ -894,7 +894,7 @@
 /* (1.191.0) Le fichier d'une réponse : le trombone devant ce qu'il attend, ou le nom du fichier choisi. */
 .msg-q-joindre { display: inline-flex; align-items: center; gap: 5px; }
 .msg-q-joindre svg { flex: none; }
-.msg-q-joindre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.msg-q-joindre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 300px; }
 @media (max-width: 760px) {
   .msg-page .msg-lien { display: inline-flex; align-items: center; min-height: 44px; }
   .msg-page .msg-vig-b { display: inline-grid; place-items: center; min-width: 44px; min-height: 44px; margin: -10px -10px -10px 0; }

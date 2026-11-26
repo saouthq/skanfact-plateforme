@@ -12,7 +12,7 @@ declarerTextes({
   'compta.champ.periode': 'un mois : AAAA-MM',
   'compta.champ.periode_revision': 'une année (AAAA) ou un mois (AAAA-MM)',
   'geste.compta.questions.poser': 'poser une question au client, la préciser, la fermer, la retirer',
-  'geste.compta.questions.envoyer': 'envoyer au client les questions qui attendent leur réponse',
+  'geste.compta.questions.envoyer': 'envoyer au client les questions gardées, relancer celles qui attendent leur réponse',
   'geste.compta.questions.repondre': 'répondre aux questions de son cabinet',
   'geste.compta.exercice.cloturer': 'clôturer l\'exercice, le rouvrir avec un motif',
   'geste.compta.liasse.preparer': 'préparer la liasse de l\'année : ses retraitements et son taux d\'impôt',
@@ -33,6 +33,11 @@ declarerTextes({
   'compta.champ.jusqua': 'le dernier jour de la période à valider (AAAA-MM-JJ)',
   // (1.187.0) Envoyer les questions : celles d'une année, ou celles qu'on nomme ; l'une ou l'autre.
   'compta.champ.annee_ou_questions': 'l\'année, ou les questions qui partent : l\'une ou l\'autre',
+  // (1.388.86) La réponse jointe : le message qui part dans la conversation, et la réponse écrite quand rien n'est tapé.
+  'compta.champ.fichier_ou_piece': 'un fichier ou une pièce du dossier : l\'un ou l\'autre',
+  'compta.question.reponse_message': 'Pour ta question « {question} ».',
+  'compta.question.reponse_fichier': 'La réponse est dans le fichier joint.',
+  'compta.question.reponse_piece': 'La réponse est la pièce {piece}.',
   'compta.libelle.contre_passation': 'Contre-passation de {numero}',
   'compta.champ.journal': 'un journal : VT, AC, BQ, CA, OD, PAIE ou AN',
   'compta.champ.compte': 'un numéro de compte (des chiffres)',

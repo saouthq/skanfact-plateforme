@@ -387,7 +387,6 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(vir.statut).toBe(201);
     const q = await api('POST', `/entreprises/${ent}/compta/questions`, leila, { periode: '2026-09', compte: '471', ecriture: vir.corps.id, piece: 'VIR 14/09',
       montant: '1250,375', objet: 'Un virement reçu le 14/09', texte: 'À quoi correspond ce virement ?', attendu: 'explication' });
-    expect((await api('POST', `/entreprises/${ent}/compta/questions/envoyer`, leila, { annee: 2026 })).statut).toBe(200);
     expect((await api('POST', `/entreprises/${ent}/compta/questions/${String(q.corps.id)}/repondre`, sarra, { texte: 'C\'est l\'acompte de la Clinique Les Jasmins pour les gâteaux du 30/09.' })).statut).toBe(200);
 
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });

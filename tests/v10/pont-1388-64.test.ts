@@ -21,7 +21,9 @@ describe('PONT-1 : une question arrivée page ouverte se répond', () => {
     const bloc = MSG.slice(i, MSG.indexOf('await relire();', i));
     const verif = bloc.indexOf('o.questionConnue && !(await o.questionConnue(id))');
     expect(verif).toBeGreaterThan(0);
-    expect(verif).toBeLessThan(bloc.indexOf('await envoyerFichier('));
+    // (1.388.86) Le fichier se dépose avec la réponse, d'un geste : la question se retrouve avant ce dépôt.
+    expect(bloc.indexOf("'/messages/fichiers'")).toBeGreaterThan(0);
+    expect(verif).toBeLessThan(bloc.indexOf("'/messages/fichiers'"));
   });
   it('l\'écran relit les questions avant de dire qu\'une question n\'existe plus', () => {
     expect(PONT).toMatch(/\(window\)\.__relireQuestions = relireLesQuestions/);
