@@ -7762,3 +7762,10 @@ Vu à la souris dans l'onglet Cabinet de la Comptabilité, côté client : la fe
 qui sert à corriger une réponse déjà donnée) montrait le champ de fichier du navigateur, « Choose File · No file
 chosen », dans la langue du système. Un bouton « Joindre un fichier… » le remplace, le nom choisi s'affiche à côté, et
 le bouton devient « Changer de fichier… ». Le serveur garde bien la réponse corrigée (vérifié dans la base).
+
+## 1.388.90 — Un test qui tombait le 26 de chaque mois
+
+Rouge GitHub de la 1.388.86 : `tests/web/accueil-1312.test.ts` posait la facture de l'atelier de Marseille (« à
+échoir ») au 26 du mois d'avant avec trente jours d'échéance. À partir du 26 de chaque mois, elle passait donc « en
+retard », et la carte « On te doit » annonçait 4 649,421 DT en retard au lieu de 1 800,916. Son échéance est
+maintenant fixée à vingt-cinq jours après aujourd'hui. Aucun code de l'application ne change.
