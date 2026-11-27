@@ -41,6 +41,18 @@ const donnees = () => ({
   stockAdjustments: [] as Ajustement[],
 });
 
+describe('(1.388.95) un écart d\'inventaire en attente de validation', () => {
+  it('ne bouge ni la quantité ni la valeur du stock ; validé, il les bouge', () => {
+    const data = donnees();
+    const avant = C.stockOf(data, 'ciment');
+    data.stockAdjustments.push({ id: 'i1', itemId: 'ciment', qty: -6, depotId: '', date: '2026-09-20', source: 'inventaire', inventaireId: 'inv1', aValider: true });
+    expect(C.stockOf(data, 'ciment')).toEqual(avant);
+    expect(C.stockMovements(data, 'ciment').some((m) => (m as { id: string }).id === 'i1')).toBe(false);
+    delete (data.stockAdjustments[0] as Record<string, unknown>).aValider;
+    expect(C.stockOf(data, 'ciment').qty).toBe(avant.qty - 6);
+  });
+});
+
 describe('le stock par dépôt, dans la v10', () => {
   it('chaque mouvement appartient au dépôt de sa pièce ; le stock se lit dépôt par dépôt', () => {
     const data = donnees();

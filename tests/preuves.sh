@@ -23320,10 +23320,10 @@ prouver 'paie 10.1-4 j : le point de contact oublie « sans la paie »' web/publ
   'paieCachee = !!(d && d.paieCachee === true);' 'paieCachee = false;' \
   "$SPP1"
 prouver 'paie 10.1-4 k : la copie du poste oublie « sans la paie »' web/public/plateforme/pont.js \
-  'proprietaire: proprio, caisse: tientCaisse, paieCachee } });' 'proprietaire: proprio, caisse: tientCaisse } });' \
+  'proprietaire: proprio, caisse: tientCaisse, paieCachee, validerInventaire } });' 'proprietaire: proprio, caisse: tientCaisse, validerInventaire } });' \
   "$SPP1"
 prouver 'paie 10.1-4 l : la page ne reçoit pas « sans la paie »' web/public/plateforme/pont.js \
-  'proprietaire: proprio, caisse: tientCaisse, paieCachee }),' 'proprietaire: proprio, caisse: tientCaisse }),' \
+  'proprietaire: proprio, caisse: tientCaisse, paieCachee, validerInventaire }),' 'proprietaire: proprio, caisse: tientCaisse, validerInventaire }),' \
   "$SPP1"
 prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' modules/socle/ecrans/entreprise/app-2.js \
   '${bandeauSansPaie('"'"'ces soldes et cette prévision'"'"', true)}' '' \
@@ -28484,7 +28484,7 @@ prouver 'inventaire 1.357.5 a : la question de l'\''inventaire a le bouton rouge
   '          false, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : '\'''\''} ?` })) return;' '          true, { titre: `Enregistrer l'\''inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : '\'''\''} ?` })) return;' \
   "$INV"
 prouver 'inventaire 1.357.5 b : la question ne dit ni quel article ni combien' 'modules/socle/ecrans/entreprise/app-2.js' \
-  '${lignesInv.join('\''\n'\'')}${resteInv}\n\nLe stock' '${resteInv}Le stock' \
+  '${lignesInv.join('\''\n'\'')}${resteInv}\n\n${peutValiderInv()' '${resteInv}${peutValiderInv()' \
   "$INV"
 prouver 'inventaire 1.357.5 c : la question ne dit pas que ce qui manque compte dans le coût du mois' 'modules/socle/ecrans/entreprise/app-2.js' \
   'gaps.some(r => r.gap < 0) ? '\''ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'\''a coûté le mois'\'' : '\'''\''' ''\'''\''' \
@@ -32647,6 +32647,19 @@ prouver "la pastille des questions compte les questions en retard" web/public/v1
 prouver "les relances d'une question ne se disent pas sur sa carte" web/public/plateforme/messagerie.js \
   "\${attend && q.relances > 0 ? " "\${false && q.relances > 0 ? " \
   "le client voit les questions envoyées, y répond depuis l'onglet Cabinet et en face de la pièce ; la réponse est au serveur"
+# 1.388.95 — Celui qui compte n'est pas celui qui valide.
+prouver "le magasinier fait entrer son inventaire sans validation" serveur/v10/dossier.ts \
+  "if (roles && !permet(roles, 'stock.inventaire.valider', true)) {" "if (false) {" \
+  "le magasinier l'enregistre en attente, pas validé ; la comptabilité interne le valide ; un écart validé ne se touche plus"
+prouver "un écart en attente bouge le stock" modules/socle/moteur/core-1.js \
+  "if (a.aValider) return;" "if (false) return;" \
+  "ne bouge ni la quantité ni la valeur du stock ; validé, il les bouge"
+prouver "le comptage du magasinier part sans attendre sa validation" modules/socle/ecrans/entreprise/app-2.js \
+  "...(attend ? { aValider: true } : {})" "...(false ? { aValider: true } : {})" \
+  "le magasinier compte : rien ne bouge, l'écran le dit ; la comptabilité interne valide, le stock bouge"
+prouver "la comptabilité interne lit « Lecture seule » sur le stock qu'elle valide" modules/socle/ecrans/entreprise/app-1.js \
+  "if (name === 'stock' && p && bridge.droitsDossier && enLecture(p)" "if (false && name === 'stock' && p && bridge.droitsDossier && enLecture(p)" \
+  "le magasinier compte : rien ne bouge, l'écran le dit ; la comptabilité interne valide, le stock bouge"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -4216,6 +4216,8 @@
     });
 
     (data.stockAdjustments || []).forEach(a => {
+      // (1.388.95) Un écart d'inventaire compté par le magasinier attend sa validation : il ne bouge aucun stock avant.
+      if (a.aValider) return;
       const c = (data.catalog || []).find(x => x.id === a.itemId);
       if (!keep(c)) return;
       if (limit && a.date > limit) return;

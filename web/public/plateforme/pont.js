@@ -229,6 +229,8 @@
   let tientCaisse = false;
   // (1.266.7 ; 16 § 10.1, point 4) Le rôle ne lit pas la paie d'une entreprise qui en a une : l'écran le dit.
   let paieCachee = false;
+  // (1.388.95) Il valide les écarts d'inventaire (le propriétaire, un administrateur, la comptabilité interne).
+  let validerInventaire = true;
   /** @param {string} champ */
   const repart = (champ) => !cachees.has(champ) && !lectureSeule.has(champ) && (!ecrivables || ecrivables.has(champ)); const refuseSansDemander = () => Promise.reject(Object.assign(new Error('Ton rôle ne le permet pas.'), { statut: 403 })); // (issue 18, ENT2-11) ce que le rôle ne lit pas ne se demande pas
   /** @param {any} d */
@@ -239,6 +241,7 @@
     responsable = !!(d && d.responsable === true); messagerie = d && typeof d.messagerie === 'boolean' ? d.messagerie : responsable; proprio = d && typeof d.proprietaire === 'boolean' ? d.proprietaire : responsable;
     tientCaisse = !!(d && d.caisse === true);
     paieCachee = !!(d && d.paieCachee === true);
+    validerInventaire = !d || d.validerInventaire !== false;
   };
   /** @param {Record<string, unknown>} data @returns {Map<string, Morceau>} */
   function decouper(data) {
@@ -468,7 +471,7 @@
   }).sort((a, b) => (a.collection < b.collection ? -1 : a.collection > b.collection ? 1 : (a.rang ?? 0) - (b.rang ?? 0)));
   // La copie : les objets et leurs révisions, les questions, les droits, et la marque de la lecture qu'elle reflète.
   const contenuDeLaCopie = () => ({ objets: objetsVus(), questions: questionsLues, marque: marqueLue, profil: profilLu,
-    droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee } });
+    droits: { cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : [], tout: !ecrivables, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee, validerInventaire } });
   function garderLaCopie() {
     if (!poste.garde()) return;
     if (copieAFaire) clearTimeout(copieAFaire);
@@ -1417,7 +1420,19 @@
     // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.
     // Ce que la personne peut écrire dans le dossier (brique 99) : l'écran refuse avant le geste ce qui ne repartirait pas.
-    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee }),
+    droitsDossier: () => ({ cachees: [...cachees], lectureSeule: [...lectureSeule], ecrivables: ecrivables ? [...ecrivables] : null, responsable, messagerie, proprietaire: proprio, caisse: tientCaisse, paieCachee, validerInventaire }),
+    // (1.388.95, 03 § 2.1) Valider ou refuser l'inventaire qu'un magasinier a compté : un geste du serveur, que le dossier
+    // retient tel qu'il le renvoie (sinon le prochain enregistrement renverrait l'ancienne version).
+    deciderInventaire: async (/** @type {string} */ inventaire, /** @type {string} */ decision) => {
+      if (enCours) await enCours;
+      const r = await appel('POST', `/dossier-v10/inventaires/${encodeURIComponent(inventaire)}/decision`, { decision });
+      for (const o of r.objets) {
+        const k = `stockAdjustments\u0000${o.cle}`;
+        if (o.contenu === null) { vu.delete(k); base.delete(k); } else { vu.set(k, { json: JSON.stringify(o.contenu), rang: o.rang, revision: o.revision }); base.set(k, o.revision); }
+      }
+      await garderLaCopieMaintenant();
+      return /** @type {any[]} */ (r.objets).map((o) => ({ cle: o.cle, contenu: o.contenu === null ? null : decoder(o.contenu) }));
+    },
 
     // L'accord d'un responsable au-delà de l'encours d'un client (brique 100 ; docs/accords.md) : le serveur
     // recalcule le dépassement, garde la demande, et seul un responsable la décide.

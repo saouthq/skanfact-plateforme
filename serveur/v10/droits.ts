@@ -31,6 +31,11 @@ export const GESTES_DU_DOSSIER: Geste[] = [
     roles: { proprietaire: P, administrateur: P, commercial: V, caissier: V, magasinier: P, comptabilite_interne: V, lecture: V } },
   { code: 'stock.modifier', module: 'stock', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P, magasinier: P } },
+  // (1.388.95, 03 § 2.1) « Celui qui compte n'est pas celui qui valide l'écart » : un écart d'inventaire n'entre dans le
+  // stock que validé par le propriétaire, l'administrateur ou la comptabilité interne. Le magasinier compte ; son écart
+  // attend (`aValider`) et ne bouge aucun stock.
+  { code: 'stock.inventaire.valider', module: 'stock', horsCle: true, ecrit: true,
+    roles: { proprietaire: P, administrateur: P, comptabilite_interne: P } },
   { code: 'achats.pieces.modifier', module: 'achats', horsCle: true, ecrit: true,
     roles: { proprietaire: P, administrateur: P, comptabilite_interne: P } },
   { code: 'tresorerie.voir', module: 'tresorerie', horsCle: true, ecrit: false,
@@ -152,6 +157,8 @@ export function filtrer<O extends { collection: string; cle: string }>(roles: st
     tout: permet(roles, TOUT.ecrire, true), responsable: permet(roles, 'ventes.accord.donner', true),
     // Il tient une caisse (brique 121) : la page Caisse s'ouvre, même sans lire les pièces de vente.
     caisse: permet(roles, 'caisse.ticket.encaisser', true),
+    // (1.388.95) Il valide les écarts d'inventaire : l'écran enregistre les siens validés et lui propose ceux qui attendent.
+    validerInventaire: permet(roles, 'stock.inventaire.valider', true),
     // (COLLAB-16) Le miroir de messagerie.cote_entreprise (0078) et de socle.cabinet.choisir : l'écran ne propose ni
     // « Mon comptable » ni l'invitation du cabinet à qui le serveur les refuserait.
     messagerie: roles.some((r) => r === 'proprietaire' || r === 'administrateur' || r === 'comptabilite_interne'),

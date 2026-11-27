@@ -138,6 +138,9 @@ declarerTextes({
   'v10.partie.closureLog': 'la clôture des périodes',
   'v10.partie.auxiliaires': 'les comptes auxiliaires',
   'v10.partie.autre': 'cette partie du dossier',
+  // (1.388.95) Les écarts d'inventaire : comptés par le magasinier, validés par un autre.
+  'v10.inventaire_a_valider': 'un écart d\'inventaire n\'entre dans le stock que validé par le propriétaire, un administrateur ou la comptabilité interne : enregistre ton comptage, il attendra leur validation. Rien n\'a été enregistré',
+  'v10.inventaire_rien_a_decider': 'cet inventaire n\'a plus d\'écart en attente : il a déjà été validé ou refusé. Rien n\'a changé',
   'v10.partie_interdite': 'ton rôle ne permet pas d\'enregistrer {partie} dans le dossier de l\'entreprise : rien n\'a été enregistré. Demande au propriétaire ou à un administrateur',
   'v10.supprimer_le_sien': '{piece} a été fait par {auteur} : seul son auteur, le propriétaire ou un administrateur le supprime. Rien n\'a été supprimé',
   'v10.supprimer_sans_auteur': '{piece} date d\'avant que SkanFact retienne qui fait chaque pièce : seul le propriétaire ou un administrateur le supprime. Rien n\'a été supprimé',

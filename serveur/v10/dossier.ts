@@ -22,7 +22,7 @@ import { tracer } from '../trace.ts';
 import { creerBrouillon, DECIMALES, emettre, supprimerBrouillon, type BrouillonSaisi } from '../ventes/pieces.ts';
 import { regle } from '../regles.ts';
 import { controlerCommandes, controlerEncours, controlerReceptions, controlerRemise } from './accords.ts';
-import { archiveVisible, mesRoles, verifierEcriture } from './droits.ts';
+import { archiveVisible, mesRoles, permet, verifierEcriture } from './droits.ts';
 import { suivreAchats } from './achats.ts';
 import { suivreIdentite } from './identite.ts';
 import { garderLaCloture, garderLesBulletins, suivrePaie } from './paie.ts';
@@ -243,6 +243,14 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   }
   // Rien n'est écrit tant qu'un seul objet a changé ailleurs : on ne mélange jamais deux versions.
   if (conflits.length) throw new Conflit(conflits);
+  // (1.388.95, 03 § 2.1) Un écart d'inventaire qui compte dans le stock (sans `aValider`) ne s'écrit, ne se modifie et ne
+  // s'efface que par qui valide les inventaires : le magasinier enregistre le sien en attente, il ne le valide pas lui-même.
+  if (roles && !permet(roles, 'stock.inventaire.valider', true)) {
+    const compte = (o: unknown) => estObjet(o) && o.source === 'inventaire' && o.aValider !== true;
+    for (const c of changements) {
+      if (c.collection === 'stockAdjustments' && (compte(actuels.get(`stockAdjustments/${c.cle}`)?.contenu) || compte(c.contenu))) throw new Refus('v10.inventaire_a_valider');
+    }
+  }
   // (1.273.0, audit G01) Les pièces de vente sont une liste d'objets (`documents/<id>`) : la racine n'en porte que la liste
   // vide que l'écran y écrit. Une liste de pièces écrite là échapperait au contrôle de chacune (une facture émise réécrite).
   for (const c of changements) {

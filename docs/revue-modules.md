@@ -7843,3 +7843,22 @@ deux semaines, le cabinet devait ouvrir la révision pour savoir s'il avait déj
 GitHub a refusé la 1.388.92 et la 1.388.93 : `base/types.ts` (écrit par `npm run types:base`) ne connaissait pas la
 colonne `relance_a_envoyer` de la 0238. Régénéré. Le groupe 14 des preuves complètes, lui, est tombé avant le premier
 test, sur l'installation du navigateur (un dépôt de paquets refusé) : il se relance tel quel.
+
+## 1.388.95 — Celui qui compte n'est pas celui qui valide
+
+La spécification du stock (03 § 2.1) le dit : un inventaire se compte par celui qui tient le magasin, et se valide par
+quelqu'un d'autre. Jusqu'ici, l'écart compté par le magasinier entrait dans le stock à l'instant où il l'enregistrait.
+
+- **Le magasinier enregistre son comptage en attente.** Les écarts portent « à valider » : ils ne bougent ni la quantité
+  ni la valeur du stock, ni ce que le mois a coûté. La question avant l'enregistrement le dit, le message après aussi,
+  et la carte du dernier inventaire dit qu'il attend sa validation.
+- **Le propriétaire, un administrateur ou la comptabilité interne valide ou refuse**, depuis « Inventaires passés »
+  (une colonne État : « À valider » ou « Dans le stock »). Valider fait entrer les écarts, avec qui et quand ; refuser
+  les efface, le comptage peut être refait. Le geste passe par sa route au serveur, et la piste d'audit le garde.
+- **Le serveur tient la règle** : un écart d'inventaire déjà dans le stock ne se pose, ne se modifie ni ne s'efface
+  sans ce droit — la réponse dit quoi faire à la place.
+- La comptabilité interne lit le stock sans le modifier : son bandeau ne dit plus « Lecture seule », il dit qu'elle
+  valide les inventaires des autres.
+- La question de validation liste les écarts en une phrase (ils se collaient les uns aux autres).
+
+Prouvé : quatre défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.95 »).

@@ -1729,12 +1729,17 @@
     };
     // (1.388.29, ENTACHATS-15) Les inventaires passés se relisent et s'annulent. Depuis cette version ils portent un
     // identifiant commun ; ceux d'avant se regroupent par date et dépôt, et leur effet en dinars n'est pas connu (« — »).
+    // (1.388.95, 03 § 2.1) « Celui qui compte n'est pas celui qui valide » : en ligne, le magasinier enregistre son comptage
+    // EN ATTENTE (`aValider`, sans effet sur le stock) ; le propriétaire, un administrateur ou la comptabilité interne le
+    // valide ou le refuse (un geste du serveur). Hors ligne, sur l'ordinateur, rien ne change.
+    const peutValiderInv = () => !bridge.droitsDossier || (bridge.droitsDossier() || {}).validerInventaire !== false;
     const inventairesPasses = () => {
       const g = new Map();
       (data.stockAdjustments || []).filter(a => a.source === 'inventaire').forEach(a => {
         const k = a.inventaireId || `ancien|${a.date}|${a.depotId || ''}`;
-        if (!g.has(k)) g.set(k, { cle: k, date: a.date, depotId: a.depotId || '', ids: [], valeur: 0, ancien: !a.inventaireId });
+        if (!g.has(k)) g.set(k, { cle: k, date: a.date, depotId: a.depotId || '', ids: [], valeur: 0, ancien: !a.inventaireId, attend: false });
         const x = g.get(k); x.ids.push(a.id); x.valeur = C.round3(x.valeur + (Number(a.valeurInventaire) || 0));
+        if (a.aValider) x.attend = true;
       });
       return [...g.values()].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
     };
@@ -1743,11 +1748,13 @@
       s.invPasses = s.invPasses || { page: 1 };
       const pg = paginate(tous, s.invPasses), cur = company().currency, plusieurs = C.depotsDe(data).length > 1;
       return `<div class="panel" id="inv-passes"><h2>Inventaires passés</h2>
-        <div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th>${plusieurs ? '<th>Dépôt</th>' : ''}<th class="r">Écarts</th><th class="r">Effet sur la valeur</th><th></th></tr></thead><tbody>
-        ${pg.rows.map(x => `<tr><td class="nw">${C.fmtDate(x.date)}</td>${plusieurs ? `<td>${h(C.nomDepot(data, x.depotId))}</td>` : ''}
+        <div class="scroll-x"><table class="list compact"><thead><tr><th>Date</th>${plusieurs ? '<th>Dépôt</th>' : ''}<th class="r">Écarts</th><th class="r">Effet sur la valeur</th><th>État ${info('stk.invEtat')}</th><th></th></tr></thead><tbody>
+        ${pg.rows.map(x => `<tr${x.attend ? ' data-inv-attend' : ''}><td class="nw">${C.fmtDate(x.date)}</td>${plusieurs ? `<td>${h(C.nomDepot(data, x.depotId))}</td>` : ''}
           <td class="r nw">${pl(x.ids.length, 'écart')}</td>
           <td class="r nw">${x.ancien ? '<span class="muted" title="Enregistré avant que SkanFact retienne la valeur de chaque écart">—</span>' : moneySigne(x.valeur, cur)}</td>
-          <td class="r nw"><button type="button" class="btn btn-sm" data-inv-annuler="${h(x.cle)}">Annuler cet inventaire</button></td></tr>`).join('')}
+          <td class="nw">${x.attend ? '<span class="badge b-due">À valider</span>' : '<span class="muted">Dans le stock</span>'}</td>
+          <td class="r nw">${x.attend && peutValiderInv() ? `<button type="button" class="btn btn-sm btn-primary" data-inv-decider="${h(x.cle)}">Valider ou refuser…</button>`
+            : x.attend || peutValiderInv() ? `<button type="button" class="btn btn-sm" data-inv-annuler="${h(x.cle)}">Annuler cet inventaire</button>` : ''}</td></tr>`).join('')}
         </tbody></table></div>${pagerBar(pg.pg, { noun: 'inventaire' })}</div>`;
     };
     function drawInventory() {
@@ -1758,7 +1765,7 @@
       const invPage = paginate(qInv ? rows.filter(r => C.correspondRecherche(r.label || '', qInv)) : rows, s.inv);
       $('#st-body').innerHTML = `
         ${s.dernierInventaire ? `<div class="cf-carte" id="inv-fait"><p><b>Inventaire du ${C.fmtDate(s.dernierInventaire.date)} enregistré</b> : ${pl(s.dernierInventaire.comptes, 'article compté', 'articles comptés')}, ${pl(s.dernierInventaire.ecarts, 'écart')} pour ${C.money(s.dernierInventaire.valeur, company().currency)} au coût moyen.
-          ${peutEcrireAuCabinet() ? 'La valeur du stock a changé : c\'est ce que ton cabinet passe en variation de stock à la clôture.' : ''}</p>
+          ${s.dernierInventaire.attend ? 'Il attend la validation du propriétaire, d\'un administrateur ou de la comptabilité interne : le stock ne bouge pas avant.' : peutEcrireAuCabinet() ? 'La valeur du stock a changé : c\'est ce que ton cabinet passe en variation de stock à la clôture.' : ''}</p>
           <div class="inline">${peutEcrireAuCabinet() ? '<button class="btn btn-primary btn-sm" id="inv-prevenir">Prévenir mon comptable</button>' : ''}<button class="btn btn-sm btn-ghost" id="inv-fait-ok">Fermer</button></div></div>` : ''}
         ${peutEcrireAuCabinet() ? carteEtatPourLeComptable() : ''}
         <div class="panel"><h2>Inventaire physique ${info('stk.inventory')}</h2>
@@ -1820,6 +1827,25 @@
       };
       bindPager($('#st-body'), s.inv, () => drawInventory(), '#st-body');
       if ($('#inv-passes')) bindPager($('#inv-passes'), s.invPasses, () => drawInventory(), '#inv-passes');
+      $$('#st-body [data-inv-decider]').forEach(b => b.onclick = async () => {
+        const x = inventairesPasses().find(y => y.cle === b.dataset.invDecider); if (!x || !bridge.deciderInventaire) return;
+        const lignes = data.stockAdjustments.filter(a => x.ids.includes(a.id)).slice(0, 6)
+          .map(a => `${((data.catalog || []).find(c => c.id === a.itemId) || {}).label || 'Article'} : ${qteSignee(Number(a.qty) || 0)}, ${moneySigne(Number(a.valeurInventaire) || 0, company().currency)}`);
+        // Une fenêtre de question est UN paragraphe : les écarts s'y lisent en une phrase, séparés, jamais collés.
+        const reste = x.ids.length > 6 ? ` ; et ${pl(x.ids.length - 6, 'autre écart', 'autres écarts')}` : '';
+        const r = await choiceDialog(`Valider l'inventaire du ${C.fmtDate(x.date)} ?`,
+          `Écarts comptés : ${lignes.join(' ; ')}${reste}. Valider : ces écarts entrent dans le stock, et leur valeur dans ce que t'a coûté le mois. Refuser : ils s'effacent, le stock reste tel qu'il était — le comptage peut être refait.`,
+          'Valider', 'Refuser', 'Plus tard');
+        if (!r) return;
+        if (r === 'a' && closedBlock(x.date, 'Cet inventaire')) return;
+        try {
+          const objets = await bridge.deciderInventaire(x.cle, r === 'a' ? 'valider' : 'refuser');
+          objets.forEach(o => { const i = data.stockAdjustments.findIndex(a => a.id === o.cle);
+            if (o.contenu === null) { if (i >= 0) data.stockAdjustments.splice(i, 1); } else if (i >= 0) data.stockAdjustments[i] = o.contenu; });
+          toast(r === 'a' ? `Inventaire du ${C.fmtDate(x.date)} validé : ${pl(objets.length, 'écart')} dans le stock.` : `Inventaire du ${C.fmtDate(x.date)} refusé : ${pl(objets.length, 'écart')} effacé${sPl(objets.length)}, le stock n'a pas bougé.`);
+          draw();
+        } catch (e) { toast(plainError(e), true); }
+      });
       $$('#st-body [data-inv-annuler]').forEach(b => b.onclick = async () => {
         const x = inventairesPasses().find(y => y.cle === b.dataset.invAnnuler); if (!x) return;
         if (closedBlock(x.date, 'Cet inventaire')) return;
@@ -1848,17 +1874,19 @@
         const effetInv = [gaps.some(r => r.gap < 0) ? 'ce qui manque compte comme utilisé ou perdu : sa valeur entre dans ce que t\'a coûté le mois' : '',
           gaps.some(r => r.gap > 0) ? 'ce qui est en plus revient dans le stock' : ''].filter(Boolean).join(' ; ');
         const depInv = invDepot();
-        if (!await confirmDialog(`${depInv ? `Dépôt compté : ${C.nomDepot(data, depInv)}. Les autres dépôts ne bougent pas.\n\n` : ''}${lignesInv.join('\n')}${resteInv}\n\nLe stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.`, 'Enregistrer',
+        if (!await confirmDialog(`${depInv ? `Dépôt compté : ${C.nomDepot(data, depInv)}. Les autres dépôts ne bougent pas.\n\n` : ''}${lignesInv.join('\n')}${resteInv}\n\n${peutValiderInv() ? `Le stock de l'application devient ce que tu as compté ; ${effetInv}. Un mouvement d'inventaire se corrige comme n'importe quel ajustement.` : 'Tes écarts attendront la validation du propriétaire, d\'un administrateur ou de la comptabilité interne : le stock ne bouge qu\'à ce moment-là.'}`, 'Enregistrer',
           false, { titre: `Enregistrer l'inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` (${C.nomDepot(data, depInv)})` : ''} ?` })) return;
         if (closedBlock(s.countDate, 'Cet inventaire')) return;
         const invId = C.uid(); // (1.388.29, ENTACHATS-15) un inventaire = un geste : il se relit et s'annule d'un coup
+        const attend = !peutValiderInv();
         gaps.forEach(r => data.stockAdjustments.push({ id: C.uid(), createdAt: Date.now(), date: s.countDate, itemId: r.itemId, qty: r.gap,
-          unitCost: '', source: 'inventaire', inventaireId: invId, valeurInventaire: r.value, reference: '', ...(depInv ? { depotId: depInv } : {}), ...(lotInv(r.itemId) ? { lot: lotInv(r.itemId) } : {}), note: `Inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` · ${C.nomDepot(data, depInv)}` : ''}` }));
+          unitCost: '', source: 'inventaire', inventaireId: invId, ...(attend ? { aValider: true } : {}), valeurInventaire: r.value, reference: '', ...(depInv ? { depotId: depInv } : {}), ...(lotInv(r.itemId) ? { lot: lotInv(r.itemId) } : {}), note: `Inventaire du ${C.fmtDate(s.countDate)}${depInv ? ` · ${C.nomDepot(data, depInv)}` : ''}` }));
         // (1.284.0, revue du Stock S6) Le résumé reste à l'écran : c'est lui que « Prévenir mon comptable » envoie.
-        s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value,
+        s.dernierInventaire = { date: s.countDate, comptes: counted.length, ecarts: gaps.length, valeur: value, attend,
           // (1.357.5) Les écarts eux-mêmes : le message au comptable les nomme (il n'a pas cet écran).
           lignes: gaps.map(r => ({ label: r.label, unit: r.unit, book: r.book, counted: r.counted, gap: r.gap, value: r.value })) };
-        s.counts = {}; if (s.comptesParDepot) delete s.comptesParDepot[depInv]; save(true); toast(`${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
+        s.counts = {}; if (s.comptesParDepot) delete s.comptesParDepot[depInv]; save(true);
+        toast(attend ? `${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}, en attente de validation : le stock ne bouge qu'une fois validé.` : `${pl(gaps.length, 'écart')} enregistré${sPl(gaps.length)}`); draw();
       };
     }
 

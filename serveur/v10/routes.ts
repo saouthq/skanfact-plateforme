@@ -108,6 +108,31 @@ export function routesV10(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.388.95, 03 § 2.1) Valider ou refuser l'inventaire qu'un magasinier a compté : ses écarts (`aValider`) entrent dans
+  // le stock, ou s'effacent. Un geste du serveur, par qui valide les inventaires, avec sa trace : « celui qui compte n'est
+  // pas celui qui valide », et la comptabilité interne, qui lit le stock sans l'écrire, valide quand même.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/dossier-v10/inventaires/:inventaire/decision', geste: 'stock.inventaire.valider',
+    corps: z.object({ decision: z.enum(['valider', 'refuser']) }).strict(),
+    traiter: async ({ params, corps, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '', inventaire = params.inventaire ?? '';
+      const lignes = (await tx.query(`select cle, rang, revision, contenu from socle.dossier_v10 where entreprise = $1 and collection = 'stockAdjustments'
+          and contenu ->> 'source' = 'inventaire' and contenu ->> 'inventaireId' = $2 and contenu ->> 'aValider' = 'true' order by cle`, [ent, inventaire])).rows as
+        { cle: string; rang: number | null; revision: string; contenu: Record<string, unknown> }[];
+      if (!lignes.length) throw new Refus('v10.inventaire_rien_a_decider');
+      const valider = corps.decision === 'valider';
+      const changements = lignes.map((l) => {
+        const reste = { ...l.contenu }; delete reste.aValider;
+        return { collection: 'stockAdjustments', cle: l.cle, rang: l.rang, revision: Number(l.revision),
+          contenu: valider ? { ...reste, validePar: qui.utilisateur, valideLe: aujourdhuiATunis() } : null };
+      });
+      const revisions = await appliquer(tx, ent, qui.utilisateur, changements, { serveur: true });
+      await tracer(tx, ent, valider ? 'stock.inventaire.valider' : 'stock.inventaire.refuser', { type: 'inventaire_v10', id: null }, null, { inventaire, ecarts: lignes.length });
+      return { corps: { ecarts: lignes.length, revisions, objets: changements.map((c, i) => ({ collection: c.collection, cle: c.cle, rang: c.rang, contenu: c.contenu, revision: revisions[i]?.revision ?? null })) } };
+    },
+  });
+
   // L'exemple de la v10, versé par le serveur dans l'entreprise d'essai, une fois (retour de Skander, 05/10/2026 ;
   // serveur/v10/exemple.ts) : « Voir un exemple rempli » et la découverte y mènent.
   ajouter({

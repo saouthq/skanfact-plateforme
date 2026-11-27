@@ -11630,6 +11630,12 @@
       if (t) t.insertAdjacentHTML('afterend', `<div class="banner info" id="bandeau-lecture" data-lecture-partielle><span>Tu enregistres les mouvements, les virements et le rapprochement. Créer ou modifier un compte (la caisse, la banque) reste à ${h(quiCreeLesComptes())}.</span></div>`);
       return;
     }
+    // (1.388.95) Le stock se lit, mais l'inventaire compté par un autre se valide ici : « Lecture seule » dirait le contraire.
+    if (name === 'stock' && p && bridge.droitsDossier && enLecture(p) && (bridge.droitsDossier() || {}).validerInventaire && !$('#bandeau-lecture')) {
+      const t = $('#view .page-head');
+      if (t) t.insertAdjacentHTML('afterend', `<div class="banner info" id="bandeau-lecture" data-lecture-partielle><span>Tu lis le stock sans le modifier, et tu valides ou refuses les inventaires qu'un autre a comptés (onglet Inventaire) : c'est ta validation qui fait entrer un écart dans le stock.</span></div>`);
+      return;
+    }
     // (COLLAB-15) Une page qui dit déjà sa lecture seule (Achats, Clients, Fournisseurs ont la leur) n'en reçoit pas une seconde.
     if (!p || !bridge.droitsDossier || !enLecture(p) || $('#bandeau-lecture') || $$('#view .banner, #view .bandeau').some(x => /^\s*Lecture seule/.test(x.textContent))) return;
     // (brique 121) La caisse vend par sa route à elle : qui la tient n'y est jamais « en lecture seule ».
