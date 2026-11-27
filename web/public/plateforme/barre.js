@@ -568,7 +568,8 @@
     if (b) b.focus({ preventScroll: true });
   }
   function fermerTiroir() {
-    if (!document.body.classList.contains('tiroir-ouvert')) return;
+    // Un changement d'adresse peut arriver pendant que la page se ferme : le document n'a alors plus de corps.
+    if (!document.body || !document.body.classList.contains('tiroir-ouvert')) return;
     document.body.classList.remove('tiroir-ouvert');
     const v = document.querySelector('.sb-tiroir-voile'); if (v) v.remove();
   }

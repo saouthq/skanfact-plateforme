@@ -7862,3 +7862,12 @@ quelqu'un d'autre. Jusqu'ici, l'écart compté par le magasinier entrait dans le
 - La question de validation liste les écarts en une phrase (ils se collaient les uns aux autres).
 
 Prouvé : quatre défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.95 »).
+
+## 1.388.96 — Deux rouges de GitHub sur la 1.388.94
+
+- **La barre levait une erreur en se fermant** : un changement d'adresse qui arrive pendant que la page se ferme
+  trouvait un document sans corps, et le tiroir du téléphone lisait ce corps absent. Elle ne lit plus rien dans ce cas
+  (le groupe 1.324.0 l'a vue en fermant ses trois fenêtres).
+- **Une preuve du classeur restait verte sur GitHub** : la pièce qui s'ouvre d'elle-même en arrivant ne s'ouvrait,
+  avec le défaut remis, qu'au redessin suivant — et GitHub en a un pendant que le test attend. Le test juge désormais la
+  première image où les lignes paraissent : la ligne doit y être surlignée, avec son ⋯.

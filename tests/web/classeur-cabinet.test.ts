@@ -361,7 +361,12 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'facture-nette' }).filter({ hasNotText: 'la même que' }).innerText().catch(() => '')).toMatch(/à saisir/);
     await expect.poll(() => floue.innerText().catch(() => '')).toMatch(/la même que facture-nette ·[\s\S]*en double/);
     // En arrivant sur le mois, la pièce à traiter s'ouvre d'elle-même à droite : sa ligne est surlignée et porte son ⋯.
+    // Jugé à la PREMIÈRE image où les lignes paraissent : un redessin venu plus tard rattraperait le défaut
+    // (la pièce ne s'ouvrait qu'au rafraîchissement suivant), et GitHub en a un pendant que le test attend.
     await p.reload();
+    const auPremierDessin = await (await p.waitForFunction(() => (document.querySelector('#page-cl li.cl-l')
+      ? { ici: document.querySelectorAll('#page-cl li.cl-l.ici [data-cl-trois]').length } : null), null, { polling: 'raf', timeout: 25_000 })).jsonValue();
+    expect(auPremierDessin).toEqual({ ici: 1 });
     await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
     await expect.poll(() => p.locator('li.cl-l.ici [data-cl-trois]').count()).toBe(1);
     expect(await p.locator('li.cl-l.ici').innerText()).toMatch(/à saisir/);
