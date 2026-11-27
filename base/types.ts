@@ -409,6 +409,7 @@ export interface BaseDeDonnees {
     relances: Generated<number>;
     relance_le: Date | null;
     reponse_message: string | null;
+    relance_a_envoyer: Generated<boolean>;
   };
   'compta.rapprochement': {
     releve_ligne: string;

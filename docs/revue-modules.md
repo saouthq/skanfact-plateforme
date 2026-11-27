@@ -7837,3 +7837,9 @@ deux semaines, le cabinet devait ouvrir la révision pour savoir s'il avait déj
   puis message) : il ne se voit nulle part et ne compte nulle part. Une purge est une suppression en production : elle
   se décide à part.
 - **La bulle « Ta licence »** parle encore du fichier d'appairage, mais son panneau n'existe pas en ligne.
+
+## 1.388.94 — Les types de la base suivent la 0238
+
+GitHub a refusé la 1.388.92 et la 1.388.93 : `base/types.ts` (écrit par `npm run types:base`) ne connaissait pas la
+colonne `relance_a_envoyer` de la 0238. Régénéré. Le groupe 14 des preuves complètes, lui, est tombé avant le premier
+test, sur l'installation du navigateur (un dépôt de paquets refusé) : il se relance tel quel.
