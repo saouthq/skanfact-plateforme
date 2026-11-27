@@ -194,5 +194,6 @@ declarerTextes({
   'v10.ecart_montant': 'le serveur ne trouve pas le même net à payer que l\'écran ({ecran} à l\'écran, {serveur} au serveur) : rien n\'a été émis. Vérifie le timbre et les taux, puis réessaie',
   // Les pièces jointes du dossier (lot Fonctions 3 ; docs/pieces-jointes.md).
   'pieces_jointes.trop_lourd': 'Le fichier « {nom} » pèse {taille} Mo : une pièce jointe pèse {limite} Mo au plus. Une photo moins lourde, ou un PDF compressé, passera',
+  'pieces_jointes.cachee': 'Le fichier « {nom} » est joint à une pièce que ton rôle ne lit pas : il ne s\'ouvre pas. Le propriétaire ou un administrateur peut te donner le rôle qui le permet',
   'pieces_jointes.format': 'Le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WebP), ni un PDF, ni une facture électronique (XML) : il ne se joint pas. Enregistre-le en PDF, puis joins le PDF',
 });

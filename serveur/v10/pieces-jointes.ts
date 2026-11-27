@@ -11,6 +11,7 @@ import type { Route } from '../app.ts';
 import { motif } from '../../textes/index.ts';
 import { sorteJointeDe } from '../achats/sorte.ts';
 import './textes.ts';
+import { fichierVisible, mesRoles, permet } from './droits.ts';
 
 const uuid = z.string().uuid();
 export const LIMITE_PIECE = 10 * 1_048_576;
@@ -47,12 +48,22 @@ export function routesPiecesJointes(): Route<never>[] {
   // Un fichier, en base 64 (l'écran l'ouvre ou l'enregistre).
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/pieces-jointes/:fichier', geste: 'socle.dossier.voir',
-    traiter: async ({ params }, tx) => {
-      if (!tx) throw new Error('transaction attendue');
+    traiter: async ({ params, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
       if (!uuid.safeParse(params.fichier).success) return introuvable;
-      const f = (await tx.query('select nom, type, contenu from socle.piece_jointe where id = $1 and entreprise = $2', [params.fichier, params.entreprise ?? ''])).rows[0] as
-        { nom: string; type: string; contenu: Buffer } | undefined;
+      const f = (await tx.query('select nom, type, contenu, depose_par from socle.piece_jointe where id = $1 and entreprise = $2', [params.fichier, params.entreprise ?? ''])).rows[0] as
+        { nom: string; type: string; contenu: Buffer; depose_par: string | null } | undefined;
       if (!f) return introuvable;
+      // (1.388.97) Le fichier se lit avec les droits de la pièce qui le porte. Un fichier qu'aucune pièce ne porte encore
+      // (déposé, la pièce pas encore enregistrée) ne s'ouvre que pour qui l'a déposé.
+      const roles = await mesRoles(tx, params.entreprise ?? '');
+      if (!permet(roles, 'socle.dossier.tout', false)) {
+        const refs = (await tx.query(`select collection, cle, contenu from socle.dossier_v10 where entreprise = $1 and strpos(contenu::text, $2) > 0`,
+          [params.entreprise ?? '', `"${params.fichier}"`])).rows as { collection: string; cle: string; contenu: unknown }[];
+        if (refs.length ? !fichierVisible(roles, refs) : f.depose_par !== qui.utilisateur) {
+          return { statut: 403, corps: { motif: motif('pieces_jointes.cachee', { nom: f.nom }), bouton: null } };
+        }
+      }
       return { corps: { nom: f.nom, type: f.type, taille: f.contenu.length, contenu: f.contenu.toString('base64') } };
     },
   });

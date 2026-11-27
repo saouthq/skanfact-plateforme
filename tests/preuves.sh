@@ -32660,6 +32660,16 @@ prouver "le comptage du magasinier part sans attendre sa validation" modules/soc
 prouver "la comptabilité interne lit « Lecture seule » sur le stock qu'elle valide" modules/socle/ecrans/entreprise/app-1.js \
   "if (name === 'stock' && p && bridge.droitsDossier && enLecture(p)" "if (false && name === 'stock' && p && bridge.droitsDossier && enLecture(p)" \
   "le magasinier compte : rien ne bouge, l'écran le dit ; la comptabilité interne valide, le stock bouge"
+# 1.388.97 — Un fichier joint se lit avec les droits de sa pièce.
+prouver "un fichier joint s'ouvre pour tout membre" serveur/v10/pieces-jointes.ts \
+  "if (!permet(roles, 'socle.dossier.tout', false)) {" "if (false) {" \
+  "le contrat d'un salarié ne s'ouvre pas pour le commercial ; la fiche d'un article, si ; un fichier sans pièce, pour qui l'a déposé"
+prouver "un fichier sans pièce s'ouvre pour un autre que son déposant" serveur/v10/pieces-jointes.ts \
+  "f.depose_par !== qui.utilisateur" "false" \
+  "le contrat d'un salarié ne s'ouvre pas pour le commercial ; la fiche d'un article, si ; un fichier sans pièce, pour qui l'a déposé"
+prouver "la pièce qui porte un fichier ne décide pas qui l'ouvre" serveur/v10/droits.ts \
+  "    return permet(roles, regleDe(r.collection, r.cle).voir, false);" "    return true;" \
+  "le contrat d'un salarié ne s'ouvre pas pour le commercial ; la fiche d'un article, si ; un fichier sans pièce, pour qui l'a déposé"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -165,6 +165,18 @@ export function filtrer<O extends { collection: string; cle: string }>(roles: st
     proprietaire: roles.includes('proprietaire') } };
 }
 
+// (1.388.97) Un fichier joint se lit avec les droits de la pièce qui le porte : un fichier rangé sur la fiche d'un salarié
+// ne s'ouvre pas pour qui ne lit pas la paie. Les copies techniques (pièces supprimées) n'ouvrent rien ; une version
+// écartée ouvre ce qu'elle copie, avec les droits de ce qu'elle copie.
+export function fichierVisible(roles: string[], refs: { collection: string; cle: string; contenu: unknown }[]): boolean {
+  return refs.some((r) => {
+    if (r.collection === 'deleted' || (r.collection === '_racine' && r.cle === 'deleted')) return false;
+    if (r.collection === 'conflictArchive') return archiveVisible(roles, r.contenu);
+    if (r.collection === '_racine' && r.cle === 'conflictArchive') return false;
+    return permet(roles, regleDe(r.collection, r.cle).voir, false);
+  });
+}
+
 // Avant d'écrire : chaque changement doit être permis ; sinon rien n'est écrit, et le refus nomme la partie.
 export function verifierEcriture(roles: string[], changements: { collection: string; cle: string }[]) {
   for (const c of changements) {

@@ -7871,3 +7871,12 @@ Prouvé : quatre défauts réintroduits un par un font tomber leur test (`tests/
 - **Une preuve du classeur restait verte sur GitHub** : la pièce qui s'ouvre d'elle-même en arrivant ne s'ouvrait,
   avec le défaut remis, qu'au redessin suivant — et GitHub en a un pendant que le test attend. Le test juge désormais la
   première image où les lignes paraissent : la ligne doit y être surlignée, avec son ⋯.
+
+## 1.388.97 — Un fichier joint suit la pièce qui le porte
+
+Un fichier joint (le contrat d'un salarié, la photo d'une facture d'achat) s'ouvre avec les mêmes droits que la pièce
+où il est rangé : qui ne lit pas la paie n'ouvre pas les fichiers des salariés, qui ne lit pas les achats n'ouvre pas
+leurs justificatifs, et la réponse le dit en nommant le fichier. Le propriétaire et l'administrateur ouvrent tout. Un
+fichier qu'aucune pièce ne porte encore — déposé, la pièce pas encore enregistrée — ne s'ouvre que pour qui l'a déposé.
+
+Prouvé : trois défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.97 »).
