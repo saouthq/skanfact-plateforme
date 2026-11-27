@@ -32670,6 +32670,10 @@ prouver "un fichier sans pièce s'ouvre pour un autre que son déposant" serveur
 prouver "la pièce qui porte un fichier ne décide pas qui l'ouvre" serveur/v10/droits.ts \
   "    return permet(roles, regleDe(r.collection, r.cle).voir, false);" "    return true;" \
   "le contrat d'un salarié ne s'ouvre pas pour le commercial ; la fiche d'un article, si ; un fichier sans pièce, pour qui l'a déposé"
+# 1.388.98 — Les mots de passe les plus répandus sont refusés par défaut.
+prouver "le serveur reprend la liste des tests, quatre mots de passe" serveur/principal.ts \
+  "path.join(ici, 'donnees/mots-de-passe-courants.txt')," "path.join(ici, '../tests/donnees/mots-de-passe-voles.txt')," \
+  "la configuration lit la liste du dépôt, qui refuse « 1234567890 » et laisse passer une phrase"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

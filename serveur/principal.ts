@@ -7,7 +7,7 @@
 //   SKANFACT_BASE            l'adresse de la base, avec le compte du serveur (rattaché à skanfact_app)
 //   SKANFACT_ENVIRONNEMENT   « test » ou « production »
 //   SKANFACT_PORT, SKANFACT_HOTE   où écouter (8080, 127.0.0.1 par défaut : un proxy https est devant)
-//   SKANFACT_LISTE_VOLEE     la liste des mots de passe volés (tests/donnees/… par défaut, en test)
+//   SKANFACT_LISTE_VOLEE     la liste des mots de passe volés (serveur/donnees/mots-de-passe-courants.txt par défaut)
 //   SKANFACT_WEB             l'application web construite (dist/web par défaut), servie à côté de l'API
 //   SKANFACT_SMS             « aucun » (par défaut) ou « winsms » : le code de connexion par SMS (décision de
 //                            Skander du 12/10/2026 ; 0081). Sans lui, le SMS ne se propose pas : l'e-mail
@@ -197,7 +197,9 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   }
   return {
     base, environnement, port, hote: env.SKANFACT_HOTE ?? '127.0.0.1', sms,
-    listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
+    // (1.388.98) Par défaut, les mots de passe les plus répandus (serveur/donnees, 9 248 empreintes) : la liste des tests
+    // n'en portait que quatre, et une production sans SKANFACT_LISTE_VOLEE acceptait « 1234567890 ».
+    listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, 'donnees/mots-de-passe-courants.txt'),
     livreurMs: Number(env.SKANFACT_LIVREUR_MS ?? 15_000),
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
     adresse, adresseConsole, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),

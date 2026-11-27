@@ -7880,3 +7880,12 @@ leurs justificatifs, et la réponse le dit en nommant le fichier. Le propriétai
 fichier qu'aucune pièce ne porte encore — déposé, la pièce pas encore enregistrée — ne s'ouvre que pour qui l'a déposé.
 
 Prouvé : trois défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.97 »).
+
+## 1.388.98 — Les mots de passe les plus répandus sont refusés par défaut
+
+La page d'inscription promet qu'« un mot de passe déjà volé ailleurs est refusé ». Le serveur lisait, par défaut, la
+petite liste des tests : sans réglage, « 1234567890 » passait. Il lit désormais `serveur/donnees/mots-de-passe-courants.txt`
+— 9 248 empreintes SHA-1, les mots de passe de dix caractères ou plus de la liste publiée par le NCSC britannique
+(SecLists, licence MIT), sans aucun mot de passe en clair. `SKANFACT_LISTE_VOLEE` désigne toujours une liste plus longue.
+
+Prouvé : le défaut réintroduit fait tomber son test (`tests/preuves.sh`, « 1.388.98 »).
