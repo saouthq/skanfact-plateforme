@@ -158,6 +158,23 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     expect(pdfHtml).toContain('526,980');
     expect(pdfHtml).not.toMatch(/<td[^>]*>606<\/td>/);
     await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 5_000 }).toMatch(/^PDF enregistré : /);
+    // ── (1.390.12, CABDECLARER-9) Le bilan et l'état de résultat de l'Exercice, puis la Déclaration du mois, en PDF ─────
+    pdfHtml = '';
+    await ouvrir('exercice');
+    const etatsSec = p.locator('#cl-sec-etats');
+    await etatsSec.waitFor({ timeout: 15_000 });
+    if (!(await etatsSec.evaluate((d) => (d as HTMLDetailsElement).open))) await etatsSec.locator('summary').click();
+    await p.locator('#cl-etats-pdf').click();
+    await expect.poll(() => pdfHtml.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    for (const t of ['<h1>États financiers 2026</h1>', '<h2>Bilan — actif</h2>', '<h2>Bilan — passif</h2>', '<h2>État de résultat</h2>', 'Total actif', 'Total passif']) expect(pdfHtml).toContain(t);
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 5_000 }).toMatch(/^PDF enregistré : /);
+    pdfHtml = '';
+    await ouvrir('declaration');
+    await p.locator('#dc-pdf').click({ timeout: 15_000 });
+    await expect.poll(() => pdfHtml.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    expect(pdfHtml).toMatch(/<h1>Déclaration (de |d')[a-zéû]+ 2026<\/h1>/);
+    expect(pdfHtml).toContain('Montant');
+    expect(pdfHtml).not.toMatch(/Déclaration de (avril|août|octobre)/);
     await p.unroute('**/v1/pdf');
 
     // ── Le FEC : le tiers d'un collectif nu a ses deux colonnes ───────────────────────────────────

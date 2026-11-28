@@ -8277,3 +8277,21 @@ automatiquement » les laissait ouverts aussi.
 Essais : `tests/compta/saisie.test.ts` (l'Hôtel, le Café et une ligne nommée sans fiche, sur une même pièce d'à-nouveaux),
 `tests/moteur/lettrage-an-1390-11.test.ts` (le lettrage automatique, par identifiant et par nom) et
 `tests/web/cabinet-saisie.test.ts` (à la souris : l'Hôtel coché à la main, le Café par « Lettrer automatiquement »).
+
+## 1.390.12 — Les états financiers et la déclaration du mois s'exportent en PDF (issue 9, CABDECLARER-9, -39)
+
+Resté partiel à la contre-vérification : les livres, le lettrage et la liasse avaient leur « Exporter en PDF », mais ni le
+bilan et l'état de résultat de l'onglet Exercice, ni la Déclaration du mois (seulement « Exporter les cases »).
+
+- **« Exporter les états en PDF »**, à côté de « Ouvrir la liasse » : le bilan (actif, passif), l'état de résultat,
+  rubrique par rubrique et compte par compte, avec les mêmes totaux que l'écran — par la fabrique des livres et de la
+  liasse (`pageLivresPdf`), avec le même « À VÉRIFIER » sur la présentation.
+- **« Exporter en PDF » sur la Déclaration**, à côté de « Exporter les cases » : le PDF et le CSV lisent les MÊMES rangs
+  (`rangsDecl`), donc deux exports de la même déclaration ne disent jamais deux choses ; une case sans montant connu dit
+  « — », pas zéro.
+- **Les mois s'élident** (CABDECLARER-39, N3) : « La déclaration d'octobre 2026 est déposée ? », « Annuler le dépôt
+  d'octobre 2026 ? », et la période d'un export « d'avril à juin » passent par `K.de` ; un essai interdit d'écrire
+  « de » devant un mois à la main dans l'écran du Cabinet.
+
+Essais : `tests/web/livres-1378-3.test.ts` (les deux PDF, à la souris, le contenu envoyé au service vérifié) et
+`tests/v10/elision-mois-cabinet-1390-12.test.ts`.

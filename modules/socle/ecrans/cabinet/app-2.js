@@ -5623,7 +5623,7 @@
     const nom = s.onglet === 'balance' ? 'balance' : GL ? `grand-livre${s.compte ? `-${s.compte}` : ''}`
       : s.onglet === 'lettrage' ? `lettrage-${s.compte || '411'}` : 'livre-journal';
     if (format === 'pdf') {
-      const per = s.mode === 'mois' ? K.monthLabel(s.mois) : s.mode === 'intervalle' && s.du && s.au ? `de ${K.monthLabel(s.du)} à ${K.monthLabel(s.au)}` : `l'exercice ${s.annee}`;
+      const per = s.mode === 'mois' ? K.monthLabel(s.mois) : s.mode === 'intervalle' && s.du && s.au ? `${K.de(K.monthLabel(s.du))} à ${K.monthLabel(s.au)}` : `l'exercice ${s.annee}`;
       const quoi = GL && s.compte ? ` · compte ${s.compte}` : s.onglet === 'lettrage' ? ` · compte ${s.compte || '411'}` : s.onglet === 'balance' && s.aux ? ' auxiliaire' : '';
       const dos = s.data.dossier;
       const html = pageLivresPdf(`${ONGLETS_COMPTA[s.onglet] || 'Livre'}${quoi}`, `${dos.name}${dos.matricule ? ` · ${dos.matricule}` : ''} · ${per}`, [{ cols, rows, montants: MONTANTS }]);

@@ -32976,6 +32976,16 @@ prouver "le lettrage automatique qui ne reconnaît pas un client nommé sans ide
   ": !y.tiersId && x.tiers && x.tiers === y.tiers ? { libelle: x.tiers } : undefined;" ": undefined;" \
   "un dossier qui ne nomme ses clients que par leur nom"
 
+prouver "les états financiers de l'Exercice sans PDF" modules/socle/ecrans/cabinet/app-1.js \
+  '<button type="button" class="btn btn-sm btn-ghost" id="cl-etats-pdf">Exporter les états en PDF</button>' '' \
+  "une ligne ouvre son écriture, un compte de la balance son grand livre"
+prouver "la déclaration du mois sans PDF" modules/socle/ecrans/cabinet/app-1.js \
+  ' id="dc-pdf">Exporter en PDF</button>' ' id="dc-pdf" hidden>Exporter en PDF</button>' \
+  "une ligne ouvre son écriture, un compte de la balance son grand livre"
+prouver "« Annuler le paiement de octobre »" modules/socle/ecrans/cabinet/app-1.js \
+  "'paiement'} \${K.de(K.monthLabel(s.decl.periode))} ?\`" "'paiement'} de \${K.monthLabel(s.decl.periode)} ?\`" \
+  "aucune phrase n'écrit « de » devant un mois à la main"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

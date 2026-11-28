@@ -639,7 +639,7 @@
     const depot = quoi === 'deposee', aujourdhui = K.today();
     return new Promise(resolve => {
       modal(
-        `<h2>${depot ? `La déclaration de ${esc(K.monthLabel(periode))} est déposée ?` : `La déclaration de ${esc(K.monthLabel(periode))} est payée ?`}</h2>
+        `<h2>${depot ? `La déclaration ${esc(K.de(K.monthLabel(periode)))} est déposée ?` : `La déclaration ${esc(K.de(K.monthLabel(periode)))} est payée ?`}</h2>
          <p class="small muted">${depot ? 'C\'est un pense-bête : SkanFact ne dépose rien sur le portail. Note la date du dépôt et, si tu l\'as, le numéro de l\'accusé.' : 'Note la date du paiement, telle qu\'elle figure sur le relevé ou le reçu.'}</p>
          <label class="field">${depot ? 'Déposée le' : 'Payée le'}<input type="date" id="pd-le" value="${esc(defaut)}" max="${esc(aujourdhui)}"></label>
          ${depot ? '<label class="field">Numéro de l\'accusé <span class="small muted">(facultatif)</span><input type="text" id="pd-ref" maxlength="80" autocomplete="off"></label>' : ''}
@@ -650,7 +650,7 @@
             const le = $('#pd-le', layer).value;
             if (!/^\d{4}-\d{2}-\d{2}$/.test(le)) return refus($('#pd-le', layer), 'Choisis la date.');
             if (le > aujourdhui) return refus($('#pd-le', layer), `Une déclaration ne se note pas ${depot ? 'déposée' : 'payée'} à une date à venir.`);
-            if (le < `${periode}-01`) return refus($('#pd-le', layer), `La déclaration de ${K.monthLabel(periode)} ne peut pas être ${depot ? 'déposée' : 'payée'} avant le mois qu'elle déclare.`);
+            if (le < `${periode}-01`) return refus($('#pd-le', layer), `La déclaration ${K.de(K.monthLabel(periode))} ne peut pas être ${depot ? 'déposée' : 'payée'} avant le mois qu'elle déclare.`);
             const reference = depot ? $('#pd-ref', layer).value.trim() : '';
             close(); resolve({ le, ...(reference ? { reference } : {}) });
           };
@@ -9940,6 +9940,7 @@
       ${(([mot, ton]) => `<span class="badge ${ton}" id="dc-etat">${esc(mot)}</span>`)(motEtatDecl(etat, d.periode, brAvant.length))}
       <span class="grow"></span>
       <button class="btn btn-sm btn-ghost" id="dc-csv">Exporter les cases</button>
+      <button class="btn btn-sm btn-ghost" id="dc-pdf">Exporter en PDF</button>
     </div>
     ${/* 10.12.0 (U-13) — les bandeaux ne s'empilent plus avant le premier chiffre. La promesse (« ne
           dépose rien ») vit avec les deux pense-bêtes qu'elle décrit ; les contrôles qui passent
@@ -10210,7 +10211,7 @@
         }
         // (1.378.2, issue 9 CABDECLARER-11) Annuler un dépôt se confirme : un clic l'effaçait, et le paiement noté avec lui.
         const lePaiement = quoi === 'deposee' && posee && posee.payee && posee.payee.le;
-        if (actif && !(await confirmDialog(`Annuler le ${quoi === 'deposee' ? 'dépôt' : 'paiement'} de ${K.monthLabel(s.decl.periode)} ?`,
+        if (actif && !(await confirmDialog(`Annuler le ${quoi === 'deposee' ? 'dépôt' : 'paiement'} ${K.de(K.monthLabel(s.decl.periode))} ?`,
           `<p>${quoi === 'deposee' ? `Le dépôt noté le ${esc(fmtJourCourt(String(actif).slice(0, 10)))} s'efface${lePaiement ? `, <b>et le paiement noté le ${esc(fmtJourCourt(String(lePaiement).slice(0, 10)))} avec lui</b> : on ne paie pas ce qu'on n'a pas déposé` : ''}.` : `Le paiement noté le ${esc(fmtJourCourt(String(actif).slice(0, 10)))} s'efface ; le dépôt reste.`} Rien ne change sur le portail ni dans le livre : c'est le pense-bête qui s'efface.</p>`,
           quoi === 'deposee' ? 'Annuler le dépôt' : 'Annuler le paiement', true, 'Garder'))) return;
         // Et le dépôt se note à SA date, avec le numéro de son accusé : la date du jour d'office était fausse dès le lendemain.
@@ -10235,17 +10236,29 @@
     // L'export passe par le MÊME chemin que le reste de l'application (`cab:exportCsv` pose le BOM
     // et la fenêtre d'enregistrement) : en écrire un second aurait fini par diverger sur l'un des
     // deux. Une case inconnue sort VIDE avec sa raison — jamais un zéro qu'on recopierait.
-    const csv = $('#dc-csv', el);
-    if (csv) csv.onclick = async () => {
-      // 10.14.1 (D1bis) — dans l'ordre du formulaire, comme l'écran : une rubrique, sa ligne, sa base
-      // et son taux quand ils se savent. Le récapitulatif et son total ferment le fichier.
+    // 10.14.1 (D1bis) — dans l'ordre du formulaire, comme l'écran : une rubrique, sa ligne, sa base
+    // et son taux quand ils se savent. Le récapitulatif et son total ferment le fichier. (1.390.12) Le CSV et le PDF
+    // lisent les MÊMES rangs : deux exports de la même déclaration ne disent jamais deux choses.
+    const rangsDecl = () => {
       const f = s.decl.formulaire;
-      const rangs = f ? [].concat(
+      return f ? [].concat(
         ...f.rubriques.map(r => r.lignes.map(l => [r.titre, [l.ref, l.libelle].filter(Boolean).join(' — '), l.base, l.taux, l.montant, l.montant == null ? l.motif : l.note])),
         f.recap.map(x => ['Récapitulatif', x.libelle, null, null, x.montant, '']),
         [['Récapitulatif', 'Total de la déclaration', null, null, f.total, f.manquent.length ? `Sans : ${f.manquent.join(', ')}` : '']],
         f.horsFormulaire.map(l => ['Hors de ce formulaire', l.libelle, null, null, l.montant, l.montant == null ? l.motif : ''])
       ) : ORDRE_CASES.filter(k => s.decl.cases[k]).map(k => ['', LIBELLE_CASE[k] || k, null, null, s.decl.cases[k].montant, s.decl.cases[k].motif || '']);
+    };
+    const pdfDc = $('#dc-pdf', el);
+    if (pdfDc) pdfDc.onclick = async () => {
+      const cols = [['rubrique', 'Rubrique'], ['cas', 'Case'], ['base', 'Base'], ['taux', 'Taux (%)'], ['montant', 'Montant'], ['remarque', 'Remarque']];
+      const rows = rangsDecl().map(r => ({ rubrique: r[0], cas: r[1], base: r[2], taux: r[3] == null ? '' : Number(r[3]).toLocaleString('fr-FR'), montant: r[4] == null ? '—' : r[4], remarque: r[5] || '' }));
+      const html = pageLivresPdf(`Déclaration ${K.de(K.monthLabel(s.decl.periode))}`, `${dossier.name}${dossier.matricule ? ` · ${dossier.matricule}` : ''} · les chiffres à recopier au dépôt — SkanFact ne dépose rien`, [{ cols, rows, montants: ['base', 'montant'] }]);
+      try { const f = await api.exportPdf(html, `declaration-${s.decl.periode}-${dossier.matricule || dossier.name}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
+      catch (e) { toast(plainError(e), 'error'); }
+    };
+    const csv = $('#dc-csv', el);
+    if (csv) csv.onclick = async () => {
+      const rangs = rangsDecl();
       const texte = [K.toCsvLine(['Rubrique', 'Case', 'Base', 'Taux (%)', 'Montant', 'Remarque'])]
         .concat(rangs.map(r => K.toCsvLine([r[0], r[1], K.csvMontant(r[2]), r[3] == null ? '' : Number(r[3]).toLocaleString('fr-FR'), K.csvMontant(r[4]), r[5] || '']))).join('\r\n') + '\r\n';
       try {
@@ -10467,7 +10480,7 @@
       qui dit où en est le dossier. La <b>liasse</b>, avec ses codes de rubriques et le résultat fiscal, vit dans
       son onglet à elle. <em>À VÉRIFIER : la présentation exacte du système comptable des entreprises n'est
       validée par personne ici.</em></p>
-      <div class="inline mb"><button type="button" class="btn btn-sm" id="cl-liasse">Ouvrir la liasse</button></div>
+      <div class="inline mb"><button type="button" class="btn btn-sm" id="cl-liasse">Ouvrir la liasse</button><button type="button" class="btn btn-sm btn-ghost" id="cl-etats-pdf">Exporter les états en PDF</button></div>
       <div class="split">
         <div><h3 class="sub-h">Bilan — actif</h3>
           <div class="scroll-x"><table class="list compact"><tbody>${e.actif.map(groupe).join('')}
@@ -10583,6 +10596,21 @@
     }; });
     const vli = $('#cl-liasse', el);
     if (vli) vli.onclick = () => allerSousOnglet(root, dossier, 'liasse');
+    // (1.390.12, issue 9, CABDECLARER-9) Le bilan et l'état de résultat en PDF, à remettre au client ou au banquier : ce
+    // que l'écran montre, rubrique par rubrique, avec les mêmes totaux — par la fabrique des livres et de la liasse.
+    const pdfEt = $('#cl-etats-pdf', el);
+    if (pdfEt) pdfEt.onclick = async () => {
+      const e = s.cloture.etats, cols = [['compte', 'Compte'], ['libelle', 'Rubrique'], ['montant', 'Montant']];
+      const lignes = groupes => [].concat(...groupes.map(g => [{ compte: '', libelle: g.titre, montant: g.total }, ...g.lignes]));
+      const tableaux = [
+        { titre: 'Bilan — actif', cols, montants: ['montant'], rows: [...lignes(e.actif), { compte: '', libelle: 'Total actif', montant: e.totalActif }] },
+        { titre: 'Bilan — passif', cols, montants: ['montant'], rows: [...lignes(e.passif), { compte: '', libelle: 'Résultat de l\'exercice', montant: e.resultat }, { compte: '', libelle: 'Total passif', montant: e.totalPassif }] },
+        { titre: 'État de résultat', cols, montants: ['montant'], rows: [...lignes([e.produits, e.charges]), { compte: '', libelle: 'Résultat de l\'exercice', montant: e.resultat }] },
+      ];
+      const html = pageLivresPdf(`États financiers ${s.annee}`, `${dossier.name}${dossier.matricule ? ` · ${dossier.matricule}` : ''} · déduits de la balance — À VÉRIFIER : la présentation exacte n'est validée par personne ici`, tableaux);
+      try { const f = await api.exportPdf(html, `etats-financiers-${s.annee}-${dossier.matricule || dossier.name}.pdf`); if (f) toast(`PDF enregistré : ${f}`); }
+      catch (x) { toast(plainError(x), 'error'); }
+    };
     const fus = $('#cl-fusion', el);
     if (fus) fus.onclick = () => fusionnerLivre(root, dossier);
     const clo = $('#cl-cloturer', el);
