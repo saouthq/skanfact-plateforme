@@ -219,6 +219,43 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('régularisée sur novembre');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  // (1.390.6, CABPAIE-3) Une retenue du bulletin (une opposition) se dit dans la masse salariale : brut − retenues
+  // salariales − autres retenues = net des bulletins (avant : il manquait la retenue, et la masse ne s'additionnait pas).
+  it('la masse salariale dit les autres retenues, et s\'additionne', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(salarie('s1', 'Amel Trabelsi', 1300, '2025-01-01')) },
+    ] })).statut).toBe(200);
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption('10');
+    const fenetre = p.locator('#modal-root .modal').last();
+    await ouvrirUnBulletin(p);
+    await fenetre.locator('#bf-plus-retenue').click();
+    await fenetre.locator('#bf-retenues [data-l=label]').last().fill('Opposition sur salaire');
+    await fenetre.locator('#bf-retenues [data-l=amount]').last().fill('100');
+    await fenetre.locator('#ok').click();
+    await expect.poll(async () => net((await p.locator('#toast').textContent()) ?? '')).toBe('Bulletin enregistré.');
+    await p.locator('.pa-so [data-pa-vue="annee"]').click();
+    await p.locator('#pa-masse-autres').waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#pa-masse-autres').innerText())).toBe('Autres retenues (avances, oppositions…) 100,000 DT');
+    // Le tableau s'additionne : brut − retenues salariales − autres retenues = net (lus à l'écran).
+    const lignes = await p.locator('#pa-masse-autres').locator('xpath=..').locator('tr').allInnerTexts();
+    const val = (l: string) => Number((l.split('\t').pop() ?? '').replace(/[^\d,]/g, '').replace(',', '.'));
+    const de = (debut: string) => val(lignes.find((l) => l.startsWith(debut)) ?? '');
+    expect(Math.round((de('Salaires bruts') - de('Retenues salariales') - de('Autres retenues') - de('Net des bulletins')) * 1000) || 0).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
   // (1.377.1, CABPAIE-9) « Noter la sortie… » demande le dernier jour : le salarié reste compté dans le mois où il était là,
   // n'est plus attendu ensuite, et « Annuler la sortie » le remet en poste.
   it('la sortie d\'un salarié se note avec son jour, compte dans son dernier mois, et s\'annule', async () => {

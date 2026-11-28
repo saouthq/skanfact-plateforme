@@ -32924,6 +32924,11 @@ prouver "un rattrapage compté dans le montant sans être nommé" web/public/pla
   "\${(a.prochaine.rattrapages || []).length ? \` et \${pl(a.prochaine.rattrapages.length, 'rattrapage', 'rattrapages')} de la période passée\` : ''}" "" \
   "le montant nomme ce qu"
 
+# 1.390.6 — La masse salariale du Cabinet dit les autres retenues, et s'additionne (issue 10, CABPAIE-3).
+prouver "une masse salariale qui tait la retenue du bulletin" modules/personnel/ecrans/cabinet/paie.js \
+  "\${anneeEntiere.retenues ? \`<tr id=\"pa-masse-autres\">" "\${false ? \`<tr id=\"pa-masse-autres\">" \
+  "la masse salariale dit les autres retenues"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

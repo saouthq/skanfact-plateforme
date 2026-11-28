@@ -198,6 +198,8 @@
       <table class="list compact"><tbody>
         <tr><td>Salaires bruts</td><td class="r nw">${esc(money(anneeEntiere.brut))}</td></tr>
         <tr><td>Retenues salariales (CNSS, IRPP, CSS)</td><td class="r nw">${esc(money(KC.round3(anneeEntiere.cnssSalarie + anneeEntiere.irpp + anneeEntiere.css)))}</td></tr>
+        ${/* (1.390.6, CABPAIE-3) Une retenue du bulletin (avance, opposition…) se dit : sans elle, brut − retenues ≠ net. */''}
+        ${anneeEntiere.retenues ? `<tr id="pa-masse-autres"><td>Autres retenues (avances, oppositions…)</td><td class="r nw">${esc(money(anneeEntiere.retenues))}</td></tr>` : ''}
         <tr><td>Net des bulletins</td><td class="r nw">${esc(money(anneeEntiere.net))}</td></tr>
         <tr><td>Charges patronales (CNSS, accident, TFP, FOPROLOS)</td><td class="r nw">${esc(money(anneeEntiere.chargesPatronales))}</td></tr>
         <tr class="dc-total"><td><b>Coût employeur</b></td><td class="r nw"><b>${esc(money(anneeEntiere.cout))}</b></td></tr>

@@ -8188,3 +8188,20 @@ puis pour l'année d'après), alors que la facture qui se prépare est celle de 
 
 Essais : `tests/abonnement/abonnement-cabinet.test.ts` lit l'abonnement d'un cabinet dont la facture n'a pas pu partir
 (la période qui court, 1 dossier, 60 DT, quinze jours) ; `tests/cabinet/abonnement-1390-5.test.ts` joue la phrase.
+
+## 1.390.6 — La masse salariale du Cabinet dit les autres retenues, et s'additionne (issue 10, CABPAIE-3)
+
+Pas corrigé à la contre-vérification : avec une retenue « Opposition sur salaire » de 100 DT sur un bulletin, « La
+masse salariale de l'exercice » disait « Salaires bruts 40 450 · Retenues salariales (CNSS, IRPP, CSS) 7 452,640 · Net
+des bulletins 32 897,360 » : il manquait 100, et le tableau ne s'additionnait pas.
+
+- **Une ligne « Autres retenues (avances, oppositions…) »** paraît dès qu'un bulletin de l'exercice en porte : brut −
+  retenues salariales − autres retenues = net des bulletins.
+- **Reste À DÉCIDER** : le compte de la retenue dans l'écriture de paie. Aujourd'hui le 425 reçoit le net ET les
+  retenues, dans les deux applications (même schéma, `ecritureDePaie` et `journalEntries`) : c'est juste pour le
+  remboursement d'une avance (l'avance a été passée au débit du 425), pas pour une opposition, due à un créancier
+  (427 « Personnel — oppositions »). Le changer touche le moteur comptable des deux applications et demande de savoir
+  quelles retenues vont où : c'est une question au comptable pilote.
+
+Essai : `tests/web/cabinet-paie-regul-1377.test.ts` pose une retenue de 100 sur un bulletin, à la souris, et lit la
+masse salariale ligne par ligne.
