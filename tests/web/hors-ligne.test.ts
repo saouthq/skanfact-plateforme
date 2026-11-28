@@ -194,10 +194,16 @@ describe('l\'application sans réseau, à la souris', () => {
     // la personne, au pied de la barre (maquette « Barre v3 »).
     await p.locator('#brand-btn').click();
     await expect.poll(() => demandesSansReseau.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    // (1.388.99) Avant la sortie, le navigateur garde de quoi nommer l'entreprise ; après, plus rien.
+    const souvenirs = () => p.evaluate(() => ({ entreprise: localStorage.getItem('skanfact.entreprise'), contact: localStorage.getItem('skanfact.dernier_contact'),
+      recents: localStorage.getItem('skanfact.recents'), ou: sessionStorage.getItem('skanfact.ou_j_etais') }));
+    const souvenirsAvant = await souvenirs();
+    expect(souvenirsAvant.contact).not.toBe(null);
     await p.locator('#b-moi').click();
     await p.getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await p.waitForURL((u) => !u.pathname.startsWith('/v10'), { timeout: 20_000 });
     await expect.poll(() => lePoste(p, ent), { timeout: 15_000 }).toBe(null);
+    expect(await souvenirs()).toEqual({ entreprise: null, contact: null, recents: null, ou: null });
     expect(await p.evaluate(() => [localStorage.getItem('skanfact.jeton'), sessionStorage.getItem('skanfact.jeton'), localStorage.getItem('skanfact.hors_ligne')])).toEqual([null, null, null]);
     await retablir();
     await c.setOffline(false);

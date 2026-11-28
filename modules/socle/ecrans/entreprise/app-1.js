@@ -16015,6 +16015,8 @@
   const OU_J_ETAIS = 'skanfact.ou_j_etais';
   window.addEventListener('pagehide', () => {
     try {
+      // (1.388.99) Une page qu'on quitte en se déconnectant ne laisse pas le nom de l'entreprise dans l'onglet.
+      if (window.skanfactSortie) return;
       const liste = k => { const { year, yearAuto, yearTouched, st, page } = listState[k]; return { year, yearAuto, yearTouched, st, page }; };
       sessionStorage.setItem(OU_J_ETAIS, JSON.stringify({ nom: (data && data.company && data.company.name) || '', onglet: settingsTab, devis: liste('devis'), facture: liste('facture') }));
     } catch (_) { /* un navigateur sans mémoire d'onglet : on recharge comme avant */ }

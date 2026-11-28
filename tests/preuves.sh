@@ -32674,6 +32674,13 @@ prouver "la pièce qui porte un fichier ne décide pas qui l'ouvre" serveur/v10/
 prouver "le serveur reprend la liste des tests, quatre mots de passe" serveur/principal.ts \
   "path.join(ici, 'donnees/mots-de-passe-courants.txt')," "path.join(ici, '../tests/donnees/mots-de-passe-voles.txt')," \
   "la configuration lit la liste du dépôt, qui refuse « 1234567890 » et laisse passer une phrase"
+# 1.388.99 — Se déconnecter n'oublie plus l'entreprise dans le navigateur.
+prouver "se déconnecter garde le dernier contact et les pages vues" web/public/plateforme/poste.js \
+  "for (const k of ['skanfact.entreprise', CONTACT, 'skanfact.recents']) localStorage.removeItem(k);" "void CONTACT;" \
+  "sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
+prouver "la page quittée en se déconnectant note encore où elle en était" modules/socle/ecrans/entreprise/app-1.js \
+  "      if (window.skanfactSortie) return;" "      if (false) return;" \
+  "sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

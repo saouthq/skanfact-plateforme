@@ -148,6 +148,14 @@
     efface = true;
     cleEnCours = null;
     try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
+    // (1.388.99) Et ce qui nomme ou désigne une entreprise : son identifiant, le dernier contact, les pages vues, les
+    // compteurs de la caisse et des pièces emportées ; dans l'onglet, l'endroit où l'on était et l'adresse à rouvrir.
+    // Restent les réglages d'affichage (le thème, la barre repliée), qui ne disent rien de personne.
+    try {
+      for (const k of ['skanfact.entreprise', CONTACT, 'skanfact.recents']) localStorage.removeItem(k);
+      for (const k of Object.keys(localStorage)) if (/^skanfact\.(caisse|emportes)\./.test(k)) localStorage.removeItem(k);
+      sessionStorage.removeItem('skanfact.ou_j_etais');
+    } catch { /* rien à retirer */ }
     // Bloquée, la suppression attend que la lecture en cours se referme (quelques millisecondes) : on l'attend un
     // instant, plutôt que de partir en la laissant derrière soi. Bornée : un autre onglet figé ne retient pas la page.
     await new Promise((ok) => {

@@ -737,6 +737,7 @@
     if ((attenteGardee || nonEnregistre) && !(await poste.demander(`Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface ${attenteGardee ? 'de ce poste' : 'de l\'écran'}.`,
       'Me déconnecter quand même', 'Attendre le réseau'))) return;
     try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
+    /** @type {any} */ (window).skanfactSortie = true; // la page ne note plus où elle en était (app-1.js, pagehide)
     try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
     if (destination) try { sessionStorage.setItem('skanfact.destination', destination); } catch { /* sans stockage : l'accueil */ }
     await poste.effacer();

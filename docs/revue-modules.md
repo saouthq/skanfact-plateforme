@@ -7889,3 +7889,12 @@ petite liste des tests : sans réglage, « 1234567890 » passait. Il lit désorm
 (SecLists, licence MIT), sans aucun mot de passe en clair. `SKANFACT_LISTE_VOLEE` désigne toujours une liste plus longue.
 
 Prouvé : le défaut réintroduit fait tomber son test (`tests/preuves.sh`, « 1.388.98 »).
+
+## 1.388.99 — Se déconnecter ne laisse plus l'entreprise dans le navigateur
+
+Après « Se déconnecter », le navigateur gardait encore de quoi nommer l'entreprise : son identifiant, la date du dernier
+contact, les pages vues, et — écrit par la page au moment même de la quitter — l'endroit où l'on était avec le nom de
+l'entreprise. Sur un poste partagé, la personne suivante pouvait les lire. Tout cela part désormais avec la copie et sa
+clé ; restent les réglages d'affichage (le thème, la barre repliée), qui ne disent rien de personne.
+
+Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.99 »).
