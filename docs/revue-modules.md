@@ -8007,3 +8007,10 @@ le séparateur prévu pour la même ligne passait en tête de la ligne du dessou
 le nom.
 
 Prouvé : le séparateur remis fait tomber le parcours (`tests/preuves.sh`, « 1.389.7 »).
+
+## 1.389.8 — « Sans les salaires » d'une seule décision (rouge de la vérification du 28 novembre)
+
+La 1.389.3 avait ajouté « sans les salaires » à la phrase estimée de « À décaisser » ; la preuve « « À décaisser » promet
+encore les salaires » ne visait que l'autre phrase, et ne tombait plus les jours où une estimation existe (le 28, date
+limite de la TVA). Les deux phrases lisent désormais une seule décision (`sansPaie30`), et la preuve la vise : elle tombe
+quel que soit le jour.

@@ -23339,7 +23339,7 @@ prouver 'paie 10.1-4 m : la trésorerie se tait sur la paie' modules/socle/ecran
   '${bandeauSansPaie('"'"'ces soldes et cette prévision'"'"', true)}' '' \
   "$SPW1"
 prouver 'paie 10.1-4 n : « À décaisser » promet encore les salaires' modules/socle/ecrans/entreprise/app-2.js \
-  'paieCachee() ? '"'"'achats et saisies, sans les salaires'"'"' : ' '' \
+  "    const sansPaie30 = paieCachee() ? 'sans les salaires' : '';" "    const sansPaie30 = '';" \
   "$SPW1"
 prouver 'paie 10.1-4 o : le relevé pousse à créer un salaire' modules/socle/ecrans/entreprise/app-2.js \
   '${paieCachee() ? '"'"' <b id="imp-sans-paie">' '${false ? '"'"' <b id="imp-sans-paie">' \

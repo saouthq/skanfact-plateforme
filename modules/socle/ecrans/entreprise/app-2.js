@@ -3696,6 +3696,8 @@
     const principalT = trou ? { id: 'tr-voir-trou', ic: 'echeance', l: 'Voir ce qui arrive' }
       : retards30 > 0 && nbRetards30 > 0 ? { id: 'tr-relancer', ic: 'cloche', l: nbRetards30 > 1 ? `Relancer ${nbRetards30} factures` : 'Relancer la facture en retard' }
         : aPointer > 0 ? { id: 'tr-pointer', ic: 'coche', l: 'Pointer le relevé' } : null;
+    // (1.389.8) « Sans les salaires » se dit d'UNE décision, dans les deux phrases de « À décaisser » (estimée ou non).
+    const sansPaie30 = paieCachee() ? 'sans les salaires' : '';
     const sous30 = [trou ? `${sousSeuil} le ${C.fmtDate(trou.date)}` : '', retards30 > 0 ? `sans les retards : ${h(C.money(p30.end, cur))}` : ''].filter(Boolean).join(' · ') || 'aucun trou prévu';
     $('#view').innerHTML = `
       <div class="page-head lf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Trésorerie</span></div><h1>Trésorerie</h1><p class="sous">Ce que tu as, ce qui va rentrer et sortir, et ton relevé pointé</p></div>
@@ -3705,7 +3707,7 @@
         <div class="cf-carte mg-resume" id="tr-resume">
           ${chiffreT('Disponible aujourd\'hui', montantU(pos0.total, cur), pl(pos0.accounts.length, 'compte'), pos0.total < seuilT ? 'rouge' : '', 'tre.total')}
           ${chiffreT('À encaisser sous 30 jours', montantU(f30.inflow, cur), retards30 > 0 ? `dont ${h(C.money(retards30, cur))} déjà échus` : 'rien d\'échu', '', 'dash.open')}
-          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés${paieCachee() ? ', sans les salaires' : ''}` : paieCachee() ? 'achats et saisies, sans les salaires' : 'achats, salaires, saisies', '', 'tre.decaisser')}
+          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés${sansPaie30 ? `, ${sansPaie30}` : ''}` : sansPaie30 ? `achats et saisies, ${sansPaie30}` : 'achats, salaires, saisies', '', 'tre.decaisser')}
           ${chiffreT('Dans 30 jours', montantU(f30.end, cur), sous30, trou || f30.end < seuilT ? 'rouge' : 'vert', 'tre.projected')}
         </div>
         <div class="mg-barre"><div class="pa-seg" id="t-tabs" role="tablist" aria-label="La trésorerie">${TRESO_TABS.map(([id, label]) =>
