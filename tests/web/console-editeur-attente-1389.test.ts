@@ -93,15 +93,33 @@ describe('ce que la désignation de l\'entreprise SkanFact fera partir, à la so
       await expect.poll(() => p.locator('.c-dialogue .c-al-ce-qui-va li').count(), { timeout: 10_000 }).toBe(4);
       return p;
     };
+    // La base des tests est PARTAGÉE : d'autres fichiers y posent leurs clients au même moment (en CI, « 8 factures
+    // attendront… »). La fenêtre compte TOUT ce qui attend ; le test lit donc le même compte dans la base et vérifie la
+    // phrase par la règle — le nombre, et notre client parmi les noms ou dans « et N autres » —, jamais une base vide.
+    const enAttente = async (designee: string) => ((await admin.query(`select plateforme.factures_en_attente_d_editeur((now() at time zone 'Africa/Tunis')::date) as a`)).rows[0].a as { sorte: string; id: unknown; nom: string }[])
+      .filter((x) => !(x.sorte === 'client' && String(x.id) === designee));
+    const verifier = (phrase: string, liste: { sorte: string; id: unknown }[], sansRib: boolean) => {
+      const n = liste.length;
+      expect(liste.some((x) => x.sorte === 'client' && String(x.id) === client), 'notre client attend sa facture').toBe(true);
+      const tete = sansRib
+        ? (n === 1 ? 'Une facture attendra le RIB de sa fiche pour partir, en son nom : ' : `${n} factures attendront le RIB de sa fiche pour partir, en son nom : `)
+        : (n === 1 ? 'Une facture partira dans la minute, en son nom : ' : `${n} factures partiront dans la minute, en son nom : `);
+      expect(phrase.startsWith(tete), phrase).toBe(true);
+      const rang = liste.findIndex((x) => x.sorte === 'client' && String(x.id) === client);
+      if (rang < 3) expect(phrase).toContain('Librairie Al Kitab (Essentiel, au mois)');
+      else expect(phrase).toMatch(n === 4 ? / et un autre\.$/ : new RegExp(` et ${n - 3} autres\\.$`));
+    };
     await rib(null);
     let p = await ouvrirLaFenetre();
-    expect(await ceQuiVa(p, editeur)).toBe('Une facture attendra le RIB de sa fiche pour partir, en son nom : Librairie Al Kitab (Essentiel, au mois).');
-    // Le client lui-même désigné : il ne se facture pas à lui-même, rien ne part.
-    expect(await ceQuiVa(p, client)).toMatch(/^Aucune facture n.attend de partir/);
+    verifier(await ceQuiVa(p, editeur), await enAttente(editeur), true);
+    // Le client lui-même désigné : il ne se facture pas à lui-même — son nom ne figure plus dans ce qui part.
+    const pourLeClient = await ceQuiVa(p, client);
+    expect(pourLeClient).not.toContain('Librairie Al Kitab');
+    if (!(await enAttente(client)).length) expect(pourLeClient).toMatch(/^Aucune facture n.attend de partir/);
     await fermer(p);
     await rib('10006012345678901234');
     p = await ouvrirLaFenetre();
-    expect(await ceQuiVa(p, editeur)).toBe('Une facture partira dans la minute, en son nom : Librairie Al Kitab (Essentiel, au mois).');
+    verifier(await ceQuiVa(p, editeur), await enAttente(editeur), false);
     await fermer(p);
     // (CONS3-7) Désignée, la carte la nomme, et son matricule vient seul sous le nom — sans « · » en tête de ligne.
     await admin.query('update socle.entreprise set matricule_fiscal = $2 where id = $1', [editeur, '1234567A/A/M/000']);

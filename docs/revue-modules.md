@@ -8052,3 +8052,12 @@ recherche, ni tri, ni colonne pour ce reste. Maintenant :
 - les en-têtes trient la liste, comme dans les autres listes.
 
 Prouvé : quatre défauts réintroduits un par un font tomber leur parcours (`tests/preuves.sh`, « 1.389.11 »).
+
+## 1.389.12 — Le test de la désignation tient sur une base partagée (rouge de la vérification du 28 novembre)
+
+Le parcours de la 1.389.4 attendait « Une facture attendra le RIB… » : il supposait une base où son client est seul à
+attendre. En CI, d'autres fichiers posent leurs clients dans la même base au même moment, et la fenêtre en comptait huit,
+à juste titre. Le parcours lit maintenant le même compte dans la base. Il vérifie la phrase par sa règle : le nombre,
+puis notre client parmi les noms ou dans « et N autres ». L'application ne change pas.
+
+Vérifié avec cinq clients en attente en plus. Les cinq preuves de la 1.389.4 tombent toujours.
