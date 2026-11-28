@@ -32929,6 +32929,11 @@ prouver "une masse salariale qui tait la retenue du bulletin" modules/personnel/
   "\${anneeEntiere.retenues ? \`<tr id=\"pa-masse-autres\">" "\${false ? \`<tr id=\"pa-masse-autres\">" \
   "la masse salariale dit les autres retenues"
 
+# 1.390.7 — L'en-tête de la paie compte les salariés du mois (issue 10, CABPAIE-9).
+prouver "un en-tête qui compte les seuls salariés en poste aujourd'hui" modules/personnel/ecrans/cabinet/paie.js \
+  "\${esc(pl(tri ? P.actifs : P.duMois, 'salarié'))}" "\${esc(pl(P.actifs, 'salarié'))}" \
+  "la sortie d"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

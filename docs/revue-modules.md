@@ -8205,3 +8205,15 @@ des bulletins 32 897,360 » : il manquait 100, et le tableau ne s'additionnait p
 
 Essai : `tests/web/cabinet-paie-regul-1377.test.ts` pose une retenue de 100 sur un bulletin, à la souris, et lit la
 masse salariale ligne par ligne.
+
+## 1.390.7 — L'en-tête de la paie compte les salariés du mois (issue 10, CABPAIE-9)
+
+Resté partiel à la contre-vérification : Sonia, sortie le 20/11, restait bien attendue en novembre (« 3 bulletins sur
+4 »), mais l'en-tête du mois disait « 3 salariés · tenue au cabinet » au-dessus de quatre bulletins : il comptait les
+salariés en poste aujourd'hui, pas ceux du mois.
+
+- **L'en-tête d'un mois compte ceux qui y étaient**, sortis en cours de mois compris : la même liste que les bulletins
+  attendus (`salariesDuMois`). Sur « CNSS du trimestre », il garde les salariés en poste.
+
+Essai : `tests/web/cabinet-paie-regul-1377.test.ts` note la sortie d'Amel au 20 octobre et lit « 2 salariés » en
+octobre, « 1 salarié » en novembre.

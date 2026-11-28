@@ -298,8 +298,11 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     // Octobre l'attend encore (deux bulletins à faire), novembre plus (un seul).
     await p.locator('.pa-so [data-pa-vue="mois"]').click();
     await expect.poll(() => p.locator('#pa-bulletin').first().innerText().then(net).catch(() => '')).toBe('Établir les bulletins : 2 à faire…');
+    // (1.390.7, CABPAIE-9) L'en-tête compte ceux du mois : Amel y était jusqu'au 20 octobre, plus en novembre.
+    expect(net(await p.locator('#pa-qui').innerText())).toBe('2 salariés · tenue au cabinet');
     await p.locator('#pa-mois').selectOption('11');
     await expect.poll(() => p.locator('#pa-bulletin').first().innerText().then(net).catch(() => '')).toBe('Établir les bulletins : 1 à faire…');
+    expect(net(await p.locator('#pa-qui').innerText())).toBe('1 salarié · tenue au cabinet');
     // « Annuler la sortie » : de nouveau en poste, sans date.
     await menu('Annuler la sortie');
     await expect.poll(toast).toBe('Amel Trabelsi est de nouveau en poste.');
