@@ -8228,3 +8228,19 @@ portait toujours la pastille verte « Révision · à jour » pour dix dossiers 
 
 Essai : `tests/web/tableau-de-bord.test.ts` ouvre le tableau de bord d'un cabinet dont les deux dossiers n'ont aucun
 livre, et lit « aucun livre » sur l'onglet.
+
+## 1.390.9 — Les visites du Cabinet ne parlent que de ce qui est à l'écran (issue 12, CP-24)
+
+Resté partiel à la contre-vérification : trois étapes de visite décrivaient un écran qui n'était pas celui qu'on avait
+sous les yeux.
+
+- **Une case de recherche n'est pas une information à donner** : une étape posée sur une barre de filtres, dont la seule
+  case est la recherche, disait « Remplis la case éclairée si tu as l'information ». Le moteur des visites ne tire plus de
+  consigne d'une case de recherche.
+- **« Resserrer » (Suivre la production)** ne parle plus de l'équipe : le choix de la personne a sa propre étape,
+  « Le travail de qui », qui ne paraît que si l'écran le montre (un associé seul ne l'a pas).
+- **« Ce qui attend » (Tenir la fiche d'un client)** éclaire le haut de la fiche sous ses trois visages : les gestes qui
+  attendent, les premiers pas d'un dossier qui arrive, ou « Rien n'attend ». Sur un dossier neuf, elle éclairait les
+  quatre chiffres.
+
+Essai : `tests/v10/visite-recherche-1390-9.test.ts`.

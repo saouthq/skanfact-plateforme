@@ -1890,7 +1890,9 @@
     if (!el || !el.tagName) return null;
     const tag = String(el.tagName).toUpperCase();
     if (tag === 'SELECT' || tag === 'TEXTAREA') return el;
-    if (tag === 'INPUT') return /^(hidden|button|submit|reset|file|image)$/i.test(el.type || '') ? null : el;
+    // (1.390.9, issue 12 CP-24) Une case de RECHERCHE n'est pas une information à donner : « Remplis la case éclairée si
+    // tu as l'information » se disait de la recherche des dossiers, dans l'étape « Resserrer » de la production.
+    if (tag === 'INPUT') return /^(hidden|button|submit|reset|file|image|search)$/i.test(el.type || '') ? null : el;
     if (el.matches && el.matches('.combo, [data-combo], .combo-btn')) return el;
     // Une zone qui porte UNE seule case (un libellé et son champ) parle de cette case ; plusieurs,
     // c'est une rangée ou un formulaire, et l'étape le dit elle-même.

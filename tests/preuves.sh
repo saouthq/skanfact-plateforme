@@ -32939,6 +32939,17 @@ prouver "une révision dite à jour sur un portefeuille sans livre" modules/socl
   "tag(nRev ? 'attire' : nLivres ? 'ok' : '', nRev ? \`\${nRev} à revoir\` : nLivres ? 'à jour' : 'aucun livre', 'tb-rev-cnt')" "tag(nRev ? 'attire' : 'ok', nRev ? \`\${nRev} à revoir\` : 'à jour', 'tb-rev-cnt')" \
   "un portefeuille sans livre ne se dit pas"
 
+# 1.390.9 — Les visites du Cabinet ne parlent que de ce qui est à l'écran (issue 12, CP-24).
+prouver "une recherche prise pour une case à remplir" web/public/v10/visite.js \
+  "|image|search)\$/i" "|image)\$/i" \
+  "une barre de filtres dont la seule case est la recherche"
+prouver "« Ce qui attend » qui éclaire les quatre chiffres" modules/socle/visites/cabvisites.js \
+  "cible: ['#fd-at', '#fd-bv', '#fd-ok']" "cible: ['#fd-at', '#view .fd-ch']" \
+  "éclaire les trois visages du haut de la fiche"
+prouver "le choix de l'équipe montré à un associé seul" modules/socle/visites/cabvisites.js \
+  "titre: 'Le travail de qui', si: () => !!document.querySelector('.tb-qui')," "titre: 'Le travail de qui'," \
+  "ne paraît que si la production montre le choix"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

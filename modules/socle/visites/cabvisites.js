@@ -1698,8 +1698,10 @@
       // (1.374.0) La visite ouvrait l'ancien écran (« …/suivi », ses onglets, « Les mois de ce client ») : elle suit la
       // fiche d'aujourd'hui, repère par repère (issue 12).
       etapes: [
-        { page: laFiche, cible: ['#fd-at', '#view .fd-ch'], cote: 'dessous', titre: 'Ce qui attend',
-          texte: 'Le prochain geste de ce dossier, dans l\'ordre : saisir, réviser, préparer la déclaration. Son bouton t\'y emmène.' },
+        // (1.390.9, issue 12 CP-24) Le haut de la fiche a trois visages : les gestes qui attendent, les premiers pas d'un
+        // dossier qui arrive (« Bienvenue au cabinet »), ou « Rien n'attend ». Les quatre chiffres n'en sont aucun.
+        { page: laFiche, cible: ['#fd-at', '#fd-bv', '#fd-ok'], cote: 'dessous', titre: 'Ce qui attend',
+          texte: 'Le haut de la fiche dit ce que ce dossier attend de toi : ses gestes dans l\'ordre (saisir, réviser, préparer la déclaration), ses premiers pas s\'il vient d\'arriver, ou qu\'il n\'attend rien. Chaque bouton t\'y emmène.' },
         { page: laFiche, cible: ['#fd-an', '#view .fd-ms'], cote: 'dessus', titre: 'Son année, mois par mois',
           texte: 'Chaque case dit où en est le mois : déposé, révisé (révision arrêtée), validé, en cours, à saisir, en retard. <b>Clique un mois</b> pour lire son détail et sa date limite.' },
         { page: laFiche, cible: ['#view .fd-cote'], cote: 'gauche', titre: 'La mission, l\'équipe, le client',
@@ -1929,7 +1931,10 @@
         // (issue 12 CABPORTEFEUILLE-24) L'étape éclairait le compte « N mois en retard » de l'onglet Production, au-dessus de ce
         // qu'elle décrit : elle éclaire la période, et nomme les puces juste dessous.
         { page: '#/production', cible: ['#tb-dossiers .filtres', '#tb-dossiers'], cote: 'dessus', titre: 'Resserrer',
-          texte: 'Cherche un dossier, ou resserre la période : six mois, l\'année, douze mois, ou une période de ton choix ; juste dessous, les puces ne gardent que les dossiers en retard, à saisir ou à réviser. Quand ton équipe compte plusieurs personnes, le haut de la page choisit le travail de qui.' },
+          texte: 'Cherche un dossier, ou resserre la période : six mois, l\'année, douze mois, ou une période de ton choix ; juste dessous, les puces ne gardent que les dossiers en retard, à saisir ou à réviser.' },
+        // (1.390.9, issue 12 CP-24) Le choix d'une personne ne se dit qu'à une équipe : il n'existe pas pour un associé seul.
+        { page: '#/production', cible: '.tb-qui', cote: 'dessous', titre: 'Le travail de qui', si: () => !!document.querySelector('.tb-qui'),
+          texte: 'Ton équipe compte plusieurs personnes : choisis le travail d\'une seule, ou « Tout le cabinet ». La grille et ses chiffres suivent.' },
         { page: '#/production', cible: '#view tr[data-tb-id]', cote: 'dessous', faire: 'clic',
           titre: 'Ouvre un dossier', texte: 'La ligne mène à sa comptabilité ; son menu ⋯, à ses échéances, sa conversation et sa fiche.',
           action: 'Clique sur la ligne d\'un client.', essai: { clic: true } }
