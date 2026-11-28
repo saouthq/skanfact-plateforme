@@ -8103,3 +8103,24 @@ Base : `0244_cles_acces.sql` (deux tables, sous cloisonnement : chacun ne voit q
 par les fonctions). Essais : `tests/socle/cles-acces.test.ts` (un appareil imité dans le test, avec de vraies paires de
 clés : chaque contrôle tombe sur son défaut) et `tests/web/cles-acces.test.ts` (l'authentificateur virtuel de Chromium :
 ajouter une clé, entrer sans mot de passe dans un autre navigateur, la retirer, et l'entrée par la clé refusée).
+
+## 1.390.1 — Un cabinet demande un code à ses comptables
+
+La 0219 avait rendu le code de connexion facultatif partout, et laissé une case à chaque cabinet (`code_exige`) pour le
+demander à ses comptables. Rien ne permettait de la cocher : la colonne restait éteinte pour tous.
+
+- **Réglages → Mon cabinet → L'équipe → « Demander un code de connexion à chaque comptable du cabinet ».** Un associé la
+  coche ou la décoche ; pour les autres, la case est fermée et la phrase au-dessus du bouton d'invitation dit pourquoi
+  (« Seul un associé du cabinet … ou demande un code aux comptables. »). La bulle dit ce que ça change : chaque comptable
+  tape un code en plus de son mot de passe (son application, le SMS, ou le code par e-mail sur un appareil inconnu),
+  sept jours après le premier vrai dossier du cabinet, le temps de le mettre en place dans « Ton compte » ; une clé
+  d'accès en tient lieu.
+- **Le geste se lit dans « Ce qui a changé dans l'équipe »** : « Hana a demandé un code de connexion à chaque comptable
+  du cabinet. », et l'inverse. Cocher deux fois ne trace qu'un geste.
+- **Corrigé au passage.** L'écran du Cabinet lisait `codeExige` dans la liste de ses cabinets pour annoncer le code à
+  venir, mais `GET /cabinets` ne le rendait pas : l'annonce ne pouvait jamais paraître. La liste le rend désormais.
+
+Base : `0245_code_exige_cabinet.sql` (`socle.exiger_code_cabinet`, réservée aux associés, tracée). Route :
+`PUT /cabinets/:cabinet/code-exige`. Essais : `tests/cabinet/equipe.test.ts` (seul un associé, la trace, la lecture
+par chacun) et `tests/web/cabinet-code-exige.test.ts` (la case cochée puis décochée à la souris, fermée pour une
+collaboratrice).

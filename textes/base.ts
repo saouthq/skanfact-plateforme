@@ -321,6 +321,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'seul un associé du cabinet change son équipe', cle: 'base.cabinet.equipe_associe', fr: 'seul un associé du cabinet change son équipe' },
   { base: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait', cle: 'base.cabinet.equipe_soi', fr: 'personne ne change son propre rôle, ni ne se retire soi-même : un autre associé le fait' },
   { base: 'seul un associé du cabinet change son nom', cle: 'base.cabinet.renommer_associe', fr: 'seul un associé du cabinet change son nom' },
+  { base: 'seul un associé du cabinet demande un code à ses comptables', cle: 'base.cabinet.code_exige_associe', fr: 'seul un associé du cabinet demande un code à ses comptables' },
   { base: 'le nom du cabinet s\'écrit en un à deux cents caractères', cle: 'base.cabinet.nom_longueur', fr: 'le nom du cabinet s\'écrit en un à deux cents caractères' },
   { base: 'une pièce acceptée par la TTN ne change plus', cle: 'base.ttn.acceptee_figee', fr: 'une pièce acceptée par la TTN ne change plus : sa référence et la facture validée sont définitives' },
   // La série créée par l'émission (0053, brique 99).

@@ -7517,6 +7517,10 @@
       <div class="modal-actions">
         <button class="btn" id="eq-add" ${g.ok ? '' : 'disabled'}>Inviter un collaborateur…</button>
       </div>
+      ${/* 1.390.1 : un associé demande un code à chaque comptable (0219, 0245). La case se ferme pour les autres, avec la
+            même phrase que le refus du serveur ; rien ne pousse le panneau quand elle change. */''}
+      <label class="check mt" id="eq-code-l"><input type="checkbox" id="eq-code"${equipe.codeExige ? ' checked' : ''}${g.ok ? '' : ' disabled'}>
+        <span>Demander un code de connexion à chaque comptable du cabinet ${info('eq.code')}</span></label>
       ${(equipe.trace || []).length ? `<p class="small mt"><b>Ce qui a changé dans l'équipe</b> <span class="muted">— les derniers gestes, du plus récent au plus ancien</span></p>
         <div class="scroll-x"><table class="list compact" id="eq-trace"><tbody>${equipe.trace.map(x => `<tr>
           <td class="nw muted small">${esc(fmtJour(KC.jourDeLInstant(Date.parse(x.instant))))}</td><td>${esc(x.phrase)}</td></tr>`).join('')}</tbody></table></div>` : ''}
@@ -7538,6 +7542,17 @@
     }
     const add = $('#eq-add', box);
     if (add) add.onclick = () => formCollaborateur(null);
+    const caseCode = $('#eq-code', box);
+    if (caseCode) caseCode.onchange = async () => {
+      const voulu = caseCode.checked;
+      caseCode.disabled = true;
+      try {
+        await api.exigerCode(voulu);
+        equipe = await api.collaborateurs();
+        dessinerEquipe(document, true);
+        toast(voulu ? 'Chaque comptable du cabinet tapera un code à la connexion.' : 'Le code de connexion n\'est plus demandé aux comptables du cabinet.');
+      } catch (e) { caseCode.checked = !voulu; caseCode.disabled = false; toast(plainError(e), 'error'); }
+    };
     $$('[data-inv]', box).forEach(b => { b.onclick = async () => {
       try { await api.annulerInvitation(b.dataset.inv); equipe = await api.collaborateurs(); dessinerEquipe(document, true); toast('Invitation annulée.'); }
       catch (e) { toast(plainError(e), 'error'); }

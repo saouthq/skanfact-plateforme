@@ -350,7 +350,7 @@
     etat.cycles = reglages.contenu.cycles || [];
     nomDuCabinet = String(cab.nom || '');
     moiNom = String(moi.nom || '');
-    etat.moi = moi.id; etat.codeAVenir = !!cab.codeExige && !moi.code_methode && !(moi.compte && moi.compte.courriel); etat.codeExigeLe = etat.codeAVenir && moi.compte ? moi.compte.codeExigeLe || null : null;
+    etat.moi = moi.id; etat.codeExigeCabinet = !!cab.codeExige; etat.codeAVenir = !!cab.codeExige && !moi.code_methode && !(moi.compte && moi.compte.courriel); etat.codeExigeLe = etat.codeAVenir && moi.compte ? moi.compte.codeExigeLe || null : null;
     moiId = String(moi.id || '');
     etat.moiNom = moi.nom;
     return etat;
@@ -1171,7 +1171,7 @@
       case 'cabinet.equipe.accepter': return `${x.qui} a rejoint le cabinet (${role((ap.roles || [])[0])}).`;
       case 'cabinet.equipe.changer_role': return `${x.qui} a changé le rôle de ${membre} : ${role((av.roles || [])[0])} → ${role((ap.roles || [])[0])}.`;
       case 'cabinet.equipe.retirer': return `${x.qui} a retiré ${membre} du cabinet.`;
-      case 'cabinet.renommer': return `${x.qui} a renommé le cabinet : « ${av.nom} » → « ${ap.nom} ».`;
+      case 'cabinet.renommer': return `${x.qui} a renommé le cabinet : « ${av.nom} » → « ${ap.nom} ».`; case 'cabinet.equipe.code_exige': return ap.exige ? `${x.qui} a demandé un code de connexion à chaque comptable du cabinet.` : `${x.qui} ne demande plus de code de connexion aux comptables du cabinet.`;
       default: return `${x.qui} : ${x.geste}.`;
     }
   }
@@ -2499,8 +2499,7 @@
       };
     },
 
-    // ── L'équipe du cabinet (brique 46) : ses membres, les invitations qui attendent, le rôle de chacun,
-    // les dossiers confiés ; chacun entre avec son propre compte (plus d'identité déclarée par poste) ──
+    // ── L'équipe du cabinet (brique 46) : membres, invitations, rôles, dossiers confiés, et le code demandé (1.390.1) ──
     collaborateurs: async () => {
       const etat = await construireEtat();
       const associes = equipeLue.membres.filter((m) => (m.roles || []).includes('supervision'));
@@ -2508,9 +2507,9 @@
       // Ce qui a changé dans l'équipe (brique 61) : un associé le lit, en phrases.
       /** @type {any[]} */ const trace = suis ? ((await appel('GET', `/cabinets/${cabinetId}/equipe/trace`)).trace || []) : [];
       return {
-        trace: trace.map((x) => ({ instant: x.instant, phrase: phraseDeLEquipe(x) })),
+        trace: trace.map((x) => ({ instant: x.instant, phrase: phraseDeLEquipe(x) })), codeExige: etat.codeExigeCabinet,
         liste: etat.collaborateurs, moi: etat.moi, invitations: equipeLue.invitations.map((i) => ({ ...i, role: VERS_V10[i.role] || 'saisie' })),
-        gestion: suis ? { ok: true } : { ok: false, motif: 'Seul un associé du cabinet invite, change un rôle ou retire quelqu\'un.',
+        gestion: suis ? { ok: true } : { ok: false, motif: 'Seul un associé du cabinet invite, change un rôle, retire quelqu\'un ou demande un code aux comptables.',
           geste: `${associes.map((m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} le faire.` },
       };
     },
@@ -2519,6 +2518,7 @@
       const r = await appel('POST', `/cabinets/${cabinetId}/invitations`, { email: String(o.email || '').trim(), role: VERS_SERVEUR[o.role] || 'saisie' });
       return { lien: `${location.origin}/?invitation=${encodeURIComponent(r.jeton)}`, expire: r.expire, courriel: r.courriel === true };
     },
+    exigerCode: async (/** @type {boolean} */ exige) => (await appel('PUT', `/cabinets/${cabinetId}/code-exige`, { exige: !!exige })).exige === true,
     annulerInvitation: async (/** @type {string} */ id) => { await appel('DELETE', `/cabinets/${cabinetId}/invitations/${id}`); return true; },
     // Changer le rôle d'un membre (son nom est celui de son compte : il ne se change pas ici).
     saveCollaborateur: async (/** @type {any} */ o = {}) => {

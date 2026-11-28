@@ -216,7 +216,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/cabinets', geste: 'compte.cabinets.voir',
     traiter: async (_r, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const r = await tx.query(`select o.id, o.nom, o.code_cabinet code, m.roles from socle.organisation o
+      const r = await tx.query(`select o.id, o.nom, o.code_cabinet code, o.code_exige "codeExige", m.roles from socle.organisation o
         join socle.membre m on m.organisation = o.id and m.utilisateur = socle.moi() and m.actif
         where o.type = 'cabinet' order by o.nom, o.id`);
       return { corps: { cabinets: r.rows } };
@@ -794,6 +794,17 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
       await tx.query('select socle.renommer_cabinet($1, $2)', [params.cabinet, corps.nom]);
       return { corps: { nom: corps.nom.trim() } };
+    },
+  });
+
+  // ── Un code pour les comptables du cabinet (1.390.1, 0245) : un associé le demande ou ne le demande plus ──
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/code-exige', geste: 'compte.cabinet.gerer',
+    corps: z.object({ exige: z.boolean() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const exige = (await tx.query('select socle.exiger_code_cabinet($1, $2) v', [params.cabinet, corps.exige])).rows[0].v as boolean;
+      return { corps: { exige } };
     },
   });
 

@@ -32859,6 +32859,28 @@ prouver "une clé retirée sans qu'on le demande d'abord" web/public/plateforme/
 " "" \
   "ajouter une clé, entrer sans mot de passe, la retirer"
 
+# 1.390.1 — Un cabinet demande un code à ses comptables (tâche 107).
+prouver "un collaborateur qui exige le code à la place des associés" base/migrations/0245_code_exige_cabinet.sql \
+  "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet demande un code à ses comptables'); end if;
+" "" \
+  "un associé demande un code à chaque comptable, et ne le demande plus"
+prouver "un même geste tracé deux fois" base/migrations/0245_code_exige_cabinet.sql \
+  "  if v_avant is distinct from p_exige then" "  if true then" \
+  "un associé demande un code à chaque comptable, et ne le demande plus"
+prouver "la liste des cabinets qui tait le code exigé" serveur/cabinet/routes.ts \
+  'o.code_exige "codeExige", ' "" \
+  "un associé demande un code à chaque comptable, et ne le demande plus"
+prouver "la case ouverte à une collaboratrice" modules/socle/ecrans/cabinet/app-2.js \
+  "\${equipe.codeExige ? ' checked' : ''}\${g.ok ? '' : ' disabled'}>" "\${equipe.codeExige ? ' checked' : ''}>" \
+  "puis ne le demande plus ; la collaboratrice voit la case fermée"
+prouver "la case cochée qui ne dit rien au serveur" modules/socle/ecrans/cabinet/app-2.js \
+  "        await api.exigerCode(voulu);
+" "" \
+  "puis ne le demande plus ; la collaboratrice voit la case fermée"
+prouver "le geste muet dans la trace de l'équipe" web/public/plateforme/pont-cabinet.js \
+  "case 'cabinet.equipe.code_exige':" "case 'cabinet.equipe.code_exige_':" \
+  "puis ne le demande plus ; la collaboratrice voit la case fermée"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

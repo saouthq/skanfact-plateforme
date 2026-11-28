@@ -176,4 +176,32 @@ describe('l\'équipe du cabinet', () => {
     expect((await appeler('POST', '/invitations/accepter', tardif.jeton, { jeton: inv.corps.jeton })).corps.motif).toBe('Cette invitation n\'est plus valable : demande-en une nouvelle.');
     expect((await equipe(cabinet, nour)).invitations).toEqual([]);
   });
+
+  it('un associé demande un code à chaque comptable, et ne le demande plus ; un collaborateur ne le peut pas ; le geste se lit dans la trace (1.390.1)', async () => {
+    const associe = await personneA(`hana-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`, 'Hana');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Hana' })).corps.id);
+    const adresse = `rim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    const inv = await appeler('POST', `/cabinets/${cabinet}/invitations`, associe.jeton, { email: adresse, role: 'saisie' });
+    const rim = await personneA(adresse, 'Rim');
+    expect((await appeler('POST', '/invitations/accepter', rim.jeton, { jeton: inv.corps.jeton })).statut).toBe(200);
+    const lu = async (p: Personne) => ((await appeler('GET', '/cabinets', p.jeton)).corps.cabinets as { id: string; codeExige: boolean }[]).find((c) => c.id === cabinet)?.codeExige;
+    expect([await lu(associe), await lu(rim)]).toEqual([false, false]);
+    // Une collaboratrice ne le demande pas : la phrase du refus est celle que l'écran affiche avant le geste.
+    const refus = await appeler('PUT', `/cabinets/${cabinet}/code-exige`, rim.jeton, { exige: true });
+    expect([refus.statut, refus.corps.motif]).toEqual([403, 'Seul un associé du cabinet demande un code à ses comptables.']);
+    expect(await lu(rim)).toBe(false);
+    // L'associé l'allume : chacun le lit ; l'allumer deux fois ne trace qu'un geste ; l'éteindre en trace un autre.
+    expect((await appeler('PUT', `/cabinets/${cabinet}/code-exige`, associe.jeton, { exige: true })).corps).toEqual({ exige: true });
+    expect((await appeler('PUT', `/cabinets/${cabinet}/code-exige`, associe.jeton, { exige: true })).corps).toEqual({ exige: true });
+    expect([await lu(associe), await lu(rim)]).toEqual([true, true]);
+    // La règle de la 0219 : une fois allumé, le code vaut pour Rim sept jours après le premier vrai dossier du cabinet.
+    expect((await admin.query('select code_exige from socle.organisation where id = $1', [cabinet])).rows[0].code_exige).toBe(true);
+    expect((await appeler('PUT', `/cabinets/${cabinet}/code-exige`, associe.jeton, { exige: false })).corps).toEqual({ exige: false });
+    expect(await lu(rim)).toBe(false);
+    type Trace = { qui: string; geste: string; apres: Record<string, unknown> | null };
+    const trace = ((await appeler('GET', `/cabinets/${cabinet}/equipe/trace`, associe.jeton)).corps.trace as Trace[]).filter((x) => x.geste === 'cabinet.equipe.code_exige');
+    expect(trace.map((x) => [x.qui, x.apres?.exige])).toEqual([['Hana', false], ['Hana', true]]);
+    // Un corps qui n'est pas un oui ou un non est refusé.
+    expect((await appeler('PUT', `/cabinets/${cabinet}/code-exige`, associe.jeton, { exige: 'oui' })).statut).toBe(400);
+  });
 });
