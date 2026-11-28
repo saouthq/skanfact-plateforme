@@ -69,7 +69,8 @@ const lire = async (tx: Transaction, entreprise: string, collection: string, cle
     [entreprise, collection, cle])).rows[0] as { contenu: Json; revision: string } | undefined;
 
 // Facturer la période d'un cabinet, dans la transaction de la propriétaire de l'entreprise SkanFact. Rend le numéro de la
-// facture émise, ou « vide » quand il n'y a rien à facturer (plus aucun dossier payant ni rattrapage).
+// facture émise, « vide » quand il n'y a rien à facturer (plus aucun dossier payant ni rattrapage), ou « déjà » quand
+// un autre tour l'a émise juste avant (CONS3-6 : ce n'est pas un refus, la période est faite).
 export async function facturerUnCabinet(tx: Transaction, cabinet: string, debut: string, utilisateur: string, jour: string): Promise<string> {
   await tx.query('select pg_advisory_xact_lock(hashtextextended($1, 0))', [`facture-cabinet:${cabinet}`]);
   const lu = (await tx.query('select plateforme.facture_cabinet_pour($1, $2::date, $3::date) v', [cabinet, debut, jour])).rows[0]?.v as
@@ -84,7 +85,8 @@ export async function facturerUnCabinet(tx: Transaction, cabinet: string, debut:
   const deja = await lire(tx, editeur, 'documents', cle);
   if (deja) {
     const numero = typeof deja.contenu.number === 'string' ? deja.contenu.number : '';
-    throw numero ? new Refus('abonnement.facture.deja_emise', { valeurs: { numero } }) : new Refus('abonnement.facture.deja_preparee');
+    if (numero) return 'deja';
+    throw new Refus('abonnement.facture.deja_preparee');
   }
   // La fiche du client : celle de ses factures d'avant si elle est encore au dossier, sinon une fiche neuve.
   const fiche = lu.client ? await lire(tx, editeur, 'clients', lu.client) : undefined;
@@ -119,7 +121,7 @@ export async function facturerLesCabinets(ctx: Contexte, o: { cabinet?: string; 
   for (const a of liste) {
     try {
       const r = await enTantQue(ctx.pool, a.proprietaire, (tx) => facturerUnCabinet(tx, a.cabinet, a.debut, a.proprietaire, jour));
-      if (r === 'vide') { vides++; await noter(a, true, rendre(texteDe('abonnement.cabinet.rien_a_facturer'), 'fr')); } else emises++;
+      if (r === 'vide') { vides++; await noter(a, true, rendre(texteDe('abonnement.cabinet.rien_a_facturer'), 'fr')); } else if (r !== 'deja') emises++;
     } catch (e) {
       refusees++;
       const motif = e instanceof Refus ? e.message : rendre(texteDe('commun.erreur_serveur'), 'fr');

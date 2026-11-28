@@ -32766,6 +32766,13 @@ prouver "la cliente qui ne lit pas ce qu'on lui doit" web/public/plateforme/abon
   "    if (enTrop(p)) return esc(tropEnMots(p));
 " "" \
   "une facture réglée puis annulée par son avoir dit « payée, puis annulée » et ce qui est à rendre, ici et chez la cliente (CONS3-5)"
+# 1.389.6 — Une facture de cabinet faite ne se dit plus « pas faite » (CONS3-6).
+prouver "une facture déjà émise par un autre tour notée comme un refus" serveur/abonnement/cabinet.ts \
+  "    if (numero) return 'deja';" "    if (numero) throw new Refus('abonnement.facture.deja_emise', { valeurs: { numero } });" \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture d'un cabinet ne part pas et sa raison se garde"
+prouver "le motif repris après deux-points avec sa majuscule" web/console/src/motif.ts \
+  "? m.charAt(0).toLowerCase() + m.slice(1) : m" "? m : m" \
+  "perd sa majuscule de début de phrase, garde un sigle et un nom propre en capitales"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

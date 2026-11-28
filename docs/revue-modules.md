@@ -7985,3 +7985,17 @@ disait seulement « Payée », et la cliente ne lisait nulle part ce qu'on lui d
 - Non fait ici : la page « Ton abonnement » d'un cabinet ne reçoit pas encore le détail des paiements de ses factures.
 
 Prouvé : six défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.5 »).
+
+## 1.389.6 — Une facture de cabinet faite ne se dit plus « pas faite » (CONS3-6)
+
+La fiche d'un cabinet disait en rouge « La facture de la période qui court ne s'est pas faite seule : La facture de cette
+période est déjà émise (FAC-2026-005) » juste au-dessus de « FAC-2026-005 … Payée ».
+
+- Deux tours lancés ensemble (le tour de la minute et celui qui suit un dossier créé) : le second trouvait la facture
+  faite et le notait comme un refus. Ce n'en est pas un : il rend « déjà » et ne note rien. (La facture notée efface
+  déjà le refus de sa période ; c'est le second tour qui en recréait un.) Ceux que cette course a laissés s'effacent à
+  la migration (`0243`).
+- La majuscule du motif, reprise après deux-points (« : La fiche »), tombe : la phrase se lit d'un trait ; un sigle garde
+  ses capitales.
+
+Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.6 »).

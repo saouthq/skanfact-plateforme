@@ -20,7 +20,7 @@ import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { CLE_DU_COFFRE_D_ESSAI } from '../../serveur/coffre.ts';
 import { plusJours } from '../../serveur/abonnement/etat.ts';
-import { facturerLesCabinets, routesAbonnementCabinet } from '../../serveur/abonnement/cabinet.ts';
+import { facturerLesCabinets, facturerUnCabinet, routesAbonnementCabinet } from '../../serveur/abonnement/cabinet.ts';
 import { routesAbonnement } from '../../serveur/abonnement/routes.ts';
 import { routesCabinet } from '../../serveur/cabinet/routes.ts';
 import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
@@ -225,6 +225,19 @@ describe('l\'abonnement d\'un cabinet', () => {
       expect((reg.corps.factures as { editeur: { sansRib: boolean } }).editeur.sansRib).toBe(true);
       expect(await sesFactures(c)).toEqual([]);
       expect(Number((await admin.query("select count(*) n from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle like $2", [editeur, `cabinet-${c.id}-%`])).rows[0].n)).toBe(0);
+      expect(((await appeler('GET', `/console/cabinets/${c.id}`, amira.console)).corps.abonnement as { refus: string | null }).refus).toMatch(/RIB/);
+      // (CONS3-6) Le RIB posé, au tour du lendemain la facture part : le refus de sa période s'efface, la fiche ne dit
+      // plus « ne s'est pas faite seule » au-dessus de la facture faite.
+      await rib('10006012345678901234');
+      await admin.query("update plateforme.facture_cabinet_refus set le = le - interval '25 hours' where cabinet = $1", [c.id]);
+      expect(await facturerLesCabinets(ctx, { cabinet: c.id })).toMatchObject({ periodes: 1, emises: 1, refusees: 0 });
+      expect((await admin.query('select 1 from plateforme.facture_cabinet_refus where cabinet = $1', [c.id])).rowCount).toBe(0);
+      expect(((await appeler('GET', `/console/cabinets/${c.id}`, amira.console)).corps.abonnement as { refus: string | null }).refus).toBeNull();
+      // Un tour de plus qui trouverait la période déjà émise (deux tours ensemble) : rien de noté comme refus.
+      const debut = String((await admin.query('select debut::text d from plateforme.facture_cabinet where cabinet = $1', [c.id])).rows[0].d);
+      const proprio = String((await admin.query("select utilisateur from socle.membre where entreprise = $1 and 'proprietaire' = any(roles) limit 1", [editeur])).rows[0].utilisateur);
+      expect(await enTantQue(pool, proprio, (tx) => facturerUnCabinet(tx, c.id, debut, proprio, jour))).toBe('deja');
+      expect((await admin.query('select 1 from plateforme.facture_cabinet_refus where cabinet = $1', [c.id])).rowCount).toBe(0);
     } finally { await rib('10006012345678901234'); }
   });
 

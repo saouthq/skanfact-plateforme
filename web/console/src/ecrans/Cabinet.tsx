@@ -5,6 +5,7 @@
 // état), jamais son contenu : la console voit l'équipe d'un cabinet et la liste de ses dossiers, pas leurs livres.
 import { useEffect, useState, type ReactNode } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
+import { dansLaPhrase } from '../motif.ts';
 import { abonnementEnMots, expliquer, puceDe, type Etat, type Faits } from '../abonnement.ts';
 import { montant } from '../argent.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
@@ -357,7 +358,7 @@ function SonAbonnement({ a, aujourdhui, cabinet, nom, relire }: { a: AbonnementC
       </div>
       {a.refus || (a.prochaine && Number(a.prochaine.totalHt) > 0) ? (
         <div className="c-cab-ab-corps">
-          {a.refus ? <Alerte ton="danger">{phrase(`${K}.ab.refus`, { motif: a.refus })}</Alerte> : null}
+          {a.refus ? <Alerte ton="danger">{phrase(`${K}.ab.refus`, { motif: dansLaPhrase(a.refus) })}</Alerte> : null}
           {a.prochaine && Number(a.prochaine.totalHt) > 0 ? (
             <p>{phrase(a.prochaine.plafonne ? `${K}.ab.prochaine_plafond` : `${K}.ab.prochaine`, { le: jourCourt(a.prochaine.debut), montant: montant(enDinars(a.prochaine.totalHt)) })}</p>
           ) : null}
