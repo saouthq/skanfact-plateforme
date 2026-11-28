@@ -8014,3 +8014,20 @@ La 1.389.3 avait ajouté « sans les salaires » à la phrase estimée de « À 
 encore les salaires » ne visait que l'autre phrase, et ne tombait plus les jours où une estimation existe (le 28, date
 limite de la TVA). Les deux phrases lisent désormais une seule décision (`sansPaie30`), et la preuve la vise : elle tombe
 quel que soit le jour.
+
+## 1.389.9 — L'Aide classe une question en langage courant (ENTSOCLE-23)
+
+« Client ne paie pas » proposait d'abord « Démarrer » et « Le devis » ; « mot de passe oublié » proposait « Clôturer un
+mois ». Les deux applications cherchent par le même module (`modules/socle/aide/recherche.js`). Le classement garde sa
+règle (les articles qui portent tous les mots d'abord). Ensuite, ce que chaque mot pèse change :
+
+- un mot pèse 6 dans le titre, 3 dans le sous-titre, 2 dans un intertitre de l'article et 1 dans le corps ;
+- un morceau de la question qui se trouve tel quel dans l'article (« mot de passe oublié ») ajoute du poids ;
+- trois expressions courantes ajoutent les mots de l'article qui y répond : « ne paie pas » ou « impayé » ajoutent les
+  retards et les relances, « perdu » et « effacé » ajoutent les sauvegardes, « la paie » ajoute les bulletins. Ces mots
+  ajoutés ne comptent que dans le poids. Un article qui n'a que ces mots-là ne se propose donc pas.
+
+Sur les vrais articles, « client ne paie pas » ouvre maintenant « Se faire payer », « mot de passe oublié » ouvre « Tes
+données » et « la paie » ouvre « Payer quelqu'un ».
+
+Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.9 »).

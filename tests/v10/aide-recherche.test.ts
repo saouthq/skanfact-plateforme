@@ -57,6 +57,43 @@ describe('la recherche de l\'Aide, une pour les deux applications', () => {
     expect(R.filtre(arts, '', champs).map((a) => a.id)).toEqual(['corps', 'partiel', 'titre', 'rien']);
   });
 
+  it('une question en langage courant (ENTSOCLE-23) : le morceau lu d\'un bloc, l\'intertitre et l\'expression courante pèsent', () => {
+    // Trois articles qui portent tous les deux mots, une seule fois chacun dans le corps : sans le poids neuf, l'ordre du fichier.
+    const bloc: Art[] = [
+      { id: 'epars', t: 'Les réglages', s: '', d: '<p>Un mot sur la sécurité. Ne passe pas trop de temps ici, et n\'oublie rien.</p>' },
+      { id: 'phrase', t: 'Tes données', s: '', d: '<p>Un mot de passe oublié se refait depuis la page de connexion.</p>' },
+    ];
+    expect(R.filtre(bloc, 'mot de passe oublié', champs).map((a) => a.id)[0]).toBe('phrase');
+    const inter: Art[] = [
+      { id: 'corps', t: 'La banque', s: '', d: '<p>Le relevé, et on relance aussi.</p>' },
+      { id: 'intertitre', t: 'Encaisser', s: '', d: '<h3>Les relances</h3><p>Le relevé.</p>' },
+    ];
+    expect(R.filtre(inter, 'relancer', champs).map((a) => a.id)).toEqual(['intertitre', 'corps']);
+    const courant: Art[] = [
+      { id: 'devis', t: 'Le devis', s: '', d: '<p>Le client accepte, puis il paie.</p>' },
+      { id: 'payer', t: 'Se faire payer', s: 'Retards et relances', d: '<p>Le client paie en retard : relance-le.</p>' },
+      { id: 'bulletin', t: 'Payer quelqu\'un', s: '', d: '<p>Le bulletin du salarié, la paie du mois.</p>' },
+    ];
+    expect(R.filtre(courant, 'mon client ne paie pas', champs).map((a) => a.id)[0]).toBe('payer');
+    // L'expression ne compte que dans le poids : un article qui n'a que ses mots à elle ne se propose pas.
+    expect(R.filtre([{ id: 'relances', t: 'Les relances', s: '', d: '<p>Retards.</p>' }] as Art[], 'client ne paie pas', champs)).toEqual([]);
+    expect(R.filtre(courant, 'la paie', champs).map((a) => a.id)[0]).toBe('bulletin');
+  });
+
+  it('sur les vrais articles de l\'entreprise, une question en langage courant trouve son article (ENTSOCLE-23)', () => {
+    const bac: Record<string, unknown> = {};
+    bac.self = bac; bac.window = bac;
+    vm.createContext(bac);
+    for (const f of ['v10/guide.js']) vm.runInContext(lireEcran(f), bac, { filename: f });
+    const G = bac.SkanGuide as { ARTICLES: { id: string; title: string; sub?: string; body?: string }[] };
+    const premier = (q: string) => R.filtre(G.ARTICLES, q, (a) => ({ titre: a.title, sous: a.sub || '', corps: a.body || '' }))[0]?.id;
+    expect(premier('client ne paie pas')).toBe('paiements');
+    expect(premier('mon client ne m\'a pas payé')).toBe('paiements');
+    expect(premier('mot de passe oublié')).toBe('donnees');
+    expect(premier('la paie')).toBe('paie');
+    expect(premier('comment relancer un client')).toBe('paiements');
+  });
+
   it('le mot entier se surligne, et rien du texte ne passe en HTML', () => {
     // Du HTML AVANT, ENTRE et APRÈS les mots surlignés : chaque morceau s'échappe, pas seulement le dernier.
     expect(R.surligne('<i>Le</i> taux de validité <b>du</b> mois validé', R.mots('valider'), esc))

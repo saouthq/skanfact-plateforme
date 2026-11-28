@@ -31,8 +31,34 @@
   /** @param {unknown} s */
   const plierPareil = (s) => Array.from(String(s || ''), (ch) => { const f = plier(ch); return f.length === ch.length ? f : ch; }).join('');
 
+  // Une question en langage courant (1.389.9, ENTSOCLE-23) : « mon client ne paie pas » ne porte aucun mot du métier.
+  // Ces expressions AJOUTENT les mots de l'article qui y répond — elles ne comptent que dans le poids, jamais dans
+  // « tous les mots », pour qu'un article qui a ce qu'on a tapé reste devant un article qui a seulement ce qu'on a voulu dire.
+  /** @type {[RegExp, string[]][]} */
+  const EXPRESSIONS = [
+    [/\b(paie|paye|paient|payent|regle|reglent)\s+(toujours\s+|jamais\s+|plus\s+)?pas\b|\bimpaye|\bpas\s+(encore\s+)?(ete\s+)?(paye|regle)/, ['impay', 'relanc', 'retard', 'encaiss']],
+    [/\b(perdu|efface|supprime)/, ['sauvegard', 'restaur', 'revenir']],
+    [/\b(la|ma|une|leur) paie\b/, ['bulletin', 'salari', 'cotis']],
+  ];
+  /** @param {string} q @returns {string[]} */
+  const ajoutes = (q) => { const t = plier(q || ''); return [...new Set(EXPRESSIONS.filter(([re]) => re.test(t)).flatMap(([, ms]) => ms))]; };
+  // Les morceaux de la question qui se lisent d'un bloc : deux mots pleins avec les petits mots qui les séparent
+  // (« mot de passe », « mot de passe oublié »). Un article qui porte le morceau tel quel parle de la question, pas des mots.
+  /** @param {string} q @returns {string[]} */
+  const morceaux = (q) => {
+    const toks = plier(q || '').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const pleins = toks.map((m, i) => (MOTS_VIDES.has(m) ? -1 : i)).filter((i) => i >= 0);
+    /** @type {string[]} */ const r = [];
+    if (pleins.length >= 2) r.push(toks.slice(pleins[0], pleins[pleins.length - 1] + 1).join(' '));
+    for (let k = 0; k + 1 < pleins.length; k++) r.push(toks.slice(pleins[k], pleins[k + 1] + 1).join(' '));
+    return [...new Set(r)];
+  };
+  /** @param {string} t */
+  const espaces = (t) => ` ${t.replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
   /**
    * Les articles qui portent au moins un mot cherché, rangés : tous les mots d'abord, puis le poids, puis l'ordre du fichier.
+   * Le poids : un mot dans le titre (6) pèse plus que dans le sous-titre (3), qu'un intertitre de l'article (2), que le
+   * corps (1) ; un morceau de la question lu d'un bloc ajoute, et les mots d'une expression courante aussi (1.389.9).
    * @template T
    * @param {T[]} arts @param {string} q
    * @param {(a: T) => { titre: string, sous: string, corps: string }} champs
@@ -41,13 +67,21 @@
   function filtre(arts, q, champs) {
     const ms = mots(q);
     if (!ms.length) return arts;
+    const plus = ajoutes(q).filter((m) => !ms.includes(m));
+    const blocs = morceaux(q);
+    /** @param {string} m @param {string} titre @param {string} sous @param {string} inter @param {string} corps */
+    const place = (m, titre, sous, inter, corps) => (titre.includes(m) ? 6 : sous.includes(m) ? 3 : inter.includes(m) ? 2 : corps.includes(m) ? 1 : 0);
     /** @type {{ a: T, n: number, poids: number, i: number }[]} */ const notes = [];
     arts.forEach((a, i) => {
       const c = champs(a);
       const titre = plier(c.titre), sous = plier(c.sous), corps = plier(sansBalises(c.corps));
+      const inter = plier((String(c.corps || '').match(/<h[2-4][^>]*>[\s\S]*?<\/h[2-4]>/g) || []).map(sansBalises).join(' '));
       const trouves = ms.filter((m) => titre.includes(m) || sous.includes(m) || corps.includes(m));
       if (!trouves.length) return;
-      const poids = trouves.reduce((s, m) => s + (titre.includes(m) ? 4 : sous.includes(m) ? 2 : 1), 0);
+      const lu = espaces(`${titre} ${sous} ${corps}`);
+      const poids = trouves.reduce((s, m) => s + place(m, titre, sous, inter, corps), 0)
+        + plus.reduce((s, m) => s + place(m, titre, sous, inter, corps), 0)
+        + blocs.reduce((s, b, k) => s + (lu.includes(` ${b} `) ? (k === 0 ? 8 : 3) : 0), 0);
       notes.push({ a, n: trouves.length, poids, i });
     });
     return notes.sort((x, y) => y.n - x.n || y.poids - x.poids || x.i - y.i).map((x) => x.a);

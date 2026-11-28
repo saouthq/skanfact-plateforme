@@ -32777,6 +32777,24 @@ prouver "le motif repris après deux-points avec sa majuscule" web/console/src/m
 prouver "le matricule de l'entreprise SkanFact derrière un « · » orphelin" web/console/src/ecrans/Reglages.tsx \
   '<span className="c-sous" data-donnee>{e.matricule}</span>' '<span className="c-sous" data-donnee> · {e.matricule}</span>' \
   "la fenêtre dit, avant le geste, quelle facture partira, en son nom, et ce qui l'attend sans RIB"
+# 1.389.9 — L'Aide classe une question en langage courant (ENTSOCLE-23).
+prouver "un morceau de la question lu d'un bloc qui ne pèse rien" modules/socle/aide/recherche.js \
+  "(k === 0 ? 8 : 3)" "(k === 0 ? 0 : 0)" \
+  "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
+prouver "un intertitre de l'article qui pèse comme le corps" modules/socle/aide/recherche.js \
+  "inter.includes(m) ? 2 :" "false ? 2 :" \
+  "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
+prouver "les mots d'une expression courante oubliés" modules/socle/aide/recherche.js \
+  "        + plus.reduce((s, m) => s + place(m, titre, sous, inter, corps), 0)
+" "" \
+  "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
+prouver "« la paie » lue comme un paiement" modules/socle/aide/recherche.js \
+  "    [/\\b(la|ma|une|leur) paie\\b/, ['bulletin', 'salari', 'cotis']],
+" "" \
+  "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
+prouver "l'expression courante comptée comme un mot tapé" modules/socle/aide/recherche.js \
+  "    const plus = ajoutes(q).filter((m) => !ms.includes(m));" "    const plus = ajoutes(q).filter((m) => !ms.includes(m)); ms.push(...plus);" \
+  "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
