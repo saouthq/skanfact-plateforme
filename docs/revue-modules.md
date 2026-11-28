@@ -8172,3 +8172,19 @@ Congés » à « 2 jours au bulletin » et ne voyait rien ; la liste disait « r
 
 Essai : `tests/web/cabinet-paie-regul-1377.test.ts` tape 2 jours au bulletin d'octobre, le valide, pose 1 jour le
 15/10, lit la liste, le message et « Le mois », puis régularise sur novembre.
+
+## 1.390.5 — « Ta facture se prépare » annonce la facture de la période qui court (issue 12, CP-1)
+
+Resté partiel à la contre-vérification : après avoir collé onze clients (trois gratuits, huit payants à 60 DT HT par an),
+« Ton abonnement » disait « Elle sera de 960 DT HT pour 8 dossiers payants, à régler avant le 08/12/2027 ». L'écran
+montrait la facture de la période SUIVANTE, qui compte les huit dossiers deux fois (en rattrapage de l'année en cours,
+puis pour l'année d'après), alors que la facture qui se prépare est celle de la période qui court.
+
+- **La facture annoncée est celle que le facturier fera** : la période qui court tant qu'elle n'est pas émise ; la
+  suivante seulement une fois celle-ci faite (migration 0246, même règle que `cabinets_a_facturer`). Le cas d'origine
+  dit donc 480 DT HT, à régler quinze jours après le début de la période.
+- **Le montant nomme ce qu'il compte** : quand la facture porte un rattrapage de la période passée, la phrase le dit
+  (« pour 1 dossier payant et 1 rattrapage de la période passée »), et « (au plafond) » quand le plafond s'applique.
+
+Essais : `tests/abonnement/abonnement-cabinet.test.ts` lit l'abonnement d'un cabinet dont la facture n'a pas pu partir
+(la période qui court, 1 dossier, 60 DT, quinze jours) ; `tests/cabinet/abonnement-1390-5.test.ts` joue la phrase.

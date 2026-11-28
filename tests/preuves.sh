@@ -32916,6 +32916,14 @@ prouver "l'écart qui dit 3 jours dans Congés pour 1 posé" modules/personnel/e
   "\${r.tard && Number(r.avant) > 0" "\${false" \
   "bulletin qui portait déjà des jours tapés est à régulariser"
 
+# 1.390.5 — « Ta facture se prépare » annonce la facture de la période qui court (issue 12, CP-1).
+prouver "la facture de l'an prochain annoncée à la place de celle qui se prépare" base/migrations/0246_prochaine_facture_cabinet.sql \
+  "f.cabinet = p_cabinet and f.debut = v_prochain) then" "f.cabinet = p_cabinet) or true then" \
+  "sans RIB à la fiche de l"
+prouver "un rattrapage compté dans le montant sans être nommé" web/public/plateforme/abonnement-cabinet.js \
+  "\${(a.prochaine.rattrapages || []).length ? \` et \${pl(a.prochaine.rattrapages.length, 'rattrapage', 'rattrapages')} de la période passée\` : ''}" "" \
+  "le montant nomme ce qu"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

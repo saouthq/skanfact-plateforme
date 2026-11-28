@@ -225,6 +225,11 @@ describe('l\'abonnement d\'un cabinet', () => {
       expect((reg.corps.factures as { editeur: { sansRib: boolean } }).editeur.sansRib).toBe(true);
       expect(await sesFactures(c)).toEqual([]);
       expect(Number((await admin.query("select count(*) n from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle like $2", [editeur, `cabinet-${c.id}-%`])).rows[0].n)).toBe(0);
+      // (1.390.5, CP-1) « Ta facture se prépare » annonce CETTE facture-là : la période qui court, un dossier payant, 60 DT
+      // HT, à régler dans quinze jours — pas celle de l'an prochain, qui comptait le dossier deux fois (120 DT, dans un an).
+      const enAttente = await sonAbonnement(c);
+      expect(enAttente.etat).toMatchObject({ etat: 'a_facturer' });
+      expect(enAttente.prochaine).toMatchObject({ debut: jour, echeance: plusJours(jour, 15), dossiers: 1, rattrapages: [], totalHt: '60.000' });
       expect(((await appeler('GET', `/console/cabinets/${c.id}`, amira.console)).corps.abonnement as { refus: string | null }).refus).toMatch(/RIB/);
       // (CONS3-6) Le RIB posé, au tour du lendemain la facture part : le refus de sa période s'efface, la fiche ne dit
       // plus « ne s'est pas faite seule » au-dessus de la facture faite.

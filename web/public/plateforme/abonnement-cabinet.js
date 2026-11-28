@@ -120,7 +120,7 @@
     if (e.etat === 'a_facturer') {
       return { ton: 'calme', pastille: 'Facture en préparation', titre: 'Ta facture se prépare',
         // (1.374.0) Le montant attendu et sa date, pas « dans un instant » : une heure après, l'écran ne disait toujours rien.
-        texte: `${a.prochaine && a.prochaine.totalHt ? `Elle sera de ${montant(a.prochaine.totalHt)} HT pour ${pl(payants, 'dossier payant', 'dossiers payants')}${a.prochaine.echeance ? `, à régler avant le ${jour(a.prochaine.echeance)}` : ''}. ` : ''}Elle arrive ici, dans « Tes factures », et un e-mail te prévient.` };
+        texte: `${a.prochaine && a.prochaine.totalHt ? `Elle sera de ${montant(a.prochaine.totalHt)} HT pour ${pl(payants, 'dossier payant', 'dossiers payants')}${(a.prochaine.rattrapages || []).length ? ` et ${pl(a.prochaine.rattrapages.length, 'rattrapage', 'rattrapages')} de la période passée` : ''}${a.prochaine.plafonne ? ' (au plafond)' : ''}${a.prochaine.echeance ? `, à régler avant le ${jour(a.prochaine.echeance)}` : ''}. ` : ''}Elle arrive ici, dans « Tes factures », et un e-mail te prévient.` };
     }
     const n = a.dossiers.length;
     const offerts = typeof f.gratuits === 'number' ? ` SkanFact t'a donné ${pl(f.gratuits, 'dossier gratuit', 'dossiers gratuits')}${f.gratuitsJusquAu ? ` jusqu'au ${jour(f.gratuitsJusquAu)}` : ''}.` : '';
