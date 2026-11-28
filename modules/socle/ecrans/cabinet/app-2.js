@@ -5254,7 +5254,13 @@
   }
 
   function actionsEcriture(root, dossier, e) {
-    const a = [];
+    // (1.390.17, issue 9 CABDECLARER-34) L'écriture entière, en tête du menu de CHAQUE écriture : un clic sur la ligne
+    // l'ouvrait déjà, sans que rien ne le dise. Une écriture du client validée n'avait que « Joindre un justificatif… »,
+    // et le menu à une action devenait le bouton « Justificatif… » au milieu d'une colonne d'« Actions » (7.29.0) — et la
+    // fenêtre de l'écriture renvoie au bouton « Actions » de sa ligne.
+    // Au brouillard de la saisie, une pièce venue de SkanFact a déjà son « Voir ses lignes » (au livre-journal) : pas deux fois.
+    const voirLignes = e.statut === 'brouillard' && e.source === 'skanfact' && livresState.onglet === 'saisie';
+    const a = voirLignes ? [] : [{ icon: 'loupe', label: 'Voir l\'écriture entière', hint: 'Toutes ses lignes, leurs comptes et le total', run: () => voirEcriture(e) }];
     // Le geste qui DÉTRUIT vit tout en bas, après un trait (7.29.0). Vu au test humain (10.12.0) :
     // posé au milieu, « Supprimer ce brouillard » était la ligne juste au-dessus de « Joindre un
     // justificatif… » — un clic qui glisse d'une ligne efface une pièce au lieu d'y joindre un scan.
@@ -5263,7 +5269,7 @@
       // (plateforme) 1.100.0 — une pièce venue de SkanFact ne se reprend pas dans la grille : ses lignes se lisent au
       // livre-journal, le brouillard compté et cherché sur sa pièce. Le geste vient avant « Valider » : on regarde, puis on
       // valide. Depuis le brouillard de la saisie seulement : au livre-journal, ses lignes sont déjà sous les yeux.
-      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes', hint: 'Au livre-journal, avant de la valider',
+      if (voirLignes) a.push({ icon: 'loupe', label: 'Voir ses lignes', hint: 'Au livre-journal, avant de la valider',
         run: () => { const s = livresState; s.brouillard = true; s.q = e.piece || ''; s.journal = ''; s.page = 1; allerSousOnglet(root, dossier, 'journal'); } });
       a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
         run: () => validerEcriture(root, dossier, e) });

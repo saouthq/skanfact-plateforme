@@ -232,4 +232,45 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     expect(erreurs).toEqual([]);
     await ctx.close();
   }, 180_000);
+
+  // (1.390.17, issue 9 CABDECLARER-34) Une écriture qui n'a qu'un geste — le miroir d'une contre-passation, dans un dossier
+  // tenu au cabinet (pas de question au client) — n'avait que « Joindre un justificatif… », et la ligne portait le bouton
+  // « Justificatif… » au milieu d'une colonne d'« Actions ». L'écriture entière ouvre désormais chaque menu.
+  it('(1.390.17) chaque ligne du journal porte « Actions », et son menu ouvre l\'écriture entière', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2026, ouverture: [] })).statut).toBe(201);
+    const r = await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-03-31', journal: 'OD', piece: 'SAL-3', libelle: 'Salaires de mars',
+      lignes: [{ compte: '640', debit: '1250', credit: '' }, { compte: '425', debit: '', credit: '1250' }] });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    const id = String(r.corps.id);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [id] })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/${id}/contrepasser`, associe, { date: '2026-04-02' })).statut).toBe(201);
+
+    const erreurs: string[] = [];
+    const ctx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const p = await ctx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const net = (t: string) => t.replace(/\s+/g, ' ').trim();
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/journal/2026`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(600);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await expect.poll(() => p.locator('tr[data-ecr]').count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(4);
+    const boutons = (await p.locator('tr[data-ecr] .row-actions button').allInnerTexts()).map(net);
+    expect(boutons.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(boutons)).toEqual(new Set(['Actions']));
+    // Le menu du miroir (avril) : l'écriture entière d'abord, et elle s'ouvre.
+    await p.locator('tr[data-ecr]').filter({ hasText: '02/04/2026' }).first().locator('.row-actions button').click();
+    const items = (await p.getByRole('menuitem').allInnerTexts()).map((x) => net(x.split('\n')[0] ?? ''));
+    expect(items[0]).toBe('Voir l\'écriture entière');
+    expect(items).toContain('Joindre un justificatif…');
+    await p.getByRole('menuitem').filter({ hasText: 'Voir l\'écriture entière' }).click();
+    await p.locator('#modal-root #ve-lignes').waitFor({ timeout: 10_000 });
+    expect(net(await p.locator('#modal-root #ve-tete').innerText())).toContain('écriture validée');
+    expect(erreurs).toEqual([]);
+    await ctx.close();
+  }, 120_000);
 });

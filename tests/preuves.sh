@@ -18620,7 +18620,7 @@ prouver 'la paie confiée qui se montre décochée après l'\''invitation' web/p
   $"      if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]'))" $"      if (false) for (const c of panneau.querySelectorAll('[data-perimetre]'))" \
   'le client invite par e-mail'
 prouver 'le brouillard venu de SkanFact validé sans qu'\''on puisse lire ses comptes' modules/socle/ecrans/cabinet/app-2.js \
-  $"      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes'," $"      if (false) a.push({ icon: 'loupe', label: 'Voir ses lignes'," \
+  $"      if (voirLignes) a.push({ icon: 'loupe', label: 'Voir ses lignes'," $"      if (false) a.push({ icon: 'loupe', label: 'Voir ses lignes'," \
   'Consulter se relit en revenant sur la fenêtre'
 prouver '« Voir le brouillard » qui arrive en haut de la grille' modules/socle/ecrans/cabinet/app-1.js \
   $"if (vs) vs.onclick = () => { if (/brouillard/.test(vs.textContent || '')) pageFocus = 'sa-brouillard'; allerSousOnglet" $"if (vs) vs.onclick = () => { allerSousOnglet" \
@@ -33016,6 +33016,11 @@ prouver "« Du… au… » qui s'ouvre sur deux cases vides" modules/socle/ecran
 prouver "une période à l'envers qui ne se dit pas" modules/socle/ecrans/cabinet/app-1.js \
   "if (livresState.du && livresState.au && livresState.du > livresState.au) {" "if (false) {" \
   "une ligne ouvre son écriture, un compte de la balance son grand livre"
+
+# 1.390.17 — CABDECLARER-34 : une écriture qui n'a qu'un geste porte le bouton « Justificatif… » au milieu des « Actions ».
+prouver 'une écriture à un seul geste qui n'\''a pas « Actions »' modules/socle/ecrans/cabinet/app-2.js \
+  "    const a = voirLignes ? [] : [{ icon: 'loupe'" "    const a = true ? [] : [{ icon: 'loupe'" \
+  '(1.390.17) chaque ligne du journal porte'
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

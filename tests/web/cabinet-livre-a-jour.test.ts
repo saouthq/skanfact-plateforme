@@ -138,7 +138,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     expect(await p.locator('#c-livres').innerText()).toContain(piece);
     // Au livre-journal, ses lignes sont sous les yeux : le menu ne propose plus d'aller les voir.
     await p.locator('#c-livres').getByRole('button', { name: /Actions/ }).first().click();
-    await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Valider cette écriture/);
+    await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Voir l'écriture entière\s[^\n]*\nValider cette écriture/);
     expect(await p.locator('.row-menu').last().innerText()).not.toContain('Voir ses lignes');
     await p.keyboard.press('Escape');
 

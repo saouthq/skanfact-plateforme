@@ -8348,3 +8348,17 @@ cette période » comme si le livre était vide.
   2026 à mars 2026. »).
 
 Essai : `tests/web/livres-1378-3.test.ts`.
+
+## 1.390.17 — Chaque ligne du journal porte « Actions », et son menu ouvre l'écriture entière (issue 9, CABDECLARER-34)
+
+Pas corrigé à la contre-vérification : au journal, la ligne « PAIE-2026-01 · Salaires versés » portait « Justificatif… » là
+où toutes les autres lignes portaient « Actions ». Une écriture qui n'a qu'un geste — joindre un justificatif — voit son
+menu devenir un bouton nommé (une action seule ne se cache pas derrière un menu), et la colonne changeait de mot d'une
+ligne à l'autre. La fenêtre de l'écriture, elle, renvoie au bouton « Actions » de sa ligne.
+
+- Le menu de chaque écriture commence par **« Voir l'écriture entière »** : toutes ses lignes, leurs comptes et le total.
+  Un clic sur la ligne l'ouvrait déjà, sans que rien ne le dise.
+- Au brouillard de la Saisie, une pièce venue de SkanFact garde son **« Voir ses lignes »** (au livre-journal) : le geste
+  n'est pas proposé deux fois.
+
+Essai : `tests/web/livres-1378-3.test.ts` (le miroir d'une contre-passation, dans un dossier tenu au cabinet).
