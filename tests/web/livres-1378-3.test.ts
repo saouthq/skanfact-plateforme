@@ -209,6 +209,18 @@ describe('les livres s\'ouvrent d\'une ligne, et leurs exports disent ce que l\'
     await expect.poll(colle, { timeout: 10_000 }).toEqual({ th: true, colle: true });
     await p.setViewportSize({ width: 1440, height: 900 });
 
+    // ── (1.390.16, CABDECLARER-36) « Du… au… » : deux mois nommés, l'exercice par défaut, une période à l'envers remise ─────
+    await ouvrir('journal');
+    await p.locator('#lv-mode').selectOption('intervalle');
+    await expect.poll(() => p.locator('.lv-intervalle').isVisible()).toBe(true);
+    expect((await p.locator('.lv-intervalle').innerText()).replace(/\s+/g, ' ').trim().toLowerCase()).toBe('du au');
+    expect([await p.locator('#lv-du').inputValue(), await p.locator('#lv-au').inputValue()]).toEqual(['2026-01', '2026-12']);
+    await p.locator('#lv-du').fill('2026-03');
+    await p.locator('#lv-au').fill('2026-01');
+    await p.locator('#lv-au').dispatchEvent('change');
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toBe('La période était à l\'envers : elle va de janvier 2026 à mars 2026.');
+    expect([await p.locator('#lv-du').inputValue(), await p.locator('#lv-au').inputValue()]).toEqual(['2026-01', '2026-03']);
+
     // ── La recherche : un résultat ouvre l'écriture ───────────────────────────────────────────────
     await ouvrir('recherche');
     await p.locator('#re-q').fill('406,980');

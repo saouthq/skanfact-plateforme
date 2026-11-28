@@ -33007,6 +33007,16 @@ prouver "les pièces d'une case de la déclaration rangées tout en bas" modules
   "      if (!ouv || piecesSousCase || l.source !== ouv) return '';" "      if (true) return '';" \
   "un dossier plein : la recherche, les pièces d'une case"
 
+prouver "les champs « Du… au… » sans étiquette" modules/socle/ecrans/cabinet/app-1.js \
+  '<label class="f-lab">du <input type="month" id="lv-du"' '<label class="f-lab"><input type="month" id="lv-du"' \
+  "une ligne ouvre son écriture, un compte de la balance son grand livre"
+prouver "« Du… au… » qui s'ouvre sur deux cases vides" modules/socle/ecrans/cabinet/app-1.js \
+  "if (livresState.mode === 'intervalle' && !(livresState.du && livresState.au)) {" "if (false) {" \
+  "une ligne ouvre son écriture, un compte de la balance son grand livre"
+prouver "une période à l'envers qui ne se dit pas" modules/socle/ecrans/cabinet/app-1.js \
+  "if (livresState.du && livresState.au && livresState.du > livresState.au) {" "if (false) {" \
+  "une ligne ouvre son écriture, un compte de la balance son grand livre"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

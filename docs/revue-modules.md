@@ -8335,3 +8335,16 @@ cherchait où elles étaient.
   reste en bas que pour une case qui n'a pas de ligne dans le formulaire.
 
 Essai : `tests/web/pagination-1352.test.ts` (la liste est dans le formulaire, sous la ligne dont le bouton est ouvert).
+
+## 1.390.16 — « Du… au… » : deux mois nommés, l'exercice par défaut, une période à l'envers remise dans l'ordre (issue 9, CABDECLARER-36)
+
+Pas corrigé à la contre-vérification : choisir « Du… au… » dans la période des livres montrait deux champs
+« --------- ---- » étirés, sans étiquette visible, et une période mars → janvier répondait « Aucune écriture validée sur
+cette période » comme si le livre était vide.
+
+- Les deux champs portent leur mot, **« du »** et **« au »**, à la largeur d'un mois.
+- Ils s'ouvrent sur **l'exercice entier** (janvier à décembre de l'exercice regardé), jamais sur deux cases vides.
+- Une période **à l'envers** se remet dans l'ordre, et l'écran le dit (« La période était à l'envers : elle va de janvier
+  2026 à mars 2026. »).
+
+Essai : `tests/web/livres-1378-3.test.ts`.

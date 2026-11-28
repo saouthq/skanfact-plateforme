@@ -915,3 +915,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 /* (1.390.15, CABDECLARER-23) Les pièces d'une case, ouvertes sous sa ligne du formulaire. */
 #view .dc-form tr.dc-sous > td { padding: 0 0 10px; white-space: normal; }
 #view .dc-form tr.dc-sous #dc-pieces { margin: 2px 0 0; box-shadow: none; border-inline-start: 3px solid var(--accent, #0f9d8f); }
+/* (1.390.16, CABDECLARER-36) « du … au … » : deux mois nommés, à leur largeur. */
+#view .c-barre .lv-intervalle { display: inline-flex; gap: 10px; align-items: center; }
+#view .c-barre .lv-intervalle input[type="month"] { width: 10.5em; margin-inline-start: 6px; }

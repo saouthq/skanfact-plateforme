@@ -7836,8 +7836,8 @@
             <option value="intervalle" ${livresState.mode === 'intervalle' ? 'selected' : ''}>Du… au…</option>
           </select>
           <select id="lv-mois" aria-label="Le mois" ${livresState.mode === 'mois' ? '' : 'hidden'}>${months.map(m => `<option value="${esc(m.month)}" ${livresState.mois === m.month ? 'selected' : ''}>${esc(K.monthLabel(m.month))}</option>`).join('')}</select>
-          <input type="month" id="lv-du" aria-label="Du mois" ${livresState.mode === 'intervalle' ? '' : 'hidden'} value="${esc(livresState.du)}">
-          <input type="month" id="lv-au" aria-label="Au mois" ${livresState.mode === 'intervalle' ? '' : 'hidden'} value="${esc(livresState.au)}">
+          ${/* (1.390.16, issue 9, CABDECLARER-36) Deux champs « --------- ---- » sans étiquette visible : « du » et « au »
+                les nomment, et la période part de l'exercice entier au lieu de deux cases vides. */''}<span class="lv-intervalle" ${livresState.mode === 'intervalle' ? '' : 'hidden'}><label class="f-lab">du <input type="month" id="lv-du" aria-label="Du mois" value="${esc(livresState.du)}"></label><label class="f-lab">au <input type="month" id="lv-au" aria-label="Au mois" value="${esc(livresState.au)}"></label></span>
           <span class="grow"></span>
           <span class="c-livre" id="c-livre-etat"><b>Comptabilité</b> ${info('lv.compta')}</span>
         </div>
@@ -7965,6 +7965,7 @@
         // l'exercice entier faute de mois choisi. Un select dont aucune option ne correspond retient
         // la première, en silence (8.3.0) ; ici il annonçait une période que l'écran ne montrait pas.
         if (livresState.mode === 'mois' && !String(livresState.mois || '').startsWith(String(livresState.annee) + '-')) livresState.mois = moisDeLaPeriode();
+        if (livresState.mode === 'intervalle' && !(livresState.du && livresState.au)) { livresState.du = `${livresState.annee}-01`; livresState.au = `${livresState.annee}-12`; }
         render();
       };
       // Changer d'exercice change de LIVRE : sans cette relecture, on regarderait 2025 dans le
@@ -7987,8 +7988,19 @@
         }
         relire();
       };
-      const du = $('#lv-du', view); if (du) du.onchange = () => { livresState.du = du.value; livresState.page = 1; relire(); };
-      const au = $('#lv-au', view); if (au) au.onchange = () => { livresState.au = au.value; livresState.page = 1; relire(); };
+      // Une période à l'envers (mars → janvier) se remet dans l'ordre, et l'écran le dit : elle répondait « aucune écriture
+      // validée sur cette période » comme si le livre était vide.
+      const intervalle = () => {
+        livresState.page = 1;
+        if (livresState.du && livresState.au && livresState.du > livresState.au) {
+          [livresState.du, livresState.au] = [livresState.au, livresState.du];
+          const x = $('#lv-du', view), y = $('#lv-au', view); if (x) x.value = livresState.du; if (y) y.value = livresState.au;
+          toast(`La période était à l'envers : elle va ${K.de(K.monthLabel(livresState.du))} à ${K.monthLabel(livresState.au)}.`);
+        }
+        relire();
+      };
+      const du = $('#lv-du', view); if (du) du.onchange = () => { livresState.du = du.value; intervalle(); };
+      const au = $('#lv-au', view); if (au) au.onchange = () => { livresState.au = au.value; intervalle(); };
       // La page a pu changer pendant la lecture : on redemande l'élément APRÈS l'attente, jamais
       // avant (règle 7.6.0). Sinon on écrit dans un élément détaché.
       const apres = () => {
@@ -10732,7 +10744,7 @@
     const an = $('#lv-annee'); if (an) an.hidden = false;
     // Les champs des AUTRES modes se cachent aussi : « Ouvrir 2026 » depuis « Un mois » laissait trois
     // listes côte à côte — l'exercice, 2026, et « décembre 2025 » au-dessus du livre de 2026 (10.14.0).
-    ['#lv-mois', '#lv-du', '#lv-au'].forEach(q => { const x = $(q); if (x) x.hidden = true; });
+    ['#lv-mois', '.lv-intervalle'].forEach(q => { const x = $(q); if (x) x.hidden = true; });
     majSelecteurExercice(document);
     if ($('#c-livres')) drawLivres(document, dossier);
   }
@@ -11265,7 +11277,7 @@
               // La bande « Période » n'est pas redessinée par drawLivres : elle se remet d'accord ici.
               const md = $('#lv-mode'); if (md) md.value = s.mode;
               const mo = $('#lv-mois'); if (mo) { mo.hidden = s.mode !== 'mois'; if (s.mode === 'mois') mo.value = s.mois; }
-              ['#lv-du', '#lv-au'].forEach(q => { const x = $(q); if (x) x.hidden = true; });
+              ['.lv-intervalle'].forEach(q => { const x = $(q); if (x) x.hidden = true; });
               allerSousOnglet(root, dossier, 'grand-livre');
             } },
           { icon: 'modifier', label: 'Écrire une note de revue', hint: 'Ce qu\'il reste à vérifier sur ce compte.',
