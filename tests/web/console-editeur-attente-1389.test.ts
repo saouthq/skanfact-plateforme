@@ -102,6 +102,13 @@ describe('ce que la désignation de l\'entreprise SkanFact fera partir, à la so
     await rib('10006012345678901234');
     p = await ouvrirLaFenetre();
     expect(await ceQuiVa(p, editeur)).toBe('Une facture partira dans la minute, en son nom : Librairie Al Kitab (Essentiel, au mois).');
+    await fermer(p);
+    // (CONS3-7) Désignée, la carte la nomme, et son matricule vient seul sous le nom — sans « · » en tête de ligne.
+    await admin.query('update socle.entreprise set matricule_fiscal = $2 where id = $1', [editeur, '1234567A/A/M/000']);
+    expect((await api('POST', '/console/reglages/factures/editeur', jD, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
+    p = await ouvrir(jD, '#/reglages?onglet=factures');
+    const sous = p.locator('section:has(#rg-factures) .c-rg-actuel-tete .c-sous', { hasText: '1234567A' }).first();
+    await expect.poll(() => sous.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('1234567A/A/M/000');
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 120_000);

@@ -662,7 +662,7 @@ function NosFacturesCarte({ f, aujourdhui, geste, peut }: { f: NosFactures; aujo
         <div className="c-rg-actuel">
           <div className="c-rg-actuel-tete">
             <div>
-              <b data-donnee>{e.raisonSociale}</b>{e.matricule ? <span className="c-sous" data-donnee> · {e.matricule}</span> : null}
+              <b data-donnee>{e.raisonSociale}</b>{/* (1.389.7, CONS3-7) Le matricule va sous le nom : sans « · » en tête de sa ligne. */}{e.matricule ? <span className="c-sous" data-donnee>{e.matricule}</span> : null}
               <span className="c-sous c-bloc">{phrase(`${K}.nf.designee`, { nom: e.posePar ?? '—', quand: quand(e.poseLe, aujourdhui) })}</span>
             </div>
             <Puce ton="actif">{selon(e.factures, `${K}.nf.preparees`)}</Puce>

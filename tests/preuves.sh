@@ -32773,6 +32773,10 @@ prouver "une facture déjà émise par un autre tour notée comme un refus" serv
 prouver "le motif repris après deux-points avec sa majuscule" web/console/src/motif.ts \
   "? m.charAt(0).toLowerCase() + m.slice(1) : m" "? m : m" \
   "perd sa majuscule de début de phrase, garde un sigle et un nom propre en capitales"
+# 1.389.7 — Le matricule de l'entreprise SkanFact sans « · » orphelin (CONS3-7).
+prouver "le matricule de l'entreprise SkanFact derrière un « · » orphelin" web/console/src/ecrans/Reglages.tsx \
+  '<span className="c-sous" data-donnee>{e.matricule}</span>' '<span className="c-sous" data-donnee> · {e.matricule}</span>' \
+  "la fenêtre dit, avant le geste, quelle facture partira, en son nom, et ce qui l'attend sans RIB"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

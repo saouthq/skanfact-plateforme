@@ -7999,3 +7999,11 @@ période est déjà émise (FAC-2026-005) » juste au-dessus de « FAC-2026-005 
   ses capitales.
 
 Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.6 »).
+
+## 1.389.7 — Le matricule de l'entreprise SkanFact sans « · » orphelin (CONS3-7)
+
+Dans Réglages › Nos factures, sous le nom de l'entreprise SkanFact désignée, la ligne suivante lisait « ·9876543Z/A/M/000 » :
+le séparateur prévu pour la même ligne passait en tête de la ligne du dessous. Le matricule vient désormais seul, sous
+le nom.
+
+Prouvé : le séparateur remis fait tomber le parcours (`tests/preuves.sh`, « 1.389.7 »).
