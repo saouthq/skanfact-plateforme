@@ -8039,3 +8039,16 @@ moteur, « envoyée », là où la liste des factures écrit « émise ». Les d
 toutes les listes de pièces, et un test interdit un badge qui écrirait la valeur brute.
 
 Prouvé : les deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.10 »).
+
+## 1.389.11 — Les commandes fournisseurs disent ce qui reste à recevoir (ENTACHATS-23)
+
+La page des commandes fournisseurs promet « ce qui reste à recevoir et à facturer ». Sa liste n'avait pourtant ni
+recherche, ni tri, ni colonne pour ce reste. Maintenant :
+
+- la colonne « Reste à recevoir HT » est calculée par la fonction du moteur. Seule une commande envoyée ou reçue en
+  partie attend une livraison : un brouillon, une commande annulée ou une commande reçue en entier disent « — ». Le
+  premier essai affichait 1 725 DT « à recevoir » sur une commande annulée, et le parcours des demandes de prix l'a vu ;
+- la recherche lit le numéro, le fournisseur, les articles et, pour une réception, la commande qu'elle reçoit ;
+- les en-têtes trient la liste, comme dans les autres listes.
+
+Prouvé : quatre défauts réintroduits un par un font tomber leur parcours (`tests/preuves.sh`, « 1.389.11 »).

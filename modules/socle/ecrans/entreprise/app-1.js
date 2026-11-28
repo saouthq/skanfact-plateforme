@@ -17196,24 +17196,55 @@
       const aller = () => navigate('#/commandesf/' + x.dataset.aller);
       x.onclick = aller; x.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(); } };
     });
+    // (1.389.11, ENTACHATS-23) La page promet « ce qui reste à recevoir et à facturer » : la liste des commandes le dit en
+    // colonne (le reste HT, par la fonction du moteur), se cherche (numéro, fournisseur, article, commande d'une réception)
+    // et se trie par ses en-têtes, comme les autres listes.
+    // Seule une commande partie chez le fournisseur attend une livraison : un brouillon n'est pas commandé, une commande
+    // annulée ou reçue n'attend plus rien — même règle que la carte « En cours » au-dessus.
+    const resteCF = x => ['envoyée', 'partielle'].includes(C.statutCommandeFournisseur(data, x)) ? Number(C.montantResteCommandeFournisseur(data, x, company())) || 0 : 0;
+    const colsCF = onglet === 'commandes' ? [
+      { key: 'num', label: 'Numéro', asc: true, val: x => x.number || '' },
+      { key: 'four', label: 'Fournisseur', asc: true, val: x => supplierName(x.supplierId).toLowerCase() },
+      { key: 'date', label: 'Date', val: x => x.date || '' },
+      { key: 'due', label: 'Livraison souhaitée', val: x => x.dueDate || '' },
+      { key: 'st', label: 'Statut', asc: true, val: x => etatAfficheCF(x, aFacturerC) },
+      { key: 'ht', label: 'Total HT', r: true, val: x => C.toBase(x, C.computeTotals(x, company()).netHT, company()) },
+      { key: 'reste', label: 'Reste à recevoir HT', r: true, val: x => C.toBase(x, resteCF(x), company()) },
+    ] : [
+      { key: 'num', label: 'Numéro', asc: true, val: x => x.number || '' },
+      { key: 'four', label: 'Fournisseur', asc: true, val: x => supplierName(x.supplierId).toLowerCase() },
+      { key: 'cmd', label: 'Commande', asc: true, val: x => x.orderNumber || '' },
+      { key: 'date', label: 'Date', val: x => x.date || '' },
+      { key: 'st', label: 'Statut', asc: true, val: x => x.status || '' },
+      { key: 'lignes', label: 'Lignes', r: true, val: x => (x.lines || []).length },
+    ];
+    const texteCF = x => [x.number, supplierName(x.supplierId), x.orderNumber, (x.lines || []).map(l => l.label).join(' ')].join(' ');
     const dessiner = () => {
-      const liste = onglet === 'commandes' ? cmds : recs;
+      const toutes = onglet === 'commandes' ? cmds : recs;
       const st = etatCF[onglet];
+      const q = (st.q || '').trim();
+      const gardees = q ? toutes.filter(x => C.correspondRecherche(texteCF(x), q)) : toutes;
+      const liste = st.sort ? applySort(gardees, colsCF, st.sort) : gardees;
       const { rows, pg } = paginate(liste, st);
-      $('#cf-list').innerHTML = !liste.length
+      const nomL = onglet === 'commandes' ? 'commande' : 'réception';
+      const barre = `<div class="filtres cf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="cf-q" type="search" value="${h(st.q || '')}" placeholder="${onglet === 'commandes' ? 'Numéro, fournisseur, article…' : 'Numéro, fournisseur, commande, article…'}" aria-label="Chercher une ${nomL}"></label>
+        <span class="f-note">${q ? `<b>${gardees.length}</b> sur ${pl(toutes.length, nomL)}` : `<b>${toutes.length}</b> ${toutes.length > 1 ? nomL + 's' : nomL}`}</span></div>`;
+      $('#cf-list').innerHTML = !toutes.length
         ? `<div class="empty mini">${onglet === 'commandes' ? 'Aucune commande pour l\'instant.' : 'Aucune réception pour l\'instant : une réception se fait depuis sa commande, « Recevoir ».'}</div>`
-        : `<div class="scroll-x"><table class="list"><thead><tr>${onglet === 'commandes'
-            ? '<th>Numéro</th><th>Fournisseur</th><th>Date</th><th>Livraison souhaitée</th><th>Statut</th><th class="r">Total HT</th>'
-            : '<th>Numéro</th><th>Fournisseur</th><th>Commande</th><th>Date</th><th>Statut</th><th class="r">Lignes</th>'}</tr></thead><tbody>
+        : `${barre}${!gardees.length ? `<div class="empty mini">Aucune ${nomL} ne correspond à « ${h(q)} ».</div>` : `<div class="scroll-x"><table class="list"><thead>${sortHead(colsCF, st.sort)}</thead><tbody>
           ${rows.map(x => onglet === 'commandes'
             ? `<tr><td class="nw"><a href="#/commandef/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
                 <td class="nw">${h(C.fmtDate(x.date))}</td><td class="nw">${x.dueDate ? h(C.fmtDate(x.dueDate)) : '—'}</td><td>${badgeCF(etatAfficheCF(x, aFacturerC))}${enRetard.has(x.id) ? ' <span class="warn-text small nw">en retard</span>' : ''}</td>
-                <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td></tr>`
+                <td class="r num nw">${h(C.money(C.computeTotals(x, company()).netHT, x.currency || company().currency))}</td>
+                <td class="r num nw">${resteCF(x) > 0.0005 ? h(C.money(resteCF(x), x.currency || company().currency)) : '<span class="muted">—</span>'}</td></tr>`
             : `<tr><td class="nw"><a href="#/reception/${h(x.id)}"><b>${h(x.number || '(brouillon)')}</b></a></td><td>${h(supplierName(x.supplierId))}</td>
                 <td class="nw">${x.orderId ? `<a href="#/commandef/${h(x.orderId)}">${h(x.orderNumber || '—')}</a>` : '—'}</td><td class="nw">${h(C.fmtDate(x.date))}</td><td>${badgeCF(x.status)}${aFacturerR.has(x.id) ? ' <span class="small muted nw">à facturer</span>' : ''}</td>
                 <td class="r num">${(x.lines || []).length}</td></tr>`).join('')}
-          </tbody></table></div>${pagerBar(pg, { noun: onglet === 'commandes' ? 'commande' : 'réception' })}`;
+          </tbody></table></div>${pagerBar(pg, { noun: nomL, grandTotal: toutes.length })}`}`;
       bindPager($('#cf-list'), st, dessiner);
+      bindSort($('#cf-list'), key => { if (typeof key === 'string') { st.sort = toggleSort(st.sort, key, colsCF); st.page = 1; } dessiner(); });
+      const champ = $('#cf-q');
+      if (champ) champ.oninput = () => { st.q = champ.value; st.page = 1; sansPerdreLaFrappe(champ, dessiner); };
     };
     dessiner();
   };

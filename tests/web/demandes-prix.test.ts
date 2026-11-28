@@ -143,7 +143,7 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     expect(net(await p.locator('#toast').innerText())).toMatch(/Envoie-la-lui : « Envoyer au fournisseur… »\.$/);
     await p.evaluate(() => { location.hash = '#/commandesf'; });
     await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 })
-      .toMatch(/BCF-\d{4}-002 Béton du Nord .* brouillon 1 690,000 DT BCF-\d{4}-001 Ciments de Bizerte .* annulée 1 725,000 DT/);
+      .toMatch(/BCF-\d{4}-002 Béton du Nord .* brouillon 1 690,000 DT — BCF-\d{4}-001 Ciments de Bizerte .* annulée 1 725,000 DT —$/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'demandes-prix-3-liste.png') });
     expect(erreurs).toEqual([]);
     await cn.close();

@@ -32802,6 +32802,20 @@ prouver "la fiche d'une affaire qui dit « envoyée » d'une facture émise" mod
 prouver "la page des licences qui dit « envoyée » de sa facture" modules/socle/ecrans/entreprise/app-2.js \
   "d.status !== 'brouillon' ? \` \${statusBadge(d)}\` : ''" "d.status !== 'brouillon' ? \` <span class=\"badge \${h(effStatus(d))}\">\${h(effStatus(d))}</span>\` : ''" \
   "aucun badge n'écrit la valeur brute de effStatus : il passe par statusBadge (ou statusLabel)"
+# 1.389.11 — Les commandes fournisseurs disent ce qui reste à recevoir, se cherchent et se trient (ENTACHATS-23).
+prouver "une commande qui ne dit pas ce qui reste à recevoir" modules/socle/ecrans/entreprise/app-1.js \
+  "      { key: 'reste', label: 'Reste à recevoir HT', r: true, val: x => C.toBase(x, resteCF(x), company()) },
+" "" \
+  "Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
+prouver "une commande annulée qui attend encore 1 725 DT" modules/socle/ecrans/entreprise/app-1.js \
+  "['envoyée', 'partielle'].includes(C.statutCommandeFournisseur(data, x)) ? Number(" "true ? Number(" \
+  "Nadia demande ses prix à deux fournisseurs, compare leurs réponses, puis commande chez le moins cher"
+prouver "la recherche des commandes qui ne filtre rien" modules/socle/ecrans/entreprise/app-1.js \
+  "const gardees = q ? toutes.filter(x => C.correspondRecherche(texteCF(x), q)) : toutes;" "const gardees = toutes;" \
+  "Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
+prouver "les en-têtes des commandes qui ne trient pas" modules/socle/ecrans/entreprise/app-1.js \
+  "      bindSort(\$('#cf-list'), key =>" "      if (false) bindSort(\$('#cf-list'), key =>" \
+  "Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

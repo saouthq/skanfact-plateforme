@@ -188,6 +188,21 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     expect(net(await p.locator('#cf-sous').innerText())).toBe('Ciments de Bizerte');
     expect(net(await p.locator('#receptions-panel').innerText())).toMatch(/^Réceptions i Désignation Commandé Reçu Reste Ciment gris 50 kg \(sac\) 100 60 40 Fer à béton 12 mm \(t\) 2,5 1,25 1,25 Transport 1 1 0 Réception : BR-\d{4}-001 \(validée, /);
     expect(await p.locator('#cf-recevoir').innerText()).toBe('Recevoir le reste');
+    // (1.389.11, ENTACHATS-23) La liste des commandes dit ce qui reste à recevoir — 40 × 17,250 + 1,25 × 2 210,500 =
+    // 3 453,125 HT, le transport est reçu —, se cherche (un article de la commande) et se trie par ses en-têtes.
+    await p.evaluate(() => { location.hash = '#/commandesf'; });
+    await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 10_000 })
+      .toMatch(/Total HT⇅ Reste à recevoir HT⇅ BCF-\d{4}-001 Ciments de Bizerte .* reçue en partie 7 311,250 DT 3 453,125 DT$/);
+    await p.locator('#cf-q').pressSequentially('fer a beton');
+    await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 5_000 }).toContain('1 sur 1 commande');
+    expect(await p.locator('#cf-q').inputValue()).toBe('fer a beton');
+    await p.locator('#cf-q').fill('xylophone');
+    await expect.poll(async () => net(await p.locator('#cf-list').innerText()), { timeout: 5_000 }).toContain('Aucune commande ne correspond à « xylophone ».');
+    await p.locator('#cf-q').fill('');
+    await p.locator('#cf-list th[data-sort=reste]').click();
+    await expect.poll(() => p.locator('#cf-list th[data-sort=reste].sorted').count(), { timeout: 5_000 }).toBe(1);
+    await p.goBack();
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-/);
     // Des sacs, des tonnes et un transport ne s'additionnent pas : la frise compte les lignes reçues en entier.
     expect(net(await p.locator('#cf-frise li').nth(2).innerText())).toMatch(/^3 Reçue en partie 1 sur 3 lignes en entier/);
     await p.locator('#receptions-panel').scrollIntoViewIfNeeded();
