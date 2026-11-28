@@ -8,7 +8,7 @@
 
 import { soldeFacture, statutFacture, type StatutFacture } from '../../moteur/reglements.ts';
 import { versTexte } from '../../moteur/argent.ts';
-import { ecranDeLaPiece, type Editeur } from './paiements.ts';
+import { annuleeParSesAvoirs, ecranDeLaPiece, type Editeur } from './paiements.ts';
 
 // `cabinet` (0239, CONS3-2) : la facture d'abonnement d'un cabinet — l'écran mène à sa fiche de cabinet, pas de client.
 type Qui = { id: string; nom: string; cabinet?: boolean };
@@ -17,7 +17,7 @@ export const ETATS_TTN: readonly EtatTtn[] = ['sans_fichier', 'a_signer', 'a_env
 export type Motif = { cle: string; valeurs: Record<string, unknown> };
 export type PieceLue = {
   type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; piece: string; ecran: string;
-  devise: string; decimales: number; net: bigint; entreprise: Qui; offre: 'essentiel' | 'complet' | null; periodicite: 'annuel' | 'mensuel' | null;
+  devise: string; decimales: number; net: bigint; timbre?: bigint; entreprise: Qui; offre: 'essentiel' | 'complet' | null; periodicite: 'annuel' | 'mensuel' | null;
   debut: string | null; fin: string | null; corrige: { numero: string | null; ecran: string } | null; avoirs: bigint[]; reglements: bigint[];
   efacture: boolean; signee: boolean;
   ttn: { statut: 'a_envoyer' | 'deposee' | 'acceptee' | 'refusee'; motif: Motif | null; deposeLe: string | null; accepteLe: string | null; reference: string | null } | null;
@@ -47,7 +47,7 @@ export function lireNosFactures(brut: unknown): NosFactures {
     const c = objet(p.corrige), t = objet(p.ttn), m = t ? objet(t.motif) : null;
     const statut = t && (t.statut === 'a_envoyer' || t.statut === 'deposee' || t.statut === 'acceptee' || t.statut === 'refusee') ? t.statut : null;
     pieces.push({
-      type, numero, date, echeance: jour(p.echeance), piece, ecran: ecranDeLaPiece(ed2, piece), devise, decimales, net, entreprise: { id: e.id, nom: e.nom, cabinet: e.cabinet === true },
+      type, numero, date, echeance: jour(p.echeance), piece, ecran: ecranDeLaPiece(ed2, piece), devise, decimales, net, timbre: entier(p.timbre) ?? 0n, entreprise: { id: e.id, nom: e.nom, cabinet: e.cabinet === true },
       offre: p.offre === 'essentiel' || p.offre === 'complet' ? p.offre : null, periodicite: p.periodicite === 'annuel' || p.periodicite === 'mensuel' ? p.periodicite : null,
       debut: jour(p.debut), fin: jour(p.fin),
       corrige: type === 'avoir' && c && texte(c.piece) ? { numero: texte(c.numero), ecran: ecranDeLaPiece(ed2, texte(c.piece) ?? '') } : null,
@@ -115,8 +115,13 @@ export function resume(n: NosFactures, aujourdhui: string): Resume {
 
 // Une ligne de la liste, telle que l'écran la dit : la pièce, le client, ce qu'elle paie, le montant, la TTN (et le
 // motif d'un refus, en mots), le paiement.
+// (1.389.5, CONS3-5) Ce qui a été reçu en trop (`aRendre`), et si la facture, réglée, est défaite par ses avoirs (le
+// timbre mis à part) : la règle de Paiements et de « À décider » (paiements.ts), pour que les trois écrans disent pareil.
 export function ligne(p: PieceLue, aujourdhui: string, motifEnMots: (m: Motif) => string | null) {
   const paiement = etatPaiement(p, aujourdhui);
+  const solde = p.type === 'facture' ? soldeFacture(p.net, p.avoirs, p.reglements) : null;
+  const du = solde ? p.net - solde.credite : 0n;
+  const enTrop = solde ? solde.paye - (du > 0n ? du : 0n) : 0n;
   // Le refus de la TTN : ses accusés tels quels (l'écran dit déjà « La TTN répond : ») ; un autre motif, en mots.
   const m = p.ttn?.motif ?? null;
   const motif = !m ? null : m.cle === 'ttn.refusee' && typeof m.valeurs.accuses === 'string' && m.valeurs.accuses !== '' ? m.valeurs.accuses : motifEnMots(m);
@@ -126,5 +131,7 @@ export function ligne(p: PieceLue, aujourdhui: string, motifEnMots: (m: Motif) =
     net: versTexte(p.net, p.decimales), ttn: etatTtn(p), motif, motifCle: m?.cle ?? null,
     deposeLe: p.ttn?.deposeLe ?? null, accepteLe: p.ttn?.accepteLe ?? null, reference: p.ttn?.reference ?? null,
     paiement: paiement.etat, reste: versTexte(paiement.reste, p.decimales), avoirDeduit: paiement.credite > 0n && paiement.reste > 0n,
+    aRendre: enTrop > 0n ? versTexte(enTrop, p.decimales) : null,
+    defaite: !!solde && solde.paye > 0n && annuleeParSesAvoirs(p.net, solde.credite, p.timbre ?? 0n),
   };
 }

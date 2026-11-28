@@ -7969,3 +7969,19 @@ chaque abonnement de cabinet qui attendait sa facture part aussitôt, en son nom
   suspendu ou qui ne se renouvelle plus, ni un choix déjà facturé, ni un cabinet offert ou sans dossier payant.
 
 Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.4 »).
+
+## 1.389.5 — Une facture payée puis défaite le dit partout (CONS3-5)
+
+Une facture d'abonnement réglée, puis annulée par son avoir (le timbre mis à part : un avoir ne le reprend pas toujours,
+À VÉRIFIER avec le comptable) : Paiements et « À décider » la disaient « défaite » avec ce qui est à rendre ; Nos factures
+disait seulement « Payée », et la cliente ne lisait nulle part ce qu'on lui doit.
+
+- Nos factures : « Payée, puis annulée par son avoir · 82,110 DT à rendre » — la règle de Paiements
+  (`annuleeParSesAvoirs`), la pièce portant désormais son timbre (`0242`). Un avoir partiel après paiement dit ce qui est
+  reçu en trop, sans parler de facture défaite.
+- « Ton abonnement » de la cliente : « 82,110 DT payés en trop après l'avoir : SkanFact te les doit », sous la facture et
+  sur la pièce ouverte. La pastille reste « Payée » : c'est la règle de toutes les factures (moteur/reglements.ts).
+- La règle du paiement ne change pas : c'est ce que les écrans disent d'une facture payée qui l'est trop.
+- Non fait ici : la page « Ton abonnement » d'un cabinet ne reçoit pas encore le détail des paiements de ses factures.
+
+Prouvé : six défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.5 »).

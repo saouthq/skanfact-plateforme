@@ -396,8 +396,20 @@
   const recu = (p) => [Number(p.paye) > 0 ? `payé ${somme(p.paye, p.devise)}` : '', Number(p.credite) > 0 ? `avoirs ${somme(p.credite, p.devise)}` : ''].filter(Boolean).join(' · ');
   // Sous le montant, ce qui reste à savoir pour cette pièce (l'état, lui, est dans sa pastille : il ne se redit pas). En
   // HTML, déjà échappé.
+  // (1.389.5, CONS3-5) Ce que la facture a reçu au-delà de ce qu'elle doit encore, ses avoirs déduits : une facture
+  // réglée puis annulée par son avoir. La pastille dit « Payée » (la règle de toutes les factures) ; ceci dit ce qu'on doit
+  // au client — la console le dit « à rendre », l'application « trop-perçu ».
+  /** @param {PieceAbo} p */
+  const enTrop = (p) => {
+    if (p.type !== 'facture' || !(Number(p.paye) > 0)) return 0;
+    const t = Number(p.paye) - Math.max(0, Number(p.net) - Number(p.credite || 0));
+    return t > 0.0005 ? t : 0;
+  };
+  /** @param {PieceAbo} p */
+  const tropEnMots = (p) => `${somme(String(enTrop(p)), p.devise)} payés en trop après l'avoir : SkanFact te les doit`;
   /** @param {PieceAbo} p */
   function ouEnEst(p) {
+    if (enTrop(p)) return esc(tropEnMots(p));
     if (p.type === 'avoir') return p.document && p.document.creditOfNumber ? `corrige la facture ${num(String(p.document.creditOfNumber))}` : '';
     if (p.statut === 'a_payer') return p.echeance ? esc(`à régler au plus tard le ${jour(p.echeance)}`) : '';
     if (p.statut === 'en_retard') return esc(`échue le ${jour(p.echeance || '')} · reste ${somme(p.reste, p.devise)}`);
@@ -484,7 +496,8 @@
   /** @param {HTMLElement} el @param {Outils} o @param {FacturesAbo} fa @param {PieceAbo} p */
   function voir(el, o, fa, p) {
     const tampon = p.statut === 'payee' ? 'Payée' : p.statut === 'annulee' ? 'Annulée' : undefined;
-    const reste = p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <b>${esc(somme(p.reste, p.devise))}</b>` : 'Rien à payer sur cette facture';
+    const reste = p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <b>${esc(somme(p.reste, p.devise))}</b>`
+      : enTrop(p) ? `Rien à payer sur cette facture · <b>${esc(tropEnMots(p))}</b>` : 'Rien à payer sur cette facture';
     el.innerHTML = `<div class="abo abo-vue-piece">
       <div class="abo-piece-barre">
         <button type="button" class="btn btn-sm" id="abo-retour">← Ton abonnement</button>

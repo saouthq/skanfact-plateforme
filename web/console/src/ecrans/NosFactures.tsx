@@ -24,6 +24,8 @@ type Ligne = {
   offre: 'essentiel' | 'complet' | null; periodicite: 'annuel' | 'mensuel' | null; debut: string | null; fin: string | null;
   corrige: { numero: string | null; ecran: string } | null; devise: string; net: string; ttn: EtatTtn; motif: string | null;
   deposeLe: string | null; accepteLe: string | null; reference: string | null; paiement: Paiement; reste: string; avoirDeduit: boolean;
+  // (1.389.5, CONS3-5) Reçu en trop, et payée puis défaite par ses avoirs : comme Paiements et « À décider ».
+  aRendre?: string | null; defaite?: boolean;
 };
 type Donnees = {
   aujourdhui: string; mois: string; courant: boolean; editeur: { entreprise: string; raisonSociale: string; devise: string; soumise: boolean } | null;
@@ -49,7 +51,9 @@ function ttnEnMots(l: Ligne): string {
   return dire(`${K}.ttn.${l.ttn}`);
 }
 function paiementEnMots(l: Ligne, aujourdhui: string): string {
+  if (l.defaite && l.aRendre) return dire(`${K}.p.defaite`, { rendre: enDevise(l.aRendre, l.devise) });
   const etat = etatEnMots(l, aujourdhui);
+  if (l.aRendre) return `${etat} · ${dire(`${K}.p.en_trop`, { rendre: enDevise(l.aRendre, l.devise) })}`;
   // Un avoir venu en déduction, sans règlement : ce qui reste, à côté de l'état.
   return l.avoirDeduit && (l.paiement === 'a_payer' || l.paiement === 'en_retard') ? `${etat} · ${dire(`${K}.p.avoir_deduit`, { reste: enDevise(l.reste, l.devise) })}` : etat;
 }

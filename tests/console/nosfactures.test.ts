@@ -211,7 +211,15 @@ describe('nos factures', () => {
     expect(de(e, g.numero)).toMatchObject({ paiement: 'a_payer', reste: '35.510', avoirDeduit: true });
     // Réglée de ce qui reste : payée.
     await regler(g, '35.51');
-    expect(de(await lire(), g.numero)).toMatchObject({ paiement: 'payee', reste: '0.000' });
+    expect(de(await lire(), g.numero)).toMatchObject({ paiement: 'payee', reste: '0.000', aRendre: null, defaite: false });
+  });
+
+  it('une facture réglée puis annulée par son avoir, le timbre mis à part : « payée », défaite, et ce qui est à rendre (CONS3-5)', async () => {
+    const h = await factureEmise('Atelier Défait');
+    await regler(h, '47.41');
+    // Tout l'abonnement avoisé (39 HT et sa TVA), le timbre non repris : 46,410 à rendre au client, comme Paiements le dit.
+    await avoirDe(h, 39, false, '46.410');
+    expect(de(await lire(), h.numero)).toMatchObject({ paiement: 'payee', reste: '0.000', aRendre: '46.410', defaite: true });
   });
 
   it('le résumé et les filtres : chacun compté par la fonction qui filtre ; le montant, aussi par un second chemin', async () => {
@@ -259,6 +267,19 @@ describe('les règles, pures', () => {
   const piece = (x: Partial<PieceLue>): PieceLue => ({ type: 'facture', numero: 'F', date: '2026-10-01', echeance: '2026-10-10', piece: 'p', ecran: '', devise: 'TND', decimales: 3,
     net: 47410n, entreprise: { id: 'e', nom: 'E' }, offre: 'essentiel', periodicite: 'mensuel', debut: null, fin: null, corrige: null, avoirs: [], reglements: [],
     efacture: false, signee: false, ttn: null, ...x });
+  it('ce qui est reçu en trop, et la facture défaite par ses avoirs, le timbre mis à part (CONS3-5)', () => {
+    const sans = () => null;
+    // 83,110 dont 1 de timbre, réglée en deux fois, puis un avoir de 82,110 : défaite, 82,110 à rendre.
+    expect(ligne(piece({ net: 83110n, timbre: 1000n, reglements: [50000n, 33110n], avoirs: [82110n] }), '2026-10-05', sans))
+      .toMatchObject({ paiement: 'payee', aRendre: '82.110', defaite: true });
+    // Un avoir partiel après le paiement : 40 à rendre, mais la facture n'est pas défaite.
+    expect(ligne(piece({ net: 83110n, timbre: 1000n, reglements: [83110n], avoirs: [40000n] }), '2026-10-05', sans))
+      .toMatchObject({ aRendre: '40.000', defaite: false });
+    // Annulée sans rien de reçu : rien à rendre, rien de défait (Paiements ne la compte pas non plus).
+    expect(ligne(piece({ net: 83110n, timbre: 1000n, avoirs: [82110n] }), '2026-10-05', sans)).toMatchObject({ aRendre: null, defaite: false });
+    // Payée exactement : rien.
+    expect(ligne(piece({ reglements: [47410n] }), '2026-10-05', sans)).toMatchObject({ paiement: 'payee', aRendre: null, defaite: false });
+  });
   it('le dernier pas franchi : le dépôt dit le sien ; sans dépôt, la signature, puis le fichier', () => {
     expect(etatTtn(piece({}))).toBe('sans_fichier');
     expect(etatTtn(piece({ efacture: true }))).toBe('a_signer');

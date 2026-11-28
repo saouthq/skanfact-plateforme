@@ -78,7 +78,7 @@ describe('nos factures, à la souris', () => {
     expect((await api('POST', `/entreprises/${editeur}/dossier-v10/emettre`, jApp, { document: brouillon?.contenu, client, revision: brouillon?.revision, rang: brouillon?.rang ?? null, netAPayer: '47.410' })).statut).toBe(200);
     const cle = brouillon?.cle ?? '';
     const p = (await admin.query("select id, numero_texte from ventes.piece where entreprise = $1 and ref_v10 = $2 and type = 'facture'", [editeur, cle])).rows[0];
-    return { cle, piece: String(p.id), numero: String(p.numero_texte) };
+    return { cle, piece: String(p.id), numero: String(p.numero_texte), jC, ent, clientId: String(brouillon?.contenu.clientId ?? '') };
   };
 
   beforeAll(async () => {
@@ -194,4 +194,43 @@ describe('nos factures, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(t);
   }, 60_000);
+
+  it('une facture réglée puis annulée par son avoir dit « payée, puis annulée » et ce qui est à rendre, ici et chez la cliente (CONS3-5)', async () => {
+    const f = await factureEmise('Atelier Mejri Défait');
+    // Réglée en entier dans SkanFact, puis tout l'abonnement avoisé, le timbre non repris : 46,410 à rendre.
+    const doc = (await dossierV10()).find((o) => o.collection === 'documents' && o.cle === f.cle);
+    expect((await api('POST', `/entreprises/${editeur}/dossier-v10`, jApp, { changements: [{ collection: 'documents', cle: f.cle, rang: doc?.rang ?? null, revision: doc?.revision,
+      contenu: { ...doc?.contenu, payments: [{ id: `p-${f.ent}`, date: aujourdhuiATunis(), amount: { '~n': '47.41' }, method: 'virement' }] } }] })).statut).toBe(200);
+    const avoir = { id: `avoir-${f.ent}`, type: 'avoir', number: '', date: aujourdhuiATunis(), clientId: f.clientId, creditOf: f.cle, creditReason: 'Annulée', status: 'brouillon',
+      lines: [{ label: 'SkanFact Essentiel — annulé', description: '', qty: 1, unit: '', unitPrice: 39, vatRate: 19 }],
+      discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [] };
+    expect((await api('POST', `/entreprises/${editeur}/dossier-v10`, jApp, { changements: [{ collection: 'documents', cle: avoir.id, rang: null, revision: null, contenu: avoir }] })).statut).toBe(200);
+    const client = (await dossierV10()).find((o) => o.collection === 'clients' && o.cle === f.clientId)?.contenu;
+    const e = await api('POST', `/entreprises/${editeur}/dossier-v10/emettre-avoir`, jApp, { document: avoir, client, revision: 1, rang: null, netAPayer: '46.410' });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(200);
+    // La console : la ligne de la facture le dit, comme Paiements.
+    const p = await ouvrir(jD, '#/nos-factures');
+    // La ligne de la facture (celle de l'avoir porte aussi son numéro : « déduit de … »).
+    const ligne = p.locator('.c-nf-lignes > li', { hasText: f.numero }).filter({ hasNotText: 'Déduit de' }).first();
+    await expect.poll(() => ligne.locator('.c-nf-etat-paie').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('Payée, puis annulée par son avoir · 46,410 DT à rendre');
+    await fermer(p);
+    // La cliente, dans « Ton abonnement » : ce que SkanFact lui doit.
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const jeton = f.jC;
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', x); }, jeton);
+    const c = await cx.newPage();
+    c.on('pageerror', (x) => erreurs.push(x.message));
+    await c.goto(`${serveur.adresse}/v10/?e=${f.ent}#/parametres`);
+    await expect.poll(() => c.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
+    for (let i = 0; i < 3 && await c.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await c.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await cliquer(c.locator('#set-tabs [data-tab="abonnement"]'));
+    const sienne = c.locator('#abo-factures .abo-facture', { hasText: f.numero }).first();
+    await expect.poll(() => sienne.innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toContain('46,410 DT payés en trop après l\'avoir : SkanFact te les doit');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

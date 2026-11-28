@@ -5833,6 +5833,8 @@ declarerTextes({
   'console.ecran.nosfactures.ttn.refusee': 'refusée',
   'console.ecran.nosfactures.p.payee': 'payée',
   'console.ecran.nosfactures.p.annulee': 'annulée par ses avoirs',
+  'console.ecran.nosfactures.p.defaite': 'payée, puis annulée par son avoir · {rendre} à rendre',
+  'console.ecran.nosfactures.p.en_trop': '{rendre} reçus en trop, à rendre',
   'console.ecran.nosfactures.p.a_payer': 'à payer',
   'console.ecran.nosfactures.p.a_payer_le': 'à payer avant le {le}',
   'console.ecran.nosfactures.p.partielle': 'en partie : reste {reste}',

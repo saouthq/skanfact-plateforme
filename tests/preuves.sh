@@ -13017,7 +13017,7 @@ NFW2="la refusée en tête, avec la réponse de la TTN et le seul bouton princip
 NFW3="chaque filtre montre autant de lignes que sa pastille en compte, et se garde dans l'adresse"
 NFW4="à une fenêtre basse, seule la liste de la barre défile : la carte de la personne et « Se déconnecter » restent visibles"
 NFW5="un mois sans pièce ne dit qu'une chose ; au téléphone, rien ne déborde et les noms des colonnes s'effacent"
-prouver "le support et la technique qui lisent nos factures (le droit du serveur et la base)" "serveur/console/gestes.ts|||base/migrations/0239_factures_cabinet_console.sql" \
+prouver "le support et la technique qui lisent nos factures (le droit du serveur et la base)" "serveur/console/gestes.ts|||base/migrations/0242_nos_factures_defaite.sql" \
   "  { code: 'console.factures.voir', roles: [D], ecrit: false },|||plateforme.console_nos_factures(p_mois date) returns jsonb
 language plpgsql stable security definer set search_path = pg_catalog, socle, ventes, plateforme as \$\$
 declare
@@ -32746,6 +32746,26 @@ prouver "l'entreprise SkanFact qui se facturerait à elle-même" web/console/src
 prouver "la fenêtre qui promet une facture dans la minute sans RIB" web/console/src/ecrans/Reglages.tsx \
   "\${K}.g.editeur.\${sansRib ? 'p4_rib' : 'p4'}" "\${K}.g.editeur.p4" \
   "la fenêtre dit, avant le geste, quelle facture partira, en son nom, et ce qui l'attend sans RIB"
+# 1.389.5 — Une facture payée puis défaite par son avoir le dit dans Nos factures et chez la cliente (CONS3-5).
+prouver "Nos factures qui ne connaît pas le timbre de la facture" base/migrations/0242_nos_factures_defaite.sql \
+  "'timbre', coalesce(p.timbre, 0)::text," "" \
+  "une facture réglée puis annulée par son avoir, le timbre mis à part : « payée », défaite, et ce qui est à rendre (CONS3-5)"
+prouver "une facture défaite par son avoir qui ne le dit pas" serveur/console/nosfactures.ts \
+  "    defaite: !!solde && solde.paye > 0n && annuleeParSesAvoirs(p.net, solde.credite, p.timbre ?? 0n)," "    defaite: false," \
+  "ce qui est reçu en trop, et la facture défaite par ses avoirs, le timbre mis à part (CONS3-5)"
+prouver "une facture défaite sans rien de reçu" serveur/console/nosfactures.ts \
+  "    defaite: !!solde && solde.paye > 0n && annuleeParSesAvoirs(" "    defaite: !!solde && annuleeParSesAvoirs(" \
+  "ce qui est reçu en trop, et la facture défaite par ses avoirs, le timbre mis à part (CONS3-5)"
+prouver "ce qui est reçu en trop, passé sous silence" serveur/console/nosfactures.ts \
+  "    aRendre: enTrop > 0n ? versTexte(enTrop, p.decimales) : null," "    aRendre: null," \
+  "ce qui est reçu en trop, et la facture défaite par ses avoirs, le timbre mis à part (CONS3-5)"
+prouver "l'écran de Nos factures qui dit seulement « Payée »" web/console/src/ecrans/NosFactures.tsx \
+  "  if (l.defaite && l.aRendre) return dire(" "  if (false) return dire(" \
+  "une facture réglée puis annulée par son avoir dit « payée, puis annulée » et ce qui est à rendre, ici et chez la cliente (CONS3-5)"
+prouver "la cliente qui ne lit pas ce qu'on lui doit" web/public/plateforme/abonnement.js \
+  "    if (enTrop(p)) return esc(tropEnMots(p));
+" "" \
+  "une facture réglée puis annulée par son avoir dit « payée, puis annulée » et ce qui est à rendre, ici et chez la cliente (CONS3-5)"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
