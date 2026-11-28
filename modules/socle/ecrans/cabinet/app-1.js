@@ -825,10 +825,24 @@
     // pendant que le total, juste en dessous, dit déjà 12,346.
     const txt = montantSaisi(Math.round(n * 1000) / 1000);
     // (1.379.0, issue 6, CAB-6) Une quatrième décimale tapée ne disparaît pas en silence : l'arrondi se dit.
-    if (/[.,]\d{4,}\s*$/.test(brut) && Math.abs(n * 1000 - Math.round(n * 1000)) > 1e-6) toast(`Arrondi au millime : ${txt}.`);
+    // (1.390.10, CAB-6) Et il se dit SOUS la grille, où il reste tant qu'on n'a pas retouché la case — pas dans un message
+    // passager à coche verte, qui le présentait comme une réussite —, pareil dans les trois saisies.
+    const arrondi = /[.,]\d{4,}\s*$/.test(brut) && Math.abs(n * 1000 - Math.round(n * 1000)) > 1e-6;
+    noterArrondi(el, arrondi ? `Tapé « ${brut} » : le livre compte au millime, la pièce portera ${txt}.` : '');
     if (txt !== el.value) { el.value = txt; el.dispatchEvent(new Event('input', { bubbles: true })); }
   }
   document.addEventListener('focusout', e => { const el = e.target; if (el && el.matches && el.matches(SEL_MONTANT)) completerMontant(el); }, true);
+  // La note d'arrondi : une par saisie (`[data-arrondi-hote]` porte sa `[data-note-arrondi]`). Elle nomme la case qui l'a
+  // posée, et seule cette case l'efface ; sans hôte, le message passe en bas, comme un avertissement.
+  function noterArrondi(el, msg) {
+    el.classList.toggle('sa-arrondi', !!msg);
+    if (msg) el.title = msg; else if (el.classList.contains('sa-arrondi') || el.dataset.arrondi) el.removeAttribute('title');
+    if (msg) el.dataset.arrondi = '1'; else delete el.dataset.arrondi;
+    const hote = el.closest('[data-arrondi-hote]'), note = hote && hote.querySelector('[data-note-arrondi]');
+    if (!note) { if (msg) toast(msg, 'error'); return; }
+    if (msg) { note.textContent = msg; note.hidden = false; note.__case = el; }
+    else if (note.__case === el || !note.__case || !note.__case.isConnected) { note.hidden = true; note.textContent = ''; note.__case = null; }
+  }
   // Une virgule décimale, comme les montants juste à côté : « 2.4 Mo » dans un tableau où tout le
   // reste s'écrit « 46 800,000 DT » se voit tout de suite.
   const fmtBytes = n => !n ? '—' : n >= 1073741824 ? (n / 1073741824).toFixed(1).replace('.', ',') + ' Go'

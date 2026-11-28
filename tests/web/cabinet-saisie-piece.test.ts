@@ -487,6 +487,37 @@ describe('la Saisie du Cabinet face à la pièce, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  // (1.390.10, issue 6, CAB-6) Une quatrième décimale tapée : la case montre le millime, et une note reste SOUS la grille
+  // tant que la case n'est pas retouchée — pareil « Au kilomètre » et « Une écriture à la main » (au kilomètre, rien ne
+  // le disait ; à la main, un message passager à coche verte le présentait comme une réussite).
+  it('quatre décimales tapées : l\'arrondi au millime se dit sous la grille, dans les deux saisies', async () => {
+    const { associe, cab, ent } = await laBoulangerie();
+    const { p, erreurs } = await ouvrir(associe, cab.id, ent);
+    await p.locator('[data-sx-mode="km"]').click();
+    await p.locator('#sx-jm').waitFor();
+    const ttc = p.locator('#sx-jm-ttc');
+    await ttc.click(); await p.keyboard.type('100,5555'); await p.keyboard.press('Tab');
+    expect(await ttc.inputValue()).toBe('100,556');
+    await expect.poll(() => p.locator('#sx-jm-arrondi').isVisible()).toBe(true);
+    expect(net(await p.locator('#sx-jm-arrondi').innerText())).toBe('Tapé « 100,5555 » : le livre compte au millime, la pièce portera 100,556.');
+    expect(await ttc.evaluate((e) => e.classList.contains('sa-arrondi'))).toBe(true);
+    expect(net(await p.locator('#toast').innerText().catch(() => ''))).not.toMatch(/millime/);
+    // Retouchée sans quatrième décimale, la case efface sa note.
+    await ttc.click(); await p.keyboard.press('Control+A'); await p.keyboard.type('100,5'); await p.keyboard.press('Tab');
+    expect(await ttc.inputValue()).toBe('100,500');
+    await expect.poll(() => p.locator('#sx-jm-arrondi').isVisible()).toBe(false);
+    // À la main : la même note, sous la grille.
+    await p.locator('#sx-jm-main').click();
+    await p.locator('#sa-lignes').waitFor({ state: 'visible' });
+    const debit = p.locator('#sa-lignes input[data-k="debit"]').first();
+    await debit.click(); await p.keyboard.type('100,5555'); await p.keyboard.press('Tab');
+    expect(await debit.inputValue()).toBe('100,556');
+    await expect.poll(() => p.locator('#sa-arrondi').isVisible()).toBe(true);
+    expect(net(await p.locator('#sa-arrondi').innerText())).toBe('Tapé « 100,5555 » : le livre compte au millime, la pièce portera 100,556.');
+    expect(net(await p.locator('#toast').innerText().catch(() => ''))).not.toMatch(/millime/);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('Rim, en saisie : elle enregistre au brouillard, la direction valide et vérifie', async () => {
     const { rim, cab, ent } = await laBoulangerie(true);
     const { p, erreurs } = await ouvrir(rim, cab.id, ent);

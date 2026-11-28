@@ -8244,3 +8244,16 @@ sous les yeux.
   quatre chiffres.
 
 Essai : `tests/v10/visite-recherche-1390-9.test.ts`.
+
+## 1.390.10 — L'arrondi au millime se dit sous la grille, dans les trois saisies (issue 6, CAB-6)
+
+Resté partiel à la contre-vérification : dans « Une écriture », « 100,5555 » devenait 100,556 avec un message passager
+à coche verte, présenté comme une réussite ; dans « Au kilomètre », là où était le constat, la case gardait « 100,5555 »
+sans un mot.
+
+- **Une seule règle pour les trois saisies** (« Une écriture », « Au kilomètre », « Face à la pièce ») : la case du total
+  passe par la même mise en forme que les autres montants du Cabinet, et montre ce que la pièce portera.
+- **La note reste sous la grille** (« Tapé « 100,5555 » : le livre compte au millime, la pièce portera 100,556. »),
+  la case porte un bord ambre, et seule cette case efface la note quand on la retouche. Plus de message passager.
+
+Essai : `tests/web/cabinet-saisie-piece.test.ts` tape « 100,5555 » au kilomètre puis à la main, et lit la note.

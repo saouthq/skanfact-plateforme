@@ -32950,6 +32950,14 @@ prouver "le choix de l'équipe montré à un associé seul" modules/socle/visite
   "titre: 'Le travail de qui', si: () => !!document.querySelector('.tb-qui')," "titre: 'Le travail de qui'," \
   "ne paraît que si la production montre le choix"
 
+# 1.390.10 — L'arrondi au millime se dit sous la grille, dans les trois saisies (issue 6, CAB-6).
+prouver "le TTC au kilomètre qui garde quatre décimales" modules/socle/ecrans/cabinet/app-2.js \
+  '<input id="sx-jm-ttc" class="sx-in mono r montant"' '<input id="sx-jm-ttc" class="sx-in mono r"' \
+  "l'arrondi au millime se dit sous la grille"
+prouver "l'arrondi dit par un message passager" modules/socle/ecrans/cabinet/app-1.js \
+  'if (msg) { note.textContent = msg; note.hidden = false; note.__case = el; }' 'if (msg) { toast(msg); }' \
+  "l'arrondi au millime se dit sous la grille"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

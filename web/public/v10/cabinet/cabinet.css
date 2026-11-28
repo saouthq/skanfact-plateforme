@@ -502,6 +502,9 @@ input.sa-montant, input.montant, td > input.r { text-align: end; font-variant-nu
 #sa-lignes tr:hover input:not(:focus):not(.sa-ko) { border-color: color-mix(in srgb, var(--text) 38%, transparent); }
 #sa-lignes input:focus { border-color: var(--primary); background: var(--panel); box-shadow: 0 0 0 3px rgba(15, 157, 143, .15); }
 #sa-lignes input.sa-ko { border-color: var(--danger); }
+/* 1.390.10 (CAB-6) — Une case arrondie au millime le garde en vue, dans les trois saisies : la note sous la grille dit
+   ce qui a été tapé et ce que la pièce portera. L'identifiant de la vue bat la règle générale des champs. */
+#view input.sa-arrondi:not(.sa-ko) { border-color: var(--warning); }
 /* 10.12.0 (U-26) — des largeurs FIXES. En largeur automatique, l'intitulé du compte qui apparaît
    pendant la frappe faisait recalculer la grille à chaque caractère : les colonnes sautaient sous le
    curseur. Le libellé prend ce qui reste. */
