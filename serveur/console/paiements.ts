@@ -19,7 +19,9 @@ import type { Contestation } from './contestations.ts';
 export const MOYENS = ['konnect', 'virement', 'cheque', 'autre'] as const;
 export type Moyen = (typeof MOYENS)[number];
 
-type Qui = { id: string; nom: string };
+// `cabinet` (0239, CONS3-2) : une facture d'abonnement d'un cabinet compte comme celle d'un abonné ; l'écran mène à
+// la fiche du cabinet.
+type Qui = { id: string; nom: string; cabinet?: boolean };
 export type Recu = {
   id: string; date: string; montant: bigint; devise: string; decimales: number; mode: string; moyen: Moyen; reference: string | null;
   numero: string | null; entreprise: Qui; noteLe: string; konnect: { prouveLe: string } | null; ecran: string;
@@ -63,7 +65,7 @@ const jour = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test
 const decimalesDe = (v: unknown) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 6 ? v : null);
 function quiDe(v: unknown): Qui | null {
   const q = (v ?? {}) as Record<string, unknown>;
-  return typeof q.id === 'string' && typeof q.nom === 'string' ? { id: q.id, nom: q.nom } : null;
+  return typeof q.id === 'string' && typeof q.nom === 'string' ? { id: q.id, nom: q.nom, cabinet: q.cabinet === true } : null;
 }
 const entiers = (v: unknown) => (Array.isArray(v) ? v.map(entier).filter((x): x is bigint => x !== null) : []);
 

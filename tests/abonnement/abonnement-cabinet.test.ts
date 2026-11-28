@@ -172,6 +172,32 @@ describe('l\'abonnement d\'un cabinet', () => {
     expect(await aAnnoncer()).toEqual([{ nature: 'payee', adresses: [c.associe.email] }]);
   });
 
+  // CONS3-2 (1.389.1 ; 0239) : la facture d'un cabinet est une de nos factures — la console la compte dans « Nos
+  // factures », dans « Qui doit encore » puis dans l'encaissé, et chacune mène à la fiche du cabinet.
+  it('la facture d\'un cabinet compte dans Nos factures, dans ce qui reste à encaisser puis dans l\'encaissé de la console', async () => {
+    const c = await cabinet('Cabinet de la Console');
+    for (const nom of ['Atelier Un', 'Atelier Deux', 'Atelier Trois', 'Atelier Quatre']) expect((await creer(c, nom)).statut).toBe(201);
+    await attendreLaFacture(c);
+    const numero = (await sonAbonnement(c)).factures?.pieces[0]?.numero ?? '';
+    expect(numero).not.toBe('');
+    const mois = jour.slice(0, 7);
+    type L = { numero: string; entreprise: { id: string; nom: string; cabinet: boolean } };
+    const nos = await appeler('GET', `/console/nos-factures?mois=${mois}&n=200`, amira.console);
+    expect(nos.statut, JSON.stringify(nos.corps)).toBe(200);
+    expect((nos.corps.lignes as L[]).find((l) => l.numero === numero)?.entreprise).toEqual({ id: c.id, nom: 'Cabinet de la Console', cabinet: true });
+    let pai = await appeler('GET', `/console/paiements?mois=${mois}&n=200`, amira.console);
+    expect(pai.statut, JSON.stringify(pai.corps)).toBe(200);
+    const doit = (pai.corps.doivent as (L & { reste: string })[]).find((d) => d.numero === numero);
+    expect(doit).toMatchObject({ reste: '72.400', entreprise: { id: c.id, cabinet: true } });
+    const avant = String((pai.corps.encaisse as Corps).total);
+    await payerEnLigne(c, numero);
+    pai = await appeler('GET', `/console/paiements?mois=${mois}&n=200`, amira.console);
+    expect((pai.corps.doivent as L[]).some((d) => d.numero === numero)).toBe(false);
+    expect(((pai.corps.recus as Corps).lignes as (L & { montant: string })[]).find((r) => r.numero === numero))
+      .toMatchObject({ montant: '72.400', entreprise: { id: c.id, cabinet: true } });
+    expect(Math.round((Number((pai.corps.encaisse as Corps).total) - Number(avant)) * 1000)).toBe(72400);
+  });
+
   it('un dossier ajouté en cours d\'année se rattrape au prorata de ses jours sur la facture suivante', async () => {
     const c = await cabinet('Cabinet du Rattrapage');
     const ids: string[] = [];

@@ -7907,3 +7907,14 @@ dossiers tenus gratuits, les deux se facturaient. Le bouton se tient désormais 
 rien.
 
 Prouvé : le défaut réintroduit fait tomber son test (`tests/preuves.sh`, « 1.389.0 »).
+
+## 1.389.1 — La facture d'un cabinet est une de nos factures (rapport #29 : CONS3-2)
+
+La facture annuelle d'un cabinet (ses dossiers tenus payants) est émise par l'entreprise SkanFact comme celle d'un
+abonné, et la console n'en voyait rien : ni dans « Nos factures », ni dans « Qui doit encore », ni dans l'encaissé du
+mois, ni à l'accueil. Une seule liste des factures d'abonnement sert désormais les deux lectures de la console
+(`0239`) : celle des entreprises abonnées et celle des cabinets. Chaque ligne dit si c'est un cabinet, et son lien mène
+à la fiche du cabinet plutôt qu'à une fiche de client qui n'existe pas ; « Nos factures » la nomme « Abonnement du
+cabinet, à l'année ».
+
+Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.1 »).

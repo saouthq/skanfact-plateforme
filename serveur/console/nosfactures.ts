@@ -10,7 +10,8 @@ import { soldeFacture, statutFacture, type StatutFacture } from '../../moteur/re
 import { versTexte } from '../../moteur/argent.ts';
 import { ecranDeLaPiece, type Editeur } from './paiements.ts';
 
-type Qui = { id: string; nom: string };
+// `cabinet` (0239, CONS3-2) : la facture d'abonnement d'un cabinet — l'écran mène à sa fiche de cabinet, pas de client.
+type Qui = { id: string; nom: string; cabinet?: boolean };
 export type EtatTtn = 'sans_fichier' | 'a_signer' | 'a_envoyer' | 'deposee' | 'acceptee' | 'refusee';
 export const ETATS_TTN: readonly EtatTtn[] = ['sans_fichier', 'a_signer', 'a_envoyer', 'deposee', 'acceptee', 'refusee'];
 export type Motif = { cle: string; valeurs: Record<string, unknown> };
@@ -46,7 +47,7 @@ export function lireNosFactures(brut: unknown): NosFactures {
     const c = objet(p.corrige), t = objet(p.ttn), m = t ? objet(t.motif) : null;
     const statut = t && (t.statut === 'a_envoyer' || t.statut === 'deposee' || t.statut === 'acceptee' || t.statut === 'refusee') ? t.statut : null;
     pieces.push({
-      type, numero, date, echeance: jour(p.echeance), piece, ecran: ecranDeLaPiece(ed2, piece), devise, decimales, net, entreprise: { id: e.id, nom: e.nom },
+      type, numero, date, echeance: jour(p.echeance), piece, ecran: ecranDeLaPiece(ed2, piece), devise, decimales, net, entreprise: { id: e.id, nom: e.nom, cabinet: e.cabinet === true },
       offre: p.offre === 'essentiel' || p.offre === 'complet' ? p.offre : null, periodicite: p.periodicite === 'annuel' || p.periodicite === 'mensuel' ? p.periodicite : null,
       debut: jour(p.debut), fin: jour(p.fin),
       corrige: type === 'avoir' && c && texte(c.piece) ? { numero: texte(c.numero), ecran: ecranDeLaPiece(ed2, texte(c.piece) ?? '') } : null,

@@ -11,13 +11,16 @@ import { MoisNav, moisLu } from '../mois.tsx';
 import { jourCourt, jourDe, moisEnMots } from '../temps.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Vide, type NomIcone } from '../ui.tsx';
 
+// Une facture d'abonnement d'un cabinet (0239, CONS3-2) mène à la fiche du cabinet ; celle d'un abonné, à sa fiche
+// de client (l'onglet demandé, quand une fiche de cabinet ne l'a pas).
+const ficheDe = (q: { id: string; cabinet?: boolean }, onglet?: string) => (q.cabinet ? `#/cabinets/${q.id}` : `#/clients/${q.id}${onglet ? `?onglet=${onglet}` : ''}`);
 type EtatTtn = 'sans_fichier' | 'a_signer' | 'a_envoyer' | 'deposee' | 'acceptee' | 'refusee';
 type Paiement = 'payee' | 'annulee' | 'partielle' | 'en_retard' | 'a_payer' | 'avoir';
 type Filtre = 'toutes' | 'refusees' | 'en_chemin' | 'non_payees';
 const FILTRES: readonly Filtre[] = ['toutes', 'refusees', 'en_chemin', 'non_payees'];
 const ETATS: readonly EtatTtn[] = ['acceptee', 'deposee', 'a_envoyer', 'a_signer', 'sans_fichier', 'refusee'];
 type Ligne = {
-  type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; ecran: string; entreprise: { id: string; nom: string };
+  type: 'facture' | 'avoir'; numero: string; date: string; echeance: string | null; ecran: string; entreprise: { id: string; nom: string; cabinet?: boolean };
   offre: 'essentiel' | 'complet' | null; periodicite: 'annuel' | 'mensuel' | null; debut: string | null; fin: string | null;
   corrige: { numero: string | null; ecran: string } | null; devise: string; net: string; ttn: EtatTtn; motif: string | null;
   deposeLe: string | null; accepteLe: string | null; reference: string | null; paiement: Paiement; reste: string; avoirDeduit: boolean;
@@ -36,7 +39,8 @@ const ICONE_TTN: Record<EtatTtn, NomIcone> = { acceptee: 'ok', refusee: 'alerte'
 // Ce que la pièce paie : l'offre, la périodicité, la période ; un avoir dit la facture qu'il corrige.
 function pour(l: Ligne): string {
   if (l.type === 'avoir') return dire(`${K}.l.avoir_de`, { numero: l.corrige?.numero ?? '—' });
-  const offre = l.offre && l.periodicite ? dire(`${K}.l.offre.${l.offre}_${l.periodicite}`) : '';
+  // La facture annuelle d'un cabinet (0172) n'a pas d'offre : elle paie ses dossiers tenus.
+  const offre = l.entreprise.cabinet ? dire(`${K}.l.cabinet`) : l.offre && l.periodicite ? dire(`${K}.l.offre.${l.offre}_${l.periodicite}`) : '';
   return [offre, l.debut && l.fin ? dire(`${K}.l.periode`, { du: jourCourt(l.debut), au: jourCourt(l.fin) }) : ''].filter(Boolean).join(' · ');
 }
 function ttnEnMots(l: Ligne): string {
@@ -77,7 +81,7 @@ function Refusee({ l, principal }: { l: Ligne; principal: boolean }) {
       <div className="c-nf-refus-texte">
         <h2 id={`nf-refus-${l.numero}`}><span data-donnee>{l.numero}</span> {dire(`${K}.r.refusee`)}{l.deposeLe ? <span className="c-nf-quand">{dire(`${K}.r.deposee_le`, { le: jourCourt(jourDe(l.deposeLe)) })}</span> : null}</h2>
         <p>
-          <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.nom}</a>{' · '}{pour(l)}{' · '}<span data-donnee>{enDevise(l.net, l.devise)}</span>
+          <a href={ficheDe(l.entreprise)} data-donnee>{l.entreprise.nom}</a>{' · '}{pour(l)}{' · '}<span data-donnee>{enDevise(l.net, l.devise)}</span>
           {' · '}{dire(l.paiement === 'payee' ? `${K}.r.deja_payee` : `${K}.r.pas_payee`)}
         </p>
         <p className="c-nf-refus-motif">{l.motif ? <>{dire(`${K}.r.la_ttn_repond`)} <b data-donnee>{l.motif}</b></> : dire(`${K}.r.sans_motif`)}</p>
@@ -198,7 +202,7 @@ export function NosFactures({ mois: moisDemande, filtre: filtreDemande }: { mois
                       <span className="c-sous">{jourCourt(x.date)}</span>
                     </div>
                     <div className="c-nf-qui">
-                      <a href={`#/clients/${x.entreprise.id}`}><b data-donnee>{x.entreprise.nom}</b></a>
+                      <a href={ficheDe(x.entreprise)}><b data-donnee>{x.entreprise.nom}</b></a>
                       <span className="c-sous">{pour(x)}</span>
                     </div>
                     <b className="c-mono c-nf-montant" data-donnee>{x.type === 'avoir' ? `\u2212${enDevise(x.net, x.devise)}` : enDevise(x.net, x.devise)}</b>

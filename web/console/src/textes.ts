@@ -5806,6 +5806,7 @@ declarerTextes({
   'console.ecran.nosfactures.l.ouvrir_de': 'ouvrir {numero} dans SkanFact',
   'console.ecran.nosfactures.l.avoir_de': 'avoir de {numero}',
   'console.ecran.nosfactures.l.periode': 'du {du} au {au}',
+  'console.ecran.nosfactures.l.cabinet': 'Abonnement du cabinet, à l\'année',
   'console.ecran.nosfactures.l.offre.essentiel_annuel': 'Essentiel, à l\'année',
   'console.ecran.nosfactures.l.offre.essentiel_mensuel': 'Essentiel, au mois',
   'console.ecran.nosfactures.l.offre.complet_annuel': 'Complet, à l\'année',

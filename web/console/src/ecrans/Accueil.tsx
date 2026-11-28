@@ -19,7 +19,8 @@ type Tableau = {
   entreprisesDeLaSemaine: number; essais: number; actifs: { total: number; essentiel: number; complet: number };
   enRetard: number; lectureSeule: number; revenusDuMois?: Mesure; support: Support; service: Service;
 };
-type Qui = { id: string; nom: string };
+// `cabinet` (0239, CONS3-2) : une facture d'abonnement d'un cabinet mène à la fiche du cabinet.
+type Qui = { id: string; nom: string; cabinet?: boolean };
 export type Ligne =
   | { sorte: 'service'; ouvre: 'service'; cle: string; titre: string; faire: string; depuis: string; grave: boolean }
   // 0130 : un secret à renouveler bientôt, ou en retard (jamais sa valeur).
@@ -142,7 +143,7 @@ export function defaiteEnMots(l: { numero: string | null; payeeLe: string; fin: 
 }
 
 function voir(l: Ligne, aujourdhui: string): Vue {
-  const fiche = (q: Qui) => `#/clients/${q.id}`;
+  const fiche = (q: Qui) => (q.cabinet ? `#/cabinets/${q.id}` : `#/clients/${q.id}`);
   switch (l.sorte) {
     case 'service':
       // Une chaîne d'empreintes (0115, 0142) : son geste est sur l'écran Sécurité (ouvrir l'incident, relire).

@@ -13,7 +13,10 @@ import { MoisNav, moisLu, moisVoisin } from '../mois.tsx';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { aNoter, contestationEnMots, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
-type Qui = { id: string; nom: string };
+type Qui = { id: string; nom: string; cabinet?: boolean };
+// Une facture d'abonnement d'un cabinet (0239, CONS3-2) mène à la fiche du cabinet ; celle d'un abonné, à sa fiche
+// de client (l'onglet demandé, quand une fiche de cabinet ne l'a pas).
+const ficheDe = (q: { id: string; cabinet?: boolean }, onglet?: string) => (q.cabinet ? `#/cabinets/${q.id}` : `#/clients/${q.id}${onglet ? `?onglet=${onglet}` : ''}`);
 type Moyen = 'konnect' | 'virement' | 'cheque' | 'autre';
 type Recu = {
   id: string; date: string; montant: string; devise: string; mode: string; moyen: Moyen; reference: string | null; numero: string | null;
@@ -120,7 +123,7 @@ function LigneDoit({ d, aujourdhui, principal }: { d: Doit; aujourdhui: string; 
   return (
     <li className={`c-pa-ligne${enRetard ? ' c-pa-ligne-retard' : ''}`}>
       <div className="c-pa-quoi">
-        <a href={`#/clients/${d.entreprise.id}`}><b data-donnee>{d.entreprise.nom}</b></a>
+        <a href={ficheDe(d.entreprise)}><b data-donnee>{d.entreprise.nom}</b></a>
         <span className="c-sous">{[d.numero ?? '—', dire(`${K}.d.periode`, { du: jourCourt(d.debut), au: jourCourt(d.fin) })].join(' · ')}</span>
         <span className={`c-pa-etat${enRetard ? ' c-pa-etat-retard' : ''}`}>
           {enRetard ? <Icone nom="alerte" taille={15} /> : <Icone nom="sablier" taille={15} />}{maj(etat)}
@@ -150,7 +153,7 @@ function LigneRecu({ r, aujourdhui }: { r: Recu; aujourdhui: string }) {
     <li className="c-pa-recu">
       <time className="c-mono" dateTime={r.date} title={jourCourt(r.date)}>{jourMois(r.date)}</time>
       <div className="c-pa-quoi">
-        <a href={`#/clients/${r.entreprise.id}`}><b data-donnee>{r.entreprise.nom}</b></a>
+        <a href={ficheDe(r.entreprise)}><b data-donnee>{r.entreprise.nom}</b></a>
         <span className="c-sous">{r.numero ?? '—'}{r.reference ? <> · <span data-donnee>{r.reference}</span></> : null}</span>
       </div>
       <b className="c-mono c-pa-recu-montant" data-donnee>{enDevise(r.montant, r.devise)}</b>
@@ -385,7 +388,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                       <ul>
                         {d.aEmettre.map((a) => (
                           <li key={a.piece}>
-                            <a href={`#/clients/${a.entreprise.id}`} data-donnee>{a.entreprise.nom}</a>
+                            <a href={ficheDe(a.entreprise)} data-donnee>{a.entreprise.nom}</a>
                             <span className="c-sous">{dire(`${K}.d.periode`, { du: jourCourt(a.debut), au: jourCourt(a.fin) })}</span>
                             <Lien href={a.ecran} ailleurs petit etiquette={titre(`${K}.d.emettre_de`, { nom: a.entreprise.nom })}>{titre(`${K}.d.emettre`)}</Lien>
                           </li>
@@ -404,7 +407,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   {d.contestations.map((c) => (
                     <li key={c.id} className="c-pa-ligne">
                       <div className="c-pa-quoi">
-                        <a href={`#/clients/${c.entreprise.id}?onglet=factures`}><b data-donnee>{c.entreprise.nom}</b></a>
+                        <a href={ficheDe(c.entreprise, 'factures')}><b data-donnee>{c.entreprise.nom}</b></a>
                         <span className="c-sous">{c.numero ?? '—'} · <span className={c.close && !aNoter(c) ? undefined : 'c-ct-en-cours'}>{contestationEnMots(c)}</span></span>
                         <span className="c-sous c-ct-dit-ligne" data-donnee>« {c.dit} »</span>
                       </div>
@@ -421,7 +424,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   {d.trop.map((x) => (
                     <li key={x.piece} className="c-pa-ligne">
                       <div className="c-pa-quoi">
-                        <a href={`#/clients/${x.entreprise.id}`}><b data-donnee>{x.entreprise.nom}</b></a>
+                        <a href={ficheDe(x.entreprise)}><b data-donnee>{x.entreprise.nom}</b></a>
                         <span className="c-sous">{x.numero ?? '—'} · {dire(x.annulee ? `${K}.t.annulee` : `${K}.t.trop`)}</span>
                       </div>
                       <div className="c-pa-montant"><b className="c-mono" data-donnee>{enDevise(x.trop, x.devise)}</b><span>{dire(`${K}.t.en_trop`)}</span></div>
@@ -437,7 +440,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   {d.defaites.map((x) => (
                     <li key={x.piece} className="c-pa-ligne">
                       <div className="c-pa-quoi">
-                        <a href={`#/clients/${x.entreprise.id}?onglet=factures`}><b data-donnee>{x.entreprise.nom}</b></a>
+                        <a href={ficheDe(x.entreprise, 'factures')}><b data-donnee>{x.entreprise.nom}</b></a>
                         <span className="c-sous">{x.numero ?? '—'} · {dire(`${K}.defaites.ligne_${x.cause}`, { le: jourCourt(jourDe(x.payeeLe)), fin: jourCourt(x.fin) })}</span>
                       </div>
                       <div className="c-pa-action">
@@ -470,7 +473,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                       <li key={h.id} className="c-pa-recu">
                         <time className="c-mono" dateTime={h.date} title={jourCourt(h.date)}>{jourMois(h.date)}</time>
                         <div className="c-pa-quoi">
-                          <a href={`#/clients/${h.entreprise.id}`}><b data-donnee>{h.entreprise.nom}</b></a>
+                          <a href={ficheDe(h.entreprise)}><b data-donnee>{h.entreprise.nom}</b></a>
                           <span className="c-sous"><span data-donnee>{h.facture}</span>{h.par ? <> · {dire(`${K}.hors.par`, { qui: h.par })}</> : null}</span>
                         </div>
                         <b className="c-mono c-pa-recu-montant" data-donnee>{montant(h.montant)}</b>

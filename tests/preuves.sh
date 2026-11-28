@@ -11188,7 +11188,7 @@ prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0121_dr
   '  if false then
     if length(btrim(' \
   "$AJ2"
-prouver 'un paiement reçu absent de Paiements' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'un paiement reçu absent de Paiements' 'base/migrations/0239_factures_cabinet_console.sql' \
   '                       where v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   '                       where false and v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   "$AJ2"
@@ -11213,7 +11213,7 @@ prouver 'l'"'"'échéance qui dit l'"'"'offre seule' 'serveur/console/renouvelle
   'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
   'periodeHt: htDeLaPeriode(prixHt, [], remise),' \
   "$AJ3"
-prouver 'une facture défaite absente de Paiements' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'une facture défaite absente de Paiements' 'base/migrations/0239_factures_cabinet_console.sql' \
   '                 where f.editeur = v_editeur and f.payee_le is not null
 ' \
   '                 where false and f.editeur = v_editeur and f.payee_le is not null
@@ -11251,7 +11251,7 @@ prouver 'une facture défaite qui tait ce qui est à rendre' 'serveur/console/de
   'cause: d.cause, trop: tropDe.get(d.piece) ?? null }]);' \
   'cause: d.cause, trop: null }]);' \
   "$AJ5"
-prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0239_factures_cabinet_console.sql' \
   ''"'"'cause'"'"', case when s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0) then '"'"'avoir'"'"' else '"'"'reglement'"'"' end)' \
   ''"'"'cause'"'"', '"'"'reglement'"'"')' \
   "$AJ4"
@@ -12933,12 +12933,16 @@ PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la fact
 PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
 PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
 # 1.42.0 : depuis 1.39.0, Paiements lit aussi les sorties en cours (0131), direction seule : la preuve lève ce verrou-là aussi.
-prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0137_audit_lot2a.sql|||base/migrations/0131_sortie.sql' \
-  '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
-  v_editeur uuid;|||perform plateforme.exiger_role_console(array['"'"'direction'"'"']);
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0239_factures_cabinet_console.sql|||base/migrations/0131_sortie.sql' \
+  '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||plateforme.console_paiements(p_mois date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, ventes, plateforme as $$
+declare
+  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);|||perform plateforme.exiger_role_console(array['"'"'direction'"'"']);
   return (select coalesce(jsonb_agg(plateforme.sortie_lue(s, p_jour) ||' \
-  '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
-  v_editeur uuid;|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||plateforme.console_paiements(p_mois date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, ventes, plateforme as $$
+declare
+  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
   return (select coalesce(jsonb_agg(plateforme.sortie_lue(s, p_jour) ||' \
   "$PA2"
 prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes.ts \
@@ -12947,7 +12951,7 @@ prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes
 prouver 'la tuile qui compte autre chose que l'"'"'écran' serveur/console/paiements.ts \
   '  return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };' '  return { mesure: true, montant: versTexte(e.parMoyen.virement, e.decimales), devise: e.devise, reglements: e.reglements };' \
   "$PA3"
-prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0239_factures_cabinet_console.sql' \
   'v_debut and v_fin
                          and v.apres->>'"'"'editeur'"'"' = v_editeur::text),' \
   'v_debut and v_fin),' \
@@ -12958,19 +12962,19 @@ prouver 'une autre devise additionnée au dinar' serveur/console/paiements.ts \
 prouver '« en ligne » cru Konnect sans la preuve' serveur/console/paiements.ts \
   '  if (mode === '"'"'en_ligne'"'"') return prouve ? '"'"'konnect'"'"' : '"'"'autre'"'"';' '  if (mode === '"'"'en_ligne'"'"') return '"'"'konnect'"'"';' \
   "$PA10"
-prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0137_audit_lot2a.sql \
+prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0239_factures_cabinet_console.sql \
   ' and l.reglement_v10 = r.ref_v10))' '))' \
   "$PA4"
-prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0137_audit_lot2a.sql \
+prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0239_factures_cabinet_console.sql \
   '               where f.editeur = v_editeur and r.date_reglement between v_debut and v_fin),' '               where f.editeur = v_editeur),' \
   "$PA4"
-prouver 'le trop payé jamais relu' base/migrations/0137_audit_lot2a.sql \
+prouver 'le trop payé jamais relu' base/migrations/0239_factures_cabinet_console.sql \
   '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) <> 0) x),' '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) > 0) x),' \
   "$PA5"
 prouver 'une facture annulée réglée dite simplement trop payée' serveur/console/paiements.ts \
   '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: annuleeParSesAvoirs(o.net, solde.credite, o.timbre) });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
   "$PA11"
-prouver 'une facture émise dite à émettre' base/migrations/0137_audit_lot2a.sql \
+prouver 'une facture émise dite à émettre' base/migrations/0239_factures_cabinet_console.sql \
   '                   and not exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' '                   and exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' \
   "$PA6"
 prouver 'un nom de coût refusé sans nommer sa case' serveur/console/routes.ts \
@@ -13013,9 +13017,15 @@ NFW2="la refusée en tête, avec la réponse de la TTN et le seul bouton princip
 NFW3="chaque filtre montre autant de lignes que sa pastille en compte, et se garde dans l'adresse"
 NFW4="à une fenêtre basse, seule la liste de la barre défile : la carte de la personne et « Se déconnecter » restent visibles"
 NFW5="un mois sans pièce ne dit qu'une chose ; au téléphone, rien ne déborde et les noms des colonnes s'effacent"
-prouver "le support et la technique qui lisent nos factures (le droit du serveur et la base)" "serveur/console/gestes.ts|||base/migrations/0109_nos_factures.sql" \
-  "  { code: 'console.factures.voir', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['direction']);" \
-  "  { code: 'console.factures.voir', roles: [D, S, T], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
+prouver "le support et la technique qui lisent nos factures (le droit du serveur et la base)" "serveur/console/gestes.ts|||base/migrations/0239_factures_cabinet_console.sql" \
+  "  { code: 'console.factures.voir', roles: [D], ecrit: false },|||plateforme.console_nos_factures(p_mois date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, ventes, plateforme as \$\$
+declare
+  v_role text := plateforme.exiger_role_console(array['direction']);" \
+  "  { code: 'console.factures.voir', roles: [D, S, T], ecrit: false },|||plateforme.console_nos_factures(p_mois date) returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, ventes, plateforme as \$\$
+declare
+  v_role text := plateforme.exiger_role_console(array['direction', 'support', 'technique']);" \
   "$NF1"
 prouver "une pièce signée qui se dit encore à signer" "serveur/console/nosfactures.ts" \
   "  if (p.signee) return 'a_envoyer';
@@ -13279,7 +13289,7 @@ prouver 'minuit pris au jour UTC' 'serveur/console/journal.ts' \
   '  const t = Date.parse(`${aujourdhui}T00:00:00+01:00`) - jours * 86_400_000;' \
   '  const t = Date.parse(`${aujourdhui}T00:00:00Z`) - jours * 86_400_000;' \
   "$CJ16"
-prouver 'un avoir sans timbre qui ne défait pas sa facture' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'un avoir sans timbre qui ne défait pas sa facture' 'base/migrations/0239_factures_cabinet_console.sql' \
   'and ((s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0)) or p.net_a_payer - s.avoirs - s.regle > 0))' \
   'and (s.avoirs >= p.net_a_payer or p.net_a_payer - s.avoirs - s.regle > 0))' \
   "$CJ10"
@@ -15058,10 +15068,10 @@ prouver 'la facture préparée qui disparaît des prévisions' 'serveur/console/
 ' \
   '' \
   'une facture préparée passe d'"'"'une colonne à l'"'"'autre, au même mois et au même montant ; émise, elle est due'
-prouver 'le hors-taxes de la préparée qui ne vient pas de la base' 'base/migrations/0137_audit_lot2a.sql' \
-  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale),
+prouver 'le hors-taxes de la préparée qui ne vient pas de la base' 'base/migrations/0239_factures_cabinet_console.sql' \
+  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', f.qui, '"'"'nom'"'"', f.nom, '"'"'cabinet'"'"', f.cabinet),
                     '"'"'montantHt'"'"', f.montant_ht::text)' \
-  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale))' \
+  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', f.qui, '"'"'nom'"'"', f.nom, '"'"'cabinet'"'"', f.cabinet))' \
   'une facture préparée et pas encore émise attend dans SkanFact : elle ne doit rien encore'
 prouver 'les préparées oubliées par la route' 'serveur/console/routes.ts' \
   'partants,
@@ -32689,6 +32699,13 @@ prouver "un double clic sur « Créer le dossier » en crée deux" modules/socle
           try { ok.disabled = true; ok.setAttribute('aria-busy', 'true'); await creerLeDossier(); }" "          const ok = \$('#ok', layer);
           try { await creerLeDossier(); }" \
   "le second clic n'est rien : un seul dossier au portefeuille"
+# 1.389.1 — La facture d'abonnement d'un cabinet compte dans la console (CONS3-2).
+prouver "la console ne lit que les factures des abonnés" base/migrations/0239_factures_cabinet_console.sql \
+  "    from plateforme.facture_cabinet c join socle.organisation o on o.id = c.cabinet" "    from plateforme.facture_cabinet c join socle.organisation o on o.id = c.cabinet where false" \
+  "la facture d'un cabinet compte dans Nos factures, dans ce qui reste à encaisser puis dans l'encaissé de la console"
+prouver "la facture d'un cabinet se dit celle d'un client" serveur/console/paiements.ts \
+  "{ id: q.id, nom: q.nom, cabinet: q.cabinet === true }" "{ id: q.id, nom: q.nom, cabinet: false }" \
+  "la facture d'un cabinet compte dans Nos factures, dans ce qui reste à encaisser puis dans l'encaissé de la console"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
