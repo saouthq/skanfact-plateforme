@@ -2377,9 +2377,15 @@
   // mois où son livre porte quand même une écriture (sa balance d'ouverture). `livres` : id du dossier → ses écritures.
   function packsAvecOuvertures(plan, livres) {
     const plus = [];
-    (plan.sans || []).forEach(d => {
+    // (1.390.12, CABDECLARER-17) Un client qui a des mois de livres sur la période garde aussi ses AUTRES mois lus dans son
+    // livre — sa balance d'ouverture du 1er janvier, qui ne fait pas un « mois » : « Toute l'année » la perdait dès qu'il
+    // avait une vente en février.
+    const deja = new Set((plan.packs || []).map(p => `${p.id}|${p.month}`)), vus = new Set();
+    (plan.packs || []).concat(plan.sans || []).forEach(d => {
+      if (vus.has(d.id)) return;
+      vus.add(d.id);
       const mois = [...new Set(((livres && livres.get(d.id)) || []).map(e => String(e.date).slice(0, 7)))].sort();
-      mois.forEach(m => plus.push({ id: d.id, name: d.name, matricule: d.matricule, month: m, definitive: true, ouverture: true }));
+      mois.filter(m => !deja.has(`${d.id}|${m}`)).forEach(m => plus.push({ id: d.id, name: d.name, matricule: d.matricule, month: m, definitive: true, ouverture: true }));
     });
     return (plan.packs || []).concat(plus).sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : parNom(a.name, b.name)));
   }

@@ -7254,7 +7254,10 @@
   // Chaque paquet porte déjà ses écritures en partie double. Mais rien ne les rassemblait : pour
   // importer un mois dans son logiciel de production, le comptable devait ouvrir soixante paquets
   // un par un — exactement le travail qu'on prétend lui épargner.
-  const ecrState = { from: '', to: '', ids: null };
+  // (1.390.12, CABDECLARER-17) `annee` : « Toute l'année » couvre l'exercice depuis janvier, même quand le premier mois de
+  // livres est février — sinon la balance d'ouverture du 1er janvier restait hors du fichier.
+  const ecrState = { from: '', to: '', ids: null, annee: '' };
+  const periodeEcr = () => ({ from: ecrState.annee && ecrState.to.startsWith(ecrState.annee) ? `${ecrState.annee}-01` : ecrState.from, to: ecrState.to, ids: ecrState.ids });
 
   function moisDisponibles() {
     const s = new Set();
@@ -7285,7 +7288,7 @@
     const dernier = (finis.length ? finis : mois)[(finis.length ? finis : mois).length - 1];
     if (!ecrState.from || !mois.includes(ecrState.from)) ecrState.from = dernier;
     if (!ecrState.to || ecrState.to < ecrState.from) ecrState.to = ecrState.from;
-    const plan = K.ecrituresPlan(S, { from: ecrState.from, to: ecrState.to, ids: ecrState.ids });
+    const plan = K.ecrituresPlan(S, periodeEcr());
     // L'accord suit le compte (10.12.0, vu au test humain) : « 1 paquet n'est pas définitif … Leur mois …
     // Ils sont quand même exportés » se lisait sur l'exemple, qui en a UN.
     const provPlus = plan.provisoires.length > 1;
@@ -7326,14 +7329,14 @@
             <div class="sub">${plan.sansPaquet.length ? `${pl(plan.sansPaquet.length, 'autre')} sans mouvement` : 'tous ont des écritures'}</div></div>
           <div class="stat"><div class="lbl">À valider</div><div class="val ${plan.provisoires.length ? 'due' : 'ok'}">${plan.provisoires.length}</div>
             <div class="sub">${plan.provisoires.length ? 'chiffres susceptibles de bouger' : 'tout est validé'}</div></div>
-          <div class="stat"><div class="lbl">Période</div><div class="val" style="font-size:16px">${esc(plan.mois.length ? (plan.mois.length > 1 ? K.monthLabel(plan.mois[0]) + ' → ' + K.monthLabel(plan.mois[plan.mois.length - 1]) : K.monthLabel(plan.mois[0])) : '—')}</div></div>
+          <div class="stat"><div class="lbl">Période</div><div class="val" style="font-size:16px">${esc(periodeEcr().from !== ecrState.from ? `Toute l'année ${ecrState.annee}` : plan.mois.length ? (plan.mois.length > 1 ? K.monthLabel(plan.mois[0]) + ' → ' + K.monthLabel(plan.mois[plan.mois.length - 1]) : K.monthLabel(plan.mois[0])) : '—')}</div></div>
         </div>
 
         ${plan.provisoires.length ? `<div class="warn-box mt">${info('e.provisoire')} <strong>${pl(plan.provisoires.length, 'mois')} ${provPlus ? 'sont' : 'est'} à valider</strong> :
           ${esc(plan.provisoires.slice(0, 6).join(' · '))}${plan.provisoires.length > 6 ? ' …' : ''}.
           Des écritures y sont encore au brouillard : les chiffres peuvent encore changer. ${provPlus ? 'Ils sont quand même exportés' : 'Il est quand même exporté'}.</div>` : ''}
         ${sansP.length ? `<p class="small mt">${info('e.manquants')} <span class="${aRel.length && !finEnCours ? 'err-inline' : ''}">${pl(sansP.length, 'client')} n'${sansP.length > 1 ? 'ont' : 'a'} aucun mouvement sur cette période</span> :</p><ul class="small" style="margin:4px 0 0;padding-inline-start:22px">${sansLi}</ul><p class="small muted" id="e-ouverture">Une balance d'ouverture, s'il en a une sur la période, part quand même dans le fichier.</p>` : ''}
-        ${plan.exempleExclu ? `<p class="small muted mt" id="e-exemple">Le dossier d'exemple n'entre pas dans ce fichier : il est fait pour ton logiciel, avec tes vrais clients.</p>` : (S.dossiers || []).some(d => d.demo && plan.packs.some(p => p.id === d.id)) ? `<p class="small muted mt" id="e-exemple">Seul le dossier d'exemple a des écritures : ce fichier sert à essayer l'import dans ton logiciel.</p>` : ''}
+        ${plan.exempleExclu ? `<p class="small muted mt" id="e-exemple">Le dossier d'exemple n'entre pas dans ce fichier : il est fait pour ton logiciel, avec tes vrais clients.</p>` : (S.dossiers || []).some(d => d.demo && plan.packs.some(p => p.id === d.id)) ? `<p class="small muted mt" id="e-exemple">${(plan.sans || []).length ? 'Seul le dossier d\'exemple a des mois de livres sur cette période ; la balance d\'ouverture de tes clients part avec lui s\'ils en ont une' : 'Seul le dossier d\'exemple a des écritures'} : ce fichier sert à essayer l'import dans ton logiciel.</p>` : ''}
 
         <div class="modal-actions">
           <button class="btn btn-primary" id="e-go" ${plan.packs.length ? '' : 'disabled'}>Exporter les écritures…</button>
@@ -7348,18 +7351,18 @@
           <td class="muted nw">${esc(p.matricule || '—')}</td>
           <td>${p.definitive ? '<span class="badge accepté">validé</span>' : '<span class="badge partielle">à valider</span>'}</td></tr>`).join('')}</tbody></table></div></div>` : ''}`;
 
-    $('#e-from').onchange = e => { ecrState.from = e.target.value; if (ecrState.to < ecrState.from) ecrState.to = ecrState.from; render(); };
-    $('#e-to').onchange = e => { ecrState.to = e.target.value; if (ecrState.to < ecrState.from) ecrState.from = ecrState.to; render(); };
-    $('#e-last').onclick = () => { ecrState.from = ecrState.to = dernier; render(); };
+    $('#e-from').onchange = e => { ecrState.annee = ''; ecrState.from = e.target.value; if (ecrState.to < ecrState.from) ecrState.to = ecrState.from; render(); };
+    $('#e-to').onchange = e => { ecrState.annee = ''; ecrState.to = e.target.value; if (ecrState.to < ecrState.from) ecrState.from = ecrState.to; render(); };
+    $('#e-last').onclick = () => { ecrState.annee = ''; ecrState.from = ecrState.to = dernier; render(); };
     $('#e-year').onclick = () => {
       const an = ecrState.to.slice(0, 4);
       const dedans = mois.filter(m => m.slice(0, 4) === an);
-      if (dedans.length) { ecrState.from = dedans[0]; ecrState.to = dedans[dedans.length - 1]; render(); }
+      if (dedans.length) { ecrState.annee = an; ecrState.from = dedans[0]; ecrState.to = dedans[dedans.length - 1]; render(); }
     };
     $('#e-go').onclick = async () => {
       const b = $('#e-go'); b.disabled = true; b.textContent = 'Lecture des livres…';
       try {
-        const r = await api.exportEcritures({ from: ecrState.from, to: ecrState.to, ids: ecrState.ids });
+        const r = await api.exportEcritures(periodeEcr());
         if (r) showEcrituresReport(r);
       } catch (e) { toast(plainError(e), 'error'); }
       b.disabled = false; b.textContent = 'Exporter les écritures…';

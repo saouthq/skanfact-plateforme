@@ -1642,8 +1642,8 @@
     exportEcritures: async (/** @type {any} */ o = {}) => {
       /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
       const plan = K.ecrituresPlan(await construireEtat(), o);
-      if (!plan.packs.length) throw new Error('Aucune écriture sur cette période.');
-      const du = `${plan.mois[0]}-01`, fin = String(plan.mois.at(-1));
+      if (!plan.packs.length && !(plan.sans || []).length) throw new Error('Aucune écriture sur cette période.');
+      const du = `${o.from || plan.mois[0]}-01`, fin = String(o.to || plan.mois.at(-1));
       const au = new Date(Date.UTC(Number(fin.slice(0, 4)), Number(fin.slice(5, 7)), 0)).toISOString().slice(0, 10);
       /** @type {Map<string, any[]>} */ const livres = new Map();
       for (const id of new Set([...plan.packs, ...(plan.sans || [])].map((/** @type {any} */ p) => p.id))) livres.set(id, await ecrituresDe(id, du, au));
@@ -1656,9 +1656,9 @@
         return { name: p.name, matricule: p.matricule, month: p.month, csv: [K.toCsvLine(tete), ...lignes].join('\r\n') };
       });
       const out = K.mergeEcritures(sources);
-      const periode = plan.mois.length > 1 ? `${plan.mois[0]}_${fin}` : plan.mois[0];
+      const periode = du.slice(0, 7) === fin ? fin : `${du.slice(0, 7)}_${fin}`;
       const f = telecharger(`ecritures-${slug(nomDuCabinet || 'cabinet')}-${periode}.csv`, out.csv);
-      return { path: f.path, lignes: out.lignes, dossiers: out.dossiers, vides: out.vides, illisibles: [], mois: plan.mois };
+      return { path: f.path, lignes: out.lignes, dossiers: out.dossiers, vides: out.vides, illisibles: [], mois: [...new Set(sources.map((/** @type {any} */ x) => x.month))] };
     },
     exportCsv: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(`${slug(nom || 'dossiers')}.csv`, `\uFEFF${String(texte || '')}`),
     exportFec: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(String(nom || 'FEC.txt').split(/[\\/]/).pop() || 'FEC.txt', String(texte || '')),

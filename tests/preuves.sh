@@ -30315,8 +30315,8 @@ prouver $'issue 9 1.378.6 c : le dossier d\'exemple part dans le fichier du cabi
   $'if (false) {' \
   $'le dossier d\'exemple sort du fichier'
 prouver $'issue 9 1.378.6 d : la balance d\'ouverture d\'un client sans mouvement oubliée' web/public/v10/cabinet/cabcore.js \
-  $'(plan.sans || []).forEach(d => {' \
-  $'[].forEach(d => {' \
+  $'(plan.packs || []).concat(plan.sans || []).forEach(d => {' \
+  $'(plan.packs || []).forEach(d => {' \
   $'la balance d\'ouverture d\'un client sans mouvement part dans le fichier'
 prouver $'issue 9 1.378.6 e : la fiche compte les brouillards sans le dire' modules/socle/ecrans/cabinet/app-1.js \
   $'· lu dans ses livres${brDit(L.brVente)}`)' \
@@ -32985,6 +32985,16 @@ prouver "la déclaration du mois sans PDF" modules/socle/ecrans/cabinet/app-1.js
 prouver "« Annuler le paiement de octobre »" modules/socle/ecrans/cabinet/app-1.js \
   "'paiement'} \${K.de(K.monthLabel(s.decl.periode))} ?\`" "'paiement'} de \${K.monthLabel(s.decl.periode)} ?\`" \
   "aucune phrase n'écrit « de » devant un mois à la main"
+
+prouver "l'export de l'année qui perd l'ouverture d'un client à mois de livres" web/public/v10/cabinet/cabcore.js \
+  '(plan.packs || []).concat(plan.sans || []).forEach(d => {' '(plan.sans || []).forEach(d => {' \
+  "Toute l'année » emporte la balance d'ouverture"
+prouver "« Toute l'année » qui commence au premier mois de livres" modules/socle/ecrans/cabinet/app-2.js \
+  '{ ecrState.annee = an; ecrState.from = dedans[0];' '{ ecrState.from = dedans[0];' \
+  "Toute l'année » emporte la balance d'ouverture"
+prouver "l'export qui lit les livres depuis le premier mois de livres" web/public/plateforme/pont-cabinet.js \
+  'const du = `${o.from || plan.mois[0]}-01`' 'const du = `${plan.mois[0]}-01`' \
+  "Toute l'année » emporte la balance d'ouverture"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.

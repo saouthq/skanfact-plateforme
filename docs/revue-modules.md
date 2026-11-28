@@ -8295,3 +8295,20 @@ bilan et l'état de résultat de l'onglet Exercice, ni la Déclaration du mois (
 
 Essais : `tests/web/livres-1378-3.test.ts` (les deux PDF, à la souris, le contenu envoyé au service vérifié) et
 `tests/v10/elision-mois-cabinet-1390-12.test.ts`.
+
+## 1.390.13 — « Toute l'année » emporte la balance d'ouverture de chaque client (issue 9, CABDECLARER-17)
+
+Resté partiel à la contre-vérification : un dossier tenu, sa balance d'ouverture validée au 01/01/2026 et une vente en
+février. « Toute l'année 2026 » ne proposait que février, et le fichier n'avait que les trois lignes de la vente — alors
+que la page promet qu'« une balance d'ouverture, s'il en a une sur la période, part quand même dans le fichier ».
+
+- **« Toute l'année » couvre l'exercice depuis janvier**, même quand le premier mois de livres du portefeuille est
+  février ; la carte « Période » le dit (« Toute l'année 2026 »). Choisir un mois à la main revient à la période choisie.
+- **L'export lit les livres depuis le début de la période demandée**, pas depuis le premier mois de livres, et **un
+  client qui a des mois de livres garde aussi ses autres mois** lus dans son livre (sa balance d'ouverture), comme
+  c'était déjà le cas d'un client qui n'avait que son ouverture (1.378.6).
+- Quand seul l'exemple a des mois de livres mais que de vrais clients n'en ont pas sur la période, la page ne dit plus
+  « Seul le dossier d'exemple a des écritures » : leur balance d'ouverture part avec lui s'ils en ont une.
+
+Essai : `tests/web/cabinet-ecritures.test.ts` (un client tenu, son ouverture et sa vente de février, « Toute l'année »,
+le fichier relu ligne par ligne).

@@ -125,4 +125,30 @@ describe('la page Écritures, à la souris', () => {
     expect(await ligne.getByRole('button', { name: 'Commencer' }).isEnabled()).toBe(true);
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  it('(1.390.12, CABDECLARER-17) « Toute l\'année » emporte la balance d\'ouverture d\'un client qui a aussi une vente en février', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ouverture' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Quincaillerie Ouverture' })).corps.entreprise);
+    const saisir = async (date: string, journal: string, piece: string, lignes: [string, string, string][]) =>
+      String((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date, journal, piece, libelle: `Pièce ${piece}`, lignes: lignes.map(([compte, debit, credit]) => ({ compte, debit, credit })) })).corps.id);
+    const an = await saisir('2026-01-01', 'AN', 'AN-2026', [['532', '5000', ''], ['101', '', '5000']]);
+    const vt = await saisir('2026-02-10', 'VT', 'FV-1', [['411', '119', ''], ['706', '', '100'], ['4371', '', '19']]);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [an, vt] })).statut).toBe(200);
+
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', acceptDownloads: true })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/ecritures`);
+    await p.locator('#e-from').waitFor({ timeout: 15_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await p.locator('#e-year').click();
+    await expect.poll(() => p.locator('.stat', { hasText: 'Période' }).locator('.val').innerText()).toBe("Toute l'année 2026");
+    const [f] = await Promise.all([p.waitForEvent('download'), p.locator('#e-go').click()]);
+    expect(f.suggestedFilename()).toBe('ecritures-Cabinet-Ouverture-2026-01_2026-02.csv');
+    const pieces = fs.readFileSync(await f.path(), 'utf8').replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((l) => `${l.split(';')[2]};${l.split(';')[6]}`);
+    expect(pieces).toEqual(['2026-01;AN-2026', '2026-01;AN-2026', '2026-02;FV-1', '2026-02;FV-1', '2026-02;FV-1']);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });
