@@ -107,7 +107,15 @@ describe('les clients 1.309.0 : leurs fiches et leurs comptes', () => {
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
+    // (1.389.13, rouge GitHub de e1dda259) « Enregistré » se dit avant que le serveur ait répondu : recharger dans la foulée
+    // lisait le dossier avant le paiement de l'étape E. Comme dans le test de la 1.310, on recharge une fois les envois arrivés.
+    let enRoute = 0;
+    const envoi = (r: { method: () => string; url: () => string }) => r.method() !== 'GET' && /\/dossier-v10/.test(r.url());
+    p.on('request', (r) => { if (envoi(r)) enRoute++; });
+    p.on('requestfinished', (r) => { if (envoi(r)) enRoute--; });
+    p.on('requestfailed', (r) => { if (envoi(r)) enRoute--; });
     const aller = async (hash: string, attendre = '#view h1') => {
+      await expect.poll(() => enRoute, { timeout: 20_000 }).toBe(0);
       await p.goto('about:blank');
       await p.goto(`${serveur.adresse}/v10/?e=${ent}${hash}`);
       await p.locator(attendre).first().waitFor({ timeout: 20_000 });

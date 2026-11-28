@@ -8061,3 +8061,11 @@ attendre. En CI, d'autres fichiers posent leurs clients dans la même base au m�
 puis notre client parmi les noms ou dans « et N autres ». L'application ne change pas.
 
 Vérifié avec cinq clients en attente en plus. Les cinq preuves de la 1.389.4 tombent toujours.
+
+## 1.389.13 — « Clients » : on recharge une fois le paiement arrivé
+
+Le parcours des clients (1.309) est tombé une fois en CI sur e1dda259 : après le paiement de 520 DT de l'étape E, la liste
+des clients disait encore « 500,800 rien en retard » au lieu de « 19,200 en sa faveur ». L'écran dit « Enregistré » avant
+que le serveur ait répondu (1.358.1), et le parcours rechargeait la page dans la seconde : il lisait le dossier avant que le
+paiement y soit écrit. Comme le test de la 1.310, il attend maintenant que les envois en route soient arrivés avant de
+recharger, comme une personne qui attend que l'enregistrement soit parti. L'application ne change pas.
