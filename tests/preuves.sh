@@ -32681,6 +32681,14 @@ prouver "se déconnecter garde le dernier contact et les pages vues" web/public/
 prouver "la page quittée en se déconnectant note encore où elle en était" modules/socle/ecrans/entreprise/app-1.js \
   "      if (window.skanfactSortie) return;" "      if (false) return;" \
   "sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
+# 1.389.0 — Un double clic sur « Créer le dossier » crée un dossier (CONS3-3).
+prouver "un double clic sur « Créer le dossier » en crée deux" modules/socle/ecrans/cabinet/app-2.js \
+  "          if (creation) return;
+          creation = true;
+          const ok = \$('#ok', layer);
+          try { ok.disabled = true; ok.setAttribute('aria-busy', 'true'); await creerLeDossier(); }" "          const ok = \$('#ok', layer);
+          try { await creerLeDossier(); }" \
+  "le second clic n'est rien : un seul dossier au portefeuille"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -7898,3 +7898,12 @@ l'entreprise. Sur un poste partagé, la personne suivante pouvait les lire. Tout
 clé ; restent les réglages d'affichage (le thème, la barre repliée), qui ne disent rien de personne.
 
 Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.388.99 »).
+
+## 1.389.0 — Un clic, un dossier (rapport #29 : CONS3-3)
+
+Au Cabinet, un double clic sur « Créer le dossier » créait deux dossiers du même nom : le second clic partait avant que
+le premier dossier revienne, et la question « déjà au portefeuille ? » ne pouvait pas encore le voir. Au-delà des trois
+dossiers tenus gratuits, les deux se facturaient. Le bouton se tient désormais pendant l'envoi, et un clic de plus n'est
+rien.
+
+Prouvé : le défaut réintroduit fait tomber son test (`tests/preuves.sh`, « 1.389.0 »).

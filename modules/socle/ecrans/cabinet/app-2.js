@@ -5960,7 +5960,18 @@
         change = suivreSaisie(layer);
         $('#no', layer).onclick = close;
         $('#nd-coller', layer).onclick = () => { close(); collerDossiersForm(peut); };
+        // (1.389.0, CONS3-3) Un double clic créait deux dossiers du même nom — et les deux se facturaient : le second clic
+        // arrivait avant que le premier dossier revienne, et la question « déjà au portefeuille ? » ne le voyait pas. Un
+        // clic, un dossier : le bouton se tient pendant l'envoi, et un clic de plus n'est rien.
+        let creation = false;
         $('#ok', layer).onclick = async () => {
+          if (creation) return;
+          creation = true;
+          const ok = $('#ok', layer);
+          try { ok.disabled = true; ok.setAttribute('aria-busy', 'true'); await creerLeDossier(); }
+          finally { creation = false; if (ok.isConnected) { ok.disabled = false; ok.removeAttribute('aria-busy'); } }
+        };
+        const creerLeDossier = async () => {
           const f = readDossierFields(layer);
           // Un refus MONTRE la case (7.0.0, 10.12.0) : le curseur y va, elle se marque.
           if (!f.name) return refus($('#f-name', layer), 'Donne au moins un nom à ce client.');
