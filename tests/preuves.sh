@@ -33003,6 +33003,10 @@ prouver "la colonne « Envoyée » d'un dossier sans SkanFact" modules/socle/ecr
   "<th>Attendu</th>\${dossier.manual ? '' : '<th>Envoyée</th>'}" "<th>Attendu</th>\${false ? '' : '<th>Envoyée</th>'}" \
   "la question d'un dossier tenu reste dans la révision, et le dit"
 
+prouver "les pièces d'une case de la déclaration rangées tout en bas" modules/socle/ecrans/cabinet/app-1.js \
+  "      if (!ouv || piecesSousCase || l.source !== ouv) return '';" "      if (true) return '';" \
+  "un dossier plein : la recherche, les pièces d'une case"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

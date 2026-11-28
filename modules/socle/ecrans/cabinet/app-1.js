@@ -9806,13 +9806,23 @@
       <td class="r nw">${l.montant == null ? '<span class="muted">—</span>' : boutonCopie(l.cle, l.montant, l.caseCopie || l.libelle)}</td>
       <td class="nw">${celluleOrigine(l, etat)}</td></tr>`;
   }
+  // (1.390.15, issue 9, CABDECLARER-23) Les pièces d'une case s'ouvrent SOUS sa ligne, pas dans une carte tout en bas de la
+  // page : on lisait « 12 écritures ▾ », puis on cherchait où elles étaient. En bas seulement si la case n'a pas de ligne.
+  let piecesSousCase = false;
   function panneauFormulaire(d) {
     const f = d.formulaire;
+    piecesSousCase = false;
     if (!f) return '';
     const etat = { paieDite: '' };
+    const ouv = declState.ouverte && d.cases[declState.ouverte] ? declState.ouverte : '';
+    const sous = l => {
+      if (!ouv || piecesSousCase || l.source !== ouv) return '';
+      piecesSousCase = true;
+      return `<tr class="dc-sous"><td colspan="5">${panneauPieces(d.cases[ouv], LIBELLE_CASE[ouv], ouv)}</td></tr>`;
+    };
     const rubriques = f.rubriques.map((r, i) => `<tr class="dc-rub"><th colspan="5">${i + 1}. ${esc(r.titre)}
         <span class="dc-ar" lang="ar" dir="rtl">${esc(r.ar)}</span></th></tr>
-      ${r.lignes.map(l => ligneFormulaire(l, etat)).join('')}`).join('');
+      ${r.lignes.map(l => ligneFormulaire(l, etat) + sous(l)).join('')}`).join('');
     const recap = f.recap.map(x => `<tr><td>${esc(x.libelle)}</td><td></td><td></td>
       <td class="r nw">${x.montant == null ? '<span class="muted">—</span>' : boutonCopie('recap-' + x.cle, x.montant, `${x.libelle} (récapitulatif)`)}</td><td></td></tr>`).join('');
     // Ce qui n'entre pas dans le total le DIT, sur la ligne du total (9.4.5, 9.8.8).
@@ -9828,7 +9838,7 @@
         <tr class="dc-total"><td>Total de la déclaration${sans ? `<div class="small muted dc-raison">${esc(sans)}</div>` : ''}${f.aDecaisser != null ? `<div class="small muted dc-raison">Dont ${esc(money(f.aDecaisser))} portés au compte ${esc(d.comptes.aPayer)} par l'écriture du mois (TVA, timbre, retenues opérées) ; le reste se verse depuis les comptes de la paie.</div>` : ''}</td>
           <td></td><td></td><td class="r nw">${boutonCopie('total', f.total, 'Total de la déclaration')}</td><td></td></tr>
         <tr class="dc-rub"><th colspan="5">Hors de ce formulaire</th></tr>
-        ${f.horsFormulaire.map(l => ligneFormulaire(l, etat)).join('')}
+        ${f.horsFormulaire.map(l => ligneFormulaire(l, etat) + sous(l)).join('')}
       </tbody></table></div>
       ${d.parTaux
         ? `<h3 class="sub-h">TVA collectée par taux</h3><table class="list compact"><tbody>${d.parTaux.map(x =>
@@ -9996,7 +10006,7 @@
       : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
       : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
     ${panneauFormulaire(d)}
-    ${declState.ouverte && d.cases[declState.ouverte] ? panneauPieces(d.cases[declState.ouverte], LIBELLE_CASE[declState.ouverte], declState.ouverte) : ''}`;
+    ${declState.ouverte && d.cases[declState.ouverte] && !piecesSousCase ? panneauPieces(d.cases[declState.ouverte], LIBELLE_CASE[declState.ouverte], declState.ouverte) : ''}`;
   }
 
   // (1.378.7 ; issue 9, CABDECLARER-23) Chaque pièce porte ce qu'elle met dans la case (et sa base hors taxes pour la

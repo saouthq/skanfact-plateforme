@@ -8324,3 +8324,14 @@ le tableau des questions gardait une colonne « Envoyée » qui disait « gardé
 - Le tableau des questions n'a plus de colonne d'envoi sur un dossier qui n'envoie rien.
 
 Essai : `tests/web/ouvrir-question-1378-4.test.ts`.
+
+## 1.390.15 — Les pièces d'une case de la déclaration s'ouvrent sous sa ligne (issue 9, CABDECLARER-23)
+
+Resté partiel : les pièces d'une case (« TVA collectée — les pièces », avec base HT, TVA et total recomptés justes)
+s'ouvraient dans une carte tout en bas de la page, sous le formulaire entier ; on cliquait « 12 écritures ▾ » et on
+cherchait où elles étaient.
+
+- La liste s'ouvre **juste sous la ligne de sa case**, dans le formulaire, bordée de la couleur de l'application ; elle ne
+  reste en bas que pour une case qui n'a pas de ligne dans le formulaire.
+
+Essai : `tests/web/pagination-1352.test.ts` (la liste est dans le formulaire, sous la ligne dont le bouton est ouvert).

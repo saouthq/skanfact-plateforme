@@ -105,6 +105,10 @@ describe('la pagination dans toutes les listes du Cabinet (1.352.0)', () => {
     await p.locator('#dc-mois').selectOption('2026-03');
     await p.locator('[data-cases]').filter({ hasText: '205 écritures' }).first().click();
     await expect.poll(() => p.locator('#dc-pieces tbody tr').count()).toBe(25);
+    // (1.390.15, CABDECLARER-23) Les pièces s'ouvrent SOUS la ligne de leur case, dans le formulaire, pas tout en bas.
+    expect(await p.locator('#dc-formulaire tr.dc-sous #dc-pieces').count()).toBe(1);
+    expect(await p.locator('#dc-formulaire tr.dc-sous').evaluate((tr) => !!tr.previousElementSibling?.querySelector('[data-cases][aria-expanded="true"]'))).toBe(true);
+    await p.locator('#dc-formulaire tr.dc-sous').screenshot({ path: path.join(PHOTOS, 'pagination-1352-2-pieces-sous-case.png') });
     expect(await pied('#dc-pieces')).toBe('1–25 sur 205 pièces');
     // (1.378.7 ; issue 9, CABDECLARER-23) Chaque pièce porte son montant, et le pied la case entière — pas la page.
     expect(await p.locator('#dc-pieces tbody tr').first().locator('td.num').last().innerText()).toMatch(/^\d[\d\s]*,\d{3}$/);

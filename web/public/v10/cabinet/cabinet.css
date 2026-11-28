@@ -912,3 +912,6 @@ input::placeholder, textarea::placeholder { font-style: italic; }
 
 /* (CE-36) Une date limite un samedi ou un dimanche : une ligne grise sous la date, jamais une alerte. */
 .ec-dt-g p .ec-chome { display: block; margin-block-start: 2px; font-size: 12px; color: var(--muted); }
+/* (1.390.15, CABDECLARER-23) Les pièces d'une case, ouvertes sous sa ligne du formulaire. */
+#view .dc-form tr.dc-sous > td { padding: 0 0 10px; white-space: normal; }
+#view .dc-form tr.dc-sous #dc-pieces { margin: 2px 0 0; box-shadow: none; border-inline-start: 3px solid var(--accent, #0f9d8f); }
