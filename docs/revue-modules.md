@@ -8312,3 +8312,15 @@ que la page promet qu'« une balance d'ouverture, s'il en a une sur la période,
 
 Essai : `tests/web/cabinet-ecritures.test.ts` (un client tenu, son ouverture et sa vente de février, « Toute l'année »,
 le fichier relu ligne par ligne).
+
+## 1.390.14 — Une question à un client sans SkanFact ne promet plus de s'afficher chez lui (issue 9, CABDECLARER-22)
+
+Resté partiel : la fenêtre et le contrôle de la Révision disaient déjà « ce dossier n'a pas SkanFact, elle reste dans ta
+révision », mais le menu « Actions » d'un compte promettait encore « Elle s'affichera chez lui, en face de la pièce », et
+le tableau des questions gardait une colonne « Envoyée » qui disait « gardée » pour toujours.
+
+- Sur un dossier tenu au cabinet, le menu dit ce que la fenêtre dit : la question reste dans la révision, à poser de vive
+  voix ou par e-mail.
+- Le tableau des questions n'a plus de colonne d'envoi sur un dossier qui n'envoie rien.
+
+Essai : `tests/web/ouvrir-question-1378-4.test.ts`.

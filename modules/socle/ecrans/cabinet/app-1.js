@@ -11173,14 +11173,14 @@
 
     <div class="panel" id="rv-questions"><h2>Les questions posées au client ${info('rv.questions')}</h2>
       ${r.questions.length
-    ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>Compte</th><th>La question</th><th>Attendu</th><th>Envoyée</th><th>Réponse</th><th></th></tr></thead>
+    ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Pièce</th><th>Compte</th><th>La question</th><th>Attendu</th>${dossier.manual ? '' : '<th>Envoyée</th>'}<th>Réponse</th><th></th></tr></thead>
         <tbody>${r.questions.slice().reverse().map(q => `<tr class="${questionEnRetard(q) ? 'row-warn' : ''}">
           <td class="nw">${q.piece ? esc(q.piece) : '<span class="muted">—</span>'}</td>
           <td class="nw small">${esc(q.compte || '')}</td>
           <td>${esc(q.objet || '')}<div class="small">${esc(q.texte)}</div></td>
           <td class="nw small">${esc(libelleAttendu(q.attendu))}</td>
           ${/* (plateforme) 1.388.86 — le jour où elle est partie, sa date « pour le », ses relances ; plus de compteur d'envois. */''}
-          <td class="nw small">${celluleEnvoi(q)}</td>
+          ${/* (1.390.14, CABDECLARER-22) Un dossier sans SkanFact n'envoie rien : la colonne disait « gardée » pour toujours. */''}${dossier.manual ? '' : `<td class="nw small">${celluleEnvoi(q)}</td>`}
           ${/* (plateforme) 1.97.0 — répondue puis fermée : « close », comme chez le client ; la réponse reste dessous. */''}
           <td>${q.reponse ? `${q.statut === 'close' ? '<span class="badge">close</span>' : '<span class="badge b-paid">répondue</span>'}<div class="small">${esc(q.reponse.texte || '')}</div>${/* (plateforme) 1.388.86 — un fichier joint à la réponse vit dans la conversation : le lien y mène. */''}${q.reponse.message && !dossier.manual ? `<a class="rv-lien rv-lien-joint" href="#/messages/${encodeURIComponent(dossier.id)}">La pièce jointe, dans la conversation</a>` : ''}`
     : q.statut === 'close' ? '<span class="badge">close</span>' : '<span class="badge b-due">en attente</span>'}</td>
@@ -11260,7 +11260,7 @@
             } },
           { icon: 'modifier', label: 'Écrire une note de revue', hint: 'Ce qu\'il reste à vérifier sur ce compte.',
             run: () => noteForm(root, dossier, { compte: id, cycle: c.cycle }) },
-          { icon: 'email', label: 'Poser une question au client', hint: 'Elle s\'affichera chez lui, en face de la pièce.',
+          { icon: 'email', label: 'Poser une question au client', hint: dossier.manual ? 'Ce dossier n\'a pas SkanFact : elle reste dans ta révision, à poser de vive voix ou par e-mail.' : 'Elle s\'affichera chez lui, en face de la pièce.',
             run: () => questionForm(root, dossier, { compte: id, cycle: c.cycle, libelle: c.libelle, solde: c.solde }) }
         ];
       }

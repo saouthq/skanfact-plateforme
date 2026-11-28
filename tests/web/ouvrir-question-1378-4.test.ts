@@ -110,6 +110,16 @@ describe('l\'exercice suivant se demande, et la question d\'un dossier tenu dit 
     const vue = net(await p.locator('#view').innerText());
     expect(vue).not.toContain('pas encore partie');
     expect(vue).not.toContain('conversation');
+    // (1.390.14, CABDECLARER-22) Le tableau des questions ne garde pas une colonne d'envoi qui dirait « gardée » pour toujours,
+    // et le menu d'un compte ne promet plus qu'elle « s'affichera chez lui ».
+    expect(net(await p.locator('#rv-questions thead').innerText())).not.toContain('Envoyée');
+    expect(net(await p.locator('#rv-questions').innerText())).not.toContain('gardée');
+    await p.evaluate(() => document.querySelectorAll('#view details').forEach((d) => { (d as HTMLDetailsElement).open = true; }));
+    await p.locator('[data-rowmenu^="RV:"]').first().click({ timeout: 10_000 });
+    const poser = p.getByRole('menuitem').filter({ hasText: 'Poser une question au client' });
+    expect(net(await poser.innerText())).toContain('Ce dossier n\'a pas SkanFact : elle reste dans ta révision');
+    expect(net(await poser.innerText())).not.toContain('chez lui');
+    await p.keyboard.press('Escape');
     await p.screenshot({ path: path.join(PHOTOS, 'ouvrir-1378-4-b-question-tenue.png'), fullPage: true });
 
     expect(erreurs).toEqual([]);
