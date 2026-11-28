@@ -569,7 +569,12 @@
     // Sans pointage enregistré, une absence non payée posée dans « Congés et absences » compte tout autant : le mois la lit.
     if (!r) {
       const e = data.employees.find(x => x.id === b.salarieId), pm = e && KC.pointageDuMois(data, e, slip.year, slip.month), avant = KC.round3(Number(slip.absentDays) || 0);
-      if (pm && Number(pm.absences) > avant) r = { ...KC.reprisePointage(slip, pm, (slip.bonuses || []).filter(x => x.hs), (slip.bonuses || []).filter(x => x.retard || x.nuit)), change: true, avant, absences: true, heures: false, conges: true };
+      // (1.390.4, CABPAIE-1) Le bulletin portait déjà des jours tapés à la main : une absence posée APRÈS sa validation (elle
+      // garde le bulletin et ses jours d'alors) s'y ajoute — sans elle, 1 jour posé sous 2 jours tapés ne disait rien.
+      const tard = (data.leaves || []).filter(l => l.employeeId === b.salarieId && (l.apresValidation || []).some(x => x.bulletin === b.id && KC.round3(Number(x.absences)) === avant));
+      const ajout = tard.length && e ? Number(KC.pointageDuMois({ ...data, leaves: tard }, e, slip.year, slip.month).absences) || 0 : 0;
+      const voulu = pm ? Math.max(Number(pm.absences) || 0, KC.round3(avant + ajout)) : 0;
+      if (pm && voulu > avant) r = { ...KC.reprisePointage(slip, { ...pm, absences: voulu }, (slip.bonuses || []).filter(x => x.hs), (slip.bonuses || []).filter(x => x.retard || x.nuit)), change: true, avant, absences: true, heures: false, conges: true, ...(ajout && voulu === KC.round3(avant + ajout) ? { tard: ajout } : {}) };
     }
     const portees = (sal.regularisations || []).filter(x => x.deBulletin === b.id);
     if (!r || (!r.change && !portees.length)) return null;
@@ -1189,7 +1194,9 @@
   const affichePointage = c => c === 'D' ? '½' : c === '-' ? '·' : c;
   const libelleDuJour = j => KC.libellePointage(j.code) + (j.source === 'conge' ? ' (Congés et absences)' : j.source === 'pointe' ? ' (pointé)' : '');
   const joursFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
-  const ecartDuPointage = r => [r.absences ? `${joursFr(r.avant)} jour${Number(r.avant) > 1 ? 's' : ''} non payé${Number(r.avant) > 1 ? 's' : ''} au bulletin, ${joursFr(r.absentDays)} ${r.conges ? 'dans « Congés et absences »' : 'au pointage'}` : '',
+  // (1.390.4, CABPAIE-1) Une absence posée après la validation sur un bulletin qui portait déjà des jours : « 1 de plus ».
+  const ecartDuPointage = r => [r.absences ? `${joursFr(r.avant)} jour${Number(r.avant) > 1 ? 's' : ''} non payé${Number(r.avant) > 1 ? 's' : ''} au bulletin, ${r.tard && Number(r.avant) > 0
+    ? `${joursFr(r.tard)} de plus dans « Congés et absences », posé${Number(r.tard) > 1 ? 's' : ''} après la validation` : `${joursFr(r.absentDays)} ${r.conges ? 'dans « Congés et absences »' : 'au pointage'}`}` : '',
     r.heures ? 'pas les mêmes heures supplémentaires' : '', !r.absences && !r.heures ? 'ses primes au jour ne suivent plus les jours payés' : ''].filter(Boolean).join(' ; ');
   function lignesDuPointage(dossier, L, annee, m) {
     const data = donneesDuPointage(dossier, L);
@@ -2104,8 +2111,14 @@
         ok.disabled = true;
         try {
           const id = conge ? conge.id : 'cg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          // (1.390.4, CABPAIE-1) Une absence posée sur un mois déjà validé garde le bulletin qu'elle trouve, avec ses jours
+          // d'absence de ce jour-là : c'est ce qui la dit NOUVELLE quand le bulletin en portait déjà, tapés à la main.
+          const change = !conge || ['employeeId', 'kind', 'from', 'to', 'paid'].some(k => String(conge[k] ?? '') !== String((k === 'paid' ? (v.paid === '' ? null : v.paid === '1') : v[k]) ?? ''));
+          const marques = (conge && conge.apresValidation) || [];
+          const neufs = change ? (L.bulletins || []).filter(x => x.salarieId === v.employeeId && x.valideLe && `${x.annee}-${String(x.mois).padStart(2, '0')}` >= v.from.slice(0, 7)
+            && `${x.annee}-${String(x.mois).padStart(2, '0')}` <= v.to.slice(0, 7) && !marques.some(m => m.bulletin === x.id)).map(x => ({ bulletin: x.id, absences: KC.round3(Number(x.joursAbsence) || 0) })) : [];
           const r = await api.saveConge({ dossierId: dossier.id, conge: { id, employeeId: v.employeeId, kind: v.kind, from: v.from, to: v.to,
-            paid: v.paid === '' ? null : v.paid === '1', note: v.note } });
+            paid: v.paid === '' ? null : v.paid === '1', note: v.note, apresValidation: marques.concat(neufs) } });
           L.conges = r.conges;
           close();
           const payeeV = v.paid === '' ? KC.leaveIsPaid(v.kind) : v.paid === '1', bv = !payeeV && dejaValide(v);

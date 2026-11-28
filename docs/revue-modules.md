@@ -8154,3 +8154,21 @@ sa première lecture.
 
 Essai : `tests/web/declaration-1350.test.ts` annule le paiement de février après un premier export, revient au classeur
 sans recharger, exporte à nouveau et lit « déposée, paiement non noté ».
+
+## 1.390.4 — Une absence posée après la validation, sur un bulletin aux jours tapés, est à régulariser (issue 10, CABPAIE-1)
+
+Resté partiel à la contre-vérification, dans le cas d'origine : le bulletin d'octobre portait déjà 2 jours d'absence
+tapés à la main, il était validé, puis 1 jour était posé dans « Congés et absences ». Le mois comparait « 1 jour dans
+Congés » à « 2 jours au bulletin » et ne voyait rien ; la liste disait « retirée du salaire », le message disait
+« régularise-la depuis Le mois », et « Le mois » ne proposait rien.
+
+- **Une absence posée sur un mois déjà validé garde le bulletin qu'elle trouve**, avec ses jours d'absence de ce
+  jour-là (`apresValidation`, porté par le pont avec le congé). C'est ce qui la dit nouvelle : le bulletin en portait
+  déjà, elle s'y ajoute. Si le bulletin change ensuite (ses jours ne sont plus ceux d'alors), la marque ne compte plus.
+- **« Le mois » le dit et le propose** : « 2 jours non payés au bulletin, 1 de plus dans « Congés et absences », posé
+  après la validation — à retenir : 50,000 DT de brut », avec « Régulariser sur novembre ». La liste dit « pas retenue :
+  à régulariser », puis « régularisée sur novembre ». Les trois écrans disent la même chose.
+- Changer la note d'une absence ne pose pas une seconde marque.
+
+Essai : `tests/web/cabinet-paie-regul-1377.test.ts` tape 2 jours au bulletin d'octobre, le valide, pose 1 jour le
+15/10, lit la liste, le message et « Le mois », puis régularise sur novembre.

@@ -2188,7 +2188,7 @@
       if (!KC.LEAVE_KINDS.some((/** @type {any} */ k) => k[0] === c.kind)) throw new Error('Cette nature d\'absence n\'existe pas : choisis-en une dans la liste.');
       if (!jour(c.from) || !jour(c.to) || c.to < c.from) throw new Error('Les dates de ce congé ne se lisent pas : le premier et le dernier jour, la fin après le début.');
       const garde = { id: c.id, employeeId: c.employeeId, kind: c.kind, from: c.from, to: c.to,
-        paid: c.paid === true || c.paid === false ? c.paid : null, note: String(c.note || '').slice(0, 200) };
+        paid: c.paid === true || c.paid === false ? c.paid : null, note: String(c.note || '').slice(0, 200), ...(Array.isArray(c.apresValidation) ? { apresValidation: c.apresValidation.filter((/** @type {any} */ x) => x && typeof x.bulletin === 'string' && Number.isFinite(Number(x.absences))).slice(0, 24).map((/** @type {any} */ x) => ({ bulletin: x.bulletin, absences: Number(x.absences) })) } : {}) };
       await ecrirePaieDuDossier(o.dossierId, 'leaves', c.id, { ...(paieAvant(o.dossierId, 'leaves', c.id) || {}), ...garde });
       return { ok: true, conges: congesDe(await paieDe(o.dossierId)) };
     },

@@ -32899,6 +32899,23 @@ prouver "un classeur qui exporte un paiement annulé" modules/socle/ecrans/cabin
 " "" \
   "marquer déposé le mois proposé ne fait pas sauter"
 
+# 1.390.4 — Une absence posée après la validation, sur un bulletin aux jours tapés, est à régulariser (issue 10, CABPAIE-1).
+prouver "une absence posée sur un mois validé qui ne garde pas son bulletin" modules/personnel/ecrans/cabinet/paie.js \
+  "paid: v.paid === '' ? null : v.paid === '1', note: v.note, apresValidation: marques.concat(neufs) } });" "paid: v.paid === '' ? null : v.paid === '1', note: v.note } });" \
+  "bulletin qui portait déjà des jours tapés est à régulariser"
+prouver "le pont qui jette la marque de l'absence" web/public/plateforme/pont-cabinet.js \
+  "...(Array.isArray(c.apresValidation) ? {" "...(false ? {" \
+  "bulletin qui portait déjà des jours tapés est à régulariser"
+prouver "1 jour posé sous 2 jours tapés qui ne dit rien" modules/personnel/ecrans/cabinet/paie.js \
+  "const voulu = pm ? Math.max(Number(pm.absences) || 0, KC.round3(avant + ajout)) : 0;" "const voulu = pm ? Number(pm.absences) || 0 : 0;" \
+  "bulletin qui portait déjà des jours tapés est à régulariser"
+prouver "la marque lue sur les jours du bulletin d'aujourd'hui" modules/personnel/ecrans/cabinet/paie.js \
+  "map(x => ({ bulletin: x.id, absences: KC.round3(Number(x.joursAbsence) || 0) }))" "map(x => ({ bulletin: x.id, absences: KC.round3(Number(x.absentDays) || 0) }))" \
+  "bulletin qui portait déjà des jours tapés est à régulariser"
+prouver "l'écart qui dit 3 jours dans Congés pour 1 posé" modules/personnel/ecrans/cabinet/paie.js \
+  "\${r.tard && Number(r.avant) > 0" "\${false" \
+  "bulletin qui portait déjà des jours tapés est à régulariser"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

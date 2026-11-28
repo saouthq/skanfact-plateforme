@@ -158,6 +158,67 @@ describe('la régularisation d\'une absence arrivée après la validation, au Ca
     expect(await aVenir()).toContain('régularisée sur novembre');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  // (1.390.4, CABPAIE-1, la contre-vérification) Le cas d'origine : 2 jours d'absence déjà TAPÉS au bulletin d'octobre,
+  // validé, puis 1 jour posé dans « Congés et absences ». La liste, le message et « Le mois » disent la même chose : à
+  // régulariser, et « Le mois » le propose (avant : 1 posé sous 2 tapés ne disait rien, et la liste disait « retirée »).
+  it('une absence posée après la validation sur un bulletin qui portait déjà des jours tapés est à régulariser', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const ent = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie Ben Ali' })).corps.entreprise);
+    expect((await api('POST', `/entreprises/${ent}/compta/exercices`, associe, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, associe, { changements: [
+      { collection: 'employees', cle: 's1', rang: null, revision: null, contenu: encoder(salarie('s1', 'Imed Gharbi', 1300, '2025-01-01')) },
+    ] })).statut).toBe(200);
+    const objets = async () => ((await api('GET', `/entreprises/${ent}/paie/dossier`, associe)).corps.objets as Objet[]);
+    const bulletins = async () => (await objets()).filter((o) => o.collection === 'payslips').map((o) => decoder(o.contenu) as Record<string, unknown>);
+    const conges = async () => (await objets()).filter((o) => o.collection === 'leaves').map((o) => decoder(o.contenu) as Record<string, unknown>);
+    const erreurs: string[] = [];
+    const p = await page(associe, erreurs);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/paie/2025`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(800);
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
+      await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
+    }
+    await p.locator('#pa-mois').waitFor({ timeout: 15_000 });
+    await p.locator('#pa-mois').selectOption('10');
+    const fenetre = p.locator('#modal-root .modal').last();
+    const toast = async () => net((await p.locator('#toast').textContent()) ?? '');
+    // ── Octobre : 2 jours d'absence tapés au bulletin (1 200 DT de brut), validé ──────────────────────────────────
+    await ouvrirUnBulletin(p);
+    await fenetre.locator('[name=joursAbsence]').fill('2');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('Bulletin enregistré.');
+    await expect.poll(async () => ((await bulletins())[0]?.computed as { gross?: number } | undefined)?.gross).toBe(1200);
+    await p.locator('#pa-valider-bul').click();
+    await p.getByRole('button', { name: 'Valider', exact: true }).last().click();
+    await expect.poll(async () => (await bulletins()).filter((b) => b.valideLe).length).toBe(1);
+    expect(await p.locator('#pa-depuis-val').count()).toBe(0);
+    // ── 1 jour sans solde le 15/10, posé après : il garde le bulletin et ses 2 jours d'alors ─────────────────────
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
+    await p.locator('#cg-ajouter').click();
+    await fenetre.locator('[name=kind]').selectOption('sans-solde');
+    await fenetre.locator('[name=from]').fill('15/10/2025');
+    await fenetre.locator('[name=to]').fill('15/10/2025');
+    await fenetre.locator('#ok').click();
+    await expect.poll(toast).toBe('L\'absence d\'Imed Gharbi est enregistrée. Octobre est validé : régularise-la depuis « Le mois » d\'octobre.');
+    await expect.poll(async () => (await conges())[0]?.apresValidation).toEqual([{ bulletin: String(((await bulletins())[0] ?? {}).id), absences: 2 }]);
+    await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('pas retenue : à régulariser');
+    expect(net(await p.locator('#cg-panneau').innerText())).not.toContain('retirée du salaire');
+    // ── Le mois d'octobre le nomme, avec son montant et son geste ─────────────────────────────────────────────
+    await p.locator('.pa-so [data-pa-vue="mois"]').click();
+    await expect.poll(() => p.locator('#pa-depuis-val').count()).toBe(1);
+    expect(net(await p.locator('#pa-depuis-val').innerText())).toContain('Imed Gharbi : 2 jours non payés au bulletin, 1 de plus dans « Congés et absences », posé après la validation — à retenir : 50,000 DT de brut Régulariser sur novembre');
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-regul-tapes-1390-4.png'), fullPage: true });
+    await p.locator('[data-pa-regul]').click();
+    expect(net(await fenetre.innerText())).toContain('Celui de novembre proposera la ligne « Régularisation octobre 2025 : 1 j d\'absence non payée » : − 50,000 DT de brut');
+    await fenetre.getByRole('button', { name: 'Régulariser', exact: true }).click();
+    await expect.poll(async () => (((decoder((await objets()).filter((o) => o.collection === 'employees')[0]?.contenu ?? {}) as { regularisations?: unknown[] }).regularisations) ?? []).length).toBe(1);
+    // Une modification de la note ne pose pas une seconde marque.
+    await p.locator('.pa-so [data-pa-vue="conges"]').click();
+    await expect.poll(() => p.locator('#cg-panneau [data-cg-regul]').innerText().then(net).catch(() => '')).toBe('régularisée sur novembre');
+    expect(erreurs).toEqual([]);
+  }, 180_000);
   // (1.377.1, CABPAIE-9) « Noter la sortie… » demande le dernier jour : le salarié reste compté dans le mois où il était là,
   // n'est plus attendu ensuite, et « Annuler la sortie » le remet en poste.
   it('la sortie d\'un salarié se note avec son jour, compte dans son dernier mois, et s\'annule', async () => {
