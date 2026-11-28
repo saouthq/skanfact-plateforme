@@ -7939,3 +7939,18 @@ Au passage : valider un inventaire (1.388.95) avait oublié sa décision de lect
 en lecture seule, comme le reste du stock.
 
 Prouvé : six défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.2 »).
+
+## 1.389.3 — Les rouges du 28 novembre
+
+Trois parcours tombaient sur la vérification de GitHub depuis le 28 : ce jour-là est la date limite de la TVA, et la
+prévision de trésorerie y place son estimation.
+
+- La trésorerie, pour qui ne voit pas la paie : « À décaisser sous 30 jours » disait « dont … estimés » et perdait « sans
+  les salaires ». Les deux se disent désormais ensemble. (Le parcours ne voit ce défaut que les jours où une estimation
+  tombe dans les trente jours : il n'a donc pas de preuve à défaut réintroduit, qui serait juste un jour et fausse le
+  lendemain.)
+- Le parcours de la trésorerie supposait que rien d'autre ne sortait le jour du loyer oublié : il compte maintenant le
+  solde depuis les mouvements du jour qui le précèdent.
+- Le parcours de la révision cliquait « Arrêter la révision… » pendant que le choix de la période redessinait la page :
+  il reclique tant que la question n'est pas ouverte, jamais une fois de plus.
+- Et le test « chaque geste qui écrit a sa décision » était rouge depuis la 1.388.95 : corrigé dans la 1.389.2.

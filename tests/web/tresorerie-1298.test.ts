@@ -101,7 +101,14 @@ describe('la trésorerie 1.298.0 : loyer pas noté, remise de chèques, frais, s
     const csvPrev = fs.readFileSync(await telechargement.path(), 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/);
     expect(csvPrev[0]).toBe('Date;Origine;Pièce;Mouvement;Solde après;Note');
     // 5 000,250 − le loyer d'origine (déjà sorti) + les trois chèques − le loyer pas noté = 6 027,098.
-    expect(csvPrev).toContain(`${fr(jour(0))};Dépense qui revient;Loyer de l'atelier;-1234,567;6027,098;déjà échue le ${fr(occ)}`);
+    // (1.389.3) Le jour limite d'une déclaration (le 28 pour la TVA), son estimation passe avant le loyer ce jour-là :
+    // le solde après le loyer se compte depuis 7 261,665 (avant tout mouvement du jour), ces lignes déduites.
+    const iLoyer = csvPrev.findIndex((l) => l.startsWith(`${fr(jour(0))};Dépense qui revient;Loyer de l'atelier;-1234,567;`));
+    expect(csvPrev[iLoyer], JSON.stringify(csvPrev)).toMatch(new RegExp(`;déjà échue le ${fr(occ).replace(/\//g, '\\/')}$`));
+    const millimes = (t: string) => Math.round(Number(t.replace(/\s/g, '').replace(',', '.')) * 1000);
+    const avant = csvPrev.slice(1, iLoyer).filter((l) => l.startsWith(`${fr(jour(0))};`)).reduce((t, l) => t + millimes(l.split(';')[3] ?? '0'), 0);
+    expect(millimes(csvPrev[iLoyer]?.split(';')[4] ?? '')).toBe(7_261_665 + avant - 1_234_567);
+    if (avant === 0) expect(csvPrev[iLoyer]).toBe(`${fr(jour(0))};Dépense qui revient;Loyer de l'atelier;-1234,567;6027,098;déjà échue le ${fr(occ)}`);
 
     // 2. Où j'en suis : « À surveiller » le demande ; « Noter comme payé » ouvre le mouvement prérempli, à la date du loyer.
     await p.locator('#t-tabs [data-tab="position"]').click();

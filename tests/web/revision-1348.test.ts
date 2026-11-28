@@ -200,9 +200,14 @@ describe('la révision d\'un dossier, jouée comme un comptable (1.348.0)', () =
     await expect.poll(() => p.locator('#rv-arreter').innerText()).toBe('Arrêter la révision…');
 
     // ── Arrêter la révision d'un exercice qui court : la question le dit avant ─────────────────────
-    await p.locator('#rv-arreter').click();
+    // (1.389.3) Le choix de la période redessine la page : un clic posé pendant le redessin tombe sur l'ancien bouton (vu
+    // sur la CI). On reclique tant que la question n'est pas ouverte — jamais une seconde fois quand elle l'est.
     const f = p.locator('#modal-root .modal').last();
-    await f.waitFor({ timeout: 10_000 });
+    await expect.poll(async () => {
+      if (!await f.isVisible()) await p.locator('#rv-arreter').click({ timeout: 2_000 }).catch(() => undefined);
+      return f.isVisible();
+    }, { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#modal-root .modal').count()).toBe(1);
     expect(net(await f.innerText())).toContain(`L'exercice ${an} n'est pas terminé : il court jusqu'au 31/12/${an}`);
     await f.getByRole('button', { name: 'Annuler', exact: true }).click();
 

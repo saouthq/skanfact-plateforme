@@ -221,7 +221,8 @@ describe('les pages en lecture seule, à la souris', () => {
     // La trésorerie : le bandeau, et « À décaisser » ne promet pas les salaires.
     const p = await ouvrir(samia.jeton, '#/tresorerie');
     await expect.poll(() => p.locator('#sans-paie').innerText().then(net).catch(() => '')).toMatch(/^Sans la paie Ton rôle ne voit pas les salaires : ces soldes et cette prévision ne comptent ni les salaires versés/);
-    expect(net(await p.locator('#view').innerText())).toContain('achats et saisies, sans les salaires');
+    // (1.389.3) Avec une dépense estimée dans les trente jours, la ligne la dit, et dit toujours qu'elle ne compte pas les salaires.
+    expect(net(await p.locator('#view').innerText())).toMatch(/(achats et saisies|estimés), sans les salaires/);
     // Le relevé : une ligne absente de SkanFact ne pousse pas à créer un salaire.
     await p.locator('#t-tabs [data-tab="rapprochement"]').click();
     await p.locator('#t-import').waitFor({ timeout: 10_000 });

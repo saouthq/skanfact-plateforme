@@ -3705,7 +3705,7 @@
         <div class="cf-carte mg-resume" id="tr-resume">
           ${chiffreT('Disponible aujourd\'hui', montantU(pos0.total, cur), pl(pos0.accounts.length, 'compte'), pos0.total < seuilT ? 'rouge' : '', 'tre.total')}
           ${chiffreT('À encaisser sous 30 jours', montantU(f30.inflow, cur), retards30 > 0 ? `dont ${h(C.money(retards30, cur))} déjà échus` : 'rien d\'échu', '', 'dash.open')}
-          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés` : paieCachee() ? 'achats et saisies, sans les salaires' : 'achats, salaires, saisies', '', 'tre.decaisser')}
+          ${chiffreT('À décaisser sous 30 jours', montantU(-f30.outflow, cur), f30.estimes < -0.0005 ? `dont ${h(C.money(-f30.estimes, cur))} estimés${paieCachee() ? ', sans les salaires' : ''}` : paieCachee() ? 'achats et saisies, sans les salaires' : 'achats, salaires, saisies', '', 'tre.decaisser')}
           ${chiffreT('Dans 30 jours', montantU(f30.end, cur), sous30, trou || f30.end < seuilT ? 'rouge' : 'vert', 'tre.projected')}
         </div>
         <div class="mg-barre"><div class="pa-seg" id="t-tabs" role="tablist" aria-label="La trésorerie">${TRESO_TABS.map(([id, label]) =>
