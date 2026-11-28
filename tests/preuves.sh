@@ -32716,7 +32716,7 @@ prouver "la facture d'un cabinet qui part sans RIB" serveur/abonnement/cabinet.t
 prouver "« les coordonnées sont sur la facture » sans RIB sur la facture" web/public/plateforme/abonnement.js \
   "  const aideReglement = (societe) => (societe && typeof societe.rib === 'string' && societe.rib.trim()" "  const aideReglement = (societe) => (true" \
   "sans paiement en ligne, « Ton abonnement » ne dit « les coordonnées sont sur la facture » que si le RIB de SkanFact y est"
-prouver "la console qui ne dit pas que la fiche de SkanFact n'a pas de RIB" base/migrations/0240_editeur_sans_rib.sql \
+prouver "la console qui ne dit pas que la fiche de SkanFact n'a pas de RIB" base/migrations/0241_editeur_en_attente.sql \
   "                  'sansRib', not plateforme.fiche_a_un_rib(e.id))
                   from plateforme.editeur d" "                  'sansRib', false)
                   from plateforme.editeur d" \
@@ -32728,6 +32728,24 @@ prouver "valider un inventaire sans décision de lecture seule" serveur/abonneme
   "  'stock.inventaire.valider': 'ouvert',
 " "" \
   "chaque geste qui écrit a sa décision"
+# 1.389.4 — La désignation de l'entreprise SkanFact dit ce qui partira dans la minute (CONS3-4).
+prouver "un choix d'offre qui attend l'entreprise SkanFact sans le dire" base/migrations/0241_editeur_en_attente.sql \
+  "jsonb_build_object('sorte', 'client', 'id', e.id," "jsonb_build_object('sorte', 'cabinet', 'id', e.id," \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture au choix ne part pas : elle attend dans « À décider », et part une fois le RIB posé"
+prouver "un choix déjà facturé encore annoncé comme à partir" base/migrations/0241_editeur_en_attente.sql \
+  "       and not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)
+" "" \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture au choix ne part pas : elle attend dans « À décider », et part une fois le RIB posé"
+prouver "un abonnement offert annoncé comme une facture qui partira" base/migrations/0241_editeur_en_attente.sql \
+  "       and not a.offert and a.suspendu_le is null
+       and not (a.resilie_le is not null and a.paye_jusqu_au is not null and a.paye_jusqu_au >= p_jour)" "       and a.suspendu_le is null" \
+  "ni pour un abonnement offert, ni pour un dossier qui ne se renouvelle plus : la console garde ces cas"
+prouver "l'entreprise SkanFact qui se facturerait à elle-même" web/console/src/ecrans/Reglages.tsx \
+  "liste.filter((x) => !(x.sorte === 'client' && x.id === entreprise))" "liste.filter(() => true)" \
+  "la fenêtre dit, avant le geste, quelle facture partira, en son nom, et ce qui l'attend sans RIB"
+prouver "la fenêtre qui promet une facture dans la minute sans RIB" web/console/src/ecrans/Reglages.tsx \
+  "\${K}.g.editeur.\${sansRib ? 'p4_rib' : 'p4'}" "\${K}.g.editeur.p4" \
+  "la fenêtre dit, avant le geste, quelle facture partira, en son nom, et ce qui l'attend sans RIB"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

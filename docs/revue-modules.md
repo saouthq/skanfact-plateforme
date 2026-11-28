@@ -7954,3 +7954,18 @@ prévision de trésorerie y place son estimation.
 - Le parcours de la révision cliquait « Arrêter la révision… » pendant que le choix de la période redessinait la page :
   il reclique tant que la question n'est pas ouverte, jamais une fois de plus.
 - Et le test « chaque geste qui écrit a sa décision » était rouge depuis la 1.388.95 : corrigé dans la 1.389.2.
+
+## 1.389.4 — Ce que la désignation fera partir (CONS3-4)
+
+« Désigner l'entreprise SkanFact » disait ce que l'entreprise deviendrait (le dossier de nos factures, offert, impossible
+à changer une fois une facture préparée) et pas ce qui arriverait dans la minute : chaque choix d'offre d'un client et
+chaque abonnement de cabinet qui attendait sa facture part aussitôt, en son nom.
+
+- La fenêtre le dit avant le geste : « Une facture partira dans la minute, en son nom : Librairie Al Kitab (Essentiel, au
+  mois) », trois noms au plus, les autres comptés ; « aucune facture n'attend de partir » quand rien n'attend.
+- Sans RIB à la fiche de l'entreprise choisie, elle dit que ces factures attendront le RIB (la règle de la 1.389.2).
+- L'entreprise choisie ne se compte pas : elle ne se facture pas à elle-même (son abonnement passe offert).
+- La liste suit les règles du facturier (`0241`, `plateforme.factures_en_attente_d_editeur`) : ni un abonnement offert,
+  suspendu ou qui ne se renouvelle plus, ni un choix déjà facturé, ni un cabinet offert ou sans dossier payant.
+
+Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.4 »).

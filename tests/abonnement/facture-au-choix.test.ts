@@ -200,10 +200,14 @@ describe('la facture au choix', () => {
       const ligne = ((await appeler('GET', '/console/accueil', amira.console)).corps.decider as { sorte: string; entreprise?: { id: string }; refus?: string | null }[])
         .find((l) => l.entreprise?.id === b.id);
       expect(ligne).toMatchObject({ sorte: 'offre_choisie', refus: motif });
+      // La console le dit aussi avant toute désignation (CONS3-4) : ce choix attend une entreprise SkanFact pour partir.
+      const enAttente = async () => ((await appeler('GET', '/console/reglages', amira.console)).corps.factures as { enAttente: { sorte: string; id: string }[] }).enAttente;
+      expect(await enAttente()).toContainEqual(expect.objectContaining({ sorte: 'client', id: b.id, nom: 'Droguerie Sans RIB', offre: expect.any(String), periodicite: expect.any(String) }));
       // Le RIB posé, au tour du lendemain, elle part.
       await rib('10006012345678901234');
       await admin.query('update plateforme.choix_refuse r set le = r.le - interval \'25 hours\' from plateforme.offre_choisie c where c.id = r.choix and c.entreprise = $1', [b.id]);
       expect(await facturerLesChoix(ctx, { entreprise: b.id })).toEqual({ choix: 1, emises: 1, refusees: 0 });
+      expect((await enAttente()).map((x) => x.id)).not.toContain(b.id);
     } finally { await rib('10006012345678901234'); }
   });
 
@@ -218,6 +222,10 @@ describe('la facture au choix', () => {
       expect(await facturerLesChoix(ctx, { entreprise: x.id })).toEqual({ choix: 0, emises: 0, refusees: 0 });
       expect(await sesFactures(x)).toEqual([]);
     }
+    // Et la console ne les annonce pas comme des factures qui partiront à la désignation (CONS3-4).
+    const enAttente = ((await appeler('GET', '/console/reglages', amira.console)).corps.factures as { enAttente: { id: string }[] }).enAttente.map((x) => x.id);
+    expect(enAttente).not.toContain(c.id);
+    expect(enAttente).not.toContain(d.id);
   });
 });
 

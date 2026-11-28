@@ -71,9 +71,23 @@ type EtatNouveaute = { code: string; nom: string; quoi: string; ouverte: { le: s
 // Nos factures (docs/abonnement.md B1) : l'entreprise de la plateforme où elles naissent, et celles que je pourrais désigner.
 // `sansRib` (0240, CONS3-1) : sa fiche n'a pas de RIB — une facture qui part seule ne part pas sans lui.
 type Possible = { entreprise: string; raisonSociale: string; matricule: string | null; sansRib?: boolean };
+// `enAttente` (0241, CONS3-4) : ce que le facturier ferait partir dans la minute si une entreprise SkanFact était désignée.
+type EnAttente = { sorte: 'client'; id: string; nom: string; offre: string; periodicite: string } | { sorte: 'cabinet'; id: string; nom: string };
 type NosFactures = {
   editeur: (Possible & { poseLe: string; posePar: string | null; proprietaire: boolean; factures: number }) | null;
   possibles: Possible[];
+  enAttente?: EnAttente[];
+};
+// Ce qui partira dans la minute une fois `entreprise` désignée : elle ne se facture pas à elle-même (son abonnement
+// passe offert). Trois noms au plus, les autres se comptent ; sans RIB à sa fiche, elles attendront (CONS3-1).
+const partiront = (liste: EnAttente[], entreprise: string | undefined, sansRib: boolean) => {
+  const vont = liste.filter((x) => !(x.sorte === 'client' && x.id === entreprise));
+  const nom = (x: EnAttente) => x.sorte === 'client'
+    ? titre(`${K}.g.editeur.p4_client`, { nom: x.nom, offre: dire(`${K}.p.offre.${x.offre}`), periode: dire(`${K}.p.periode.${x.periodicite}`) })
+    : titre(`${K}.g.editeur.p4_cabinet`, { nom: x.nom });
+  const premiers = vont.slice(0, 3).map(nom).join(', ');
+  const reste = vont.length - 3;
+  return selon(vont.length, `${K}.g.editeur.${sansRib ? 'p4_rib' : 'p4'}`, { n: entier(vont.length), qui: reste > 0 ? selon(reste, `${K}.g.editeur.p4_reste`, { qui: premiers, n: entier(reste) }) : premiers });
 };
 type EtatFormat = 'en_place' | 'simule' | 'calcule' | 'pas_encore' | 'non_homologue';
 type Format = {
@@ -1056,6 +1070,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
           {g.sorte === 'ecrire'
             ? [remplace ? 'p1_remplace' : 'p1', 'p2', 'p3', 'p4'].map((p) => <li key={p}>{phrase(`${K}.g.ecrire.${p}`)}</li>)
             : ['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.${g.sorte}.${p}${volontaires(g, p)}`, valeurs)}</li>)}
+          {g.sorte === 'editeur' ? <li>{maj(`${partiront(d.factures.enAttente ?? [], choisie?.entreprise, choisie?.sansRib === true)}.`)}</li> : null}
         </ul>
       </div>
       {g.sorte === 'relire' ? (
