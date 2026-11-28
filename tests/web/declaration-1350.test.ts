@@ -204,8 +204,28 @@ describe('la déclaration d\'un dossier, jouée comme un comptable (1.350.0)', (
     expect(lignes[0]).toBe('Période;État;Déposée le;Payée le;TVA collectée;TVA déductible;Crédit du mois précédent;TVA à payer;Crédit à reporter;Retenues à la source;IRPP et CSS sur salaires;TFP;FOPROLOS;Droit de timbre;Total de la déclaration (DT)');
     expect(lignes.find((l) => l.startsWith('2026-01;'))).toMatch(/^2026-01;déposée, paiement non noté;20\/02\/2026;;190,000;/);
     expect(lignes.find((l) => l.startsWith('2026-02;'))).toMatch(/^2026-02;déposée et payée;\d{2}\/\d{2}\/2026;\d{2}\/\d{2}\/2026;95,000;0,000;0,000;95,000;0,000;0,000;0,000;0,000;0,000;0,000;95,000/);
+
+    // (1.390.3, issue 9 CABDECLARER-4, resté partiel) Le paiement de février annulé dans la Déclaration, SANS recharger
+    // l'application : le classeur, déjà lu, exportait encore « déposée et payée ».
+    await p.keyboard.press('Escape');
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/declaration/2026`);
+    await p.locator('#dc-payee').waitFor({ timeout: 15_000 });
+    if (await p.locator('#dc-mois').inputValue() !== '2026-02') await p.locator('#dc-mois').selectOption('2026-02');
+    await expect.poll(() => p.locator('#dc-payee').innerText()).toMatch(/Payée le .* annuler$/);
+    await p.locator('#dc-payee').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(toast).toBe('Pointage annulé.');
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/classeur`);
+    await p.locator('#cl-exporter').click({ timeout: 15_000 });
+    await p.locator('#ex-q [data-q="annee"]').click();
+    await expect.poll(async () => (await p.locator('#ex-res').innerText()).replace(/\s+/g, ' ')).toMatch(/\d+ écritures? dans le FEC$/);
+    const envoi2 = p.waitForRequest((r) => r.method() === 'POST' && /\/classeur\/[^/]+\/exports$/.test(r.url()), { timeout: 30_000 });
+    await p.locator('#modal-root #ok').click();
+    const zip2 = Buffer.from(String(((await envoi2).postDataJSON() as { contenu: string }).contenu), 'base64').toString('utf8');
+    const lignes2 = zip2.slice(zip2.indexOf('Période;État;Déposée le;Payée le;')).split('\n').map((l) => l.replace(/\r$/, ''));
+    expect(lignes2.find((l) => l.startsWith('2026-02;'))).toMatch(/^2026-02;déposée, paiement non noté;\d{2}\/\d{2}\/2026;;95,000;/);
     expect(erreurs).toEqual([]);
-  }, 240_000);
+  }, 300_000);
 
   // (1.378.0, issue 9 CABDECLARER-1) L'ordre naturel : le mois est validé, PUIS on déclare et on passe la TVA.
   it('(1.378.0) dans un mois déjà validé, « Écrire l\'écriture du mois » aboutit : écrite et validée d\'un geste, le bouton le dit, le dépôt devient l\'étape', async () => {

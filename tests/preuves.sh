@@ -32893,6 +32893,12 @@ prouver "la frise qui dit à déposer au-dessus d'un mois à réviser" modules/s
   "dit = m === moisPrecedent(mc) && cl !== 'rev' ? 'à déposer' : mot;" "dit = m === moisPrecedent(mc) ? 'à déposer' : mot;" \
   "une déclaration préparée quand même sur un mois au brouillard reste"
 
+# 1.390.3 — Le classeur suit le livre que la Déclaration vient de modifier (issue 9, CABDECLARER-4).
+prouver "un classeur qui exporte un paiement annulé" modules/socle/ecrans/cabinet/app-1.js \
+  "      clState.livres.set(cle, s.livre); clState.just.clear();
+" "" \
+  "marquer déposé le mois proposé ne fait pas sauter"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

@@ -5750,6 +5750,16 @@
   const quiCl = id => { if (!id) return 'le cabinet'; const c = (S.collaborateurs || []).find(x => x.id === id || x.utilisateur === id); return c ? String(c.nom || '').split(' ')[0] : 'le cabinet'; };
   const prenomCl = t => String(t || '').split(' ')[0] || '';
 
+  // (1.390.3, issue 9, CABDECLARER-4) Le livre que la comptabilité du dossier vient de modifier fait foi pour le classeur, comme
+  // pour la fiche (1.378.1) : le classeur gardait celui de sa première lecture, et son export écrivait « déposée et payée »
+  // pour un paiement annulé dans la Déclaration, jusqu'au rechargement de l'application.
+  function livreDuClasseur(d, annee) {
+    const cle = `${d.id}:${annee}`, s = livresState;
+    if (s.livre && s.livreCle === `${d.id}|${annee}` && clState.livres.has(cle) && clState.livres.get(cle) !== s.livre) {
+      clState.livres.set(cle, s.livre); clState.just.clear();
+    }
+    return clState.livres.get(cle);
+  }
   async function chargerClasseur(d, annee) {
     const cle = `${d.id}:${annee}`;
     if (clState.livres.has(cle) || clState.lecture.has(cle)) return;
@@ -6549,12 +6559,12 @@
       fichiers.push({ ...f, chemin: c });
     };
     // (1.174.1) « Tout le dossier » prend chaque exercice : ses pièces et son FEC, pas seulement l'année ouverte.
-    const exercices = [[o.annee, o.items, o.livre, o.indexees || o.items]];
+    const exercices = [[o.annee, o.items, livreDuClasseur(d, o.annee) || o.livre, o.indexees || o.items]];
     if (o.quoi === 'tout') {
       const autres = ((clState.exercices && clState.exercices.id === d.id && clState.exercices.liste) || []).map(x => String(x.annee)).filter(a => a !== String(o.annee));
       for (const a of autres) {
         await chargerClasseur(d, a);
-        const lv = clState.livres.get(`${d.id}:${a}`);
+        const lv = livreDuClasseur(d, a);
         if (clState.refus.has(`${d.id}:${a}`)) throw new Error(`L'exercice ${a} ne se lit pas : ${clState.refus.get(`${d.id}:${a}`)}`);
         { const tous = lv ? modeleCl(d, a, lv).filter(x => x.etat[1] !== 'en double') : []; exercices.push([a, tous.filter(x => x.p || x.doc), lv, tous]); }
       }
@@ -6697,7 +6707,7 @@
     const passe = annee !== anneeC;
     const mc = passe ? moisSuivant(`${annee}-12`) : mcC, mp = moisPrecedent(mc);
     const cle = `${d.id}:${annee}`;
-    const livre = clState.livres.get(cle), refus = clState.refus.get(cle) || '';
+    const livre = livreDuClasseur(d, annee), refus = clState.refus.get(cle) || '';
     if (livre === undefined && !refus) void chargerClasseur(d, annee);
     if (!clState.classees) void chargerClasseesCl(d);
     void chargerExercicesCl(d);

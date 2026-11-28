@@ -8140,3 +8140,17 @@ pièces attendaient au brouillard disait « État : prêt à déposer » et « C
 Essais : `tests/cabinet/ecrans-1388-82.test.ts` joue maintenant la fonction de l'état (le test de la 1.388.82 gravait
 l'ordre « prêt à déposer » avant le brouillard) ; `tests/web/cabinet-declaration.test.ts` prépare quand même un mois au
 brouillard, à la souris, et lit l'état, la phrase et la frise.
+
+## 1.390.3 — Le classeur suit le livre que la Déclaration vient de modifier (issue 9, CABDECLARER-4)
+
+Resté partiel à la contre-vérification : après « Annuler le paiement » d'octobre, un nouvel export du classeur, fait sans
+recharger l'application, écrivait encore « déposée et payée » dans `declarations.csv` — le classeur gardait le livre de
+sa première lecture.
+
+- **Le livre que la comptabilité du dossier vient de modifier fait foi pour le classeur**, comme pour la fiche du dossier
+  depuis la 1.378.1 : à chaque dessin et à chaque export, le classeur reprend ce livre-là quand il porte sur le même
+  dossier et le même exercice. Tout geste de la comptabilité (une déclaration pointée ou dépointée, une écriture validée,
+  un relevé) se voit donc dans le classeur et dans son ZIP sans rechargement.
+
+Essai : `tests/web/declaration-1350.test.ts` annule le paiement de février après un premier export, revient au classeur
+sans recharger, exporte à nouveau et lit « déposée, paiement non noté ».
