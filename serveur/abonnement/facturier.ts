@@ -17,6 +17,7 @@ import type { Contexte } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { emettreDepuisV10 } from '../v10/dossier.ts';
+import { controlerAvantEmission } from './avant-emission.ts';
 import type { Json } from '../v10/lecture.ts';
 import { lireFaits, type Offre, type Periodicite } from './etat.ts';
 import { lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from './factures.ts';
@@ -56,6 +57,10 @@ export async function facturerUnChoix(tx: Transaction, entreprise: string, utili
   const client = (await tx.query("select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'clients' and cle = $2",
     [facture.editeur, facture.client])).rows[0]?.contenu as Json | undefined;
   if (!piece) throw new Refus('abonnement.facture.deja_preparee');
+  // Les contrôles de l'émission à la main (CONS3-1) : un manque la laisse dans « À décider », la transaction défaite.
+  const societe = (await tx.query("select contenu from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'",
+    [facture.editeur])).rows[0]?.contenu as Json | undefined;
+  controlerAvantEmission(societe ?? {});
   const r = await emettreDepuisV10(tx, facture.editeur, utilisateur, { document: piece.contenu, client: client ?? null, revision: Number(piece.revision), rang: null, netAPayer: null });
   return String(r.numero);
 }

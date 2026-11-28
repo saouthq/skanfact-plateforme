@@ -93,6 +93,9 @@ declarerTextes({
   'abonnement.facture.sans_prix': 'aucun prix du jour pour cette offre et cette périodicité : la grille se règle dans les Réglages de la console',
   'abonnement.facture.deja_emise': 'la facture de cette période est déjà émise ({numero}) : elle ne se refait pas',
   'abonnement.facture.deja_preparee': 'la facture de cette période est déjà préparée : elle attend son émission dans SkanFact (pour la refaire, supprime d\'abord son brouillon)',
+  // Le RIB que l'émission à la main réclame, une facture qui part seule le réclame aussi (1.389.2 ; issue #29, CONS3-1) :
+  // elle attend dans « À décider » avec sa raison, et se retente le lendemain.
+  'abonnement.facture.sans_rib': 'la fiche de l\'entreprise SkanFact n\'a pas de RIB : le client ne saurait pas où virer. Renseigne-le dans SkanFact (Paramètres → Mon entreprise) : la facture repartira d\'elle-même le lendemain',
   // Deux périodes payées d'avance (l'audit de la console 1.42.0, A01) : un seul changement attend son jour.
   'abonnement.facture.deux_changements': 'une période déjà payée attend son premier jour, le {le}, en {offre} : une facture d\'une autre offre (ou d\'une autre durée) se prépare une fois ce jour passé, ou dans la même offre',
   'abonnement.geste.deux_changements': 'une période déjà payée attend son premier jour, le {le}, en {offre} : un paiement d\'une autre offre (ou d\'une autre durée) se note une fois ce jour passé, ou dans la même offre',

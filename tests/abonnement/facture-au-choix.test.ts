@@ -119,6 +119,8 @@ beforeAll(async () => {
   expect((await appeler('POST', '/console/reglages/factures/editeur', amira.console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
   // Amira ouvre l'application de SkanFact une fois (son dossier naît, avec sa fiche), et y branche Konnect.
   expect((await appeler('GET', `/entreprises/${editeur}/dossier-v10`, amira.appli)).statut).toBe(200);
+  // La fiche de l'entreprise SkanFact porte son RIB (CONS3-1) : sans lui, aucune facture ne part seule.
+  expect((await admin.query(`update socle.dossier_v10 set contenu = contenu || '{"rib": "10006012345678901234"}'::jsonb where entreprise = $1 and collection = '_racine' and cle = 'company'`, [editeur])).rowCount).toBe(1);
   expect((await appeler('PUT', `/entreprises/${editeur}/paiement-en-ligne`, amira.appli, { portefeuille: `portefeuille-${Date.now()}`, cle: 'sk_test_cle-de-l-api-konnect-b3f2' })).statut).toBe(200);
   proprietaire = String((await admin.query("select utilisateur from socle.membre where entreprise = $1 and 'proprietaire' = any(roles)", [editeur])).rows[0].utilisateur);
 });
@@ -178,6 +180,31 @@ describe('la facture au choix', () => {
     expect(await facturerLesChoix(ctx, { entreprise: b.id })).toEqual({ choix: 1, emises: 1, refusees: 0 });
     expect((await sesFactures(b)).map((f) => [f.offre, f.periodicite, f.au_choix])).toEqual([['complet', 'annuel', true]]);
     expect(((await appeler('GET', '/console/accueil', amira.console)).corps.decider as { entreprise?: { id: string } }[]).filter((l) => l.entreprise?.id === b.id)).toEqual([]);
+  });
+
+  // CONS3-1 (1.389.2) : sans RIB à la fiche de l'entreprise SkanFact, la facture ne part pas — le client lirait
+  // « Paiement par virement bancaire » sans savoir où virer. Elle attend dans « À décider », et part le RIB posé.
+  it('sans RIB à la fiche de l\'entreprise SkanFact, la facture au choix ne part pas : elle attend dans « À décider », et part une fois le RIB posé', async () => {
+    const rib = async (v: string | null) => {
+      await admin.query(`update socle.dossier_v10 set contenu = case when $2::text is null then contenu - 'rib' else contenu || jsonb_build_object('rib', $2::text) end
+        where entreprise = $1 and collection = '_racine' and cle = 'company'`, [editeur, v]);
+    };
+    await rib(null);
+    try {
+      const b = await abonnee('Droguerie Sans RIB', 6);
+      expect((await appeler('POST', `/entreprises/${b.id}/abonnement/choisir`, b.jeton, { offre: 'complet', periodicite: 'annuel' })).statut).toBe(201);
+      await attendreLeTour(b);
+      expect(await sesFactures(b)).toEqual([]);
+      const motif = String((await admin.query('select r.motif from plateforme.choix_refuse r join plateforme.offre_choisie c on c.id = r.choix where c.entreprise = $1', [b.id])).rows[0]?.motif);
+      expect(motif).toMatch(/RIB/);
+      const ligne = ((await appeler('GET', '/console/accueil', amira.console)).corps.decider as { sorte: string; entreprise?: { id: string }; refus?: string | null }[])
+        .find((l) => l.entreprise?.id === b.id);
+      expect(ligne).toMatchObject({ sorte: 'offre_choisie', refus: motif });
+      // Le RIB posé, au tour du lendemain, elle part.
+      await rib('10006012345678901234');
+      await admin.query('update plateforme.choix_refuse r set le = r.le - interval \'25 hours\' from plateforme.offre_choisie c where c.id = r.choix and c.entreprise = $1', [b.id]);
+      expect(await facturerLesChoix(ctx, { entreprise: b.id })).toEqual({ choix: 1, emises: 1, refusees: 0 });
+    } finally { await rib('10006012345678901234'); }
   });
 
   it('ni pour un abonnement offert, ni pour un dossier qui ne se renouvelle plus : la console garde ces cas', async () => {

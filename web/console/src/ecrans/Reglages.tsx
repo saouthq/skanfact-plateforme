@@ -69,7 +69,8 @@ type Donnees = {
 type Allumee = { entreprise: string; numero: string | null; nom: string; le: string; par: string; motif: string };
 type EtatNouveaute = { code: string; nom: string; quoi: string; ouverte: { le: string; par: string; motif: string } | null; allumees: Allumee[] };
 // Nos factures (docs/abonnement.md B1) : l'entreprise de la plateforme où elles naissent, et celles que je pourrais désigner.
-type Possible = { entreprise: string; raisonSociale: string; matricule: string | null };
+// `sansRib` (0240, CONS3-1) : sa fiche n'a pas de RIB — une facture qui part seule ne part pas sans lui.
+type Possible = { entreprise: string; raisonSociale: string; matricule: string | null; sansRib?: boolean };
 type NosFactures = {
   editeur: (Possible & { poseLe: string; posePar: string | null; proprietaire: boolean; factures: number }) | null;
   possibles: Possible[];
@@ -654,6 +655,7 @@ function NosFacturesCarte({ f, aujourdhui, geste, peut }: { f: NosFactures; aujo
           </div>
           <p className="c-sous">{phrase(`${K}.nf.offert`)}</p>
           {e.proprietaire ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.nf.pas_proprietaire`)}</span></Alerte>}
+          {e.sansRib ? <Alerte ton="attention"><span>{phrase(`${K}.nf.sans_rib`)}</span></Alerte> : null}
           {e.factures ? <p className="c-sous">{phrase(`${K}.nf.fixe`)}</p> : null}
         </div>
       ) : autre ? <Vide icone="info">{phrase(`${K}.nf.aucune`)}</Vide> : (
@@ -1072,7 +1074,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
         <Champ libelle={titre(`${K}.g.allumer.numero`)} aide={phrase(`${K}.g.allumer.numero_aide`)} valeur={numero} changer={setNumero} premier {...fauteDe('numero')} />
       ) : null}
       {g.sorte === 'editeur' ? (
-        <Choix libelle={titre(`${K}.g.editeur.laquelle`)} aide={phrase(`${K}.g.editeur.laquelle_aide`)} valeur={entreprise} changer={setEntreprise}
+        <Choix libelle={titre(`${K}.g.editeur.laquelle`)} aide={choisie?.sansRib ? phrase(`${K}.g.editeur.sans_rib`) : phrase(`${K}.g.editeur.laquelle_aide`)} valeur={entreprise} changer={setEntreprise}
           options={choisissables.map((p) => ({ valeur: p.entreprise, texte: p.matricule ? `${p.raisonSociale} · ${p.matricule}` : p.raisonSociale, donnee: true }))} />
       ) : null}
       {g.sorte === 'ecrire' ? (

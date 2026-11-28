@@ -19,6 +19,7 @@ import type { Contexte } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { appliquer, dossierPret, emettreDepuisV10 } from '../v10/dossier.ts';
+import { controlerAvantEmission } from './avant-emission.ts';
 import { enNombreV10, type Json } from '../v10/lecture.ts';
 import { demanderPaiementCabinet } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
@@ -88,6 +89,8 @@ export async function facturerUnCabinet(tx: Transaction, cabinet: string, debut:
   // La fiche du client : celle de ses factures d'avant si elle est encore au dossier, sinon une fiche neuve.
   const fiche = lu.client ? await lire(tx, editeur, 'clients', lu.client) : undefined;
   const client: Json = fiche?.contenu ?? { id: randomUUID(), name: lu.cabinet.nom, matricule: '', address: '', email: lu.cabinet.email ?? '', phone: '', currency: '' };
+  // Les contrôles de l'émission à la main (CONS3-1) : sans RIB, rien ne s'écrit et la période attend dans « À décider ».
+  controlerAvantEmission(societe);
   if (!fiche) {
     const { n } = (await tx.query("select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'clients'", [editeur])).rows[0] as { n: number };
     await appliquer(tx, editeur, utilisateur, [{ collection: 'clients', cle: String(client.id), rang: n, revision: null, contenu: client }], { serveur: true });

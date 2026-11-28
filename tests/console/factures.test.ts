@@ -168,7 +168,7 @@ describe('nos factures', () => {
     // jamais rien d'autre du dossier de SkanFact.
     expect(Object.keys(fiche.lignes[0] ?? {}).sort()).toEqual(['debut', 'decimales', 'devise', 'echeance', 'ecran', 'editeur', 'etat', 'fin', 'id',
       'montantHt', 'net', 'numero', 'offre', 'payeeLe', 'periodicite', 'piece', 'prepareLe', 'preparePar', 'reste']);
-    expect(Object.keys(fiche.editeur).sort()).toEqual(['entreprise', 'factures', 'matricule', 'poseLe', 'posePar', 'proprietaire', 'raisonSociale']);
+    expect(Object.keys(fiche.editeur).sort()).toEqual(['entreprise', 'factures', 'matricule', 'poseLe', 'posePar', 'proprietaire', 'raisonSociale', 'sansRib']);
     const autreEd = String((await appeler('POST', '/entreprises', direction.appli, { raisonSociale: 'Autre Société SARL' })).corps.id);
     const change = await appeler('POST', '/console/reglages/factures/editeur', direction.console, { entreprise: autreEd, motif: 'Changer d\'avis' });
     expect(change.statut).toBe(403);

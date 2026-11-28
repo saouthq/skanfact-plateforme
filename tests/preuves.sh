@@ -12201,14 +12201,14 @@ NF1='l'"'"'entreprise SkanFact se désigne une fois, par sa propriétaire de la 
 NF2='préparer : l'"'"'aperçu dit ce que la facture dira ; le brouillon naît dans le dossier de SkanFact, une fois, au prix du jour'
 NF3='émise dans SkanFact puis réglée en entier, la facture paie l'"'"'abonnement jusqu'"'"'à la fin de sa période, une fois'
 NF4='une facture que son avoir annule ne paie pas l'"'"'abonnement, même réglée : la fiche la dit annulée'
-prouver 'une direction qui désigne une entreprise dont elle n'"'"'est pas propriétaire' 'base/migrations/0097_nos_factures.sql' \
+prouver 'une direction qui désigne une entreprise dont elle n'"'"'est pas propriétaire' 'base/migrations/0240_editeur_sans_rib.sql' \
   '     and exists (select 1 from socle.membre m where m.entreprise = e.id and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles));' '     ;' \
   "$NF1"
-prouver 'l'"'"'entreprise SkanFact qui se facture à elle-même' 'base/migrations/0097_nos_factures.sql' \
+prouver 'l'"'"'entreprise SkanFact qui se facture à elle-même' 'base/migrations/0240_editeur_sans_rib.sql' \
   '  if found and not v_ligne.offert then' '  if false then' \
   "$NF1"
-prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'base/migrations/0097_nos_factures.sql' \
-  '  if v_avant is not null and exists (select 1 from plateforme.facture_abonnement f where f.editeur = v_avant) then' '  if false then' \
+prouver 'l'"'"'entreprise SkanFact qui change après une facture préparée' 'base/migrations/0240_editeur_sans_rib.sql' \
+  '  if v_avant is not null and exists (select 1 from plateforme.nos_factures_d_abonnement() f where f.editeur = v_avant) then' '  if false then' \
   "$NF2"
 prouver 'une facture préparée par qui n'"'"'est pas propriétaire de l'"'"'entreprise SkanFact' 'base/migrations/0097_nos_factures.sql' \
   '  if not exists (select 1 from socle.membre m where m.entreprise = v and m.utilisateur = socle.moi() and m.actif and '"'"'proprietaire'"'"' = any(m.roles)) then' '  if false then' \
@@ -32706,6 +32706,28 @@ prouver "la console ne lit que les factures des abonnés" base/migrations/0239_f
 prouver "la facture d'un cabinet se dit celle d'un client" serveur/console/paiements.ts \
   "{ id: q.id, nom: q.nom, cabinet: q.cabinet === true }" "{ id: q.id, nom: q.nom, cabinet: false }" \
   "la facture d'un cabinet compte dans Nos factures, dans ce qui reste à encaisser puis dans l'encaissé de la console"
+# 1.389.2 — Une facture qui part seule ne part pas sans le RIB de SkanFact (CONS3-1).
+prouver "la facture au choix qui part sans RIB" serveur/abonnement/facturier.ts \
+  "  controlerAvantEmission(societe ?? {});" "  void societe;" \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture au choix ne part pas : elle attend dans « À décider », et part une fois le RIB posé"
+prouver "la facture d'un cabinet qui part sans RIB" serveur/abonnement/cabinet.ts \
+  "  controlerAvantEmission(societe);" "" \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture d'un cabinet ne part pas et sa raison se garde"
+prouver "« les coordonnées sont sur la facture » sans RIB sur la facture" web/public/plateforme/abonnement.js \
+  "  const aideReglement = (societe) => (societe && typeof societe.rib === 'string' && societe.rib.trim()" "  const aideReglement = (societe) => (true" \
+  "sans paiement en ligne, « Ton abonnement » ne dit « les coordonnées sont sur la facture » que si le RIB de SkanFact y est"
+prouver "la console qui ne dit pas que la fiche de SkanFact n'a pas de RIB" base/migrations/0240_editeur_sans_rib.sql \
+  "                  'sansRib', not plateforme.fiche_a_un_rib(e.id))
+                  from plateforme.editeur d" "                  'sansRib', false)
+                  from plateforme.editeur d" \
+  "sans RIB à la fiche de l'entreprise SkanFact, la facture d'un cabinet ne part pas et sa raison se garde"
+prouver "l'entreprise SkanFact qui se remplace après la facture d'un cabinet" base/migrations/0240_editeur_sans_rib.sql \
+  "exists (select 1 from plateforme.nos_factures_d_abonnement() f where f.editeur = v_avant)" "exists (select 1 from plateforme.facture_abonnement f where f.editeur = v_avant)" \
+  "la facture d'un cabinet compte dans Nos factures, dans ce qui reste à encaisser puis dans l'encaissé de la console"
+prouver "valider un inventaire sans décision de lecture seule" serveur/abonnement/condition.ts \
+  "  'stock.inventaire.valider': 'ouvert',
+" "" \
+  "chaque geste qui écrit a sa décision"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

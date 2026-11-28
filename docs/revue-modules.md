@@ -7918,3 +7918,24 @@ mois, ni à l'accueil. Une seule liste des factures d'abonnement sert désormais
 cabinet, à l'année ».
 
 Prouvé : deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.1 »).
+
+## 1.389.2 — Une facture qui part seule ne part pas sans RIB (rapport #29 : CONS3-1)
+
+Deux factures partent toutes seules : celle d'un client qui choisit son offre, et l'abonnement annuel d'un cabinet.
+L'émission à la main prévient quand la fiche de l'entreprise SkanFact n'a pas de RIB (« le client ne saura pas où
+virer ») ; ces deux-là sautaient l'avertissement. Le client lisait alors « les coordonnées de SkanFact sont sur la
+facture » au-dessus d'une facture qui ne portait que « Paiement par virement bancaire ».
+
+- Sans RIB, une facture qui part seule ne part plus : elle attend dans « À décider » avec sa raison, et repart d'elle-même
+  le lendemain une fois le RIB posé (`serveur/abonnement/avant-emission.ts`).
+- « Ton abonnement », chez le client comme chez le cabinet, ne promet les coordonnées que si le RIB est sur la facture ;
+  sinon il dit où les demander.
+- La console le dit dans ses Réglages, avant et après la désignation de l'entreprise SkanFact (`0240`) ; et une entreprise
+  qui a émis la facture d'un cabinet ne se remplace plus, comme celle qui a émis celle d'un abonné.
+- Le matricule fiscal du client, que l'émission à la main signale aussi, ne bloque pas : la règle reste À VÉRIFIER avec un
+  expert, et un cabinet n'a pas de matricule dans la plateforme.
+
+Au passage : valider un inventaire (1.388.95) avait oublié sa décision de lecture seule ; il reste ouvert à un abonnement
+en lecture seule, comme le reste du stock.
+
+Prouvé : six défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.2 »).

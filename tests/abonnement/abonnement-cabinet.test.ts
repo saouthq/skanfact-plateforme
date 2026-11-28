@@ -131,6 +131,8 @@ beforeAll(async () => {
   await admin.query('delete from plateforme.editeur');
   expect((await appeler('POST', '/console/reglages/factures/editeur', amira.console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
   expect((await appeler('GET', `/entreprises/${editeur}/dossier-v10`, amira.appli)).statut).toBe(200);
+  // La fiche de l'entreprise SkanFact porte son RIB (CONS3-1) : sans lui, aucune facture ne part seule.
+  expect((await admin.query(`update socle.dossier_v10 set contenu = contenu || '{"rib": "10006012345678901234"}'::jsonb where entreprise = $1 and collection = '_racine' and cle = 'company'`, [editeur])).rowCount).toBe(1);
   expect((await appeler('PUT', `/entreprises/${editeur}/paiement-en-ligne`, amira.appli, { portefeuille: `portefeuille-cab-${Date.now()}`, cle: 'sk_test_cle-de-l-api-konnect-b3f2' })).statut).toBe(200);
 });
 afterAll(async () => { await app.close(); await konnect.fermer(); await admin.end(); await pool.end(); });
@@ -190,12 +192,40 @@ describe('l\'abonnement d\'un cabinet', () => {
     const doit = (pai.corps.doivent as (L & { reste: string })[]).find((d) => d.numero === numero);
     expect(doit).toMatchObject({ reste: '72.400', entreprise: { id: c.id, cabinet: true } });
     const avant = String((pai.corps.encaisse as Corps).total);
+    // Une entreprise SkanFact qui a émis la facture d'un cabinet ne se remplace plus (0240 : ses factures y vivent).
+    const autre = String((await appeler('POST', '/entreprises', amira.appli, { raisonSociale: 'Autre Éditrice SARL' })).corps.id);
+    const change = await appeler('POST', '/console/reglages/factures/editeur', amira.console, { entreprise: autre, motif: 'Changer d\'avis' });
+    expect(change.statut).toBe(403);
+    expect(String(change.corps.motif)).toMatch(/ne se change plus/);
+    expect((((await appeler('GET', '/console/reglages', amira.console)).corps.factures as { editeur: { factures: number; sansRib: boolean } }).editeur))
+      .toMatchObject({ sansRib: false });
     await payerEnLigne(c, numero);
     pai = await appeler('GET', `/console/paiements?mois=${mois}&n=200`, amira.console);
     expect((pai.corps.doivent as L[]).some((d) => d.numero === numero)).toBe(false);
     expect(((pai.corps.recus as Corps).lignes as (L & { montant: string })[]).find((r) => r.numero === numero))
       .toMatchObject({ montant: '72.400', entreprise: { id: c.id, cabinet: true } });
     expect(Math.round((Number((pai.corps.encaisse as Corps).total) - Number(avant)) * 1000)).toBe(72400);
+  });
+
+  // CONS3-1 (1.389.2) : la facture d'un cabinet passe le contrôle de l'émission à la main — sans RIB à la fiche de
+  // l'entreprise SkanFact, elle ne part pas, et sa période garde la raison pour « À décider ».
+  it('sans RIB à la fiche de l\'entreprise SkanFact, la facture d\'un cabinet ne part pas et sa raison se garde', async () => {
+    const rib = async (v: string | null) => {
+      await admin.query(`update socle.dossier_v10 set contenu = case when $2::text is null then contenu - 'rib' else contenu || jsonb_build_object('rib', $2::text) end
+        where entreprise = $1 and collection = '_racine' and cle = 'company'`, [editeur, v]);
+    };
+    await rib(null);
+    try {
+      const c = await cabinet('Cabinet Sans RIB');
+      for (const nom of ['Kiosque Un', 'Kiosque Deux', 'Kiosque Trois', 'Kiosque Quatre']) expect((await creer(c, nom)).statut).toBe(201);
+      await expect.poll(async () => (await admin.query('select motif from plateforme.facture_cabinet_refus where cabinet = $1', [c.id])).rows[0]?.motif ?? null,
+        { timeout: 15_000, interval: 200 }).toMatch(/RIB/);
+      // La console le dit dans ses Réglages, là où l'entreprise SkanFact se désigne (0240).
+      const reg = await appeler('GET', '/console/reglages', amira.console);
+      expect((reg.corps.factures as { editeur: { sansRib: boolean } }).editeur.sansRib).toBe(true);
+      expect(await sesFactures(c)).toEqual([]);
+      expect(Number((await admin.query("select count(*) n from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and cle like $2", [editeur, `cabinet-${c.id}-%`])).rows[0].n)).toBe(0);
+    } finally { await rib('10006012345678901234'); }
   });
 
   it('un dossier ajouté en cours d\'année se rattrape au prorata de ses jours sur la facture suivante', async () => {

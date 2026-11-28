@@ -183,6 +183,13 @@
     </div>`;
   }
 
+  // (1.389.2, CONS3-1) « Ses coordonnées sont sur la facture » ne se dit que si le RIB de SkanFact y est : une facture
+  // émise sans lui ne porte que « Paiement par virement bancaire », et le client cherchait où virer.
+  /** @param {any} societe */
+  const aideReglement = (societe) => (societe && typeof societe.rib === 'string' && societe.rib.trim()
+    ? 'Règle-la par virement ou par chèque : les coordonnées de SkanFact sont sur la facture.'
+    : 'Ses coordonnées de virement ne sont pas sur la facture : demande-les à SkanFact (Aide, « Écrire au support ») avant de virer.');
+
   // « Tes factures » : celles que l'entreprise SkanFact a émises pour l'abonnement du cabinet, la plus récente d'abord.
   // (1.121.0) Quand l'état porte « Régler ma facture », c'est lui le bouton vert de l'écran : celui de la ligne se fait
   // discret (deux verts côte à côte, recette du 23/10/2026).
@@ -204,7 +211,7 @@
           ${p.payable ? `<button type="button" class="btn btn-sm${p === verte ? ' btn-primary' : ''}" data-payer="${i}">Payer ${esc(montant(p.reste))} en ligne</button>` : ''}
           <button type="button" class="btn btn-sm" data-voir="${i}">Voir</button>
         </div>
-        ${doit && !p.payable ? '<p class="abo-fa-aide">Règle-la par virement ou par chèque : les coordonnées de SkanFact sont sur la facture.</p>' : ''}
+        ${doit && !p.payable ? `<p class="abo-fa-aide">${aideReglement(a.factures && a.factures.entreprise)}</p>` : ''}
       </li>`;
     }).join('');
     return `<div class="abo-section" id="abo-factures">

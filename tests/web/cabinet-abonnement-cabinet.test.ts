@@ -68,6 +68,8 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     await admin.query('delete from plateforme.editeur');
     expect((await api('POST', '/console/reglages/factures/editeur', console, { entreprise: editeur, motif: 'Nos factures naissent ici' })).statut).toBe(200);
     expect((await api('GET', `/entreprises/${editeur}/dossier-v10`, amira.jeton)).statut).toBe(200);
+    // La fiche de l'entreprise SkanFact porte son RIB (CONS3-1) : sans lui, aucune facture ne part seule.
+    expect((await admin.query(`update socle.dossier_v10 set contenu = contenu || '{"rib": "10006012345678901234"}'::jsonb where entreprise = $1 and collection = '_racine' and cle = 'company'`, [editeur])).rowCount).toBe(1);
     expect((await api('PUT', `/entreprises/${editeur}/paiement-en-ligne`, amira.jeton, { portefeuille: 'portefeuille-skanfact-cab', cle: 'sk_test_cle-de-l-api-konnect-c4a1' })).statut).toBe(200);
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await konnect?.fermer(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });

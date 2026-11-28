@@ -49,6 +49,8 @@ export const POLITIQUE_LECTURE_SEULE: Record<string, Politique> = {
   'socle.dossier.tout': 'ouvert',
   'ventes.prix.modifier': 'ouvert',
   'stock.modifier': 'ouvert',
+  // (1.388.95) Valider ou refuser un inventaire compté par un autre : il ferme un comptage déjà saisi, rien ne s'y crée.
+  'stock.inventaire.valider': 'ouvert',
   'achats.pieces.modifier': 'ouvert',
   'tresorerie.modifier': 'ouvert',
   'tresorerie.comptes.modifier': 'ouvert',
