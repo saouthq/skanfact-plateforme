@@ -1503,13 +1503,27 @@
     }
     return 'ZZZZ';
   }
-  function lettrer(livre, compte, ids, lettre, qui, dateIso) {
+  // (1.390.11, CABDECLARER-7) `tiers` ({ id } ou { libelle }) limite le lettrage aux lignes d'UN client, comme l'écran les
+  // range : une pièce d'à-nouveaux porte chaque client sur sa ligne, et ses autres clients ne comptent pas dans la somme.
+  // C'est la règle du serveur (compta.ligne_du_tiers, 0247).
+  const ligneDuTiers = (l, tiers) => !tiers ? true
+    : tiers.id ? String(l.tiersId || '') === String(tiers.id) : !l.tiersId && String(l.tiers || '') === String(tiers.libelle || '');
+  // Les lignes d'un client parmi des écritures (le pont les envoie au serveur, qui ne lettre que celles-là) : `ligneId`
+  // est l'identifiant de la ligne côté serveur. Sans client : rien (toutes les lignes du compte).
+  function lignesDuTiers(livre, compte, ids, tiers) {
+    if (!tiers) return {};
+    const n = String(compte || '').trim(), garde = new Set(ids || []);
+    const lignes = [];
+    (livre.ecritures || []).forEach(e => { if (garde.has(e.id)) (e.lignes || []).forEach(l => { if (l.compte === n && l.ligneId && ligneDuTiers(l, tiers)) lignes.push(String(l.ligneId)); }); });
+    return { lignes };
+  }
+  function lettrer(livre, compte, ids, lettre, qui, dateIso, tiers) {
     const n = String(compte || '').trim();
     const ecr = (ids || []).map(id => livre.ecritures.find(e => e.id === id)).filter(Boolean);
     if (ecr.length !== (ids || []).length) return { ok: false, motif: 'Une des écritures à lettrer n\'existe pas.' };
     if (ecr.length < 2) return { ok: false, motif: 'Le lettrage relie au moins deux écritures : une facture et son règlement.' };
     const lignes = [];
-    ecr.forEach(e => e.lignes.forEach((l, i) => { if (l.compte === n) lignes.push({ e, i, l }); }));
+    ecr.forEach(e => e.lignes.forEach((l, i) => { if (l.compte === n && ligneDuTiers(l, tiers)) lignes.push({ e, i, l }); }));
     if (!lignes.length) return { ok: false, motif: `Aucune de ces écritures ne touche le compte ${n}.` };
     const solde = round3(lignes.reduce((s, x) => s + x.l.debit - x.l.credit, 0));
     // La somme nulle n'est pas une formalité : un lettrage qui ne solde pas affirme qu'une facture
@@ -3252,29 +3266,39 @@
       if (e.statut === 'brouillard') { auBrouillard += (e.lignes || []).filter(l => txt(l.compte) === n && !txt(l.lettre)).length; return; }
       (e.lignes || []).forEach(l => {
         if (txt(l.compte) !== n || txt(l.lettre)) return;
-        ouvertes.push({ id: e.id, date: e.date, piece: txt(e.piece), tiersId: txt(l.tiersId), montant: round3(num(l.debit) - num(l.credit)) });
+        ouvertes.push({ id: e.id, date: e.date, piece: txt(e.piece), tiersId: txt(l.tiersId), tiers: txt(l.tiers), montant: round3(num(l.debit) - num(l.credit)) });
       });
     });
     const debits = ouvertes.filter(x => x.montant > 0);
     const credits = ouvertes.filter(x => x.montant < 0);
+    // (1.390.11) Une écriture d'à-nouveaux porte plusieurs clients : ce qui est « utilisé » est la ligne d'UN client, pas
+    // l'écriture entière, et la paire se lettre sur les lignes de ce client.
+    const cle = x => `${x.id}|${x.tiersId || '~' + x.tiers}`;
+    // Le client de la paire : le même identifiant des deux côtés, ou — sans identifiant des deux côtés — le même nom (un
+    // dossier hors SkanFact ne nomme ses clients que par leur nom). Sinon la règle d'avant : la paire se forme, et se lettre
+    // sur toutes les lignes du compte des deux écritures.
+    const tiersDe = (x, y) => x.tiersId ? (x.tiersId === y.tiersId ? { id: x.tiersId } : undefined)
+      : !y.tiersId && x.tiers && x.tiers === y.tiers ? { libelle: x.tiers } : undefined;
+    const memeTiers = (a, b) => !a.tiersId || !b.tiersId || a.tiersId === b.tiersId;
     const utilises = new Set();
     const poses = [];
     debits.forEach(d => {
-      if (utilises.has(d.id)) return;
-      const cands = credits.filter(c => !utilises.has(c.id) && round3(c.montant + d.montant) === 0)
-        .filter(c => !d.tiersId || !c.tiersId || c.tiersId === d.tiersId)
+      if (utilises.has(cle(d))) return;
+      const cands = credits.filter(c => !utilises.has(cle(c)) && c.id !== d.id && round3(c.montant + d.montant) === 0)
+        .filter(c => memeTiers(c, d))
         .filter(c => ecartJours(c.date, d.date) <= jours);
       // La référence tranche quand plusieurs règlements du même montant existent ; sans elle, deux
       // candidats veulent dire qu'on ne sait pas, et on ne lettre pas.
       const parRef = cands.filter(c => d.piece && c.piece && (c.piece.includes(d.piece) || d.piece.includes(c.piece)));
       const choisi = parRef.length === 1 ? parRef[0] : (cands.length === 1 ? cands[0] : null);
       if (!choisi) return;
-      const r = lettrer(livre, n, [d.id, choisi.id], '', o.par || 'auto', o.date || '');
+      const t = tiersDe(d, choisi);
+      const r = lettrer(livre, n, [d.id, choisi.id], '', o.par || 'auto', o.date || '', t);
       if (!r.ok) return;
-      utilises.add(d.id); utilises.add(choisi.id);
-      poses.push({ lettre: r.lettre, ecritures: [d.id, choisi.id], montant: d.montant });
+      utilises.add(cle(d)); utilises.add(cle(choisi));
+      poses.push({ lettre: r.lettre, ecritures: [d.id, choisi.id], montant: d.montant, ...(t ? { tiers: t } : {}) });
     });
-    return { ok: true, poses, restent: ouvertes.length - utilises.size, auBrouillard };
+    return { ok: true, poses, restent: ouvertes.length - ouvertes.filter(x => utilises.has(cle(x))).length, auBrouillard };
   }
 
   // Les tranches d'âge, en UN seul endroit. Elles vivaient dans core.js depuis la 2.5.0 ; le

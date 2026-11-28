@@ -221,10 +221,14 @@ export function routesSaisie(ctx: Contexte): Route<never>[] {
       compte: z.string().regex(/^[0-9]{1,12}$/, { message: 'compta.champ.compte' }),
       ecritures: z.array(uuid).max(500, { message: 'compta.champ.ids' }),
       lettre: z.string().regex(/^[A-Za-z]{1,5}$/, { message: 'compta.champ.lettre' }).optional(),
+      // (1.390.11, CABDECLARER-7) Les lignes d'UN client, quand une pièce (des à-nouveaux) en porte plusieurs : seules
+      // elles se lettrent. Absent : toutes les lignes du compte.
+      lignes: z.array(uuid).max(2000, { message: 'compta.champ.ids' }).optional(),
     }).strict(),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const r = await tx.query('select compta.lettrer($1, $2, $3::uuid[], $4) lettre', [params.entreprise ?? '', corps.compte, corps.ecritures, corps.lettre ?? null]);
+      const r = await tx.query('select compta.lettrer($1, $2, $3::uuid[], $4, $5::uuid[]) lettre',
+        [params.entreprise ?? '', corps.compte, corps.ecritures, corps.lettre ?? null, corps.lignes ?? null]);
       return { statut: 201, corps: { lettre: r.rows[0].lettre as string } };
     },
   });

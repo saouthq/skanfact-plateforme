@@ -48,7 +48,7 @@ describe('la saisie du Cabinet, à la souris', () => {
     return jeton;
   };
   type Ecriture = { id: string; journal: string; piece: string | null; libelle?: string; statut: string; numero: string | null; chaine: number | null;
-    origine: { type: string; id: string }; lignes: { compte: string; debit: string; credit: string; lettre: string | null }[] };
+    origine: { type: string; id: string }; lignes: { compte: string; debit: string; credit: string; tiers?: string | null; lettre: string | null }[] };
   const livres = async (ent: string, jeton: string) => (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, jeton)).corps.ecritures as Ecriture[];
   // Un menu de ligne s'ouvre par son bouton ; une action se choisit par ce qu'elle dit.
   const menu = async (p: Page, cle: string) => { await p.locator(`[data-rowmenu="${cle}"]`).first().click(); return p.getByRole('menuitem'); };
@@ -218,6 +218,30 @@ describe('la saisie du Cabinet, à la souris', () => {
     await expect.poll(lettres14, { timeout: 10_000 }).toEqual(['', '']);
     await expect.poll(() => p.locator('#toast').innerText()).toBe(`Lettre ${lettre} retirée : ses pièces sont de nouveau ouvertes.`);
     await expect.poll(() => p.locator(`.lt-coche[data-lt="${f14}"]`).count()).toBe(1);
+    // (1.390.11, CABDECLARER-7) Une pièce d'à-nouveaux porte deux clients : l'Hôtel coché avec son virement se lettre, et
+    // la lettre ne va que sur SA ligne de l'à-nouveau — celle du Café reste ouverte.
+    const an = await saisir({ date: '2026-01-01', journal: 'AN', piece: 'AN-2026', libelle: 'À-nouveaux', lignes: [
+      { compte: '411', debit: '300', tiers: 'Hôtel Essai' }, { compte: '411', debit: '200', tiers: 'Café Essai' }, { compte: '110', credit: '500' }] });
+    const vh = await saisir({ date: '2026-08-12', journal: 'BQ', piece: 'VIR-H', libelle: 'Virement Hôtel', lignes: [{ compte: '532', debit: '300' }, { compte: '411', credit: '300', tiers: 'Hôtel Essai' }] });
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [an, vh] })).statut).toBe(200);
+    await aller(`#/dossier/${ent}/comptabilite/lettrage/2026`);
+    const hotel = p.locator('.lt-tiers').filter({ hasText: 'Hôtel Essai' });
+    if (!(await hotel.evaluate((d) => (d as HTMLDetailsElement).open))) await hotel.locator('summary').click();
+    await hotel.locator(`.lt-coche[data-lt="${an}"]`).check();
+    await hotel.locator(`.lt-coche[data-lt="${vh}"]`).check();
+    await expect.poll(() => hotel.locator('.lt-dit').innerText()).toBe('2 pièces cochées : elles se soldent.');
+    await hotel.locator('[data-lt-go]').click();
+    const lettresAN = async () => ((await livres(ent, associe)).find((e) => e.id === an)?.lignes ?? []).map((l) => `${l.tiers ?? ''}:${l.lettre ? 'L' : ''}`);
+    await expect.poll(lettresAN, { timeout: 10_000 }).toEqual(['Hôtel Essai:L', 'Café Essai:', ':']);
+    // Le lettrage automatique fait de même pour le Café : sa ligne de l'à-nouveau, et elle seule, prend la lettre de son virement.
+    const vc = await saisir({ date: '2026-02-10', journal: 'BQ', piece: 'VIR-C', libelle: 'Virement Café', lignes: [{ compte: '532', debit: '200' }, { compte: '411', credit: '200', tiers: 'Café Essai' }] });
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [vc] })).statut).toBe(200);
+    await aller(`#/dossier/${ent}/comptabilite/lettrage/2026`);
+    await p.locator('#lv-auto').click();
+    await expect.poll(lettresAN, { timeout: 10_000 }).toEqual(['Hôtel Essai:L', 'Café Essai:L', ':']);
+    const lettreDe = async (id: string, tiers: string) => ((await livres(ent, associe)).find((e) => e.id === id)?.lignes ?? []).find((l) => l.tiers === tiers && l.compte === '411')?.lettre;
+    expect(await lettreDe(an, 'Café Essai')).toBe(await lettreDe(vc, 'Café Essai'));
+    expect(await lettreDe(an, 'Café Essai')).not.toBe(await lettreDe(an, 'Hôtel Essai'));
 
     // Deux chemins, un chiffre : la balance de l'écran (les écritures validées, comme la v10) est celle
     // du serveur, compte par compte, une fois août validé (l'achat du client était au brouillard).

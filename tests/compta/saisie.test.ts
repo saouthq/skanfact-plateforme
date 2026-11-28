@@ -387,6 +387,39 @@ describe('la saisie dans les livres du serveur', () => {
     expect(await second).toBe('une de ces lignes est déjà lettrée : délettre-la d\'abord');
   });
 
+  // (1.390.11, issue 9, CABDECLARER-7) Une pièce d'à-nouveaux porte chaque client sur sa ligne : l'Hôtel se lettre avec son
+  // virement, le Café avec ses deux chèques, sur la même pièce ; sans client désigné, la somme compte les deux et refuse.
+  it('l\'à-nouveau d\'un client se lettre avec ses règlements, sur une pièce qui porte aussi les autres (ses lignes désignées)', async () => {
+    const d = await dossier();
+    const tiers = async (nom: string) => String((await admin.query('insert into socle.tiers (entreprise, raison_sociale) values ($1, $2) returning id', [d.ent, nom])).rows[0].id);
+    const hotel = await tiers('Hôtel Dar Jerba'), cafe = await tiers('Café Jasmin');
+    const an = await saisir(d.ent, d.assistant, { date: '2026-01-01', journal: 'AN', piece: 'AN-2026', libelle: 'À-nouveaux', lignes: [
+      { compte: '411', debit: '2558', tiers: 'Hôtel Dar Jerba', tiersId: hotel }, { compte: '411', debit: '1161', tiers: 'Café Jasmin', tiersId: cafe },
+      { compte: '411', debit: '100', tiers: 'Épicerie du coin' }, { compte: '110', credit: '3819' }] });
+    const vir = await saisir(d.ent, d.assistant, { date: '2026-01-10', journal: 'BQ', piece: 'VIR-0110', libelle: 'Virement Hôtel', lignes: [{ compte: '532', debit: '2558' }, { compte: '411', credit: '2558', tiers: 'Hôtel Dar Jerba', tiersId: hotel }] });
+    const chq1 = await saisir(d.ent, d.assistant, { date: '2026-01-12', journal: 'BQ', piece: 'CHQ-0112', libelle: 'Chèque Café', lignes: [{ compte: '532', debit: '576' }, { compte: '411', credit: '576', tiers: 'Café Jasmin', tiersId: cafe }] });
+    const chq2 = await saisir(d.ent, d.assistant, { date: '2026-02-12', journal: 'BQ', piece: 'CHQ-0212', libelle: 'Chèque Café', lignes: [{ compte: '532', debit: '585' }, { compte: '411', credit: '585', tiers: 'Café Jasmin', tiersId: cafe }] });
+    const esp = await saisir(d.ent, d.assistant, { date: '2026-01-15', journal: 'BQ', piece: 'ESP-01', libelle: 'Espèces Épicerie', lignes: [{ compte: '54', debit: '100' }, { compte: '411', credit: '100', tiers: 'Épicerie du coin' }] });
+    await valider(d.ent, d.collaborateur, [an, vir, chq1, chq2, esp]);
+    const lettrer = (ecritures: string[], lignes?: string[]) => appeler('POST', `/entreprises/${d.ent}/compta/lettrages`, d.collaborateur.jeton, { compte: '411', ecritures, ...(lignes ? { lignes } : {}) });
+    // Les lignes du 411 d'un client, comme l'écran les désigne.
+    const lues = await livres(d.ent, d.client);
+    const lignesDe = (nom: string) => lues.flatMap((x) => x.lignes).filter((x) => x.compte === '411' && x.tiers === nom).map((x) => String((x as unknown as { id: string }).id));
+    expect((await lettrer([an, vir])).corps.motif).toBe('Ces écritures ne se soldent pas : il reste 1 261,000.');
+    // Une ligne d'un autre client, glissée parmi celles de l'Hôtel, fait encore refuser : le serveur fait la somme.
+    expect((await lettrer([an, vir], [...lignesDe('Hôtel Dar Jerba'), ...lignesDe('Café Jasmin').slice(0, 1)])).corps.motif).toBe('Ces écritures ne se soldent pas : il reste 1 161,000.');
+    const h = await lettrer([an, vir], lignesDe('Hôtel Dar Jerba'));
+    expect(h.statut, JSON.stringify(h.corps)).toBe(201);
+    const c = await lettrer([an, chq1, chq2], lignesDe('Café Jasmin'));
+    expect(c.statut, JSON.stringify(c.corps)).toBe(201);
+    // Une ligne sans fiche de tiers, désignée de même.
+    const e = await lettrer([an, esp], lignesDe('Épicerie du coin'));
+    expect(e.statut, JSON.stringify(e.corps)).toBe(201);
+    const ligneAN = (await livres(d.ent, d.client)).find((x) => x.id === an)?.lignes.map((x) => `${x.tiers ?? ''}:${x.lettre ?? ''}`);
+    expect(ligneAN).toEqual([`Hôtel Dar Jerba:${h.corps.lettre}`, `Café Jasmin:${c.corps.lettre}`, `Épicerie du coin:${e.corps.lettre}`, ':']);
+    expect(new Set([h.corps.lettre, c.corps.lettre, e.corps.lettre]).size).toBe(3);
+  });
+
   it('les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d\'affaires (deux chemins, un chiffre)', async () => {
     const d = await dossier();
     const f = await saisir(d.ent, d.assistant, { date: '2026-08-05', journal: 'VT', libelle: 'Facture F-12', lignes: [{ compte: '411', debit: '1428' }, { compte: '7061', credit: '1200,250' }, { compte: '4367', credit: '227,750' }] });

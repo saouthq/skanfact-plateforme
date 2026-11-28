@@ -143,7 +143,9 @@ describe('la recette de la console, tenue par l\'écran', () => {
     const p = await ouvrir('#/service/securite');
     await expect.poll(() => tuile(p).innerText().then(net).catch(() => '')).toMatch(/jamais trois de suite : rien à regarder/);
     expect(net(await tuile(p).innerText())).not.toMatch(/À regarder/);
-    expect(net(await p.locator('.c-sv-claires + *, section').filter({ hasText: /Ce qui demande un regard/ }).first().innerText())).toMatch(/Rien ne demande un regard/);
+    // (1.390.11) La liste vaut pour toute la plateforme, et d'autres essais lancés en même temps y laissent leurs rafales :
+    // ce qu'on vérifie, c'est que le code faux ISOLÉ n'y entre pas — aucune ligne de moins de trois codes de suite.
+    expect(net(await p.locator('.c-sv-claires + *, section').filter({ hasText: /Ce qui demande un regard/ }).first().innerText())).not.toMatch(/\b[12] codes? faux à la suite/i);
     await fermer(p);
     await admin.query(`insert into socle.defi_connexion (utilisateur, methode, cree_le, expire_le, erreurs) values ($1, 'application', now(), now() + interval '5 minutes', 3)`, [moi]);
     const q = await ouvrir('#/service/securite');

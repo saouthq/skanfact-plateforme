@@ -2764,7 +2764,7 @@
       const r = KC.lettrageAuto(livre, o.compte, { jours: o.jours, par: 'auto', date: jourDeTunis() });
       /** @type {any[]} */ const poses = [];
       for (const p of r.poses) {
-        const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: p.ecritures });
+        const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: p.ecritures, ...KC.lignesDuTiers(livre, o.compte, p.ecritures, p.tiers) });
         poses.push({ ...p, lettre: l.lettre });
       }
       return { ok: true, poses, restent: r.restent, auBrouillard: r.auBrouillard, livre: await livreDe(o.dossierId, o.annee) };
@@ -2774,7 +2774,7 @@
         await appel('DELETE', `/entreprises/${o.dossierId}/compta/lettrages/${encodeURIComponent(String(o.lettre || ''))}`);
         return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
       }
-      const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: o.ids || [], ...(o.lettre ? { lettre: String(o.lettre) } : {}) });
+      const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: o.ids || [], ...(o.lettre ? { lettre: String(o.lettre) } : {}), ...(o.tiers ? /** @type {any} */ (window).SkanCompta.lignesDuTiers(await livreDe(o.dossierId, o.annee), o.compte, o.ids || [], o.tiers) : {}) });
       return { ok: true, lettre: l.lettre, livre: await livreDe(o.dossierId, o.annee) };
     },
 

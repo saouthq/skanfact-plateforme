@@ -8257,3 +8257,23 @@ sans un mot.
   la case porte un bord ambre, et seule cette case efface la note quand on la retouche. Plus de message passager.
 
 Essai : `tests/web/cabinet-saisie-piece.test.ts` tape « 100,5555 » au kilomètre puis à la main, et lit la note.
+
+## 1.390.11 — L'à-nouveau d'un client se lettre avec ses règlements (issue 9, CABDECLARER-7)
+
+Resté partiel à la contre-vérification, sur les deux exemples du constat d'origine : l'à-nouveau de l'Hôtel Dar Jerba
+(2 558) coché avec son virement (− 2 558), l'écran disait « elles se soldent », et le clic répondait « Ces écritures ne
+se soldent pas : il reste 1 161,000 » — le reste étant l'à-nouveau du Café Jasmin, sur la même pièce. « Lettrer
+automatiquement » les laissait ouverts aussi.
+
+- **Le lettrage porte sur les lignes d'UN client** (migration 0247, `compta.lettrer` reçoit les lignes désignées) :
+  une pièce d'à-nouveaux reprend chaque client sur sa ligne (0210), et seules les lignes désignées entrent dans la somme,
+  dans le contrôle « déjà lettrée » et dans la lettre posée. Le serveur ne devine pas le client : l'écran lui envoie les
+  lignes que le moteur partagé a retenues (`lignesDuTiers`), par la même règle que celle qui range la barre — le client
+  par son identifiant, sinon par son nom sur une ligne qui n'en a pas. Sans lignes désignées, rien ne change.
+- **L'écran envoie le client de la barre** qu'il vient de juger, et **le lettrage automatique** lettre chaque client d'un
+  à-nouveau avec son règlement : une pièce n'est plus « utilisée » entière par sa première paire, et un dossier qui ne
+  nomme ses clients que par leur nom (hors SkanFact) se lettre par ce nom.
+
+Essais : `tests/compta/saisie.test.ts` (l'Hôtel, le Café et une ligne nommée sans fiche, sur une même pièce d'à-nouveaux),
+`tests/moteur/lettrage-an-1390-11.test.ts` (le lettrage automatique, par identifiant et par nom) et
+`tests/web/cabinet-saisie.test.ts` (à la souris : l'Hôtel coché à la main, le Café par « Lettrer automatiquement »).

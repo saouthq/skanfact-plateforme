@@ -5475,7 +5475,9 @@
         const ids = $$('.lt-coche:checked', bloc).map(c => c.dataset.lt);
         go.disabled = true;
         try {
-          const r = await api.lettrer({ dossierId: dossier.id, annee: s.annee, compte: barre.dataset.compte, ids });
+          // (1.390.11, CABDECLARER-7) Les lignes de CE client : une pièce d'à-nouveaux porte aussi les autres.
+          const tiers = barre.dataset.tiersId ? { id: barre.dataset.tiersId } : { libelle: barre.dataset.tiersNom || '' };
+          const r = await api.lettrer({ dossierId: dossier.id, annee: s.annee, compte: barre.dataset.compte, ids, tiers });
           s.livre = r.livre;
           toast(`Lettre ${r.lettre || ''} posée sur ${pl(ids.length, 'pièce')}.`.replace('  ', ' '));
           redraw();

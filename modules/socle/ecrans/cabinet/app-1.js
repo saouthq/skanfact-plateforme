@@ -9719,7 +9719,7 @@
           <td class="nw">${esc(fmtJour(o.date))}</td>
           <td class="r nw">${o.debit ? esc(money(o.debit)) : ''}</td><td class="r nw">${o.credit ? esc(money(o.credit)) : ''}</td>
           <td class="r nw">${esc(m(o.reste))}</td>${rowMenuCell(o.ecritureId ? 'E:' + o.ecritureId : o.piece + '|' + (o.mois || ''))}</tr>`).join('')}</tbody></table></div>
-        ${aLaMain && r.ouverts.length > 1 ? `<div class="modal-actions lt-barre" data-compte="${esc(r.account)}"><span class="small muted lt-dit">Coche les pièces qui se soldent entre elles, puis lettre-les.</span><span class="grow"></span><button type="button" class="btn btn-sm" data-lt-go disabled>Lettrer la sélection</button></div>` : ''}</details>`).join(''))(paginate(ouverts, s))}
+        ${aLaMain && r.ouverts.length > 1 ? `<div class="modal-actions lt-barre" data-compte="${esc(r.account)}"${r.tiersId ? ` data-tiers-id="${esc(r.tiersId)}"` : ` data-tiers-nom="${esc(r.tiers === '(sans tiers)' ? '' : r.tiers)}"`}><span class="small muted lt-dit">Coche les pièces qui se soldent entre elles, puis lettre-les.</span><span class="grow"></span><button type="button" class="btn btn-sm" data-lt-go disabled>Lettrer la sélection</button></div>` : ''}</details>`).join(''))(paginate(ouverts, s))}
       ${lettresHtml(s, prefixe)}
       ${soldes.length ? `<details class="mt" id="lv-soldes"><summary>${pl(soldes.length, 'tiers entièrement lettré', 'tiers entièrement lettrés')} — ${pl(soldes.reduce((a, r) => a + r.lettrees, 0), 'pièce soldée', 'pièces soldées')}</summary>
         <ul class="small">${soldes.map(r => `<li>${esc(r.tiers)} <span class="muted">${esc(r.account)} · ${pl(r.lettrees, 'pièce soldée', 'pièces soldées')}</span></li>`).join('')}</ul></details>` : ''}

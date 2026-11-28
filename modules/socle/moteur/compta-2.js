@@ -126,7 +126,7 @@
     PLAN_COMPTABLE, libelleDuPlan, migrerLivre,
     natureDeCompte, livreVide, exerciceDeReprise, isValidLivre, livreVersionInconnue, assurerCompte,
     ajouterEcriture, validerEcriture, contrepasser, importerPaquet, piecesDepuisLignes,
-    lettrer, delettrer, prochaineLettre, balanceOuverture, lignesDuLivre,
+    lettrer, lignesDuTiers, delettrer, prochaineLettre, balanceOuverture, lignesDuLivre,
     planDepuisCsv, balanceDepuisCsv, ouvertureDepuisBalance, repriseDepuisBalance, estAuPlan, nommerSousCompte, comptesDeLEcriture,
     // La saisie (9.3.0)
     premierDuMoisSuivant, ajouterMoisIso, sansAccents, soldeDeLignes, comptesQuiCorrespondent, comptesProposables, MOTS_COURANTS, motsCourantsDe,

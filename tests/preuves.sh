@@ -2011,16 +2011,16 @@ prouver "une extourne dans la période close" $M21 \
 prouver "une écriture extournée deux fois" $M21 \
   "    perform socle.refus('cette écriture a déjà été extournée');" "" \
   "$S4"
-prouver "un lettrage qui ne se solde pas" $M21 \
+prouver "un lettrage qui ne se solde pas" base/migrations/0247_lettrer_des_lignes.sql \
   "  if solde <> 0 then perform socle.refus(" "  if false then perform socle.refus(" \
   "$S5"
-prouver "un brouillard lettré" $M21 \
+prouver "un brouillard lettré" base/migrations/0247_lettrer_des_lignes.sql \
   "  if exists (select 1 from compta.ecriture e where e.id = any (p_ecritures) and e.statut <> 'validee') then" "  if false then" \
   "$S5"
-prouver "une ligne lettrée deux fois" $M21 \
+prouver "une ligne lettrée deux fois" base/migrations/0247_lettrer_des_lignes.sql \
   "    perform socle.refus('une de ces lignes est déjà lettrée : délettre-la d''abord');" "" \
   "$S5"
-prouver "deux lettrages simultanés qui se heurtent" $M21 \
+prouver "deux lettrages simultanés qui se heurtent" base/migrations/0247_lettrer_des_lignes.sql \
   "  perform pg_advisory_xact_lock(hashtextextended('compta.lettrage:' || p_entreprise::text, 0));" "" \
   "$S5"
 prouver "l'assistant de saisie qui lettre, à la porte" serveur/compta/gestes.ts \
@@ -2049,7 +2049,7 @@ prouver "un mois au brouillard compté comme définitif" web/public/plateforme/p
   "definitive: m.brouillards === 0," "definitive: true," \
   "$W38"
 prouver "le lettrage automatique qui ne pose rien au serveur" web/public/plateforme/pont-cabinet.js \
-  "        const l = await appel('POST', \`/entreprises/\${o.dossierId}/compta/lettrages\`, { compte: String(o.compte), ecritures: p.ecritures });" "        const l = { lettre: p.lettre };" \
+  "        const l = await appel('POST', \`/entreprises/\${o.dossierId}/compta/lettrages\`, { compte: String(o.compte), ecritures: p.ecritures, ...KC.lignesDuTiers(livre, o.compte, p.ecritures, p.tiers) });" "        const l = { lettre: p.lettre };" \
   "$W38"
 
 # ── Brique 38 bis : le Cabinet sans paquets, dans les mots et les gestes (docs/cabinet.md, C14, C15) ──
@@ -17088,8 +17088,8 @@ prouver 'un congé jamais enregistré' 'web/public/plateforme/pont-cabinet.js' \
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'un congé enregistré sans son motif' 'web/public/plateforme/pont-cabinet.js' \
-  'paid: c.paid === true || c.paid === false ? c.paid : null, note: String(c.note || '"'"''"'"').slice(0, 200) };' \
-  'paid: c.paid === true || c.paid === false ? c.paid : null };' \
+  'c.paid : null, note: String(c.note || '"'"''"'"').slice(0, 200), ...(Array.isArray(c.apresValidation)' \
+  'c.paid : null, ...(Array.isArray(c.apresValidation)' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'un congé supprimé qui reste dans le dossier' 'web/public/plateforme/pont-cabinet.js' \
   'await ecrirePaieDuDossier(o.dossierId, '"'"'leaves'"'"', o.id, null);' \
@@ -30084,8 +30084,8 @@ prouver $'revue 1.377.0 e : « retirée du salaire » dite d\'une absence jamais
   $'if (A && A.reste > 0) return \'<span class="warn-text" data-cg-regul>' \
   $'une absence sans solde posée après la validation'
 prouver $'revue 1.377.0 f : sans pointage, l\'absence d\'après validation n\'est vue de personne' modules/personnel/ecrans/cabinet/paie.js \
-  $'if (pm && Number(pm.absences) > avant) r =' \
-  $'if (pm && Number(pm.absences) < avant) r =' \
+  $'if (pm && voulu > avant) r =' \
+  $'if (pm && voulu < avant) r =' \
   $'une absence sans solde posée après la validation'
 prouver $'revue 1.377.0 g : « L\'absence de Amel »' modules/personnel/ecrans/cabinet/paie.js \
   $'/^[aeiouâàéèêîôû]/i.test(String(nom || \'\').normalize(\'NFC\'))' \
@@ -32957,6 +32957,24 @@ prouver "le TTC au kilomètre qui garde quatre décimales" modules/socle/ecrans/
 prouver "l'arrondi dit par un message passager" modules/socle/ecrans/cabinet/app-1.js \
   'if (msg) { note.textContent = msg; note.hidden = false; note.__case = el; }' 'if (msg) { toast(msg); }' \
   "l'arrondi au millime se dit sous la grille"
+
+# 1.390.11 — L'à-nouveau d'un client se lettre avec ses règlements (issue 9, CABDECLARER-7).
+prouver "le lettrage qui additionne tous les clients d'un à-nouveau" base/migrations/0247_lettrer_des_lignes.sql \
+  "select sum(l.debit - l.credit) into solde from compta.ligne l where l.ecriture = any (p_ecritures) and l.compte = p_compte and (p_lignes is null or l.id = any (p_lignes));" \
+  "select sum(l.debit - l.credit) into solde from compta.ligne l where l.ecriture = any (p_ecritures) and l.compte = p_compte;" \
+  "se lettre avec ses règlements, sur une pièce qui porte aussi les autres"
+prouver "la barre du lettrage qui ne dit pas son client" modules/socle/ecrans/cabinet/app-2.js \
+  "compte: barre.dataset.compte, ids, tiers });" "compte: barre.dataset.compte, ids });" \
+  "le portefeuille compte les mois du serveur"
+prouver "le moteur qui lettre toutes les lignes d'un à-nouveau" modules/socle/moteur/compta-1.js \
+  "if (l.compte === n && ligneDuTiers(l, tiers)) lignes.push({ e, i, l });" "if (l.compte === n) lignes.push({ e, i, l });" \
+  "chaque client de l'à-nouveau se lettre avec son règlement"
+prouver "le lettrage automatique qui n'envoie pas les lignes du client" web/public/plateforme/pont-cabinet.js \
+  "...KC.lignesDuTiers(livre, o.compte, p.ecritures, p.tiers) });" " });" \
+  "le portefeuille compte les mois du serveur"
+prouver "le lettrage automatique qui ne reconnaît pas un client nommé sans identifiant" modules/socle/moteur/compta-1.js \
+  ": !y.tiersId && x.tiers && x.tiers === y.tiers ? { libelle: x.tiers } : undefined;" ": undefined;" \
+  "un dossier qui ne nomme ses clients que par leur nom"
 
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
