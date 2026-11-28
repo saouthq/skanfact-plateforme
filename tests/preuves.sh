@@ -32881,6 +32881,18 @@ prouver "le geste muet dans la trace de l'équipe" web/public/plateforme/pont-ca
   "case 'cabinet.equipe.code_exige':" "case 'cabinet.equipe.code_exige_':" \
   "puis ne le demande plus ; la collaboratrice voit la case fermée"
 
+# 1.390.2 — Une déclaration préparée sur un mois au brouillard n'est pas « prête à déposer » (issue 6, CAB-1).
+prouver "un mois au brouillard dit prêt à déposer" modules/socle/ecrans/cabinet/app-1.js \
+  "    if (periode < mc && auBrouillard > 0) return ['à réviser', 'b-due'];
+" "" \
+  "une déclaration préparée quand même sur un mois au brouillard reste"
+prouver "aucune TVA dite sur un mois dont la vente attend au brouillard" modules/socle/ecrans/cabinet/app-1.js \
+  "Aucune TVA dans les pièces validées : " "Ce mois ne porte aucune TVA : " \
+  "une déclaration préparée quand même sur un mois au brouillard reste"
+prouver "la frise qui dit à déposer au-dessus d'un mois à réviser" modules/socle/ecrans/cabinet/app-1.js \
+  "dit = m === moisPrecedent(mc) && cl !== 'rev' ? 'à déposer' : mot;" "dit = m === moisPrecedent(mc) ? 'à déposer' : mot;" \
+  "une déclaration préparée quand même sur un mois au brouillard reste"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

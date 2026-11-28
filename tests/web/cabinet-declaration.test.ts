@@ -261,4 +261,40 @@ describe('la déclaration du mois, à la souris', () => {
     expect(((await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps.contenu as { formatCopie?: string }).formatCopie).toBe('millimes');
     expect(erreurs).toEqual([]);
   }, 180_000);
+  // (1.390.2, issue 6, CAB-1) Préparer quand même un mois dont une vente attend au brouillard : l'état ne dit pas « prêt à
+  // déposer », et la page ne dit pas « Ce mois ne porte aucune TVA » — la TVA est dans la pièce qu'on n'a pas validée.
+  it('une déclaration préparée quand même sur un mois au brouillard reste « à réviser »', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const dossier = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Épicerie Bel Air' })).corps.entreprise);
+    const saisir = async (date: string, journal: string, piece: string, lignes: [string, string, string][]) =>
+      String((await api('POST', `/entreprises/${dossier}/compta/ecritures`, associe, { date, journal, piece, libelle: `Pièce ${piece}`, lignes: lignes.map(([compte, debit, credit]) => ({ compte, debit, credit })) })).corps.id);
+    const apport = await saisir('2026-10-02', 'BQ', 'APP-1', [['532', '5000,000', ''], ['101', '', '5000,000']]);
+    expect((await api('POST', `/entreprises/${dossier}/compta/ecritures/valider`, associe, { ids: [apport] })).statut).toBe(200);
+    await saisir('2026-10-15', 'VT', 'F-2026-101', [['411', '1191,000', ''], ['7071', '', '1000,000'], ['4367', '', '190,000'], ['4368', '', '1,000']]);
+    const erreurs: string[] = [];
+    // Le 20 novembre : octobre est le mois d'avant, celui que la frise dirait « à déposer ».
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(new Date('2026-11-20T10:00:00+01:00'));
+    const p = await cx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${dossier}/comptabilite/declaration/2026`);
+    await p.locator('#dc-mois').waitFor({ timeout: 20_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    if (await p.locator('#dc-mois').inputValue() !== '2026-10') await p.locator('#dc-mois').selectOption('2026-10');
+    await expect.poll(() => p.locator('#dc-etat').innerText(), { timeout: 15_000 }).toBe('à réviser');
+    await p.locator('#dc-preparer').click();
+    await p.locator('#dc-quand-meme').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('Déclaration préparée.');
+    await expect.poll(() => p.locator('#dc-preparer').innerText()).toMatch(/Préparée/);
+    expect(await p.locator('#dc-etat').innerText()).toBe('à réviser');
+    // La frise du haut dit le même mot que l'état du mois.
+    expect(await p.locator('[data-cp-mois="2026-10"] small').innerText()).toBe('à réviser');
+    const motif = (await p.locator('.dc-motif').innerText()).replace(/\s+/g, ' ');
+    expect(motif).toContain('Aucune TVA dans les pièces validées : la pièce au brouillard n\'y entre pas encore.');
+    expect(motif).not.toContain('Ce mois ne porte aucune TVA');
+    await p.screenshot({ path: path.join(PHOTOS, 'cabinet-declaration-brouillard.png') });
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

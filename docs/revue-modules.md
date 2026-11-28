@@ -8124,3 +8124,19 @@ Base : `0245_code_exige_cabinet.sql` (`socle.exiger_code_cabinet`, réservée au
 `PUT /cabinets/:cabinet/code-exige`. Essais : `tests/cabinet/equipe.test.ts` (seul un associé, la trace, la lecture
 par chacun) et `tests/web/cabinet-code-exige.test.ts` (la case cochée puis décochée à la souris, fermée pour une
 collaboratrice).
+
+## 1.390.2 — Une déclaration préparée sur un mois au brouillard n'est pas « prête à déposer » (issue 6, CAB-1)
+
+La contre-vérification de l'issue 6 laissait CAB-1 partiel : après « Préparer quand même », la page d'un mois dont des
+pièces attendaient au brouillard disait « État : prêt à déposer » et « Ce mois ne porte aucune TVA », et la frise du haut
+« à déposer ».
+
+- **L'état du mois reste « à réviser »** tant qu'une pièce du mois (hors l'écriture de la déclaration) attend au
+  brouillard, même préparée : elle n'entre dans aucune case. Le mot est celui de la frise et du tableau de production.
+- **La phrase dit pourquoi il n'y a pas de TVA** : « Aucune TVA dans les pièces validées : la pièce au brouillard n'y
+  entre pas encore. » La phrase « Ce mois ne porte aucune TVA » ne se dit plus quand la TVA attend au brouillard.
+- **La frise** ne remplace plus « à réviser » par « à déposer » sur le mois d'avant.
+
+Essais : `tests/cabinet/ecrans-1388-82.test.ts` joue maintenant la fonction de l'état (le test de la 1.388.82 gravait
+l'ordre « prêt à déposer » avant le brouillard) ; `tests/web/cabinet-declaration.test.ts` prépare quand même un mois au
+brouillard, à la souris, et lit l'état, la phrase et la frise.

@@ -8756,7 +8756,9 @@
       if (cl === 'fait') ton = 'ok';
       else if (enRetard) { ton = 'rouge'; dit = 'en retard'; }
       else if (cl === 'avenir' || cl === 'hors') ton = 'vide';
-      else if (cl !== 'cours' && m <= moisPrecedent(mc)) { ton = 'ambre'; dit = m === moisPrecedent(mc) ? 'à déposer' : mot; }
+      // (1.390.2, issue 6, CAB-1) Le mois d'avant encore au brouillard reste « à réviser » : « à déposer » contredisait l'état
+      // du mois juste en dessous.
+      else if (cl !== 'cours' && m <= moisPrecedent(mc)) { ton = 'ambre'; dit = m === moisPrecedent(mc) && cl !== 'rev' ? 'à déposer' : mot; }
       return { m, nom, ton, dit };
     });
   }
@@ -9903,13 +9905,13 @@
     // paiement, qui était pourtant le seul bouton éteint.
     const motif = lecture ? `Ton rôle sur ce dossier${roleIci ? ` (${roleIci})` : ''} te laisse lire la déclaration. ${cap(reviseurCl(dossier))} la prépare, en écrit l'écriture, la marque déposée puis payée.` : motifPerime || (!posee ? (ecrite ? 'Les deux pense-bêtes attendent la déclaration : prépare-la d\'abord.'
       : 'Les trois étapes suivantes attendent la déclaration : prépare-la d\'abord.')
-      : !deposee && !payee ? (rien ? KC.MOTIF_RIEN_A_ECRIRE + ' ' : '') + '« Marquer payée » attend le dépôt : on ne paie pas ce qu\'on n\'a pas déposé.' : '');
+      : !deposee && !payee ? (rien ? (brAvant.length ? `Aucune TVA dans les pièces validées : ${brAvant.length > 1 ? `les ${brAvant.length} pièces` : 'la pièce'} au brouillard n'y ${brAvant.length > 1 ? 'entrent' : 'entre'} pas encore. ` : KC.MOTIF_RIEN_A_ECRIRE + ' ') : '') + '« Marquer payée » attend le dépôt : on ne paie pas ce qu\'on n\'a pas déposé.' : '');
     return `<div class="filters">
       <label class="f-lab">Mois<select id="dc-mois" aria-label="Le mois à déclarer">${tous.map((m, i) =>
         `<option value="${m}" ${m === d.periode ? 'selected' : ''}>${MOIS_COURTS[i]} ${esc(s.annee)}</option>`).join('')}</select></label>
       ${info('dc.etat')}
       <span class="small muted">État</span>
-      ${(([mot, ton]) => `<span class="badge ${ton}" id="dc-etat">${esc(mot)}</span>`)(motEtatDecl(etat, d.periode))}
+      ${(([mot, ton]) => `<span class="badge ${ton}" id="dc-etat">${esc(mot)}</span>`)(motEtatDecl(etat, d.periode, brAvant.length))}
       <span class="grow"></span>
       <button class="btn btn-sm btn-ghost" id="dc-csv">Exporter les cases</button>
     </div>
@@ -9975,11 +9977,14 @@
   // (1.378.8 ; issue 9, CABDECLARER-18) L'état d'un mois, avec les mots de la frise et du tableau de bord : « déposé »,
   // jamais « déclaré » ; « prêt à déposer » une fois la déclaration préparée (l'état restait « saisi ») ; « en cours »
   // tant que le mois n'est pas fini. Trois vocabulaires disaient la même chose.
-  function motEtatDecl(etat, periode) {
+  // (1.390.2, issue 6, CAB-1) Une déclaration préparée alors que des pièces du mois attendent au brouillard n'est pas
+  // « prête à déposer » : ces pièces n'entrent dans aucune case. Le mois reste « à réviser » tant qu'elles y sont.
+  function motEtatDecl(etat, periode, auBrouillard) {
     const mc = K.today().slice(0, 7);
     if (etat.paye) return ['déposé et payé', 'b-paid'];
     if (etat.declare) return ['déposé', 'b-part'];
     if (periode > mc) return ['à venir', ''];
+    if (periode < mc && auBrouillard > 0) return ['à réviser', 'b-due'];
     if (etat.declaration) return ['prêt à déposer', 'b-due'];
     if (periode === mc) return ['en cours', ''];
     // (1.388.82, CE-08) Des écritures au brouillard : le mois est « à réviser » (le mot du tableau de production), jamais

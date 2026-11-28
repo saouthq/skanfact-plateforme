@@ -125,11 +125,18 @@ describe('une promesse sur une pièce demandée ne compte pas deux fois (1.388.8
 // quand le tableau de production disait « à réviser ».
 describe('l\'état d\'un mois au brouillard (1.388.82)', () => {
   it('un mois dont des écritures attendent au brouillard est « à réviser »', () => {
-    const f = source.slice(source.indexOf('function motEtatDecl(etat, periode)'), source.indexOf('const panneauPieces = '));
+    const f = source.slice(source.indexOf('function motEtatDecl('), source.indexOf('const panneauPieces = '));
     expect(f.length).toBeLessThan(1200);
-    expect(f.indexOf("if (etat.brouillard > 0) return ['à réviser', 'b-due'];")).toBeGreaterThan(0);
-    expect(f.indexOf("if (etat.brouillard > 0)")).toBeLessThan(f.indexOf("return etat.saisi ? ['à déposer'"));
-    expect(f.indexOf("if (etat.declaration) return ['prêt à déposer'")).toBeLessThan(f.indexOf("if (etat.brouillard > 0)"));
+    // (1.390.2, issue 6, CAB-1) La fonction est JOUÉE : une déclaration préparée sur un mois dont des pièces attendent au
+    // brouillard reste « à réviser » — la 1.388.82 la disait « prêt à déposer », et ce test gravait cet ordre.
+    const ctx: { K: unknown; m?: (e: Record<string, unknown>, p: string, b?: number) => string[] } = { K: { today: () => '2026-11-28' } };
+    vm.runInNewContext(`${f}; this.m = motEtatDecl;`, ctx);
+    const mot = ctx.m as (e: Record<string, unknown>, p: string, b?: number) => string[];
+    expect(mot({ brouillard: 3 }, '2026-10')[0]).toBe('à réviser');
+    expect(mot({ declaration: true }, '2026-10', 0)[0]).toBe('prêt à déposer');
+    expect(mot({ declaration: true, brouillard: 12 }, '2026-10', 12)[0]).toBe('à réviser');
+    expect(mot({ declaration: true, declare: true }, '2026-10', 12)[0]).toBe('déposé');
+    expect(mot({ saisi: true }, '2026-10', 0)[0]).toBe('à déposer');
   });
 });
 
