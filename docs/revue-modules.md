@@ -8031,3 +8031,11 @@ Sur les vrais articles, « client ne paie pas » ouvre maintenant « Se faire pa
 données » et « la paie » ouvre « Payer quelqu'un ».
 
 Prouvé : cinq défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.9 »).
+
+## 1.389.10 — Le statut d'une pièce se dit avec le mot des listes (ENTSOCLE-17)
+
+La fiche d'une affaire (ses ventes) et la page des licences (la facture de chaque licence) écrivaient la valeur du
+moteur, « envoyée », là où la liste des factures écrit « émise ». Les deux passent désormais par `statusBadge`, comme
+toutes les listes de pièces, et un test interdit un badge qui écrirait la valeur brute.
+
+Prouvé : les deux défauts réintroduits un par un font tomber leur test (`tests/preuves.sh`, « 1.389.10 »).

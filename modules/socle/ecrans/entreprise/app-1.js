@@ -22349,7 +22349,7 @@
       { label: 'Numéro', cls: 'cn', get: d => `<b>${d.number ? h(d.number) : 'Brouillon'}</b><small>${h(C.docLabel(d.type, company()))}</small>` },
       { label: 'Objet', get: d => h(d.subject || '') || '<span class="mu">—</span>' },
       { label: 'Date', cls: 'nw', get: d => C.fmtDate(d.date) },
-      { label: 'Statut', cls: 'st', get: d => `<span class="badge ${h(effStatus(d))}">${h(effStatus(d))}</span>` },
+      { label: 'Statut', cls: 'st', get: d => statusBadge(d) },
       { label: 'Montant HT', r: true, get: d => lfMontant(htVente(d), company().currency) }];
     const facturees = sales.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée');
     const dessinerVentes = () => {

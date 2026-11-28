@@ -10337,7 +10337,7 @@
       { key: 'etat', label: 'État', val: r => ({ bientot: 0, expiree: 1, active: 2, vie: 3, revoquee: 4 })[r.etat],
         get: r => `<span class="badge ${r.renouvelee ? '' : r.etat === 'bientot' ? 'retard' : r.etat === 'expiree' || r.etat === 'revoquee' ? 'annulée' : 'accepté'}">${h(r.renouvelee ? r.motifLabel : r.etatLabel)}</span>${r.etat === 'bientot' && !r.renouvelee ? `<div class="small muted">dans ${pl(r.jours, 'jour')}</div>` : ''}${r.revoqueeLe ? `<div class="small muted">le ${C.fmtDate(r.revoqueeLe)}${r.revoqueeMotif ? ' — ' + h(r.revoqueeMotif) : ''}</div>` : ''}` },
       { key: 'facture', label: 'Facture', val: r => { const d = r.invoiceId && docById(r.invoiceId); return d ? (d.number || 'brouillon') : ''; },
-        get: r => { const d = r.invoiceId && docById(r.invoiceId); return d ? `<a href="#/doc/${h(d.id)}">${h(d.number || 'Brouillon')}</a>${d.status !== 'brouillon' ? ` <span class="badge ${h(effStatus(d))}">${h(effStatus(d))}</span>` : ''}` : '<span class="muted">—</span>'; } },
+        get: r => { const d = r.invoiceId && docById(r.invoiceId); return d ? `<a href="#/doc/${h(d.id)}">${h(d.number || 'Brouillon')}</a>${d.status !== 'brouillon' ? ` ${statusBadge(d)}` : ''}` : '<span class="muted">—</span>'; } },
       { key: 'envoyee', label: 'Clé envoyée', val: r => r.envoyee ? (r.envoyeeLe || '1') : '',
         get: r => r.envoyee ? `<span class="ok-text">${C.fmtDate(r.envoyeeLe)}</span>`
           : r.revoqueeLe || r.remplaceePar ? '<span class="muted">—</span>'

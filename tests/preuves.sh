@@ -32795,6 +32795,13 @@ prouver "« la paie » lue comme un paiement" modules/socle/aide/recherche.js \
 prouver "l'expression courante comptée comme un mot tapé" modules/socle/aide/recherche.js \
   "    const plus = ajoutes(q).filter((m) => !ms.includes(m));" "    const plus = ajoutes(q).filter((m) => !ms.includes(m)); ms.push(...plus);" \
   "une question en langage courant (ENTSOCLE-23) : le morceau lu d'un bloc, l'intertitre et l'expression courante pèsent"
+# 1.389.10 — Le statut d'une pièce se dit avec le mot des listes (ENTSOCLE-17).
+prouver "la fiche d'une affaire qui dit « envoyée » d'une facture émise" modules/socle/ecrans/entreprise/app-1.js \
+  "{ label: 'Statut', cls: 'st', get: d => statusBadge(d) }," "{ label: 'Statut', cls: 'st', get: d => \`<span class=\"badge \${h(effStatus(d))}\">\${h(effStatus(d))}</span>\` }," \
+  "aucun badge n'écrit la valeur brute de effStatus : il passe par statusBadge (ou statusLabel)"
+prouver "la page des licences qui dit « envoyée » de sa facture" modules/socle/ecrans/entreprise/app-2.js \
+  "d.status !== 'brouillon' ? \` \${statusBadge(d)}\` : ''" "d.status !== 'brouillon' ? \` <span class=\"badge \${h(effStatus(d))}\">\${h(effStatus(d))}</span>\` : ''" \
+  "aucun badge n'écrit la valeur brute de effStatus : il passe par statusBadge (ou statusLabel)"
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
