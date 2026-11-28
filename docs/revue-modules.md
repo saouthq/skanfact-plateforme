@@ -8217,3 +8217,14 @@ salariés en poste aujourd'hui, pas ceux du mois.
 
 Essai : `tests/web/cabinet-paie-regul-1377.test.ts` note la sortie d'Amel au 20 octobre et lit « 2 salariés » en
 octobre, « 1 salarié » en novembre.
+
+## 1.390.8 — L'onglet Révision du tableau de bord ne dit pas « à jour » sans aucun livre (issue 12, CP-15)
+
+Resté partiel à la contre-vérification : les cellules disaient bien « aucune », « aucun relevé », « — », mais l'onglet
+portait toujours la pastille verte « Révision · à jour » pour dix dossiers qui n'avaient ni écriture ni livre.
+
+- **« à jour » ne se dit que de dossiers qui ont un livre** (une écriture, un brouillard ou un exercice) : sans aucun,
+  la pastille dit « aucun livre », sans couleur.
+
+Essai : `tests/web/tableau-de-bord.test.ts` ouvre le tableau de bord d'un cabinet dont les deux dossiers n'ont aucun
+livre, et lit « aucun livre » sur l'onglet.

@@ -32934,6 +32934,11 @@ prouver "un en-tête qui compte les seuls salariés en poste aujourd'hui" module
   "\${esc(pl(tri ? P.actifs : P.duMois, 'salarié'))}" "\${esc(pl(P.actifs, 'salarié'))}" \
   "la sortie d"
 
+# 1.390.8 — L'onglet Révision du tableau de bord ne dit pas « à jour » sans aucun livre (issue 12, CP-15).
+prouver "une révision dite à jour sur un portefeuille sans livre" modules/socle/ecrans/cabinet/app-1.js \
+  "tag(nRev ? 'attire' : nLivres ? 'ok' : '', nRev ? \`\${nRev} à revoir\` : nLivres ? 'à jour' : 'aucun livre', 'tb-rev-cnt')" "tag(nRev ? 'attire' : 'ok', nRev ? \`\${nRev} à revoir\` : 'à jour', 'tb-rev-cnt')" \
+  "un portefeuille sans livre ne se dit pas"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

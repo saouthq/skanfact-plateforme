@@ -3111,6 +3111,8 @@
   function vuesTb(L, P, nRetard) {
     const lu = !!revState.donnees;
     const nRev = lu ? L.filter(x => (revueDe(x, P.dernier) || {}).aRevoir).length : 0;
+    // (1.390.8, CP-15) « à jour » ne se dit que de dossiers qui ont un livre : sans aucun, l'onglet le dit.
+    const nLivres = lu ? L.filter(x => { const r = revueDe(x, P.dernier); return !!(r && (r.rv.derniere || Number(r.rv.brouillards) > 0 || exDe(x.d.id))); }).length : 0;
     const B = lu ? L.map(bilanDe) : [];
     const nTard = B.filter(b => b.retard).length, nFinir = B.filter(b => b.ex && !b.ex.clos).length;
     // (CABPORTEFEUILLE-15) « Tous clos » ne se dit pas d'un portefeuille où des dossiers n'ont pas de livre.
@@ -3118,7 +3120,7 @@
     const an = revState.annee || anneeBilansTb();
     const tag = (cl, t, id = '') => `<span class="tb-cnt ${cl}"${id ? ` id="${id}"` : ''}>${esc(t)}</span>`;
     const vue = (v, nom, t) => `<button type="button" role="tab" data-tb-vue="${v}" aria-selected="${tbState.vue === v}">${nom}${t}</button>`;
-    return `<div class="segment tb-vues" role="tablist" aria-label="Ce que montre le tableau">${vue('production', 'Production', tag(nRetard ? 'alerte' : 'ok', nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour', 'tb-retard'))}${vue('revision', 'Révision', lu ? tag(nRev ? 'attire' : 'ok', nRev ? `${nRev} à revoir` : 'à jour') : '')}${vue('bilans', `Bilans ${an}`, lu && B.some(b => b.ex) ? tag(nTard ? 'alerte' : nFinir ? 'attire' : nSans ? '' : 'ok', nTard ? `${nTard} en retard` : nFinir ? `${nFinir} à finir` : nSans ? `${nClos} clos, ${nSans} sans livre` : 'tous clos') : '')}</div>`;
+    return `<div class="segment tb-vues" role="tablist" aria-label="Ce que montre le tableau">${vue('production', 'Production', tag(nRetard ? 'alerte' : 'ok', nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour', 'tb-retard'))}${vue('revision', 'Révision', lu ? tag(nRev ? 'attire' : nLivres ? 'ok' : '', nRev ? `${nRev} à revoir` : nLivres ? 'à jour' : 'aucun livre', 'tb-rev-cnt') : '')}${vue('bilans', `Bilans ${an}`, lu && B.some(b => b.ex) ? tag(nTard ? 'alerte' : nFinir ? 'attire' : nSans ? '' : 'ok', nTard ? `${nTard} en retard` : nFinir ? `${nFinir} à finir` : nSans ? `${nClos} clos, ${nSans} sans livre` : 'tous clos') : '')}</div>`;
   }
   // La recherche des onglets Révision et Bilans (la même que la Production), et les états de la lecture.
   function cadreRevueTb(L, P, vues, sous, corps, note) {

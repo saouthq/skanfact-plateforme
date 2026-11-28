@@ -344,6 +344,29 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
   // (1.197.0, maquette « Quand les pièces arrivent ») Le jour du mois suivant où le mois d'un client est complet, face au
   // seuil que le cabinet règle dans ses Réglages (20 par défaut). Le garage importe aujourd'hui le relevé du mois fini :
   // son mois est complet aujourd'hui ; la librairie n'a rien envoyé.
+  // (1.390.8, issue 12, CP-15) Sans aucun livre dans le portefeuille, l'onglet Révision ne dit pas « à jour ».
+  it('Révision : un portefeuille sans livre ne se dit pas à jour', async () => {
+    const { jeton: associe } = await personne('associe');
+    const cab = (await api('POST', '/cabinets', associe, { nom: 'Cabinet Sans Livre' })).corps as { id: string };
+    for (const nom of ['Kiosque Un', 'Kiosque Deux']) {
+      const ent = String((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: nom })).corps.entreprise);
+      expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, associe, { contenu: { from: moisAvant }, revision: null })).statut).toBeLessThan(300);
+    }
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/production`);
+    await p.locator('#page-bord [data-tb-vue="revision"]').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator('[data-tb-vue="revision"]').click();
+    await expect.poll(() => p.locator('#tb-rev-cnt').innerText().catch(() => ''), { timeout: 15_000 }).toBe('aucun livre');
+    expect(await p.locator('#tb-rev-cnt').getAttribute('class')).toBe('tb-cnt ');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('Quand les pièces arrivent : le jour où le mois est complet, face au seuil du cabinet', async () => {
     const { associe, cab, librairie, garage } = await unCabinet();
     expect((await api('POST', `/entreprises/${garage.ent}/compta/releves`, associe, { annee: Number(moisFini.slice(0, 4)), compte: '532', banque: 'BIAT', fichier: 'Releve.pdf',
