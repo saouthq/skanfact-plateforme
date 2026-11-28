@@ -356,6 +356,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'le code du téléphone est exigé de chaque comptable d\'un cabinet : il ne se retire pas', cle: 'base.compte.code_exige', fr: 'le code du téléphone est exigé de chaque comptable d\'un cabinet : il ne se retire pas' },
   { base: 'le code du téléphone n\'est pas activé sur ce compte', cle: 'base.compte.code_absent', fr: 'le code du téléphone n\'est pas activé sur ce compte' },
   { base: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte', cle: 'base.compte.code_deja_actif', fr: 'le code du téléphone est déjà activé : pour changer de téléphone, passe par Ton compte' },
+  { base: 'vingt clés d\'accès au plus : retire celle d\'un appareil que tu n\'utilises plus', cle: 'base.compte.cles_acces_max', fr: 'vingt clés d\'accès au plus : retire celle d\'un appareil que tu n\'utilises plus' },
   { base: 'cette adresse est déjà celle d\'un autre compte', cle: 'base.compte.adresse_prise', fr: 'cette adresse est déjà celle d\'un autre compte' },
   // Le code de connexion au choix (0081, décision de Skander du 12/10/2026).
   { base: 'le code par SMS s\'active depuis Ton compte : un code part d\'abord à ton numéro', cle: 'base.compte.sms_sans_numero', fr: 'le code par SMS s\'active depuis Ton compte : un code part d\'abord à ton numéro' },

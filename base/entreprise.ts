@@ -265,6 +265,10 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.compte_pieces': { classe: 'hors', raison: 'le compte de ses pièces, que la console lit : la restauration et la remise le refont de ses pièces' },
   'socle.code_secours': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.defi_connexion': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
+  // (1.390.0) Les clés d'accès : une moitié publique, mais un moyen d'entrer dans un compte, qui n'appartient pas à
+  // l'entreprise ; leurs défis ne valent que cinq minutes.
+  'socle.cle_acces': { classe: 'hors', raison: 'un moyen de connexion ne quitte jamais la plateforme' },
+  'socle.defi_cle': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.tentative': { classe: 'hors', raison: 'le journal technique des connexions n\'appartient pas à l\'entreprise' },
   'socle.sms_envoye': { classe: 'hors', raison: 'le compte des SMS envoyés à une personne (sa limite par heure et par jour) n\'appartient pas à l\'entreprise' },
   'socle.reinitialisation': { classe: 'hors', raison: 'un lien de mot de passe oublié est un secret de connexion' },

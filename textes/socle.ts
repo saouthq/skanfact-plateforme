@@ -103,6 +103,17 @@ declarerTextes({
   'compte.adresse_changee_objet': 'L\'adresse de ton compte SkanFact a changé',
   'compte.adresse_changee_texte': 'Bonjour,\n\nL\'adresse e-mail de ton compte SkanFact vient d\'être changée : les prochains e-mails partiront à la nouvelle.\n\nCe n\'est pas toi ? Écris-nous tout de suite :\n\n{aide}\n\nSkanFact',
   'compte.adresse_changee_bouton': 'Écrire à SkanFact',
+  // Les clés d'accès (1.390.0 ; serveur/cle-acces.ts).
+  'compte.cle_indisponible': 'les clés d\'accès ne sont pas disponibles à cette adresse : connecte-toi avec ton mot de passe',
+  'compte.cle_perimee': 'la demande a expiré : recommence l\'ajout de la clé',
+  'compte.cle_refusee': 'cette clé d\'accès n\'a pas pu être vérifiée : recommence, ou essaie un autre appareil',
+  'compte.cle_deja': 'cette clé d\'accès est déjà enregistrée',
+  'compte.cle_nom_defaut': 'Clé d\'accès',
+  'compte.cle_ajoutee_objet': 'Une clé d\'accès a été ajoutée à ton compte SkanFact',
+  'compte.cle_ajoutee_texte': 'Bonjour,\n\nUne clé d\'accès vient d\'être ajoutée à ton compte SkanFact : elle permet d\'entrer sans mot de passe, depuis l\'appareil qui la garde.\n\nCe n\'est pas toi ? Retire-la dans Ton compte, change ton mot de passe, et écris-nous :\n\n{aide}\n\nSkanFact',
+  'connexion.cle_refusee': 'cette clé d\'accès n\'est pas reconnue : connecte-toi avec ton adresse et ton mot de passe',
+  'connexion.cle_perimee': 'la demande a expiré : recommence',
+  'connexion.cle_occupee': 'la connexion par clé d\'accès est momentanément indisponible : connecte-toi avec ton mot de passe',
   // La version habillée des e-mails (12/10/2026 ; serveur/courriel.ts, courriel.html) : le bouton par défaut d'un lien,
   // le lien de secours sous le bouton, et le pied, fixe. {site} devient le lien vers la page de contact.
   'courriel.bouton': 'Ouvrir le lien',

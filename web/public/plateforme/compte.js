@@ -27,6 +27,7 @@
     coche: '<path d="M20 6 9 17l-5-5"/>',
     sms: '<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M9.5 8h5M9.5 11.5h3"/><path d="M11 18h2"/>',
     appli: '<rect x="6" y="2" width="12" height="20" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M12 9.5V11l1 .8"/><path d="M11 18h2"/>',
+    cle: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 20 3"/><path d="M17 6l3 3"/><path d="M15 8l2 2"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -128,6 +129,11 @@
     // (issue 18, ENT2-4) La propriété qu'on lui cède attend ici son accord ; une panne de cette lecture ne cache pas le reste.
     /** @type {{ id: string, entreprise: string, nom: string, demande: string }[]} */ let cedes = [];
     try { cedes = (await outils.appel('GET', '/moi/transferts')).transferts || []; } catch { /* rien à accepter ici */ }
+    // (1.390.0) Ses clés d'accès : seulement si ce serveur peut s'en servir (une adresse https) ; une panne de cette lecture
+    // ne cache pas le reste.
+    /** @type {{ disponible: boolean, cles: { id: string, nom: string, creeeLe: string, utiliseeLe: string | null }[] }} */
+    let cles = { disponible: false, cles: [] };
+    try { cles = await outils.appel('GET', '/moi/cles'); } catch { /* la section ne se montre pas */ }
     const c = moi.compte || {};
     // Le code de connexion (0081) : « sms », « application », ou rien (l'e-mail par défaut, quand ce serveur en envoie ;
     // le mot de passe seul sinon).
@@ -203,6 +209,19 @@
           <p class="small muted">Il n'est gardé qu'en empreinte : personne ne peut le lire, pas même SkanFact.</p></div>
         <button type="button" class="btn" id="cpt-mdp">Changer le mot de passe…</button>
       </div></section>
+      ${cles.disponible ? `<section class="cpt-carte" id="cpt-cles"><div class="cpt-ligne">
+        <span class="cpt-ico">${dessin('cle')}</span>
+        <div class="cpt-quoi"><h3>Tes clés d'accès${cles.cles.length ? '' : ' <span class="badge cpt-attente">Recommandé</span>'}</h3>
+          <p class="small muted">${navigateurSaitCles() ? 'Entrer sans mot de passe : ton téléphone ou ton ordinateur te demande ton empreinte, ton visage ou son code. Rien à retenir, et une clé ne sert que sur SkanFact : un faux site ne peut pas s\'en servir.'
+            : 'Ce navigateur ne sait pas utiliser de clé d\'accès : ouvre Ton compte depuis un navigateur récent (Chrome, Safari, Edge, Firefox) pour en ajouter une.'}</p></div>
+        ${/* Un seul bouton vert sur l'écran : celui du code de connexion, plus bas. */''}${navigateurSaitCles() ? '<button type="button" class="btn" id="cpt-cle-ajouter">Ajouter une clé d\'accès…</button>' : ''}
+      </div>
+      ${cles.cles.length ? `<ul class="cpt-options" id="cpt-cles-liste" aria-label="Tes clés d'accès">${cles.cles.map((c) => `<li class="cpt-option" data-cle="${esc(c.id)}">
+        <span class="cpt-ico">${dessin('cle')}</span>
+        <div class="cpt-quoi"><b>${esc(c.nom)}</b><p class="small muted">Ajoutée le ${esc(jour(c.creeeLe))} · ${c.utiliseeLe ? `utilisée pour la dernière fois le ${esc(jour(c.utiliseeLe))}` : 'pas encore utilisée'}</p></div>
+        <button type="button" class="btn btn-sm" data-retirer-cle="${esc(c.id)}">Retirer…</button></li>`).join('')}</ul>
+        <p class="small cpt-alerte" id="cpt-cles-alerte" role="alert"></p>` : ''}
+      </section>` : ''}
       <section class="cpt-carte cpt-code${recommande ? ' cpt-recommande' : ''}" id="cpt-code"><div class="cpt-ligne">
         <span class="cpt-ico">${dessin('bouclier')}</span>
         <div class="cpt-quoi"><h3>Ton code de connexion <span class="badge ${actif || relais ? 'cpt-ok' : 'cpt-eteint'}" id="cpt-etat">${etatCode}</span></h3>
@@ -235,6 +254,24 @@
     $('#cpt-adresse').onclick = () => changerAdresse(outils, relais, moi.email, redessiner);
     if ($('#cpt-verifier')) $('#cpt-verifier').onclick = () => verifierAdresse(outils, moi.email, redessiner);
     $('#cpt-mdp').onclick = () => changerMotDePasse(outils, c.motDePasseMin || 10, redessiner);
+    if ($('#cpt-cle-ajouter')) $('#cpt-cle-ajouter').onclick = () => ajouterCle(outils, redessiner);
+    el.querySelectorAll('[data-retirer-cle]').forEach((b) => {
+      const bouton = /** @type {HTMLElement} */ (b);
+      bouton.onclick = async () => {
+        const cle = cles.cles.find((x) => x.id === bouton.dataset.retirerCle);
+        const alerte = el.querySelector('#cpt-cles-alerte');
+        // Retirer se demande d'abord : la clé ne connectera plus personne.
+        if (!bouton.dataset.confirme) {
+          bouton.dataset.confirme = '1';
+          bouton.textContent = 'Oui, la retirer';
+          if (alerte) alerte.textContent = `« ${cle ? cle.nom : ''} » ne permettra plus d'entrer. Tu pourras toujours te connecter avec ton adresse et ton mot de passe.`;
+          return;
+        }
+        bouton.setAttribute('disabled', '');
+        try { await outils.appel('DELETE', `/moi/cles/${encodeURIComponent(String(bouton.dataset.retirerCle))}`); outils.toast('Clé d\'accès retirée.'); redessiner(); }
+        catch (x) { bouton.removeAttribute('disabled'); if (alerte) alerte.textContent = x instanceof Error ? x.message : String(x); }
+      };
+    });
     $('#cpt-changer-nom').onclick = () => changerNom(outils, moi.nom || '', redessiner);
     if ($('#cpt-activer')) $('#cpt-activer').onclick = () => activer(outils, methode, redessiner);
     if ($('#cpt-changer')) $('#cpt-changer').onclick = () => activer(outils, methode, redessiner);
@@ -544,6 +581,58 @@
         fini();
       });
     }, undefined, { garde: false });
+  }
+
+  // ── Les clés d'accès (1.390.0 ; serveur/cle-acces.ts) ────────────────────────────────────────────────────────────
+  const navigateurSaitCles = () => typeof w.PublicKeyCredential === 'function' && !!navigator.credentials;
+  /** @param {string} t */
+  const versOctets = (t) => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (t.length % 4)) % 4)), (c) => c.charCodeAt(0));
+  /** @param {ArrayBuffer} b */
+  const versTexte = (b) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  // Un nom proposé pour la clé : celui de l'appareil, qu'on peut changer.
+  const nomPropose = () => /iPhone|Android|Mobile/.test(navigator.userAgent) ? 'Mon téléphone' : /iPad|Tablet/.test(navigator.userAgent) ? 'Ma tablette' : 'Mon ordinateur';
+
+  // Ajouter une clé : le mot de passe actuel d'abord (une clé est un moyen d'entrer pour toujours), puis l'appareil la
+  // crée — il demande l'empreinte, le visage ou son code. Un e-mail le dit à l'adresse du compte.
+  /** @param {Outils} o @param {() => void} fini */
+  function ajouterCle(o, fini) {
+    o.modal(`<h2>Ajouter une clé d'accès</h2>
+      <p class="small muted">Ton appareil va te demander ton empreinte, ton visage ou son code. La clé reste sur lui (ou dans ton gestionnaire de mots de passe) : SkanFact n'en garde que la partie publique, qui ne sert qu'à vérifier.</p>
+      <form id="cpt-f" class="cpt-form" novalidate>
+        <label class="field">Le nom de cette clé<input type="text" id="cpt-cle-nom" maxlength="80" autocomplete="off" value="${esc(nomPropose())}"></label>
+        <label class="field">Ton mot de passe actuel<input type="password" id="cpt-mdp-actuel" autocomplete="current-password"></label>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="cpt-ok">Créer la clé</button></div>
+        <p class="small cpt-alerte" role="alert"></p>
+      </form>`, (racine, fermer) => {
+      const $ = (/** @type {string} */ q) => /** @type {HTMLInputElement} */ (racine.querySelector(q));
+      surClic(racine, '#cpt-ok', async () => {
+        effacerRefus(racine);
+        /** @type {any} */ let p;
+        try { p = await o.appel('POST', '/moi/cles/preparer', { motDePasse: $('#cpt-mdp-actuel').value }); } catch (x) { refuser(racine, x, { motDePasse: '#cpt-mdp-actuel' }); return; }
+        /** @type {any} */ let cle;
+        try {
+          cle = await navigator.credentials.create({ publicKey: {
+            challenge: versOctets(p.challenge), rp: p.rp, user: { ...p.user, id: versOctets(p.user.id) },
+            pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -8 }, { type: 'public-key', alg: -257 }],
+            authenticatorSelection: { residentKey: 'required', requireResidentKey: true, userVerification: 'required' },
+            attestation: 'none', timeout: 120000,
+            excludeCredentials: (p.exclure || []).map((/** @type {string} */ id) => ({ type: 'public-key', id: versOctets(id) })),
+          } });
+        } catch (x) {
+          // Une clé de ce compte existe déjà sur cet appareil ; ou la personne a renoncé.
+          const deja = x && typeof x === 'object' && /** @type {any} */ (x).name === 'InvalidStateError';
+          refuser(racine, new Error(deja ? 'Cet appareil a déjà une clé d\'accès pour ton compte : elle est dans la liste.' : 'La clé n\'a pas été créée : réessaie, ou garde ton mot de passe.'));
+          return;
+        }
+        if (!cle) { refuser(racine, new Error('La clé n\'a pas été créée : réessaie, ou garde ton mot de passe.')); return; }
+        try {
+          await o.appel('POST', '/moi/cles', { defi: p.defi, attestation: versTexte(cle.response.attestationObject), demande: versTexte(cle.response.clientDataJSON), nom: $('#cpt-cle-nom').value });
+        } catch (x) { refuser(racine, x); return; }
+        fermer();
+        o.toast('Clé d\'accès ajoutée : à la prochaine connexion, choisis « Se connecter avec une clé d\'accès ».');
+        fini();
+      });
+    });
   }
 
   // ── Revenir à l'e-mail (ou, sans relais, désactiver le code) : le code du moment ; un e-mail le confirme ───────────

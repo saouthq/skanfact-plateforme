@@ -1523,6 +1523,18 @@ export interface BaseDeDonnees {
     erreurs: Generated<number>;
     fait_le: Date | null;
   };
+  'socle.cle_acces': {
+    id: Generated<string>;
+    utilisateur: string;
+    identifiant: string;
+    cle_publique: string;
+    algorithme: number;
+    compteur: Generated<bigint>;
+    nom: string;
+    creee_le: Date;
+    utilisee_le: Date | null;
+    retiree_le: Date | null;
+  };
   'socle.cle_api': {
     id: Generated<string>;
     entreprise: string;
@@ -1553,6 +1565,15 @@ export interface BaseDeDonnees {
     periode: number;
     dernier: bigint;
     repris: bigint | null;
+  };
+  'socle.defi_cle': {
+    id: Generated<string>;
+    utilisateur: string | null;
+    but: string;
+    defi: string;
+    cree_le: Date;
+    expire_le: Date;
+    utilise_le: Date | null;
   };
   'socle.defi_connexion': {
     id: Generated<string>;

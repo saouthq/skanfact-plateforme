@@ -3567,7 +3567,7 @@ prouver "la personne connectée jamais notée par l'entrée" web/src/App.tsx \
 " "" \
   "$HL3"
 prouver "la case « poste de quelqu'un d'autre » sans effet" web/src/ecrans/Connexion.tsx \
-  "      session.ouvrir(r.corps.jeton, !posteDUnAutre);" "      session.ouvrir(r.corps.jeton, true);" \
+  "    session.ouvrir(jeton, !posteDUnAutre);" "    session.ouvrir(jeton, true);" \
   "$HL3"
 prouver "la case « poste de quelqu'un d'autre » oubliée au code" web/src/ecrans/Code.tsx \
   "session.ouvrir(r.corps.jeton, !defi.posteDUnAutre);" "session.ouvrir(r.corps.jeton, true);" \
@@ -3680,7 +3680,7 @@ prouver "retirer l'appareil où l'on est" web/public/plateforme/compte.js \
   "\${a.celuiCi || a.retireLe ? '' :" "\${a.retireLe ? '' :" \
   "$AW1"
 prouver "le nom d'un appareil illisible (la signature du navigateur)" web/src/ecrans/Connexion.tsx \
-  "appareil: { nom: nomDeCetAppareil(), type: 'navigateur'" "appareil: { nom: navigator.userAgent.slice(0, 80) || 'Navigateur', type: 'navigateur'" \
+  "return { nom: nomDeCetAppareil(), type: 'navigateur'" "return { nom: navigator.userAgent.slice(0, 80) || 'Navigateur', type: 'navigateur'" \
   "$AW1"
 prouver "le panneau « Tes appareils » absent des Paramètres" modules/socle/ecrans/entreprise/app-2.js \
   "    if (bridge.dessinerAppareils && \$('#appareils-panel')) void bridge.dessinerAppareils(\$('#appareils-panel'));
@@ -8505,7 +8505,7 @@ KEW2="créer son compte : la jauge dit pendant la frappe ce qui manque, « Affic
 KEW3="ton entreprise : la forme du matricule se dit pendant la frappe, et le haut de la facture se dessine avec ce qui est tapé"
 KEW4="la sécurité du comptable d'un cabinet : son cabinet se dit ; les codes de secours se copient et se téléchargent ; l'ouverture coche ce qui est fait"
 prouver "le mot de passe oublié proposé sans relais d'e-mails (serveur)" serveur/routes/socle.ts \
-  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } })," "traiter: async () => ({ corps: { motDePasseOublie: true, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } })," \
+  "traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel," "traiter: async () => ({ corps: { motDePasseOublie: true, codeParCourriel: !!ctx.courriel," \
   "$KE1"
 prouver "la demande du mot de passe oublié qui dit si l'adresse a un compte" serveur/connexion.ts \
   "  if (!a) return;" "  if (!a) throw new Refus('connexion.oubli_indisponible');" \
@@ -32816,6 +32816,49 @@ prouver "la recherche des commandes qui ne filtre rien" modules/socle/ecrans/ent
 prouver "les en-têtes des commandes qui ne trient pas" modules/socle/ecrans/entreprise/app-1.js \
   "      bindSort(\$('#cf-list'), key =>" "      if (false) bindSort(\$('#cf-list'), key =>" \
   "Nadia commande à son fournisseur, reçoit en deux fois, puis saisit sa facture depuis les réceptions"
+# 1.390.0 — Les clés d'accès : entrer sans mot de passe (tâche 107).
+prouver "une clé signée pour un autre site, acceptée" serveur/webauthn.ts \
+  "  if (d.origin !== origine) return { ok: false, raison: 'origine' };
+" "" \
+  "la vérification seule : chaque contrôle tombe sur son défaut, P-256 et Ed25519"
+prouver "une clé signée pour un autre domaine, acceptée" serveur/webauthn.ts \
+  "  if (!memes(a.domaine, sha256(domaine))) return { ok: false, raison: 'domaine' };
+" "" \
+  "la vérification seule : chaque contrôle tombe sur son défaut, P-256 et Ed25519"
+prouver "une clé utilisée sans que l'appareil ait vérifié la personne" serveur/webauthn.ts \
+  "  if (!a.verifie) return { ok: false, raison: 'verification' };
+" "" \
+  "la vérification seule : chaque contrôle tombe sur son défaut, P-256 et Ed25519"
+prouver "une clé copiée dont le compteur recule, acceptée" serveur/webauthn.ts \
+  "  if ((a.compteur !== 0 || attendu.compteur !== 0) && a.compteur <= attendu.compteur) return { ok: false, raison: 'compteur' };
+" "" \
+  "un compteur qui recule : la clé a été copiée, l'entrée est refusée"
+prouver "une clé ajoutée sans le mot de passe actuel" serveur/cle-acces.ts \
+  "  const refus = await prouverMotDePasse(ctx, qui, motDePasse);
+  if (refus) return refus;
+" "" \
+  "ajouter une clé : le mot de passe d'abord, une fois par défi, la même clé pas deux fois, l'adresse prévenue"
+prouver "le défi d'une personne qui sert à une autre" base/migrations/0244_cles_acces.sql \
+  "     and (p_but = 'connexion' or d.utilisateur = socle.moi())
+" "" \
+  "ajouter une clé : le mot de passe d'abord, une fois par défi, la même clé pas deux fois, l'adresse prévenue"
+prouver "un défi de connexion rejoué" base/migrations/0244_cles_acces.sql \
+  "   where d.id = p_id and d.but = p_but and d.utilise_le is null and d.expire_le > p_maintenant" "   where d.id = p_id and d.but = p_but and d.expire_le > p_maintenant" \
+  "se connecter avec sa clé, sans adresse ni mot de passe ; les refus ne disent pas lequel"
+prouver "une clé retirée qui connecte encore" base/migrations/0244_cles_acces.sql \
+  "   where c.identifiant = p_identifiant and c.retiree_le is null
+" "   where c.identifiant = p_identifiant
+" \
+  "se connecter avec sa clé, sans adresse ni mot de passe ; les refus ne disent pas lequel"
+prouver "des clés proposées sur une adresse IP, où le navigateur les refuse" serveur/cle-acces.ts \
+  "  if (ip) return null;
+" "" \
+  "sur une adresse IP, ou en http hors de localhost, aucune clé ne se propose"
+prouver "une clé retirée sans qu'on le demande d'abord" web/public/plateforme/compte.js \
+  "          bouton.textContent = 'Oui, la retirer';
+" "" \
+  "ajouter une clé, entrer sans mot de passe, la retirer"
+
 # Le bilan, remis à la fin le 31/10/2026 (1.206.0) : depuis la 1.167.0, près de 350 lignes de preuves avaient été
 # écrites après lui, et leurs échecs ne faisaient plus échouer le lot.
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."

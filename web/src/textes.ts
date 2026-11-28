@@ -98,6 +98,9 @@ declarerTextes({
   'ecran.connexion.creer_entreprise': 'je gère une entreprise',
   'ecran.connexion.creer_cabinet': 'je suis comptable',
   'ecran.connexion.oublie': 'mot de passe oublié ?',
+  // Les clés d'accès (1.390.0) : l'empreinte, le visage ou le code du téléphone, sans adresse ni mot de passe.
+  'ecran.connexion.cle': 'se connecter avec une clé d\'accès',
+  'ecran.connexion.cle_annulee': 'la clé d\'accès n\'a pas servi : réessaie, ou connecte-toi avec ton adresse et ton mot de passe',
   'ecran.connexion.aide': 'besoin d\'aide ?',
   // (issue 18, ENT2-2) L'appareil retiré depuis un autre poste : le vrai motif, qui reste, et où attend ce qui était enregistré.
   'ecran.connexion.appareil_retire': 'cet appareil a été retiré de ton compte depuis un autre appareil. Ce qu\'il n\'avait pas encore envoyé est remis au serveur : le propriétaire ou un administrateur de l\'entreprise l\'accepte ou le rejette dans Paramètres › Données et sécurité. Reconnecte-toi pour continuer',

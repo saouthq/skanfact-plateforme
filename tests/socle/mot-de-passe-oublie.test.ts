@@ -63,11 +63,11 @@ function lienPour(email: string) {
 
 describe('le mot de passe oublié', () => {
   it('sans relais d\'e-mails, l\'entrée ne le propose pas, et la demande se refuse en le disant', async () => {
-    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false, codeParCourriel: false, codeParSms: true } });
+    expect(await appeler('GET', '/connexion/options', undefined, undefined, appSans)).toEqual({ statut: 200, corps: { motDePasseOublie: false, codeParCourriel: false, codeParSms: true, cleAcces: false } });
     const r = await appeler('POST', '/mot-de-passe/oubli', undefined, { email: 'qui@exemple.tn' }, appSans);
     expect(r.statut).toBe(403);
     expect(r.corps.motif).toBe(dire('connexion.oubli_indisponible'));
-    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true, codeParCourriel: true, codeParSms: true } });
+    expect(await appeler('GET', '/connexion/options')).toEqual({ statut: 200, corps: { motDePasseOublie: true, codeParCourriel: true, codeParSms: true, cleAcces: false } });
   });
 
   it('la même réponse qu\'un compte existe ou non ; le lien part à l\'adresse du compte, avec lui seul ; trois demandes par heure au plus', async () => {

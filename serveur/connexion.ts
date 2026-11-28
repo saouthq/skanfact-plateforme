@@ -68,6 +68,9 @@ export type Contexte = {
   // Les adresses internet de l'entrée (0143 ; serveur/adresses.ts) : ce qu'elle compte, ce qu'elle ferme. Absent (un
   // essai), rien ne se compte ni ne se ferme.
   adresses?: Adresses;
+  // (1.390.0) Les clés d'accès (serveur/cle-acces.ts) : l'adresse publique du serveur, dont elles prennent l'origine et le
+  // domaine. Absente, aucune clé ne se propose.
+  cles?: { adresse: () => string };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

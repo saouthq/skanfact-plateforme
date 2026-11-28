@@ -34,13 +34,18 @@ type Props = { connecte: () => void; code: (d: Defi) => void; inscription: (prof
 const rien = () => undefined;
 
 
+// (1.390.0) Les clés d'accès : ce navigateur sait-il en utiliser une, et les octets qu'il échange, en base64url.
+export const cleSurCeNavigateur = () => typeof window !== 'undefined' && typeof window.PublicKeyCredential === 'function' && !!navigator.credentials;
+export const versOctets = (t: string) => Uint8Array.from(atob(t.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (t.length % 4)) % 4)), (c) => c.charCodeAt(0));
+export const versTexte = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
 // Ce que ce serveur sait faire à l'entrée, seulement avec un relais d'e-mails : le mot de passe oublié, et l'adresse
 // vérifiée par un code (0076).
 export function useOptions() {
-  const [options, setOptions] = useState({ oubli: false, courriel: false });
+  const [options, setOptions] = useState({ oubli: false, courriel: false, cle: false });
   useEffect(() => {
-    void appeler<{ motDePasseOublie: boolean; codeParCourriel?: boolean }>('GET', '/connexion/options')
-      .then((r) => { if (r.statut === 200) setOptions({ oubli: r.corps.motDePasseOublie, courriel: !!r.corps.codeParCourriel }); }).catch(() => undefined);
+    void appeler<{ motDePasseOublie: boolean; codeParCourriel?: boolean; cleAcces?: boolean }>('GET', '/connexion/options')
+      .then((r) => { if (r.statut === 200) setOptions({ oubli: r.corps.motDePasseOublie, courriel: !!r.corps.codeParCourriel, cle: !!r.corps.cleAcces && cleSurCeNavigateur() }); }).catch(() => undefined);
   }, []);
   return options;
 }
@@ -72,6 +77,15 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
   const reste = Math.max(0, Math.ceil((jusqua - maintenant) / 1000));
   const temps = `${Math.floor(reste / 60)}:${String(reste % 60).padStart(2, '0')}`;
 
+  // L'appareil qui se présente, et la session qu'on ouvre : les mêmes pour le mot de passe et pour la clé d'accès (1.390.0).
+  const cetAppareil = () => { const id = session.appareil(); return { nom: nomDeCetAppareil(), type: 'navigateur' as const, ...(id ? { id } : {}) }; };
+  const oublierSortie = () => { try { sessionStorage.removeItem('skanfact.sortie'); sessionStorage.removeItem('skanfact.sortie_motif'); } catch { /* rien à oublier */ } };
+  const ouvrir = (jeton: string, appareil: string | null | undefined) => {
+    session.ouvrir(jeton, !posteDUnAutre);
+    if (!posteDUnAutre) session.retenirAppareil(appareil ?? null);
+    connecte();
+  };
+
   const envoyer = () => g.geste(async () => {
     // (ENTREE-11) Ce qui manque se dit avant l'envoi, sur chaque case, avec son nom.
     const manque = [
@@ -79,19 +93,16 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
       ...(motDePasse ? [] : [{ champ: 'motDePasse', texte: phrase('ecran.connexion.mot_de_passe_manque') }]),
     ];
     if (manque.length) { g.refuserTous(manque); return; }
-    const appareil = session.appareil();
     let r;
     try {
       r = await appeler<ReponseConnexion>('POST', '/connexion', {
-        email, motDePasse, posteDUnAutre, appareil: { nom: nomDeCetAppareil(), type: 'navigateur', ...(appareil ? { id: appareil } : {}) },
+        email, motDePasse, posteDUnAutre, appareil: cetAppareil(),
       });
     } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
     const defi = defiDe(r.corps, posteDUnAutre);
-    if (r.statut < 400) try { sessionStorage.removeItem('skanfact.sortie'); sessionStorage.removeItem('skanfact.sortie_motif'); } catch { /* rien à oublier */ }
+    if (r.statut < 400) oublierSortie();
     if (r.corps.etat === 'connecte' && r.corps.jeton) {
-      session.ouvrir(r.corps.jeton, !posteDUnAutre);
-      if (!posteDUnAutre) session.retenirAppareil(r.corps.appareil ?? null);
-      connecte();
+      ouvrir(r.corps.jeton, r.corps.appareil);
     } else if (defi) {
       if (!posteDUnAutre && r.corps.appareil) session.retenirAppareil(r.corps.appareil);
       code(defi);
@@ -101,6 +112,28 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
       if (r.corps.etat === 'refuse') { setMotDePasse(''); g.refuser({ ...refusDe(r), champ: 'motDePasse' }); }
       else g.refuser(refusDe(r));
     }
+  });
+
+  // (1.390.0) Entrer avec une clé d'accès : le serveur tire un défi, l'appareil le signe après l'empreinte, le visage ou son
+  // code ; ni adresse ni mot de passe. La personne qui renonce (ou dont l'appareil n'a pas de clé) le lit, et l'entrée
+  // par le mot de passe reste là.
+  const entrerParCle = () => g.geste(async () => {
+    let r;
+    try {
+      const p = await appeler<{ defi: string; challenge: string; rpId: string }>('POST', '/connexion/cle/preparer');
+      if (p.statut !== 200) { g.refuser(refusDe(p)); return; }
+      let cle: PublicKeyCredential | null = null;
+      try {
+        cle = await navigator.credentials.get({ publicKey: { challenge: versOctets(p.corps.challenge), rpId: p.corps.rpId, userVerification: 'required', timeout: 120_000 } }) as PublicKeyCredential | null;
+      } catch { cle = null; }
+      const rep = cle?.response as AuthenticatorAssertionResponse | undefined;
+      if (!cle || !rep?.signature) { g.refuser({ texte: phrase('ecran.connexion.cle_annulee'), champ: null }); return; }
+      r = await appeler<ReponseConnexion>('POST', '/connexion/cle', {
+        defi: p.corps.defi, identifiant: versTexte(cle.rawId), donnees: versTexte(rep.authenticatorData), demande: versTexte(rep.clientDataJSON),
+        signature: versTexte(rep.signature), posteDUnAutre, appareil: cetAppareil(),
+      });
+    } catch (x) { g.refuser({ texte: phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), champ: null }); return; }
+    if (r.corps.etat === 'connecte' && r.corps.jeton) { oublierSortie(); ouvrir(r.corps.jeton, r.corps.appareil); } else g.refuser(refusDe(r));
   });
 
   return (
@@ -117,6 +150,7 @@ export function Connexion({ connecte, code, inscription, oubli, sous, note, emai
         {/* Ce que la case change se lit dans son « i », avant le geste : rien n'apparaît sous le curseur. */}
         <Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} />
         <Bouton principal type="submit" occupe={g.occupe} eteint={reste > 0}>{reste > 0 ? titre('ecran.connexion.attendre', { temps }) : <>{titre('ecran.connexion.bouton')}<Dessin id="fleche" /></>}</Bouton>
+        {options.cle ? <Bouton onClick={() => void entrerParCle()} occupe={g.occupe}><span id="connexion-cle">{titre('ecran.connexion.cle')}</span></Bouton> : null}
         <div className="ent-separe">{titre('ecran.connexion.premiere_fois')}</div>
         {/* (1.379.3) Deux portes, dès ici : chacun tombe sur son écran (une seule porte menait à un choix, plus loin). */}
         <div className="ent-deux-portes">

@@ -8069,3 +8069,37 @@ des clients disait encore « 500,800 rien en retard » au lieu de « 19,200 en s
 que le serveur ait répondu (1.358.1), et le parcours rechargeait la page dans la seconde : il lisait le dossier avant que le
 paiement y soit écrit. Comme le test de la 1.310, il attend maintenant que les envois en route soient arrivés avant de
 recharger, comme une personne qui attend que l'enregistrement soit parti. L'application ne change pas.
+
+## 1.390.0 — Les clés d'accès : entrer sans mot de passe (tâche 107)
+
+Décidé par Skander le 17/11/2026 (1.379.3) : le code d'authentification devenait facultatif et recommandé, et les clés
+d'accès (passkeys) étaient « le lot suivant ». Les voici.
+
+- **Ce que c'est.** Une clé d'accès est une paire de clés que l'appareil de la personne garde : son téléphone, son
+  ordinateur, ou son gestionnaire de mots de passe. SkanFact n'en garde que la moitié publique, qui ne sert qu'à vérifier
+  une signature. Pour entrer, l'appareil demande l'empreinte, le visage ou son propre code, puis signe un défi que le
+  serveur vient de tirer. Rien à retenir, rien à taper, et une clé ne vaut que pour l'adresse de SkanFact : un faux site
+  qui imite la page d'entrée ne peut pas s'en servir.
+- **Ton compte → « Tes clés d'accès ».** On ajoute une clé en donnant d'abord son mot de passe actuel : une clé est un
+  moyen d'entrer pour toujours, et une session laissée ouverte ne doit pas suffire à en poser une. Un e-mail part alors à
+  l'adresse du compte (« Une clé d'accès a été ajoutée ») : s'il n'en est pas l'auteur, le titulaire le sait. Chaque clé
+  porte un nom (« Mon téléphone »), sa date d'ajout et sa dernière utilisation ; « Retirer… » se demande, puis la clé ne
+  connecte plus personne. Un appareil qui a déjà une clé pour ce compte le dit, au lieu d'en créer une seconde.
+- **L'entrée → « Se connecter avec une clé d'accès ».** Ni adresse, ni mot de passe, ni code : la clé remplace les deux,
+  parce que l'appareil a vérifié la personne. Si la personne renonce, ou si l'appareil n'a pas de clé, l'écran le dit et
+  l'entrée par le mot de passe reste là. Une clé inconnue, retirée ou une signature fausse reçoivent la même phrase : on
+  ne dit pas laquelle des raisons.
+- **Ce que le serveur vérifie** (`serveur/webauthn.ts`, sans bibliothèque) : le défi (tiré pour ce geste, valable cinq
+  minutes et une seule fois), l'origine (l'adresse publique de SkanFact), le domaine, la présence et la vérification de
+  la personne, la signature (P-256, Ed25519 ou RSA), et le compteur de l'appareil, qui ne recule jamais (sinon la clé a
+  été copiée). L'attestation (qui a fabriqué l'appareil) n'est pas demandée : on ne choisit pas les appareils des gens.
+- **Où elle se propose.** Seulement sur une adresse https (ou « localhost » pour les essais) : les navigateurs refusent
+  les clés sur une adresse IP. Sur un serveur sans adresse publique réglée, rien ne change à l'écran. Un navigateur qui
+  ne sait pas s'en servir le dit dans Ton compte, sans bouton.
+- **Ce qui part chez le relais d'e-mails** : l'adresse du compte, un objet et un texte fixes. Ni le nom de la clé, ni
+  l'appareil.
+
+Base : `0244_cles_acces.sql` (deux tables, sous cloisonnement : chacun ne voit que ses clés ; les défis ne se lisent que
+par les fonctions). Essais : `tests/socle/cles-acces.test.ts` (un appareil imité dans le test, avec de vraies paires de
+clés : chaque contrôle tombe sur son défaut) et `tests/web/cles-acces.test.ts` (l'authentificateur virtuel de Chromium :
+ajouter une clé, entrer sans mot de passe dans un autre navigateur, la retirer, et l'entrée par la clé refusée).

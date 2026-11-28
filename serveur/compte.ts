@@ -196,6 +196,17 @@ async function motDePasseBon(ctx: Contexte, email: string, motDePasse: string, t
   return !!u?.empreinte && await correspond(u.empreinte, motDePasse);
 }
 
+// (1.390.0) Prouver qu'on est bien la personne avant d'ajouter une clé d'accès : le mot de passe actuel, compté comme à la
+// connexion (une attente qui s'allonge après des erreurs). Rend null si c'est bon.
+export async function prouverMotDePasse(ctx: Contexte, qui: Qui, motDePasse: string): Promise<Refuse | null> {
+  const email = await monAdresse(ctx, qui);
+  const bloque = await attente(ctx, email);
+  if (bloque) return bloque;
+  if (!await motDePasseBon(ctx, email, motDePasse)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'motDePasse' });
+  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
+  return null;
+}
+
 // Changer son mot de passe : les autres sessions se ferment, celle-ci reste ouverte.
 // `tx` : celle de la route de la console (le journal de l'équipe s'écrit dans la même) ; l'application n'en donne pas.
 // (issue 4, ENTREE-15) Changer son nom : l'équipe et le cabinet le lisent par jointure, les messages déjà envoyés gardent

@@ -11,6 +11,7 @@ import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envo
 import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { activerCode, activerSms, changerMotDePasse, changerNom, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
+import { cleDisponible, connecterParCle, mesCles, preparerConnexion, preparerCreation, retirerCle, terminerCreation } from '../cle-acces.ts';
 import { prochainNumero } from '../numeros.ts';
 import { regle } from '../regles.ts';
 import { enTantQue, requetes } from '../base.ts';
@@ -92,13 +93,36 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     },
   });
 
+  // (1.390.0) Se connecter avec une clé d'accès (serveur/cle-acces.ts) : un défi, puis la signature de l'appareil. Une clé
+  // inconnue ou une signature fausse reçoit la même réponse : on ne dit pas laquelle des deux.
+  ajouter({
+    methode: 'POST', chemin: '/connexion/cle/preparer', geste: 'public',
+    traiter: async () => {
+      const r = await preparerConnexion(ctx);
+      return r.ok ? { corps: { defi: r.defi, challenge: r.challenge, rpId: r.rpId } } : { statut: 409, corps: { motif: r.motif } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/connexion/cle', geste: 'public',
+    corps: z.object({
+      defi: uuid, identifiant: z.string().min(16).max(1400), donnees: z.string().min(1).max(4000), demande: z.string().min(1).max(4000),
+      signature: z.string().min(1).max(2000), posteDUnAutre: z.boolean().optional(),
+      appareil: z.object({ id: uuid.optional(), nom: z.string().min(1).max(80), type: z.enum(['navigateur', 'bureau', 'telephone']) }),
+    }),
+    traiter: async ({ corps, requete }) => {
+      const r = await connecterParCle(ctx, { ...corps, appareil: { nom: corps.appareil.nom, type: corps.appareil.type, ...(corps.appareil.id ? { id: corps.appareil.id } : {}) }, ip: requete.ip });
+      return { statut: r.etat === 'connecte' ? 200 : 401, corps: r };
+    },
+  });
+
   // Ce que l'entrée peut proposer sur ce serveur (lot entrée, 06/10/2026) : le mot de passe oublié, seulement si un
   // relais d'e-mails est branché (l'écran ne propose pas ce qu'il ne peut pas faire) ; et, depuis le lot onboarding
   // (0076), si un code par e-mail vérifiera l'adresse à la création du compte (l'écran le dit AVANT le geste).
   ajouter({
     methode: 'GET', chemin: '/connexion/options', geste: 'public',
     // `codeParSms` : ce serveur envoie des SMS (0081 ; exploitation/sms.sh le lit pour dire que c'est branché).
-    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false } }),
+    // `cleAcces` (1.390.0) : ce serveur a une adresse où une clé d'accès peut servir (https, jamais une adresse IP).
+    traiter: async () => ({ corps: { motDePasseOublie: !!ctx.courriel, codeParCourriel: !!ctx.courriel, codeParSms: ctx.sms.disponible !== false, cleAcces: cleDisponible(ctx) } }),
   });
 
   // « Renvoyer le code » d'un défi par e-mail (0076).
@@ -344,6 +368,40 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!qui) throw new Error('session attendue');
       const r = await confirmerChangementAdresse(ctx, qui, corps.demande, corps.code);
       return r.ok ? { corps: { ok: true } } : refus(r);
+    },
+  });
+
+  // (1.390.0) Ses clés d'accès : la liste, l'ajout en deux temps (le mot de passe actuel d'abord), le retrait.
+  ajouter({
+    methode: 'GET', chemin: '/moi/cles', geste: 'compte.securite.gerer',
+    traiter: async ({ qui }) => {
+      if (!qui) throw new Error('session attendue');
+      return { corps: { disponible: cleDisponible(ctx), cles: await mesCles(ctx, qui) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/cles/preparer', geste: 'compte.securite.gerer',
+    corps: z.object({ motDePasse: z.string().max(200) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await preparerCreation(ctx, qui, corps.motDePasse);
+      return r.ok ? { corps: r.options } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/moi/cles', geste: 'compte.securite.gerer',
+    corps: z.object({ defi: uuid, attestation: z.string().min(1).max(20000), demande: z.string().min(1).max(4000), nom: z.string().max(80) }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await terminerCreation(ctx, qui, corps);
+      return r.ok ? { statut: 201, corps: { id: r.id, nom: r.nom } } : refus(r);
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/moi/cles/:cle', geste: 'compte.securite.gerer',
+    traiter: async ({ qui, params }) => {
+      if (!qui || !uuid.safeParse(params.cle).success) return { statut: 404, corps: { motif: motif('commun.introuvable') } };
+      return await retirerCle(ctx, qui, params.cle ?? '') ? { corps: { ok: true } } : { statut: 404, corps: { motif: motif('commun.introuvable') } };
     },
   });
 

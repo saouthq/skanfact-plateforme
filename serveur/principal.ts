@@ -295,7 +295,9 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
     ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}),
     // Les adresses internet de l'entrée (0143) : comptées, et fermées depuis la console.
-    adresses: new Adresses() };
+    adresses: new Adresses(),
+    // (1.390.0) Les clés d'accès : leur origine est l'adresse publique.
+    cles: { adresse: () => publique } };
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
   // Chaque e-mail laisse sa trace (0115) : l'instant et s'il est parti, rien d'autre.
   const relais = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
